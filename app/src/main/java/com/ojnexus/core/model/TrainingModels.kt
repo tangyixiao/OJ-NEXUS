@@ -19,7 +19,12 @@ data class Problem(
     val favorite: Boolean,
     val sourceUrl: String?,
     val tags: List<String>,
-)
+    /** True while the problem sits in the review system (independent of solved). */
+    val inReview: Boolean = false,
+) {
+    val status: ProblemStatus
+        get() = ProblemStatus.of(solved, attemptCount, inReview)
+}
 
 /**
  * Display status derived from independent dimensions (solved flag + attempts + review state).
@@ -115,6 +120,7 @@ data class TrainingTask(
 data class SessionProblem(
     val problemId: Long,
     val title: String,
+    val difficulty: Int?,
     val solved: Boolean,
     val attempts: Int,
 )

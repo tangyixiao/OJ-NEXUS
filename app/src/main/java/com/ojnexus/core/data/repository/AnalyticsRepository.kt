@@ -7,6 +7,8 @@ import com.ojnexus.core.database.dao.DailyTrainingRow
 import com.ojnexus.core.database.dao.VerdictCountRow
 import com.ojnexus.core.domain.DayActivity
 import com.ojnexus.core.domain.StreakCalculator
+import com.ojnexus.core.model.JudgeId
+import com.ojnexus.core.model.RecentAttempt
 import com.ojnexus.core.model.Verdict
 import java.time.Clock
 import kotlinx.coroutines.flow.Flow
@@ -47,13 +49,14 @@ class AnalyticsRepository(
         Totals(attempts = attempts, ac = ac, problems = problems, solved = solved)
     }
 
-    /** Current and longest streak over the combined activity window. */
+    /** Current/longest streak over the combined activity window, plus active-day count. */
     fun observeStreaks(days: Int = 365): Flow<Streaks> =
         observeDailyActivity(days).map { daily ->
             val active = StreakCalculator.activeDayIndexes(daily)
             Streaks(
                 current = StreakCalculator.currentStreak(active, clock.dayIndex()),
                 longest = StreakCalculator.longestStreak(active),
+                activeDays = active.size,
             )
         }
 
@@ -81,9 +84,25 @@ class AnalyticsRepository(
             )
         }.sortedBy { it.dayIndex }
     }
+
+    /** Recent attempts across all problems, newest first. */
+    fun observeRecentAttempts(limit: Int): Flow<List<RecentAttempt>> =
+        database.attemptDao().observeRecent(limit).map { rows ->
+            rows.mapNotNull { row ->
+                val problem = row.problem ?: return@mapNotNull null
+                RecentAttempt(
+                    problemId = problem.id,
+                    judge = JudgeId.fromId(problem.judge) ?: JudgeId.LOCAL,
+                    problemCode = problem.externalId,
+                    problemTitle = problem.title,
+                    verdict = Verdict.fromRaw(row.attempt.verdict),
+                    timestamp = row.attempt.timestamp,
+                )
+            }
+        }
 }
 
-private fun VerdictCountRow.toPair(): Pair<Verdict, Int> =
+    private fun VerdictCountRow.toPair(): Pair<Verdict, Int> =
     (Verdict.entries.firstOrNull { it.name == verdict } ?: Verdict.OTHER) to count
 
 data class Totals(
@@ -95,4 +114,4 @@ data class Totals(
     val attemptAcRatio: Float get() = if (attempts == 0) 0f else ac.toFloat() / attempts
 }
 
-data class Streaks(val current: Int, val longest: Int)
+data class Streaks(val current: Int, val longest: Int, val activeDays: Int)

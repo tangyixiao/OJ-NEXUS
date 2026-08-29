@@ -17,8 +17,18 @@ import kotlinx.coroutines.flow.Flow
 interface ProblemDao {
 
     @Transaction
-    @Query("SELECT * FROM problems")
+    @Query(
+        "SELECT *, EXISTS(SELECT 1 FROM reviews WHERE reviews.problem_id = problems.id) AS in_review " +
+            "FROM problems",
+    )
     fun observeLibrary(): Flow<List<ProblemWithTagsPojo>>
+
+    @Transaction
+    @Query(
+        "SELECT *, EXISTS(SELECT 1 FROM reviews WHERE reviews.problem_id = problems.id) AS in_review " +
+            "FROM problems",
+    )
+    suspend fun findLibrary(): List<ProblemWithTagsPojo>
 
     @Transaction
     @Query("SELECT * FROM problems WHERE id = :id")

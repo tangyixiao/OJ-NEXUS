@@ -38,6 +38,9 @@ interface SessionDao {
     @Query("SELECT COUNT(*) FROM training_sessions WHERE state IN ('RUNNING', 'PAUSED')")
     suspend fun countActive(): Int
 
+    @Query("SELECT COUNT(*) FROM training_session_problems WHERE session_id = :sessionId")
+    fun observeSessionProblemCount(sessionId: Long): Flow<Int>
+
     @Insert
     suspend fun insertSessionProblem(link: TrainingSessionProblemEntity)
 

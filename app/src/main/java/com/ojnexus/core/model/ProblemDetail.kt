@@ -25,3 +25,13 @@ data class ReviewQueueItem(
     val dueDayIndex: Long,
     val lastResult: ReviewResult?,
 )
+
+/** One row of the cross-judge recent activity feed. */
+data class RecentAttempt(
+    val problemId: Long,
+    val judge: JudgeId,
+    val problemCode: String,
+    val problemTitle: String,
+    val verdict: Verdict,
+    val timestamp: Long,
+)

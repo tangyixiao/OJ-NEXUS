@@ -32,6 +32,7 @@ import com.ojnexus.core.model.Verdict
 
 fun ProblemWithTagsPojo.toDomain(): Problem = problem.toDomain(
     tags = tags.map { it.name },
+    inReview = inReview,
 )
 
 /** Full detail aggregate: problem + attempts (newest first) + failures + notes + review. */
@@ -48,7 +49,7 @@ fun ProblemDetailPojo.toDomain(): Problem = problem.toDomain(
     tags = tags.map { it.name },
 )
 
-private fun ProblemEntity.toDomain(tags: List<String>): Problem = Problem(
+fun ProblemEntity.toDomain(tags: List<String> = emptyList(), inReview: Boolean = false): Problem = Problem(
     id = id,
     key = ProblemKey(
         judge = JudgeId.fromId(judge) ?: JudgeId.LOCAL,
@@ -65,6 +66,7 @@ private fun ProblemEntity.toDomain(tags: List<String>): Problem = Problem(
     favorite = favorite,
     sourceUrl = sourceUrl,
     tags = tags,
+    inReview = inReview,
 )
 
 fun AttemptEntity.toDomain(): Attempt = Attempt(

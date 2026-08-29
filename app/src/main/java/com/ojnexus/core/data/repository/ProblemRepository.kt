@@ -88,6 +88,9 @@ class ProblemRepository(
     suspend fun keyExists(key: ProblemKey): Boolean =
         problemDao.findByKey(key.judge.id, key.externalId) != null
 
+    suspend fun findProblemByKey(key: ProblemKey): Problem? =
+        problemDao.findByKey(key.judge.id, key.externalId)?.toDomain()
+
     suspend fun addProblem(input: ProblemInput): DataResult<Long> {
         val duplicate = problemDao.findByKey(input.key.judge.id, input.key.externalId)
         if (duplicate != null) {

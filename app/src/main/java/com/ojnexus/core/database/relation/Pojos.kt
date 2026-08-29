@@ -1,5 +1,6 @@
 package com.ojnexus.core.database.relation
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Junction
 import androidx.room.Relation
@@ -14,9 +15,11 @@ import com.ojnexus.core.database.entity.TrainingSessionEntity
 import com.ojnexus.core.database.entity.TrainingSessionProblemEntity
 import com.ojnexus.core.database.entity.TrainingTaskEntity
 
-/** Problem + its tag set, for the library list. */
+/** Problem + its tag set + review flag, for the library list. */
 data class ProblemWithTagsPojo(
     @Embedded val problem: ProblemEntity,
+    /** Room fills this from the EXISTS(...) column in the library query. */
+    @ColumnInfo(name = "in_review") val inReview: Boolean = false,
     @Relation(
         parentColumn = "id",
         entityColumn = "id",

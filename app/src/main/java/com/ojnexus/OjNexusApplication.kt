@@ -2,6 +2,7 @@ package com.ojnexus
 
 import android.app.Application
 import com.ojnexus.core.data.repository.AnalyticsRepository
+import com.ojnexus.core.data.repository.DemoDataSeeder
 import com.ojnexus.core.data.repository.ProblemRepository
 import com.ojnexus.core.data.repository.ReviewRepository
 import com.ojnexus.core.data.repository.TrainingRepository
@@ -23,6 +24,14 @@ class AppContainer(context: android.content.Context) {
     val reviewRepository: ReviewRepository = ReviewRepository(database, clock)
     val trainingRepository: TrainingRepository = TrainingRepository(database, clock)
     val analyticsRepository: AnalyticsRepository = AnalyticsRepository(database, clock)
+
+    val demoSeeder: DemoDataSeeder = DemoDataSeeder(
+        database = database,
+        problemRepository = problemRepository,
+        reviewRepository = reviewRepository,
+        trainingRepository = trainingRepository,
+        clock = clock,
+    )
 }
 
 /**

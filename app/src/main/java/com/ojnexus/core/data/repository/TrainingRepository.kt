@@ -84,6 +84,9 @@ class TrainingRepository(
     fun observeActiveSession(): Flow<TrainingSession?> =
         sessionDao.observeActive().map { rows -> rows.firstOrNull()?.toDomain() }
 
+    fun observeSessionProblemCount(sessionId: Long): Flow<Int> =
+        sessionDao.observeSessionProblemCount(sessionId)
+
     fun observeSession(id: Long): Flow<TrainingSession?> =
         sessionDao.observeById(id).map { it?.toDomain() }
 
@@ -145,12 +148,13 @@ class TrainingRepository(
         val links = sessionDao.sessionProblems(sessionId)
         val end = session.finishedAt ?: clock.millis()
         return links.map { link ->
+            val problem = database.problemDao().findById(link.problemId)
             val attempts = database.attemptDao().findByProblem(link.problemId)
                 .filter { it.timestamp in session.startedAt..end }
-            val title = database.problemDao().findById(link.problemId)?.title ?: "?"
             SessionProblem(
                 problemId = link.problemId,
-                title = title,
+                title = problem?.title ?: "?",
+                difficulty = problem?.difficulty,
                 solved = attempts.any { it.verdict == "AC" },
                 attempts = attempts.size,
             )
