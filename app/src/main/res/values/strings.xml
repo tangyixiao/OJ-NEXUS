@@ -9,7 +9,6 @@
     <string name="nav_training">TRAINING</string>
     <string name="nav_analytics">ANALYTICS</string>
     <string name="nav_profile">PROFILE</string>
-    <string name="nav_cd_selected">Selected tab</string>
 
     <!-- Verdicts (unified codes) -->
     <string name="verdict_ac">AC</string>
@@ -28,14 +27,32 @@
     <string name="sync_state_error">ERROR</string>
     <string name="sync_last_sync">LAST SYNC</string>
     <string name="sync_source_sample">DEV SAMPLE</string>
+    <string name="sync_source_local">LOCAL</string>
 
     <!-- Dashboard sections -->
     <string name="dash_section_system">SYSTEM STATUS</string>
-    <string name="dash_section_competitive">COMPETITIVE STATUS</string>
     <string name="dash_section_today">TODAY</string>
+    <string name="dash_section_week">WEEK</string>
+    <string name="dash_section_streak">STREAK</string>
+    <string name="dash_section_next_review">NEXT REVIEW</string>
     <string name="dash_section_next_contest">NEXT CONTEST</string>
     <string name="dash_section_recent">RECENT ACTIVITY</string>
     <string name="dash_section_load">TRAINING LOAD</string>
+    <string name="dash_oj_connection">OJ CONNECTION</string>
+    <string name="dash_not_connected">NOT CONNECTED</string>
+    <string name="dash_status_ready">READY</string>
+    <string name="dash_local_mode">LOCAL</string>
+    <string name="dash_empty_tasks">NO TASKS — ADD ONE FROM TRAINING</string>
+    <string name="dash_empty_reviews">QUEUE EMPTY</string>
+    <string name="dash_empty_activity">NO ACTIVITY YET</string>
+    <string name="dash_next_contest_pending">CONNECT AN OJ TO SEE CONTESTS</string>
+    <string name="dash_week_solved">SOLVED</string>
+    <string name="dash_week_attempts">ATTEMPTS</string>
+    <string name="dash_week_training">TRAINING</string>
+    <string name="dash_streak_current">CURRENT</string>
+    <string name="dash_streak_longest">LONGEST</string>
+    <string name="dash_next_review_none">NOTHING DUE</string>
+    <string name="dash_load_days_7">LAST 7 DAYS</string>
 
     <!-- Dashboard metrics -->
     <string name="metric_rating">RATING</string>
@@ -44,17 +61,34 @@
     <string name="format_delta">%+d</string>
     <string name="format_streak_days">%dD</string>
 
-    <!-- Dashboard: today / contest / activity -->
-    <string name="today_header_task">TASK</string>
+    <!-- Today / tasks -->
     <string name="today_header_priority">PRIORITY</string>
+    <string name="task_type_solve">SOLVE</string>
+    <string name="task_type_review">REVIEW</string>
+    <string name="task_type_read">READ</string>
+    <string name="task_type_upsolve">UPSOLVE</string>
+    <string name="task_add_title">NEW TASK</string>
+    <string name="task_field_type">TYPE</string>
+    <string name="task_field_problem">PROBLEM (OPTIONAL)</string>
+    <string name="task_field_title">TITLE (FOR NON-PROBLEM TASKS)</string>
+    <string name="task_field_priority">PRIORITY</string>
+    <string name="task_empty">NO TASKS TODAY</string>
+    <string name="task_clear_done">CLEAR DONE</string>
+    <string name="task_done_cd">Toggle task completed</string>
+    <string name="task_delete_cd">Delete task</string>
+
+    <!-- Contest (Phase 2 placeholder) -->
     <string name="contest_label_start">START</string>
     <string name="contest_label_countdown">COUNTDOWN</string>
+
+    <!-- Activity table -->
     <string name="activity_header_time">TIME</string>
     <string name="activity_header_problem">PROBLEM</string>
     <string name="activity_header_judge">JUDGE</string>
     <string name="activity_header_verdict">VERDICT</string>
+    <string name="activity_empty">NO ACTIVITY YET</string>
 
-    <!-- Weekday abbreviations (training load axis) -->
+    <!-- Weekday abbreviations -->
     <string name="day_mon">MON</string>
     <string name="day_tue">TUE</string>
     <string name="day_wed">WED</string>
@@ -63,8 +97,9 @@
     <string name="day_sat">SAT</string>
     <string name="day_sun">SUN</string>
 
-    <!-- Problems -->
+    <!-- Problems library -->
     <string name="problems_section_library">LIBRARY</string>
+    <string name="problems_search_hint">SEARCH PROBLEM OR ID</string>
     <string name="problems_header_problem">PROBLEM</string>
     <string name="problems_header_rating">RATING</string>
     <string name="problems_header_status">STATUS</string>
@@ -72,36 +107,174 @@
     <string name="problems_count">%d PROBLEMS</string>
     <string name="problems_filter_all">ALL</string>
     <string name="problems_filter_unsolved">UNSOLVED</string>
-    <string name="problems_filter_difficulty">1700+</string>
-    <string name="problems_filter_tag_dp">DP</string>
-    <string name="problems_footer_sample">DEVELOPMENT SAMPLE DATASET</string>
-    <string name="problem_status_solved">SOLVED</string>
-    <string name="problem_status_attempted">ATTEMPTED</string>
-    <string name="problem_status_unsolved">UNSOLVED</string>
-    <string name="format_mastery">%d%%</string>
+    <string name="problems_filter_attempted">ATTEMPTED</string>
+    <string name="problems_filter_solved">SOLVED</string>
+    <string name="problems_filter_review">REVIEW</string>
+    <string name="problems_filter_favorite">FAVORITE</string>
+    <string name="problems_sort_label">SORT</string>
+    <string name="problems_sort_updated">UPDATED</string>
+    <string name="problems_sort_difficulty">DIFFICULTY</string>
+    <string name="problems_sort_title">TITLE</string>
+    <string name="problems_sort_attempts">ATTEMPTS</string>
+    <string name="problems_sort_cd">Change sort order</string>
+    <string name="problems_empty_title">EMPTY LIBRARY</string>
+    <string name="problems_empty_hint">ADD A PROBLEM TO START TRACKING</string>
+    <string name="problems_no_match">NO PROBLEMS MATCH THE FILTER</string>
     <string name="problems_no_value">—</string>
+    <string name="problem_status_unsolved">UNSOLVED</string>
+    <string name="problem_status_attempted">ATTEMPTED</string>
+    <string name="problem_status_solved">SOLVED</string>
+    <string name="problem_status_review">REVIEW</string>
+    <string name="format_mastery">%d%%</string>
+    <string name="action_add_problem">ADD PROBLEM</string>
+    <string name="problem_favorite_cd">Toggle favorite</string>
+    <string name="demo_insert">INSERT DEMO DATA</string>
+    <string name="demo_clear">CLEAR DEMO DATA</string>
 
-    <!-- Training -->
+    <!-- Add / edit problem -->
+    <string name="add_problem_title">ADD PROBLEM</string>
+    <string name="edit_problem_title">EDIT PROBLEM</string>
+    <string name="field_judge">JUDGE</string>
+    <string name="field_problem_id">PROBLEM ID</string>
+    <string name="field_problem_id_local_hint">AUTO — LOCAL SOURCE</string>
+    <string name="field_title">TITLE</string>
+    <string name="field_difficulty">DIFFICULTY (OPTIONAL)</string>
+    <string name="field_tags">TAGS (SPACE SEPARATED)</string>
+    <string name="field_url">PROBLEM URL (OPTIONAL)</string>
+    <string name="error_id_required">PROBLEM ID REQUIRED</string>
+    <string name="error_title_required">TITLE REQUIRED</string>
+    <string name="error_duplicate">PROBLEM ALREADY EXISTS</string>
+    <string name="error_difficulty_invalid">DIFFICULTY MUST BE A NUMBER</string>
+    <string name="error_url_invalid">URL MUST START WITH HTTP(S)</string>
+    <string name="error_generic">SAVE FAILED</string>
+    <string name="action_save">SAVE</string>
+    <string name="action_cancel">CANCEL</string>
+    <string name="action_delete">DELETE</string>
+    <string name="action_retry">RETRY</string>
+    <string name="action_edit">EDIT</string>
+    <string name="action_close">CLOSE</string>
+
+    <!-- Problem detail -->
+    <string name="detail_section_overview">OVERVIEW</string>
+    <string name="detail_section_attempts">ATTEMPTS</string>
+    <string name="detail_section_failures">FAILURE LOG</string>
+    <string name="detail_section_insight">KEY INSIGHT</string>
+    <string name="detail_section_notes">NOTES</string>
+    <string name="detail_section_review">REVIEW</string>
+    <string name="detail_section_actions">ACTIONS</string>
+    <string name="problem_field_first_ac">FIRST AC</string>
+    <string name="problem_field_last_attempt">LAST ATTEMPT</string>
+    <string name="problem_field_attempts">ATTEMPTS</string>
+    <string name="problem_field_created">CREATED</string>
+    <string name="problem_field_url">SOURCE URL</string>
+    <string name="problem_delete_title">DELETE PROBLEM</string>
+    <string name="problem_delete_confirm">DELETE %1$s? ALL ATTEMPTS, FAILURE ENTRIES, NOTES, REVIEW SCHEDULE AND SESSION LINKS ARE REMOVED WITH IT.</string>
+    <string name="detail_not_found">PROBLEM NOT FOUND</string>
+    <string name="action_mark_solved">MARK SOLVED</string>
+    <string name="action_open_problem">OPEN PROBLEM</string>
+    <string name="open_problem_no_url">NO SOURCE URL</string>
+
+    <!-- Attempts -->
+    <string name="attempt_add">ADD ATTEMPT</string>
+    <string name="attempt_verdict">VERDICT</string>
+    <string name="attempt_duration">DURATION (MIN, OPTIONAL)</string>
+    <string name="attempt_language">LANGUAGE (OPTIONAL)</string>
+    <string name="attempt_note">NOTE (OPTIONAL)</string>
+    <string name="attempt_empty">NO ATTEMPTS RECORDED</string>
+    <string name="attempt_delete_cd">Delete attempt</string>
+    <string name="format_attempt_duration">%d MIN</string>
+
+    <!-- Failure log -->
+    <string name="failure_add">ADD FAILURE</string>
+    <string name="failure_category">ROOT CAUSE</string>
+    <string name="failure_description">DESCRIPTION</string>
+    <string name="failure_description_required">DESCRIPTION REQUIRED</string>
+    <string name="failure_empty">NO FAILURES LOGGED</string>
+    <string name="failure_delete_cd">Delete failure entry</string>
+    <string name="cause_thinking">THINKING</string>
+    <string name="cause_implementation">IMPLEMENTATION</string>
+    <string name="cause_boundary">BOUNDARY</string>
+    <string name="cause_complexity">COMPLEXITY</string>
+    <string name="cause_knowledge">KNOWLEDGE GAP</string>
+    <string name="cause_reading">READING</string>
+    <string name="cause_careless">CARELESS</string>
+    <string name="cause_other">OTHER</string>
+
+    <!-- Notes -->
+    <string name="notes_key_insight">KEY INSIGHT</string>
+    <string name="notes_implementation">IMPLEMENTATION</string>
+    <string name="notes_complexity">COMPLEXITY</string>
+    <string name="notes_general">GENERAL NOTES</string>
+    <string name="notes_saved">SAVED</string>
+    <string name="notes_saving">SAVING</string>
+
+    <!-- Review -->
+    <string name="review_state_none">NOT IN REVIEW</string>
+    <string name="review_stage_label">STAGE %d</string>
+    <string name="review_due_label">DUE %s</string>
+    <string name="review_due_today">DUE TODAY</string>
+    <string name="review_overdue">OVERDUE %dD</string>
+    <string name="review_next_label">NEXT %s</string>
+    <string name="review_schedule">SCHEDULE REVIEW</string>
+    <string name="review_cancel">CANCEL REVIEW</string>
+    <string name="review_section_queue">REVIEW QUEUE</string>
+    <string name="review_filter_due">DUE TODAY</string>
+    <string name="review_filter_overdue">OVERDUE</string>
+    <string name="review_filter_upcoming">UPCOMING</string>
+    <string name="review_queue_empty">QUEUE EMPTY</string>
+    <string name="review_start">START REVIEW</string>
+    <string name="review_session_title">REVIEW SESSION</string>
+    <string name="review_prompt">RECALL THE CORE APPROACH, THEN RECORD THE OUTCOME.</string>
+    <string name="review_result_pass">PASS</string>
+    <string name="review_result_hard">HARD</string>
+    <string name="review_result_fail">FAIL</string>
+    <string name="review_result_skip">SKIP</string>
+    <string name="review_next_scheduled">RE-TEST IN %dD</string>
+    <string name="review_problem_missing">PROBLEM MISSING</string>
+
+    <!-- Sessions -->
     <string name="training_section_session">SESSION</string>
     <string name="session_state_standby">STANDBY</string>
     <string name="session_no_active">NO ACTIVE SESSION</string>
+    <string name="session_create">NEW SESSION</string>
+    <string name="session_create_title">NEW SESSION</string>
+    <string name="session_target_duration">TARGET (MIN, OPTIONAL)</string>
+    <string name="session_target_tag">TARGET TAG (OPTIONAL)</string>
+    <string name="session_pick_problems">PROBLEMS</string>
+    <string name="session_picked_count">%d SELECTED</string>
+    <string name="session_active_exists">A SESSION IS ALREADY ACTIVE</string>
+    <string name="session_running_title">SESSION</string>
+    <string name="session_label_elapsed">ELAPSED</string>
+    <string name="session_label_target">TARGET</string>
+    <string name="session_label_problems">PROBLEMS</string>
+    <string name="session_action_pause">PAUSE</string>
+    <string name="session_action_resume">RESUME</string>
+    <string name="session_action_finish">FINISH</string>
+    <string name="session_action_cancel">CANCEL</string>
+    <string name="session_paused_label">PAUSED</string>
+    <string name="session_summary_title">SESSION SUMMARY</string>
+    <string name="session_summary_duration">DURATION</string>
+    <string name="session_summary_solved">SOLVED</string>
+    <string name="session_summary_attempts">ATTEMPTS</string>
+    <string name="session_summary_ac">AC</string>
+    <string name="session_summary_wa">WA</string>
+    <string name="session_summary_avg">AVG DIFF</string>
+    <string name="session_summary_none">—</string>
+    <string name="session_history">RECENT SESSIONS</string>
+    <string name="session_history_empty">NO SESSIONS YET</string>
+    <string name="session_start">START</string>
     <string name="session_type_practice">PRACTICE</string>
     <string name="session_type_focus">FOCUS</string>
     <string name="session_type_upsolve">UPSOLVE</string>
     <string name="session_type_review">REVIEW</string>
-    <string name="session_label_duration">DURATION</string>
-    <string name="session_label_problems">PROBLEMS</string>
-    <string name="session_action_start">START SESSION</string>
     <string name="session_value_minutes">%d MIN</string>
+    <string name="session_cancelled_note">CANCELLED</string>
+
+    <!-- Training screen -->
     <string name="training_section_target">TODAY\'S TARGET</string>
     <string name="training_section_weak">WEAK AREAS</string>
     <string name="target_priority">PRIORITY %d</string>
     <string name="target_range_label">RANGE</string>
-    <string name="reason_weak_mastery">LOW MASTERY</string>
-    <string name="reason_review_gap">REVIEW GAP</string>
-    <string name="reason_no_attempts">NO ATTEMPTS</string>
-    <string name="format_review_gap">%dD REVIEW GAP</string>
-    <string name="reason_separator">" · "</string>
 
     <!-- Knowledge areas -->
     <string name="area_data_structure">DATA STRUCTURE</string>
@@ -117,13 +290,31 @@
 
     <!-- Analytics -->
     <string name="analytics_section_heatmap">ACTIVITY HEATMAP</string>
-    <string name="analytics_heatmap_cd">Activity heatmap, one column per week</string>
+    <string name="analytics_heatmap_cd">Activity heatmap, one column per week, last 12 months</string>
     <string name="heatmap_legend_less">LESS</string>
     <string name="heatmap_legend_more">MORE</string>
-    <string name="analytics_section_rating">RATING TREND</string>
+    <string name="analytics_section_trend">SOLVE TREND</string>
     <string name="analytics_section_verdict">VERDICT DISTRIBUTION</string>
-    <string name="analytics_section_weak">WEAK TAGS</string>
-    <string name="analytics_footer_sample">DEVELOPMENT SAMPLE DATASET</string>
+    <string name="analytics_section_difficulty">DIFFICULTY DISTRIBUTION</string>
+    <string name="analytics_section_training">TRAINING TIME</string>
+    <string name="analytics_section_totals">TOTALS</string>
+    <string name="analytics_total_problems">PROBLEMS</string>
+    <string name="analytics_total_solved">SOLVED</string>
+    <string name="analytics_total_attempts">ATTEMPTS</string>
+    <string name="analytics_total_ac">AC</string>
+    <string name="analytics_ratio">ATTEMPT/AC</string>
+    <string name="analytics_training_total">TOTAL</string>
+    <string name="analytics_difficulty_unknown">UNKNOWN</string>
+    <string name="analytics_empty_title">NO DATA YET</string>
+    <string name="analytics_empty_hint">ADD PROBLEMS AND RECORD ATTEMPTS</string>
+    <string name="analytics_day_detail_title">DAY DETAIL</string>
+    <string name="analytics_day_solved">SOLVED</string>
+    <string name="analytics_day_attempts">ATTEMPTS</string>
+    <string name="analytics_day_reviews">REVIEWS</string>
+    <string name="analytics_day_active">ACTIVE TIME</string>
+    <string name="analytics_day_zero">ZERO ACTIVITY</string>
+    <string name="analytics_heatmap_cell_cd">Activity intensity %1$d of 4, %2$d solved</string>
+    <string name="format_hours">%1$dH %2$02dM</string>
 
     <!-- Profile -->
     <string name="profile_role">COMPETITIVE PROGRAMMER</string>
@@ -137,4 +328,5 @@
     <string name="profile_stat_max_diff">MAX DIFF</string>
     <string name="profile_judge_contests">%d CONTESTS</string>
     <string name="profile_judge_solved">%d SOLVED</string>
+    <string name="profile_phase2_note">OJ PROFILES CONNECT IN PHASE 2</string>
 </resources>
