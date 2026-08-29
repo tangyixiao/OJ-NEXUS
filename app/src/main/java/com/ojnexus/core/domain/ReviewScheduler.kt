@@ -2,8 +2,8 @@ package com.ojnexus.core.domain
 
 import com.ojnexus.core.model.ReviewResult
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZonedDateTime
 
 /**
  * One scheduled review decision produced by [ReviewScheduler].
@@ -76,11 +76,14 @@ object ReviewScheduler {
         now: Instant,
         zone: ZoneId,
     ): ScheduledReview {
-        val dueAt = now.plusSeconds(intervalDays * 24 * 60 * 60)
+        // Calendar-day arithmetic in the user's zone: a "day" is the local calendar day,
+        // not a fixed 86 400 s block. Around DST transitions a local day is 23 h or 25 h;
+        // plusDays() keeps the local time-of-day stable and resolves gaps per java.time.
+        val due: ZonedDateTime = now.atZone(zone).plusDays(intervalDays)
         return ScheduledReview(
             stage = stage,
-            dueAt = dueAt.toEpochMilli(),
-            dueDayIndex = LocalDate.ofInstant(dueAt, zone).toEpochDay(),
+            dueAt = due.toInstant().toEpochMilli(),
+            dueDayIndex = due.toLocalDate().toEpochDay(),
             intervalDays = intervalDays,
         )
     }

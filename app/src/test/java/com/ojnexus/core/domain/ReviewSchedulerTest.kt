@@ -101,4 +101,66 @@ class ReviewSchedulerTest {
         val scheduled = ReviewScheduler.next(99, ReviewResult.PASS, now, zone)
         assertEquals(ReviewScheduler.MAX_STAGE, scheduled.stage)
     }
+
+    // --- DST regression: intervals are calendar days, not fixed 24 h blocks ---
+
+    private val newYork = ZoneId.of("America/New_York")
+
+    @Test
+    fun `spring forward - +1 day lands on the next local calendar day despite a 23h gap`() {
+        // 2026-03-08 02:00 EST -> 03:00 EDT: March 7 in New York is a 23-hour day.
+        // now = 2026-03-07T12:00Z = 2026-03-07 07:00 EST.
+        val scheduled = ReviewScheduler.initialSchedule(
+            Instant.parse("2026-03-07T12:00:00Z"),
+            newYork,
+        )
+
+        // The due date is the next local calendar day, March 8.
+        assertEquals(java.time.LocalDate.of(2026, 3, 8).toEpochDay(), scheduled.dueDayIndex)
+        assertEquals(java.time.LocalDate.of(2026, 3, 8), java.time.LocalDate.ofInstant(java.time.Instant.ofEpochMilli(scheduled.dueAt), newYork))
+        // The actual Instant gap is only 23 hours, not 24.
+        val gapSeconds = (scheduled.dueAt - Instant.parse("2026-03-07T12:00:00Z").toEpochMilli()) / 1000
+        assertEquals(23L * 60 * 60, gapSeconds)
+    }
+
+    @Test
+    fun `fall back - +1 day lands on the next local calendar day despite a 25h gap`() {
+        // 2026-11-01 02:00 EDT -> 01:00 EST: November 1 in New York is a 25-hour day.
+        // now = 2026-10-31T12:00Z = 2026-10-31 08:00 EDT.
+        val scheduled = ReviewScheduler.initialSchedule(
+            Instant.parse("2026-10-31T12:00:00Z"),
+            newYork,
+        )
+
+        // The due date is the next local calendar day, November 1.
+        assertEquals(java.time.LocalDate.of(2026, 11, 1).toEpochDay(), scheduled.dueDayIndex)
+        assertEquals(java.time.LocalDate.of(2026, 11, 1), java.time.LocalDate.ofInstant(java.time.Instant.ofEpochMilli(scheduled.dueAt), newYork))
+        // The actual Instant gap is 25 hours, not 24.
+        val gapSeconds = (scheduled.dueAt - Instant.parse("2026-10-31T12:00:00Z").toEpochMilli()) / 1000
+        assertEquals(25L * 60 * 60, gapSeconds)
+    }
+
+    @Test
+    fun `dueDayIndex always equals the local date of dueAt across the ladder`() {
+        // Sanity over several stages in a DST zone: the stored day key must directly
+        // correspond to the local calendar date of the stored instant. Deterministic:
+        // each step uses the previous due instant as "now", crossing March 8 spring forward.
+        var scheduled = ReviewScheduler.initialSchedule(
+            Instant.parse("2026-03-05T15:00:00Z"),
+            newYork,
+        )
+        repeat(4) {
+            val localDate = java.time.LocalDate.ofInstant(
+                java.time.Instant.ofEpochMilli(scheduled.dueAt),
+                newYork,
+            )
+            assertEquals(localDate.toEpochDay(), scheduled.dueDayIndex)
+            scheduled = ReviewScheduler.next(
+                scheduled.stage,
+                ReviewResult.PASS,
+                Instant.ofEpochMilli(scheduled.dueAt),
+                newYork,
+            )
+        }
+    }
 }
