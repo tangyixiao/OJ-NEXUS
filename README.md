@@ -47,4 +47,4 @@ Requires JDK 17+ and an Android SDK with API 37. Point `sdk.dir` at your SDK in 
 
 ## License
 
-Not yet decided — see the repository discussion. All rights reserved in the meantime.
+Copyright 2026 tangyixiao. Licensed under the [Apache License 2.0](LICENSE).
