@@ -105,7 +105,8 @@ class ProblemsViewModel(
                     title = remote.name,
                     difficulty = remote.rating,
                     tags = remote.tags.split('\u001F').filter { it.isNotBlank() },
-                    sourceUrl = remote.contestId?.let { CodeforcesUrls.problem(it, remote.index ?: "") },
+                    sourceUrl = remote.contestId?.toLongOrNull()
+                        ?.let { CodeforcesUrls.problem(it, remote.index ?: "") },
                 ),
             )
             val problemId = when (result) {

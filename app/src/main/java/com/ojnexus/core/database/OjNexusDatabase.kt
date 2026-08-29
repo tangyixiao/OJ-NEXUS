@@ -46,6 +46,9 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
  * contests, sync state — plus remote-origin columns on `attempts` for idempotent
  * submission sync. Migration 1→2 preserves every Phase 1 row (all new `attempts` columns
  * are nullable; new tables are created fresh).
+ *
+ * v3 (Phase 3): string contest identities, typed timestamp cursor metadata, account
+ * verification/source reliability, and difficulty provenance for real multi-judge data.
  */
 @Database(
     entities = [
@@ -67,7 +70,7 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
         ContestEntity::class,
         SyncStateEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class OjNexusDatabase : RoomDatabase() {
@@ -243,9 +246,148 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        /** v2 → v3: preserve every row while removing numeric-only contest assumptions. */
+        val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `problems` ADD COLUMN `difficulty_source` " +
+                        "TEXT NOT NULL DEFAULT 'UNKNOWN'",
+                )
+                db.execSQL(
+                    "UPDATE `problems` SET `difficulty_source` = 'OFFICIAL' " +
+                        "WHERE `judge` = 'codeforces'",
+                )
+
+                db.execSQL(
+                    "CREATE TABLE `judge_accounts_new` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`judge` TEXT NOT NULL, `handle` TEXT NOT NULL, " +
+                        "`canonical_handle` TEXT NOT NULL, `connected_at` INTEGER NOT NULL, " +
+                        "`updated_at` INTEGER NOT NULL, `enabled` INTEGER NOT NULL, " +
+                        "`verification_state` TEXT NOT NULL, `source_reliability` TEXT NOT NULL)",
+                )
+                db.execSQL(
+                    "INSERT INTO `judge_accounts_new` SELECT `id`, `judge`, `handle`, " +
+                        "`canonical_handle`, `connected_at`, `updated_at`, `enabled`, " +
+                        "'VERIFIED', CASE WHEN `judge` = 'codeforces' THEN 'OFFICIAL' ELSE 'COMMUNITY' END " +
+                        "FROM `judge_accounts`",
+                )
+                db.execSQL("DROP TABLE `judge_accounts`")
+                db.execSQL("ALTER TABLE `judge_accounts_new` RENAME TO `judge_accounts`")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX `index_judge_accounts_judge_canonical_handle` " +
+                        "ON `judge_accounts` (`judge`, `canonical_handle`)",
+                )
+
+                db.execSQL(
+                    "CREATE TABLE `attempts_new` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`problem_id` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL, " +
+                        "`day_index` INTEGER NOT NULL, `verdict` TEXT NOT NULL, " +
+                        "`raw_verdict` TEXT, `duration_min` INTEGER, `language` TEXT, `note` TEXT, " +
+                        "`source_judge` TEXT, `external_submission_id` TEXT, `contest_id` TEXT, " +
+                        "`participant_type` TEXT, `testset` TEXT, `passed_test_count` INTEGER, " +
+                        "`execution_time_ms` INTEGER, `memory_bytes` INTEGER, " +
+                        "FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "INSERT INTO `attempts_new` SELECT `id`, `problem_id`, `timestamp`, `day_index`, " +
+                        "`verdict`, `raw_verdict`, `duration_min`, `language`, `note`, `source_judge`, " +
+                        "`external_submission_id`, CAST(`contest_id` AS TEXT), `participant_type`, " +
+                        "`testset`, `passed_test_count`, `execution_time_ms`, `memory_bytes` FROM `attempts`",
+                )
+                db.execSQL("DROP TABLE `attempts`")
+                db.execSQL("ALTER TABLE `attempts_new` RENAME TO `attempts`")
+                db.execSQL("CREATE INDEX `index_attempts_problem_id` ON `attempts` (`problem_id`)")
+                db.execSQL("CREATE INDEX `index_attempts_day_index` ON `attempts` (`day_index`)")
+                db.execSQL("CREATE INDEX `index_attempts_timestamp` ON `attempts` (`timestamp`)")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX `index_attempts_source_judge_external_submission_id` " +
+                        "ON `attempts` (`source_judge`, `external_submission_id`)",
+                )
+
+                db.execSQL(
+                    "CREATE TABLE `rating_changes_new` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `judge` TEXT NOT NULL, " +
+                        "`handle` TEXT NOT NULL, `contest_id` TEXT NOT NULL, `contest_name` TEXT NOT NULL, " +
+                        "`rank` INTEGER NOT NULL, `old_rating` INTEGER NOT NULL, `new_rating` INTEGER NOT NULL, " +
+                        "`rating_update_time_seconds` INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "INSERT INTO `rating_changes_new` SELECT `id`, `judge`, `handle`, " +
+                        "CAST(`contest_id` AS TEXT), `contest_name`, `rank`, `old_rating`, `new_rating`, " +
+                        "`rating_update_time_seconds` FROM `rating_changes`",
+                )
+                db.execSQL("DROP TABLE `rating_changes`")
+                db.execSQL("ALTER TABLE `rating_changes_new` RENAME TO `rating_changes`")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX `index_rating_changes_judge_contest_id` " +
+                        "ON `rating_changes` (`judge`, `contest_id`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX `index_rating_changes_judge_rating_update_time_seconds` " +
+                        "ON `rating_changes` (`judge`, `rating_update_time_seconds`)",
+                )
+
+                db.execSQL(
+                    "CREATE TABLE `remote_problems_new` (" +
+                        "`judge` TEXT NOT NULL, `external_id` TEXT NOT NULL, `contest_id` TEXT, " +
+                        "`index` TEXT, `name` TEXT NOT NULL, `type` TEXT, `rating` INTEGER, " +
+                        "`difficulty_source` TEXT NOT NULL, `points` REAL, `tags` TEXT NOT NULL, " +
+                        "`solved_count` INTEGER, `updated_at` INTEGER NOT NULL, `last_seen_at` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`judge`, `external_id`))",
+                )
+                db.execSQL(
+                    "INSERT INTO `remote_problems_new` SELECT `judge`, `external_id`, " +
+                        "CAST(`contest_id` AS TEXT), `index`, `name`, `type`, `rating`, " +
+                        "CASE WHEN `judge` = 'codeforces' THEN 'OFFICIAL' ELSE 'UNKNOWN' END, " +
+                        "`points`, `tags`, `solved_count`, `updated_at`, `updated_at` FROM `remote_problems`",
+                )
+                db.execSQL("DROP TABLE `remote_problems`")
+                db.execSQL("ALTER TABLE `remote_problems_new` RENAME TO `remote_problems`")
+                db.execSQL(
+                    "CREATE INDEX `index_remote_problems_judge_rating` " +
+                        "ON `remote_problems` (`judge`, `rating`)",
+                )
+                db.execSQL("CREATE INDEX `index_remote_problems_name` ON `remote_problems` (`name`)")
+
+                db.execSQL(
+                    "CREATE TABLE `contests_new` (" +
+                        "`judge` TEXT NOT NULL, `external_contest_id` TEXT NOT NULL, " +
+                        "`name` TEXT NOT NULL, `type` TEXT, `phase` TEXT NOT NULL, `frozen` INTEGER NOT NULL, " +
+                        "`duration_seconds` INTEGER NOT NULL, `start_time_seconds` INTEGER, " +
+                        "`relative_time_seconds` INTEGER, `prepared_by` TEXT, `updated_at` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`judge`, `external_contest_id`))",
+                )
+                db.execSQL(
+                    "INSERT INTO `contests_new` SELECT `judge`, CAST(`external_contest_id` AS TEXT), " +
+                        "`name`, `type`, `phase`, `frozen`, `duration_seconds`, `start_time_seconds`, " +
+                        "`relative_time_seconds`, `prepared_by`, `updated_at` FROM `contests`",
+                )
+                db.execSQL("DROP TABLE `contests`")
+                db.execSQL("ALTER TABLE `contests_new` RENAME TO `contests`")
+                db.execSQL(
+                    "CREATE INDEX `index_contests_judge_start_time_seconds` " +
+                        "ON `contests` (`judge`, `start_time_seconds`)",
+                )
+                db.execSQL("CREATE INDEX `index_contests_judge_phase` ON `contests` (`judge`, `phase`)")
+
+                db.execSQL("ALTER TABLE `sync_states` ADD COLUMN `account_id` INTEGER")
+                db.execSQL(
+                    "ALTER TABLE `sync_states` ADD COLUMN `latest_submission_time_seconds` INTEGER",
+                )
+                db.execSQL(
+                    "UPDATE `sync_states` SET `account_id` = (SELECT `id` FROM `judge_accounts` " +
+                        "WHERE `judge_accounts`.`judge` = `sync_states`.`judge` " +
+                        "AND `judge_accounts`.`enabled` = 1 LIMIT 1)",
+                )
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, "oj-nexus.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
     }
 }

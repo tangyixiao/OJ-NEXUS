@@ -215,7 +215,8 @@ class CodeforcesSyncRepository(
                     judge = JudgeId.CODEFORCES.id,
                     externalId = externalProblemId,
                     title = problemDto.name,
-                    difficulty = problemDto.rating,
+                        difficulty = problemDto.rating,
+                        difficultySource = com.ojnexus.core.model.DifficultySource.OFFICIAL.name,
                     createdAt = clock.millis(),
                     updatedAt = clock.millis(),
                     sourceUrl = com.ojnexus.judge.codeforces.CodeforcesUrls.problem(
@@ -238,6 +239,7 @@ class CodeforcesSyncRepository(
                 id = existing.id,
                 title = problemDto.name,
                 difficulty = problemDto.rating,
+                difficultySource = com.ojnexus.core.model.DifficultySource.OFFICIAL.name,
                 sourceUrl = finalUrl,
                 updatedAt = clock.millis(),
             )

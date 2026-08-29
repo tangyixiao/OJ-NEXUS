@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
 data class ContestRow(
-    val contestId: Long,
+    val contestId: String,
     val name: String,
     val judge: JudgeId,
     val startTimeSeconds: Long?,

@@ -96,13 +96,14 @@ interface ProblemDao {
 
     /** Remote-metadata merge (Phase 2): title/difficulty/url are remote-authoritative. */
     @Query(
-        "UPDATE problems SET title = :title, difficulty = :difficulty, " +
+        "UPDATE problems SET title = :title, difficulty = :difficulty, difficulty_source = :difficultySource, " +
             "source_url = :sourceUrl, updated_at = :updatedAt WHERE id = :id",
     )
     suspend fun applyRemoteMetadata(
         id: Long,
         title: String,
         difficulty: Int?,
+        difficultySource: String,
         sourceUrl: String?,
         updatedAt: Long,
     )

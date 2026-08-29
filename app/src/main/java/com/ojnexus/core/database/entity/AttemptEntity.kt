@@ -48,7 +48,7 @@ data class AttemptEntity(
     @ColumnInfo(name = "source_judge") val sourceJudge: String? = null,
     /** Judge-side submission id — the sync idempotency key for imported attempts. */
     @ColumnInfo(name = "external_submission_id") val externalSubmissionId: String? = null,
-    @ColumnInfo(name = "contest_id") val contestId: Long? = null,
+    @ColumnInfo(name = "contest_id") val contestId: String? = null,
     /** Codeforces participant type (CONTESTANT / OUT_OF_COMPETITION / VIRTUAL / PRACTICE). */
     @ColumnInfo(name = "participant_type") val participantType: String? = null,
     /** Codeforces testset (SAMPLES / SYSTEM / PRETESTS). */

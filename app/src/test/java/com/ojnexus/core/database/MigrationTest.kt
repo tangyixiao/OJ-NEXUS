@@ -90,6 +90,36 @@ class MigrationTest {
         setup.close()
     }
 
+    /** Creates an empty database at an exported schema version for migration tests. */
+    private fun createDatabaseFromSchema(version: Int) {
+        val root = Json.parseToJsonElement(schemaFile(version).readText()).jsonObject
+        val database = root["database"]!!.jsonObject
+        assertEquals(version, database["version"]!!.jsonPrimitive.content.toInt())
+        val setup = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        setup.execSQL("PRAGMA foreign_keys = OFF")
+        database["entities"]!!.jsonArray.forEach { element ->
+            val entity = element.jsonObject
+            val tableName = entity["tableName"]!!.jsonPrimitive.content
+            setup.execSQL(entity["createSql"]!!.jsonPrimitive.content.replace("\${TABLE_NAME}", tableName))
+            entity["indices"]?.jsonArray?.forEach { indexElement ->
+                setup.execSQL(
+                    indexElement.jsonObject["createSql"]!!.jsonPrimitive.content
+                        .replace("\${TABLE_NAME}", tableName),
+                )
+            }
+        }
+        database["setupQueries"]?.jsonArray?.forEach { setup.execSQL(it.jsonPrimitive.content) }
+        setup.execSQL(
+            "INSERT INTO room_master_table (id, identity_hash) VALUES(0, " +
+                "'${database["identityHash"]!!.jsonPrimitive.content}')",
+        )
+        setup.version = version
+        setup.close()
+    }
+
     @Test
     fun `migrate 1 to 2 preserves all phase 1 data`() {
         createV1Database()
@@ -127,7 +157,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext<Context>(),
             OjNexusDatabase::class.java,
             dbName,
-        ).addMigrations(OjNexusDatabase.MIGRATION_1_2).build()
+        ).addMigrations(OjNexusDatabase.MIGRATION_1_2, OjNexusDatabase.MIGRATION_2_3).build()
 
         try {
             val dao = db.problemDao()
@@ -158,13 +188,129 @@ class MigrationTest {
             assertTrue(cursor.isNull(4))
         }
         raw.execSQL(
-            "INSERT INTO judge_accounts (judge, handle, canonical_handle, connected_at, updated_at, enabled) " +
-                "VALUES ('codeforces', 'tourist', 'tourist', 1000, 1000, 1)",
+            "INSERT INTO judge_accounts (judge, handle, canonical_handle, connected_at, updated_at, enabled, " +
+                "verification_state, source_reliability) " +
+                "VALUES ('codeforces', 'tourist', 'tourist', 1000, 1000, 1, 'VERIFIED', 'OFFICIAL')",
         )
         raw.rawQuery("SELECT COUNT(*) FROM rating_changes", null).use { cursor ->
             assertTrue(cursor.moveToFirst())
             assertEquals(0, cursor.getInt(0))
         }
         raw.close()
+    }
+
+    @Test
+    fun `migrate 2 to 3 preserves codeforces and local data while generalizing ids`() {
+        createDatabaseFromSchema(2)
+        val v2 = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        v2.execSQL(
+            "INSERT INTO problems (id, judge, external_id, title, difficulty, created_at, updated_at, " +
+                "attempt_count, solved, favorite) VALUES (1, 'codeforces', '2134C', 'Keep', 1700, 1, 1, 0, 0, 1)",
+        )
+        v2.execSQL(
+            "INSERT INTO problem_notes (problem_id, key_insight, implementation_notes, complexity, general, updated_at) " +
+                "VALUES (1, 'note', '', '', '', 2)",
+        )
+        v2.execSQL(
+            "INSERT INTO attempts (problem_id, timestamp, day_index, verdict, source_judge, " +
+                "external_submission_id, contest_id) VALUES (1, 3, 0, 'AC', 'codeforces', '99', 2134)",
+        )
+        v2.execSQL(
+            "INSERT INTO judge_accounts (id, judge, handle, canonical_handle, connected_at, updated_at, enabled) " +
+                "VALUES (7, 'codeforces', 'Tourist', 'tourist', 4, 4, 1)",
+        )
+        v2.execSQL(
+            "INSERT INTO remote_problems (judge, external_id, contest_id, `index`, name, rating, tags, updated_at) " +
+                "VALUES ('codeforces', '2134C', 2134, 'C', 'Keep', 1700, '', 5)",
+        )
+        v2.execSQL(
+            "INSERT INTO contests (judge, external_contest_id, name, phase, frozen, duration_seconds, updated_at) " +
+                "VALUES ('codeforces', 2134, 'Round', 'FINISHED', 0, 7200, 6)",
+        )
+        v2.execSQL(
+            "INSERT INTO rating_changes (judge, handle, contest_id, contest_name, rank, old_rating, new_rating, " +
+                "rating_update_time_seconds) VALUES ('codeforces', 'tourist', 2134, 'Round', 1, 3900, 3910, 7)",
+        )
+        v2.execSQL(
+            "INSERT INTO sync_states (judge, state, latest_external_submission_id) " +
+                "VALUES ('codeforces', 'SUCCESS', 99)",
+        )
+        v2.close()
+
+        val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
+            .addMigrations(OjNexusDatabase.MIGRATION_2_3)
+            .build()
+        db.openHelper.writableDatabase
+        db.close()
+
+        val raw = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        raw.rawQuery(
+            "SELECT verification_state, source_reliability FROM judge_accounts WHERE id = 7",
+            null,
+        ).use {
+            assertTrue(it.moveToFirst())
+            assertEquals("VERIFIED", it.getString(0))
+            assertEquals("OFFICIAL", it.getString(1))
+        }
+        raw.rawQuery(
+            "SELECT contest_id, difficulty_source, last_seen_at FROM remote_problems WHERE external_id = '2134C'",
+            null,
+        ).use {
+            assertTrue(it.moveToFirst())
+            assertEquals("2134", it.getString(0))
+            assertEquals("OFFICIAL", it.getString(1))
+            assertEquals(5L, it.getLong(2))
+        }
+        raw.rawQuery("SELECT external_contest_id FROM contests", null).use {
+            assertTrue(it.moveToFirst())
+            assertEquals("2134", it.getString(0))
+        }
+        raw.rawQuery("SELECT contest_id FROM attempts", null).use {
+            assertTrue(it.moveToFirst())
+            assertEquals("2134", it.getString(0))
+        }
+        raw.rawQuery(
+            "SELECT account_id, latest_external_submission_id, latest_submission_time_seconds FROM sync_states",
+            null,
+        ).use {
+            assertTrue(it.moveToFirst())
+            assertEquals(7L, it.getLong(0))
+            assertEquals(99L, it.getLong(1))
+            assertTrue(it.isNull(2))
+        }
+        raw.rawQuery("SELECT key_insight FROM problem_notes WHERE problem_id = 1", null).use {
+            assertTrue(it.moveToFirst())
+            assertEquals("note", it.getString(0))
+        }
+        raw.close()
+    }
+
+    @Test
+    fun `migrate 1 to 3 follows the complete non destructive path`() {
+        createV1Database()
+        val v1 = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        v1.execSQL(
+            "INSERT INTO problems (judge, external_id, title, created_at, updated_at, attempt_count, solved, favorite) " +
+                "VALUES ('local', 'legacy', 'Legacy', 1, 1, 0, 0, 1)",
+        )
+        v1.close()
+
+        val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
+            .addMigrations(OjNexusDatabase.MIGRATION_1_2, OjNexusDatabase.MIGRATION_2_3)
+            .build()
+        try {
+            assertEquals("Legacy", kotlinx.coroutines.runBlocking { db.problemDao().findLibrary() }.single().problem.title)
+        } finally {
+            db.close()
+        }
     }
 }

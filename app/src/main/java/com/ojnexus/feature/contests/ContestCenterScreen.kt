@@ -124,8 +124,9 @@ private fun ContestRowView(row: ContestRow, tone: NexusTone) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                com.ojnexus.judge.codeforces.CodeforcesUrls.contest(row.contestId)
-                    .let { url -> com.ojnexus.core.ui.UrlOpener.open(context, url) }
+                row.contestId.toLongOrNull()
+                    ?.let(com.ojnexus.judge.codeforces.CodeforcesUrls::contest)
+                    ?.let { url -> com.ojnexus.core.ui.UrlOpener.open(context, url) }
             }
             .padding(vertical = NexusSpacing.xs),
     ) {
