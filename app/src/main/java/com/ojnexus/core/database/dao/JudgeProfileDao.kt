@@ -12,6 +12,9 @@ interface JudgeProfileDao {
     @Query("SELECT * FROM judge_profiles WHERE judge = :judge")
     fun observeByJudge(judge: String): Flow<JudgeProfileEntity?>
 
+    @Query("SELECT * FROM judge_profiles WHERE judge = :judge")
+    suspend fun findByJudge(judge: String): JudgeProfileEntity?
+
     @Upsert
     suspend fun upsert(profile: JudgeProfileEntity)
 

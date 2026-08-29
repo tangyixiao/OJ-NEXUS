@@ -79,13 +79,13 @@ class JudgeAccountRepository(
                 database.syncStateDao().deleteByJudge(judge.id)
             }
             val accountId = if (existing != null && sameHandle) {
-                accountDao.update(existing.copy(handle = trimmed, updatedAt = now))
+                accountDao.update(existing.copy(handle = rawHandle, updatedAt = now))
                 existing.id
             } else {
                 accountDao.insert(
                     JudgeAccountEntity(
                         judge = judge.id,
-                        handle = trimmed,
+                        handle = rawHandle,
                         canonicalHandle = canonical,
                         connectedAt = now,
                         updatedAt = now,

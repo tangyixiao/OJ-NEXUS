@@ -15,6 +15,9 @@ interface RatingChangeDao {
     @Query("SELECT COUNT(*) FROM rating_changes WHERE judge = :judge")
     fun observeCount(judge: String): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM rating_changes WHERE judge = :judge")
+    suspend fun countByJudge(judge: String): Int
+
     @Upsert
     suspend fun upsertAll(changes: List<RatingChangeEntity>)
 

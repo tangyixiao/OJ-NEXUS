@@ -44,6 +44,13 @@ interface ProblemDao {
     @Query("SELECT * FROM problems WHERE judge = :judge AND external_id = :externalId")
     suspend fun findByKey(judge: String, externalId: String): ProblemEntity?
 
+    @Transaction
+    @Query(
+        "SELECT *, EXISTS(SELECT 1 FROM reviews WHERE reviews.problem_id = problems.id) AS in_review " +
+            "FROM problems WHERE judge = :judge AND external_id = :externalId LIMIT 1",
+    )
+    suspend fun findWithTagsByKey(judge: String, externalId: String): ProblemWithTagsPojo?
+
     @Insert
     suspend fun insert(problem: ProblemEntity): Long
 
