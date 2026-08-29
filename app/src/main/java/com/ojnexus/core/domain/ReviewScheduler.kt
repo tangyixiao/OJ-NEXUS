@@ -25,7 +25,7 @@ data class ScheduledReview(
  * Intervals (days): 1, 3, 7, 21, 45, 90.
  * - PASS  → advance one stage (capped at the last interval, which then repeats).
  * - HARD  → stay on the stage, use half the interval (min 1 day).
- * - FAIL  → drop one stage (min 0), use that stage's interval.
+ * - FAIL  → drop one stage (min 0) and re-test the next day.
  * - SKIP  → stay on the stage, use the full interval; not counted as a completion.
  * - RESET → back to stage 0.
  */
@@ -58,7 +58,8 @@ object ReviewScheduler {
 
             ReviewResult.FAIL -> {
                 val nextStage = (currentStage - 1).coerceAtLeast(0)
-                schedule(nextStage, INTERVAL_DAYS[nextStage], now, zone)
+                // A failed recall is re-tested the next day regardless of the new stage.
+                schedule(nextStage, 1, now, zone)
             }
 
             ReviewResult.SKIP ->

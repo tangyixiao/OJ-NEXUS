@@ -7,10 +7,10 @@ package com.ojnexus.core.domain
  */
 data class DayActivity(
     val dayIndex: Long,
-    val solved: Int,
-    val attempts: Int,
-    val reviewsCompleted: Int,
-    val trainingMs: Long,
+    val solved: Int = 0,
+    val attempts: Int = 0,
+    val reviewsCompleted: Int = 0,
+    val trainingMs: Long = 0,
 )
 
 /**
