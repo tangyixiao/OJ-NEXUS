@@ -64,8 +64,10 @@ private class FakeCodeforcesAdapter(
 
     override suspend fun fetchSubmissionsPage(handle: String, from: Int, count: Int): List<CfSubmissionDto> {
         submissionPageCalls++
-        // Each element of submissionPages IS one page, returned by 1-based page number.
-        return submissionPages.getOrNull(from - 1) ?: emptyList()
+        require(from >= 1)
+        require(count > 0)
+        val pageIndex = (from - 1) / count
+        return submissionPages.getOrNull(pageIndex) ?: emptyList()
     }
 
     override suspend fun fetchContests(): List<CfContestDto> = contests
@@ -242,6 +244,90 @@ class CodeforcesSyncTest {
     }
 
     @Test
+    fun `initial multi-page sync imports a full page followed by a short page`() = runBlocking {
+        val account = connect()
+        adapter.submissionPages = mutableListOf(
+            (0 until SyncPolicy.SUBMISSION_PAGE_SIZE).map { submission(5_000L - it) },
+            listOf(submission(4_000), submission(3_999)),
+        )
+
+        val report = coordinator.syncAccount(account.id, force = true)!!
+
+        assertTrue(report.allOk)
+        assertEquals(2, adapter.submissionPageCalls)
+        assertEquals(1_002, database.problemDao().findByKey("codeforces", "2134C")!!.attemptCount)
+        assertNotNull(database.attemptDao().findByExternalId("codeforces", "3999"))
+        assertEquals(5_000L, syncRepository.findStateFor(account)!!.latestExternalSubmissionId)
+    }
+
+    @Test
+    fun `initial full pages continue until an empty confirmation page`() = runBlocking {
+        val account = connect()
+        adapter.submissionPages = mutableListOf(
+            (0 until SyncPolicy.SUBMISSION_PAGE_SIZE).map { submission(2_000L - it) },
+            (0 until SyncPolicy.SUBMISSION_PAGE_SIZE).map { submission(1_000L - it) },
+            emptyList(),
+        )
+
+        coordinator.syncAccount(account.id, force = true)
+
+        assertEquals(3, adapter.submissionPageCalls)
+        assertEquals(2_000, database.problemDao().findByKey("codeforces", "2134C")!!.attemptCount)
+        assertNotNull(database.attemptDao().findByExternalId("codeforces", "1"))
+    }
+
+    @Test
+    fun `incremental sync uses the pre-sync boundary and refreshes the boundary page`() = runBlocking {
+        val account = connect()
+        adapter.submissionPages = mutableListOf(
+            (0 until SyncPolicy.SUBMISSION_PAGE_SIZE).map {
+                submission(1_000L - it, verdict = "WRONG_ANSWER")
+            },
+            emptyList(),
+        )
+        coordinator.syncAccount(account.id, force = true)
+
+        adapter.submissionPageCalls = 0
+        adapter.submissionPages = mutableListOf(
+            (0 until SyncPolicy.SUBMISSION_PAGE_SIZE).map { submission(2_000L - it) },
+            (0 until SyncPolicy.SUBMISSION_PAGE_SIZE).map {
+                val id = 1_000L - it
+                submission(id, verdict = if (id == 1_000L) "OK" else "WRONG_ANSWER")
+            },
+            emptyList(),
+        )
+
+        coordinator.syncAccount(account.id, force = true)
+
+        assertEquals(2, adapter.submissionPageCalls)
+        assertNotNull(database.attemptDao().findByExternalId("codeforces", "2000"))
+        assertEquals(Verdict.AC.name, database.attemptDao().findByExternalId("codeforces", "1000")!!.verdict)
+        assertEquals(2_000L, syncRepository.findStateFor(account)!!.latestExternalSubmissionId)
+    }
+
+    @Test
+    fun `incremental sync refreshes one full overlap page when there are no new submissions`() = runBlocking {
+        val account = connect()
+        adapter.submissionPages = mutableListOf(
+            (0 until SyncPolicy.SUBMISSION_PAGE_SIZE).map { submission(1_000L - it) },
+            emptyList(),
+        )
+        coordinator.syncAccount(account.id, force = true)
+
+        adapter.submissionPageCalls = 0
+        adapter.submissionPages = mutableListOf(
+            (0 until SyncPolicy.SUBMISSION_PAGE_SIZE).map {
+                submission(1_000L - it, verdict = if (it == 0) "WRONG_ANSWER" else "OK")
+            },
+        )
+
+        coordinator.syncAccount(account.id, force = true)
+
+        assertEquals(1, adapter.submissionPageCalls)
+        assertEquals(Verdict.WA.name, database.attemptDao().findByExternalId("codeforces", "1000")!!.verdict)
+    }
+
+    @Test
     fun `re-sync is idempotent - same submission count and rows`() = runBlocking {
         val account = connect()
         adapter.submissionPages = mutableListOf(listOf(submission(2), submission(1)))
@@ -374,6 +460,19 @@ class CodeforcesSyncTest {
 
         coordinator.syncAccount(account.id, force = false)
         assertEquals(profileCallsAfterFirst, adapter.fetchProfileCalls)
+    }
+
+    @Test
+    fun `non-forced sync skips fresh submissions and successful sync stamps freshness`() = runBlocking {
+        val account = connect()
+        adapter.submissionPages = mutableListOf(listOf(submission(1)))
+        coordinator.syncAccount(account.id, force = true)
+        val callsAfterFirst = adapter.submissionPageCalls
+        assertNotNull(syncRepository.findStateFor(account)!!.submissionsSyncedAt)
+
+        coordinator.syncAccount(account.id, force = false)
+
+        assertEquals(callsAfterFirst, adapter.submissionPageCalls)
     }
 
     // --- Rating sync ---
