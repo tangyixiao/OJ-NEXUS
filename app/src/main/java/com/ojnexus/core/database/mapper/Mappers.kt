@@ -34,6 +34,16 @@ fun ProblemWithTagsPojo.toDomain(): Problem = problem.toDomain(
     tags = tags.map { it.name },
 )
 
+/** Full detail aggregate: problem + attempts (newest first) + failures + notes + review. */
+fun ProblemDetailPojo.toDetail(): com.ojnexus.core.model.ProblemDetail =
+    com.ojnexus.core.model.ProblemDetail(
+        problem = toDomain(),
+        attempts = attempts.sortedByDescending { it.timestamp }.map { it.toDomain() },
+        failures = failures.sortedBy { it.createdAt }.map { it.toDomain() },
+        notes = note?.toDomain(),
+        review = review?.toDomain(),
+    )
+
 fun ProblemDetailPojo.toDomain(): Problem = problem.toDomain(
     tags = tags.map { it.name },
 )

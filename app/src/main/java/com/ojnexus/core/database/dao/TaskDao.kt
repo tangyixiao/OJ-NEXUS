@@ -30,4 +30,7 @@ interface TaskDao {
 
     @Query("DELETE FROM training_tasks WHERE date_epoch_day = :dateEpochDay AND completed = 1")
     suspend fun deleteCompleted(dateEpochDay: Long)
+
+    @Query("UPDATE training_tasks SET completed = :completed WHERE id = :taskId")
+    suspend fun updateCompleted(taskId: Long, completed: Boolean)
 }

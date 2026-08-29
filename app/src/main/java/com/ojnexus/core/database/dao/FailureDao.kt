@@ -19,6 +19,9 @@ interface FailureDao {
     @Query("DELETE FROM failure_entries WHERE id = :id")
     suspend fun delete(id: Long)
 
+    @Query("SELECT * FROM failure_entries WHERE id = :id")
+    suspend fun findById(id: Long): FailureEntryEntity?
+
     @Query("SELECT * FROM failure_entries WHERE problem_id = :problemId ORDER BY created_at ASC")
     fun observeByProblem(problemId: Long): Flow<List<FailureEntryEntity>>
 }

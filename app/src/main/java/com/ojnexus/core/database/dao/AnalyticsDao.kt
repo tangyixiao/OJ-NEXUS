@@ -41,7 +41,8 @@ interface AnalyticsDao {
 
     @Query(
         "SELECT day_index AS dayIndex, COUNT(*) AS count FROM review_log " +
-            "WHERE day_index >= :fromDay GROUP BY day_index",
+            // SKIP is explicitly not a completion (see ReviewScheduler) — exclude from activity.
+            "WHERE day_index >= :fromDay AND result != 'SKIP' GROUP BY day_index",
     )
     fun observeDailyReviews(fromDay: Long): Flow<List<DailyReviewRow>>
 
@@ -50,6 +51,12 @@ interface AnalyticsDao {
 
     @Query("SELECT COUNT(*) FROM attempts WHERE verdict = 'AC'")
     fun observeAcTotal(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM problems")
+    fun observeProblemTotal(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM problems WHERE solved = 1")
+    fun observeSolvedTotal(): Flow<Int>
 
     @Query(
         "SELECT difficulty, COUNT(*) AS count FROM problems WHERE solved = 1 GROUP BY difficulty",
