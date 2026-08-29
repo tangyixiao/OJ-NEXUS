@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Relation
 import androidx.room.Transaction
+import androidx.room.Update
 import com.ojnexus.core.database.entity.AttemptEntity
 import com.ojnexus.core.database.entity.ProblemEntity
 import kotlinx.coroutines.flow.Flow
@@ -35,4 +36,13 @@ interface AttemptDao {
     @Transaction
     @Query("SELECT * FROM attempts ORDER BY timestamp DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<AttemptWithProblemPojo>>
+
+    /** Lookup by the remote idempotency key; null when this submission was never synced. */
+    @Query(
+        "SELECT * FROM attempts WHERE source_judge = :sourceJudge AND external_submission_id = :externalId LIMIT 1",
+    )
+    suspend fun findByExternalId(sourceJudge: String, externalId: String): AttemptEntity?
+
+    @Update
+    suspend fun update(attempt: AttemptEntity)
 }
