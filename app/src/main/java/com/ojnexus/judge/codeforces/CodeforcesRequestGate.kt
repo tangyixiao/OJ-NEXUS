@@ -2,8 +2,7 @@ package com.ojnexus.judge.codeforces
 
 import com.ojnexus.core.network.DelayProvider
 import com.ojnexus.core.network.MonotonicClock
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import com.ojnexus.core.network.RateLimitedRequestGate
 
 /**
  * Process-wide Codeforces request gate.
@@ -18,24 +17,11 @@ import kotlinx.coroutines.sync.withLock
  * so tests never actually sleep.
  */
 class CodeforcesRequestGate(
-    private val minimumIntervalMs: Long = 2_100,
-    private val clock: MonotonicClock,
-    private val delayProvider: DelayProvider,
+    minimumIntervalMs: Long = 2_100,
+    clock: MonotonicClock,
+    delayProvider: DelayProvider,
 ) {
+    private val delegate = RateLimitedRequestGate(minimumIntervalMs, clock, delayProvider)
 
-    private val mutex = Mutex()
-    private var lastRequestStartMs: Long? = null
-
-    suspend fun <T> execute(block: suspend () -> T): T = mutex.withLock {
-        val now = clock.nowMs()
-        val last = lastRequestStartMs
-        if (last != null) {
-            val earliestAllowed = last + minimumIntervalMs
-            if (now < earliestAllowed) {
-                delayProvider.delayMs(earliestAllowed - now)
-            }
-        }
-        lastRequestStartMs = clock.nowMs()
-        block()
-    }
+    suspend fun <T> execute(block: suspend () -> T): T = delegate.execute(block)
 }
