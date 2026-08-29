@@ -95,7 +95,13 @@ class TrainingRepository(
 
     /**
      * Creates a session, attaches problems and starts it. Returns the new session id.
-     * Only one live session is allowed at a time.
+     *
+     * The "at most one live session" invariant is enforced **inside** the same transaction
+     * as the insert: a concurrent create either commits first (our check fails and we roll
+     * back) or second (its check fails). Checking before the transaction would be a
+     * TOCTOU race. The guard throws [SessionLimitReachedException], which
+     * [dataResult] maps to `DataError.Storage("A session is already active")` — the shape
+     * the SessionViewModel translates into its ActiveExists action error.
      */
     suspend fun createAndStartSession(
         type: TrainingType,
@@ -103,9 +109,6 @@ class TrainingRepository(
         targetTag: String?,
         problemIds: List<Long>,
     ): DataResult<Long> {
-        if (sessionDao.countActive() > 0) {
-            return DataResult.Failure(DataError.Storage("A session is already active"))
-        }
         for (problemId in problemIds) {
             if (database.problemDao().findById(problemId) == null) {
                 return DataResult.Failure(DataError.NotFound("problem $problemId"))
@@ -113,6 +116,9 @@ class TrainingRepository(
         }
         return dataResult {
             database.withTransaction {
+                if (sessionDao.countActive() > 0) {
+                    throw SessionLimitReachedException()
+                }
                 val sessionId = sessionDao.insert(
                     TrainingSessionEntity(
                         type = type.name,
@@ -133,6 +139,10 @@ class TrainingRepository(
             }
         }
     }
+
+    /** Transaction-local guard: rolled back with the transaction, mapped to a DataError. */
+    private class SessionLimitReachedException :
+        IllegalStateException("A session is already active")
 
     suspend fun pauseSession(sessionId: Long): DataResult<Unit> = applyEvent(sessionId, SessionEvent.PAUSE)
 

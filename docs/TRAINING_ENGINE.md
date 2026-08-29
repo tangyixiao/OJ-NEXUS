@@ -61,6 +61,13 @@ A 1 Hz ticker feeds ONLY the elapsed-time text — nothing else on the screen re
 second, and no timer writes to the database. Because every snapshot is persisted, backgrounding,
 rotation and process death recover to the correct elapsed value for free.
 
+**Known trade-off (accepted for this phase):** elapsed time is computed from wall-clock
+snapshots, so a user manually changing the system clock shifts a running session's elapsed
+value. A monotonic/process-death dual-clock design would fix that at the cost of real
+complexity; Phase 1 deliberately keeps the single simple source of truth. The session-creation
+guard (`at most one live session`) is enforced inside the create transaction itself, so
+concurrent creators cannot race past it.
+
 ## Data Flow
 
 Repositories (`core/data/repository`) own transactions and derived-field maintenance
