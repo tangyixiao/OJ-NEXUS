@@ -22,6 +22,9 @@ interface FailureDao {
     @Query("SELECT * FROM failure_entries WHERE id = :id")
     suspend fun findById(id: Long): FailureEntryEntity?
 
+    @Query("SELECT COUNT(*) FROM failure_entries")
+    suspend fun count(): Int
+
     @Query("SELECT * FROM failure_entries WHERE problem_id = :problemId ORDER BY created_at ASC")
     fun observeByProblem(problemId: Long): Flow<List<FailureEntryEntity>>
 }

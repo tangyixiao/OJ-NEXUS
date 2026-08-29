@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
+import kotlinx.coroutines.flow.StateFlow
 import com.ojnexus.core.designsystem.NexusRadius
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
@@ -80,7 +81,6 @@ fun SessionScreen(
         },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val elapsed by viewModel.elapsedMs.collectAsStateWithLifecycle()
     val problems by viewModel.problems.collectAsStateWithLifecycle()
 
     Column(
@@ -113,7 +113,6 @@ fun SessionScreen(
                     else -> SessionRunningView(
                         session = surface.session,
                         liveProblemCount = surface.liveProblemCount,
-                        elapsedMs = elapsed,
                         actionError = surface.actionError,
                         viewModel = viewModel,
                     )
@@ -239,7 +238,6 @@ private fun SessionCreationForm(
 private fun SessionRunningView(
     session: TrainingSession,
     liveProblemCount: Int?,
-    elapsedMs: Long,
     actionError: SessionActionError?,
     viewModel: SessionViewModel,
 ) {
@@ -275,11 +273,8 @@ private fun SessionRunningView(
             style = NexusTheme.typography.sectionLabel,
             color = colors.textTertiary,
         )
-        Text(
-            text = formatDuration(elapsedMs / 60_000),
-            style = NexusTheme.typography.displayData,
-            color = if (paused) colors.warning else colors.accent,
-        )
+        // The ONLY per-second recomposing element: elapsed text collects the ticker flow.
+        ElapsedText(elapsedFlow = viewModel.elapsedMs, paused = paused)
         Spacer(modifier = Modifier.height(NexusSpacing.md))
         Row(modifier = Modifier.fillMaxWidth()) {
             NexusMetric(
@@ -474,6 +469,16 @@ private fun SessionSummaryView(
         ActionButton(stringResource(R.string.action_close), accent = true) { onDone() }
         Spacer(modifier = Modifier.height(NexusSpacing.xxl))
     }
+}
+
+@Composable
+private fun ElapsedText(elapsedFlow: StateFlow<Long>, paused: Boolean) {
+    val elapsedMs by elapsedFlow.collectAsStateWithLifecycle()
+    Text(
+        text = formatDuration(elapsedMs / 60_000),
+        style = NexusTheme.typography.displayData,
+        color = if (paused) NexusTheme.colors.warning else NexusTheme.colors.accent,
+    )
 }
 
 @Composable

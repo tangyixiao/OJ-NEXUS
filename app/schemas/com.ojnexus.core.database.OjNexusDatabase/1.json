@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "9c9f8497cf4aff56ea6bb368e949bb86",
+    "identityHash": "43bfdd0a1908ccf1ac5f84c5203ce10c",
     "entities": [
       {
         "tableName": "problems",
@@ -166,7 +166,7 @@
       },
       {
         "tableName": "problem_tag_cross_ref",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`problem_id` INTEGER NOT NULL, `tag_id` INTEGER NOT NULL, PRIMARY KEY(`problem_id`, `tag_id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`problem_id` INTEGER NOT NULL, `tag_id` INTEGER NOT NULL, PRIMARY KEY(`problem_id`, `tag_id`), FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`tag_id`) REFERENCES `problem_tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "problemId",
@@ -206,6 +206,30 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_problem_tag_cross_ref_problem_id` ON `${TABLE_NAME}` (`problem_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "problems",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "problem_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "problem_tags",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "tag_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
           }
         ]
       },
@@ -902,7 +926,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9c9f8497cf4aff56ea6bb368e949bb86')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '43bfdd0a1908ccf1ac5f84c5203ce10c')"
     ]
   }
 }

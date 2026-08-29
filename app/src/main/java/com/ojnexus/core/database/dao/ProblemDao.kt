@@ -57,12 +57,13 @@ interface ProblemDao {
     suspend fun setFavorite(id: Long, favorite: Boolean)
 
     /**
-     * Counter/state update applied atomically with an attempt insert. `solved` is the new
-     * aggregate value; `firstSolvedAt` only fills in when it was previously null.
+     * Counter/state update applied atomically with an attempt insert. `solved` is sticky:
+     * once true it never regresses, and `firstSolvedAt` only fills in when previously null.
      */
     @Query(
         "UPDATE problems SET attempt_count = attempt_count + 1, last_attempt_at = :timestamp, " +
-            "solved = :solved, first_solved_at = COALESCE(first_solved_at, :firstSolvedAt), " +
+            "solved = CASE WHEN solved THEN 1 ELSE :solved END, " +
+            "first_solved_at = COALESCE(first_solved_at, :firstSolvedAt), " +
             "updated_at = :updatedAt WHERE id = :id",
     )
     suspend fun applyAttempt(

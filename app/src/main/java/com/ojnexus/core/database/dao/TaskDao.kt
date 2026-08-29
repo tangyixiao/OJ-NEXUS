@@ -33,4 +33,7 @@ interface TaskDao {
 
     @Query("UPDATE training_tasks SET completed = :completed WHERE id = :taskId")
     suspend fun updateCompleted(taskId: Long, completed: Boolean)
+
+    @Query("SELECT COUNT(*) FROM training_tasks")
+    suspend fun count(): Int
 }

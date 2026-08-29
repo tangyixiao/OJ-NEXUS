@@ -12,6 +12,9 @@ interface NoteDao {
     @Query("SELECT * FROM problem_notes WHERE problem_id = :problemId")
     fun observeByProblem(problemId: Long): Flow<ProblemNoteEntity?>
 
+    @Query("SELECT * FROM problem_notes WHERE problem_id = :problemId")
+    suspend fun findByProblem(problemId: Long): ProblemNoteEntity?
+
     @Upsert
     suspend fun upsert(note: ProblemNoteEntity)
 }

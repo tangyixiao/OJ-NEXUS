@@ -2,6 +2,7 @@ package com.ojnexus.core.database.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
@@ -15,10 +16,24 @@ data class ProblemTagEntity(
     val name: String,
 )
 
-/** Many-to-many between problems and tags. */
+/** Many-to-many between problems and tags. Rows die with both endpoints. */
 @Entity(
     tableName = "problem_tag_cross_ref",
     primaryKeys = ["problem_id", "tag_id"],
+    foreignKeys = [
+        ForeignKey(
+            entity = ProblemEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["problem_id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = ProblemTagEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["tag_id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
     indices = [Index(value = ["tag_id"]), Index(value = ["problem_id"])],
 )
 data class ProblemTagCrossRef(
