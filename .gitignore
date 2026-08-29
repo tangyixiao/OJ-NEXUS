@@ -1,0 +1,39 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Machine-local Android config
+local.properties
+
+# Build outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Signing / secrets
+*.jks
+*.keystore
+keystore.properties
+
+# Environment / secrets
+.env
+.env.*
+
+# Machine-local helpers
+tools/
+
+# Logs / OS files
+*.log
+.DS_Store
+Thumbs.db
+
+# Kotlin
+.kotlin/

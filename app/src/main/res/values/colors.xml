@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window background matches Design System background token to avoid a light flash on cold start. -->
+    <color name="window_background">#FF090B0D</color>
+    <color name="ic_launcher_background">#FF090B0D</color>
+</resources>

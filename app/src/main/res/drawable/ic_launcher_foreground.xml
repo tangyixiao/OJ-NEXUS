@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OJ NEXUS launcher mark: a hub-and-node "nexus" glyph. Content stays inside
+     the adaptive-icon safe zone (66dp circle centered in the 108dp canvas). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Edges: hub -> satellites -->
+    <path
+        android:pathData="M54,57 L54,41 M54,57 L39,68 M54,57 L69,68"
+        android:strokeColor="#4FA1FF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- Hub node -->
+    <path
+        android:pathData="M54,57 m-5,0 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 Z"
+        android:fillColor="#4FA1FF" />
+
+    <!-- Satellite nodes -->
+    <path
+        android:pathData="M54,41 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0 Z"
+        android:fillColor="#4FA1FF" />
+    <path
+        android:pathData="M39,68 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0 Z"
+        android:fillColor="#4FA1FF" />
+    <path
+        android:pathData="M69,68 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0 Z"
+        android:fillColor="#4FA1FF" />
+</vector>

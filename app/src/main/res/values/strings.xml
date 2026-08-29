@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name">OJ NEXUS</string>
+
+    <!-- Navigation -->
+    <string name="nav_dashboard">DASHBOARD</string>
+    <string name="nav_problems">PROBLEMS</string>
+    <string name="nav_training">TRAINING</string>
+    <string name="nav_analytics">ANALYTICS</string>
+    <string name="nav_profile">PROFILE</string>
+    <string name="nav_cd_selected">Selected tab</string>
+
+    <!-- Verdicts (unified codes) -->
+    <string name="verdict_ac">AC</string>
+    <string name="verdict_wa">WA</string>
+    <string name="verdict_tle">TLE</string>
+    <string name="verdict_mle">MLE</string>
+    <string name="verdict_re">RE</string>
+    <string name="verdict_ce">CE</string>
+    <string name="verdict_pe">PE</string>
+    <string name="verdict_other">OTHER</string>
+
+    <!-- Sync states -->
+    <string name="sync_state_synced">SYNCED</string>
+    <string name="sync_state_syncing">SYNCING</string>
+    <string name="sync_state_not_linked">NOT LINKED</string>
+    <string name="sync_state_error">ERROR</string>
+    <string name="sync_last_sync">LAST SYNC</string>
+    <string name="sync_source_sample">DEV SAMPLE</string>
+
+    <!-- Dashboard sections -->
+    <string name="dash_section_system">SYSTEM STATUS</string>
+    <string name="dash_section_competitive">COMPETITIVE STATUS</string>
+    <string name="dash_section_today">TODAY</string>
+    <string name="dash_section_next_contest">NEXT CONTEST</string>
+    <string name="dash_section_recent">RECENT ACTIVITY</string>
+    <string name="dash_section_load">TRAINING LOAD</string>
+
+    <!-- Dashboard metrics -->
+    <string name="metric_rating">RATING</string>
+    <string name="metric_weekly_ac">WEEKLY AC</string>
+    <string name="metric_streak">STREAK</string>
+    <string name="format_delta">%+d</string>
+    <string name="format_streak_days">%dD</string>
+
+    <!-- Dashboard: today / contest / activity -->
+    <string name="today_header_task">TASK</string>
+    <string name="today_header_priority">PRIORITY</string>
+    <string name="contest_label_start">START</string>
+    <string name="contest_label_countdown">COUNTDOWN</string>
+    <string name="activity_header_time">TIME</string>
+    <string name="activity_header_problem">PROBLEM</string>
+    <string name="activity_header_judge">JUDGE</string>
+    <string name="activity_header_verdict">VERDICT</string>
+
+    <!-- Weekday abbreviations (training load axis) -->
+    <string name="day_mon">MON</string>
+    <string name="day_tue">TUE</string>
+    <string name="day_wed">WED</string>
+    <string name="day_thu">THU</string>
+    <string name="day_fri">FRI</string>
+    <string name="day_sat">SAT</string>
+    <string name="day_sun">SUN</string>
+
+    <!-- Problems -->
+    <string name="problems_section_library">LIBRARY</string>
+    <string name="problems_header_problem">PROBLEM</string>
+    <string name="problems_header_rating">RATING</string>
+    <string name="problems_header_status">STATUS</string>
+    <string name="problems_header_mastery">MASTERY</string>
+    <string name="problems_count">%d PROBLEMS</string>
+    <string name="problems_filter_all">ALL</string>
+    <string name="problems_filter_unsolved">UNSOLVED</string>
+    <string name="problems_filter_difficulty">1700+</string>
+    <string name="problems_filter_tag_dp">DP</string>
+    <string name="problems_footer_sample">DEVELOPMENT SAMPLE DATASET</string>
+    <string name="problem_status_solved">SOLVED</string>
+    <string name="problem_status_attempted">ATTEMPTED</string>
+    <string name="problem_status_unsolved">UNSOLVED</string>
+    <string name="format_mastery">%d%%</string>
+    <string name="problems_no_value">—</string>
+
+    <!-- Training -->
+    <string name="training_section_session">SESSION</string>
+    <string name="session_state_standby">STANDBY</string>
+    <string name="session_no_active">NO ACTIVE SESSION</string>
+    <string name="session_type_practice">PRACTICE</string>
+    <string name="session_type_focus">FOCUS</string>
+    <string name="session_type_upsolve">UPSOLVE</string>
+    <string name="session_type_review">REVIEW</string>
+    <string name="session_label_duration">DURATION</string>
+    <string name="session_label_problems">PROBLEMS</string>
+    <string name="session_action_start">START SESSION</string>
+    <string name="session_value_minutes">%d MIN</string>
+    <string name="training_section_target">TODAY\'S TARGET</string>
+    <string name="training_section_weak">WEAK AREAS</string>
+    <string name="target_priority">PRIORITY %d</string>
+    <string name="target_range_label">RANGE</string>
+    <string name="reason_weak_mastery">LOW MASTERY</string>
+    <string name="reason_review_gap">REVIEW GAP</string>
+    <string name="reason_no_attempts">NO ATTEMPTS</string>
+    <string name="format_review_gap">%dD REVIEW GAP</string>
+    <string name="reason_separator">" · "</string>
+
+    <!-- Knowledge areas -->
+    <string name="area_data_structure">DATA STRUCTURE</string>
+    <string name="area_graph">GRAPH</string>
+    <string name="area_dp">DYNAMIC PROGRAMMING</string>
+    <string name="area_string">STRING</string>
+    <string name="area_math">MATH</string>
+    <string name="area_geometry">GEOMETRY</string>
+    <string name="area_greedy">GREEDY</string>
+    <string name="area_search">SEARCH</string>
+    <string name="area_construction">CONSTRUCTION</string>
+    <string name="area_game_theory">GAME THEORY</string>
+
+    <!-- Analytics -->
+    <string name="analytics_section_heatmap">ACTIVITY HEATMAP</string>
+    <string name="analytics_heatmap_cd">Activity heatmap, one column per week</string>
+    <string name="heatmap_legend_less">LESS</string>
+    <string name="heatmap_legend_more">MORE</string>
+    <string name="analytics_section_rating">RATING TREND</string>
+    <string name="analytics_section_verdict">VERDICT DISTRIBUTION</string>
+    <string name="analytics_section_weak">WEAK TAGS</string>
+    <string name="analytics_footer_sample">DEVELOPMENT SAMPLE DATASET</string>
+
+    <!-- Profile -->
+    <string name="profile_role">COMPETITIVE PROGRAMMER</string>
+    <string name="profile_section_judges">JUDGES</string>
+    <string name="profile_section_global">GLOBAL</string>
+    <string name="judge_not_linked">NOT LINKED</string>
+    <string name="profile_stat_solved">SOLVED</string>
+    <string name="profile_stat_submissions">SUBMISSIONS</string>
+    <string name="profile_stat_active_days">ACTIVE DAYS</string>
+    <string name="profile_stat_streak">STREAK</string>
+    <string name="profile_stat_max_diff">MAX DIFF</string>
+    <string name="profile_judge_contests">%d CONTESTS</string>
+    <string name="profile_judge_solved">%d SOLVED</string>
+</resources>
