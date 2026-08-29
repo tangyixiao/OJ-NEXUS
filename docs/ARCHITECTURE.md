@@ -7,44 +7,57 @@ when the codebase justifies it (no premature 20-module split).
 
 ```
 com.ojnexus
+├── OjNexusApplication      # manual DI container (AppContainer): db, clock, repositories
 ├── MainActivity            # single activity, edge-to-edge, NexusTheme
-├── app/                    # shell: NexusApp, NexusDestination, NexusBottomBar
+├── app/                    # shell: NexusApp (NavHost), NexusDestination, NexusBottomBar
 ├── core/
+│   ├── database/           # Room v1: entities, DAOs, relations, mappers (schema exported)
+│   ├── data/               # repositories (problem/review/training/analytics), DataResult
 │   ├── designsystem/       # tokens (colors/typography/spacing/motion) + components
-│   ├── model/              # domain enums/models (JudgeId, Verdict, KnowledgeArea, TrainingType)
-│   ├── sample/             # DEVELOPMENT SAMPLE data for UI preview only
-│   └── ui/                 # presentation glue: verdict tone/label mapping, number formatting
+│   ├── domain/             # pure engines: ReviewScheduler, StreakCalculator,
+│   │                       # SessionStateMachine/SessionClock, ActivityScorer/Policy
+│   ├── model/              # domain enums + models (JudgeId, Verdict, Problem, ProblemKey, …)
+│   └── ui/                 # Loadable state, enum label/tone mapping, formatting, DI local
 └── feature/
-    ├── dashboard/  problems/  training/  analytics/  profile/
-    └── (later: problem detail, review, session, contests, arena, knowledge, achievements,
-         settings, command)
+    ├── dashboard/  problems/ (library, form, detail)  training/ (queue, tasks,
+    │                          sessions, review session)  analytics/  profile/
+    └── (later: contests, arena, knowledge, achievements, settings, command)
 ```
 
-Planned (post-Phase 2) layering inside each feature:
+## Dependency Injection
+
+Manual container (`AppContainer` in `OjNexusApplication`), provided to Compose via
+`LocalAppContainer`. Chosen deliberately over Hilt for Phase 1: a handful of singletons on a
+brand-new AGP 9 built-in-Kotlin toolchain — stability beats framework dogma. ViewModels are
+created with `ContainerViewModelFactory`; composables never touch repositories or DAOs.
+
+## Data Flow (Phase 1)
 
 ```
-UI (Compose) → ViewModel (StateFlow<UiState>) → UseCase/Repository → Data Source → Room/Network
+Room (Flow) → Repository (transactions, derived fields) → ViewModel (combine → Loadable<T>)
+           → Composable (collectAsStateWithLifecycle)
 ```
+
+- One `UiState` per screen; Loading/Empty/Failed handled at screen level, per-section empties
+  inside Ready.
+- Writes go through repositories and return `DataResult` / `DataError`
+  (`DuplicateProblem`, `NotFound`, `Storage`) — SQLite exceptions never reach the UI.
+- Session timing is derived from persisted snapshots (see TRAINING_ENGINE.md); the 1 Hz ticker
+  recomposes only the elapsed-time text.
 
 ## Rules
 
 - Composables render state; they never perform I/O or business logic.
-- One `UiState` type per screen covering Loading / Success / Empty / Error / Offline.
-- `Flow` collection is lifecycle-aware; `StateFlow` is the default UI-state holder.
-- Repositories cache locally (Room) and treat the network as a sync mechanism, not the source
-  of truth. A failed request must never blank a screen that has local data.
-- Network errors are mapped to domain errors
-  (`NetworkUnavailable, RateLimited, Unauthorized, UserNotFound, ParseError, ServerError, Unknown`).
-- Judge adapters are isolated: `judge/<name>/` owns endpoints, DTOs, parsing, quirks. A broken
-  adapter degrades only its own judge (see OJ_ADAPTERS.md).
-- Deterministic engines (Mastery, Training, Review scheduling, Sync) are pure Kotlin where
-  possible — unit-testable without Android.
+- Local First: everything in Phase 1 works fully offline; the network layer arrives in Phase 2
+  behind the JudgeAdapter boundary.
+- Deterministic engines (Mastery, Training, Review scheduling, Sync) are pure Kotlin —
+  unit-testable without Android.
+- Day-key discipline: UTC epoch millis stored, local epoch days precomputed at write time.
 
-## Phase 0 State
+## Testing
 
-- Shell: `MainActivity` → `NexusApp` (NavHost + flat bottom bar, fade transitions).
-- Design system implemented (see DESIGN_SYSTEM.md).
-- Five skeleton screens render `core/sample` data through default parameters and are labeled
-  DEV SAMPLE on the dashboard. No ViewModels, no Room, no network yet — by design.
-- Unit tests cover the domain enums (`Verdict.fromRaw`, `JudgeId.fromId`) and will cover
-  formatting + engines as they land.
+- Pure domain engines: JUnit (ReviewScheduler, StreakCalculator/ActivityPolicy,
+  SessionStateMachine/SessionClock, ActivityScorer, ProblemStatus/ProblemKey, Verdict/JudgeId).
+- Library filter/sort: pure functions, JUnit.
+- Room schema guarantees (unique keys, cascades, counter queries): Robolectric DAO tests on the
+  JVM — these run in CI like any unit test. No emulator-based instrumented tests yet.

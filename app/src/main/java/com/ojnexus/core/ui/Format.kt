@@ -1,5 +1,8 @@
 package com.ojnexus.core.ui
 
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 
@@ -19,3 +22,22 @@ fun formatDays(value: Int): String = "${abs(value)}D"
 
 /** 61 -> "61%". */
 fun formatPercent(value: Int): String = "$value%"
+
+/** 90 -> "1H 30M". */
+fun formatDuration(minutes: Long): String {
+    val total = abs(minutes)
+    return String.format(Locale.getDefault(), "%dH %02dM", total / 60, total % 60)
+}
+
+private val dateTimeFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault())
+private val dateFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("MM-dd", Locale.getDefault())
+
+/** Epoch millis -> "yyyy-MM-dd HH:mm" in the system zone. */
+fun formatDateTime(epochMs: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+    dateTimeFormatter.format(Instant.ofEpochMilli(epochMs).atZone(zone))
+
+/** Epoch millis -> "MM-dd" in the system zone. */
+fun formatDate(epochMs: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+    dateFormatter.format(Instant.ofEpochMilli(epochMs).atZone(zone))
