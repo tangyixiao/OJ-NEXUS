@@ -149,11 +149,17 @@ class CodeforcesSyncRepository(
     suspend fun syncSubmissions(account: JudgeAccountEntity, force: Boolean): StageOutcome {
         val judge = JudgeId.CODEFORCES
         val startedAt = clock.millis()
+        val stateBeforeSync = findStateFor(account)
+        val lastSync = stateBeforeSync?.submissionsSyncedAt
+        if (!force && lastSync != null && clock.millis() - lastSync < SyncPolicy.SUBMISSIONS_FRESH_MS) {
+            return StageOutcome(SyncStage.SUBMISSIONS, ok = true, itemsProcessed = 0)
+        }
         markSyncing(judge.id, SyncStage.SUBMISSIONS)
 
         var from = 1
         var imported = 0
-        var latestKnown = findStateFor(account)?.latestExternalSubmissionId
+        val syncBoundaryId = stateBeforeSync?.latestExternalSubmissionId
+        var newestSeenId = syncBoundaryId
         val outcome = try {
             while (true) {
                 val page = adapter.fetchSubmissionsPage(
@@ -166,14 +172,14 @@ class CodeforcesSyncRepository(
                 }
                 imported += page.size
                 page.maxOfOrNull { it.id }?.let { maxId ->
-                    latestKnown = maxOf(latestKnown ?: 0L, maxId)
-                    updateCursor(judge.id, latestKnown, imported)
+                    newestSeenId = maxOf(newestSeenId ?: 0L, maxId)
+                    updateCursor(judge.id, newestSeenId, imported)
                 }
                 val shouldContinue = SubmissionSyncPlanner.shouldContinueAfterPage(
                     pageItems = page.size,
                     pageSize = SyncPolicy.SUBMISSION_PAGE_SIZE,
                     pageSmallestSubmissionId = page.minOfOrNull { it.id },
-                    latestKnownSubmissionId = findStateFor(account)?.latestExternalSubmissionId,
+                    latestKnownSubmissionId = syncBoundaryId,
                 )
                 if (!shouldContinue) break
                 from += SyncPolicy.SUBMISSION_PAGE_SIZE
@@ -185,6 +191,9 @@ class CodeforcesSyncRepository(
             throw e
         } catch (e: Exception) {
             StageOutcome(SyncStage.SUBMISSIONS, ok = false, errorType = e.javaClass.simpleName, errorMessage = e.message)
+        }
+        if (outcome.ok) {
+            stampModule(judge.id, SyncStage.SUBMISSIONS)
         }
         recordStage(judge.id, outcome, startedAt)
         return outcome
