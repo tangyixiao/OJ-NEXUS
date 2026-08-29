@@ -100,6 +100,15 @@ class AnalyticsRepository(
                 )
             }
         }
+
+    // --- Judge connection data (Phase 2) ---
+
+    fun observeJudgeAccounts(): Flow<List<com.ojnexus.core.database.entity.JudgeAccountEntity>> =
+        database.judgeAccountDao().observeAll()
+
+    fun observeJudgeProfile(judgeId: String) = database.judgeProfileDao().observeByJudge(judgeId)
+
+    fun observeRatingChanges(judgeId: String) = database.ratingChangeDao().observeByJudge(judgeId)
 }
 
     private fun VerdictCountRow.toPair(): Pair<Verdict, Int> =

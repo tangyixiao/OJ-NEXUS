@@ -91,5 +91,6 @@ class OjNexusApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        com.ojnexus.core.ui.GlobalContext.init(this)
     }
 }

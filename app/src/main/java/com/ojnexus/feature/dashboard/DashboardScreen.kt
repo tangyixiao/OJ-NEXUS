@@ -1,6 +1,7 @@
 package com.ojnexus.feature.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,7 +43,9 @@ import com.ojnexus.core.model.TaskType
 import com.ojnexus.core.model.TrainingTask
 import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.ui.Loadable
+import com.ojnexus.core.ui.formatCount
 import com.ojnexus.core.ui.formatDate
+import com.ojnexus.core.ui.formatDateTime
 import com.ojnexus.core.ui.formatDuration
 import com.ojnexus.core.ui.labelRes
 import com.ojnexus.core.ui.tone
@@ -56,7 +59,10 @@ private val LoadBarAlphaMin = 0.25f
 private const val LoadBarAlphaStep = 0.1875f
 
 @Composable
-fun DashboardScreen() {
+fun DashboardScreen(
+    onOpenContests: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+) {
     val container = com.ojnexus.core.ui.LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<DashboardViewModel>(
         factory = com.ojnexus.core.ui.ContainerViewModelFactory(container) {
@@ -65,6 +71,8 @@ fun DashboardScreen() {
                 reviewRepository = it.reviewRepository,
                 analyticsRepository = it.analyticsRepository,
                 clock = it.clock,
+                syncRepository = it.codeforcesSyncRepository,
+                accountRepository = it.judgeAccountRepository,
             )
         },
     )
@@ -85,13 +93,21 @@ fun DashboardScreen() {
                     color = NexusTheme.colors.danger,
                 )
             }
-            is Loadable.Ready -> DashboardContent(s.value)
+            is Loadable.Ready -> DashboardContent(
+                state = s.value,
+                onOpenContests = onOpenContests,
+                onOpenSettings = onOpenSettings,
+            )
         }
     }
 }
 
 @Composable
-private fun DashboardContent(state: DashboardUiState) {
+private fun DashboardContent(
+    state: DashboardUiState,
+    onOpenContests: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     val colors = NexusTheme.colors
     Column(
         modifier = Modifier
@@ -101,13 +117,17 @@ private fun DashboardContent(state: DashboardUiState) {
     ) {
         Spacer(modifier = Modifier.height(NexusSpacing.md))
 
-        // SYSTEM STATUS — honest local mode: no OJ is connected in Phase 1.
+        // SYSTEM STATUS — honest connection state; rating only from a real synced profile.
         NexusSection(
             label = stringResource(R.string.dash_section_system),
             trailing = {
                 NexusTag(
-                    text = stringResource(R.string.sync_source_local),
-                    tone = NexusTone.Accent,
+                    text = if (state.cfAccount != null) {
+                        stringResource(R.string.sync_state_synced)
+                    } else {
+                        stringResource(R.string.sync_source_local)
+                    },
+                    tone = if (state.cfAccount != null) NexusTone.Accent else NexusTone.Neutral,
                     selected = true,
                 )
             },
@@ -115,19 +135,37 @@ private fun DashboardContent(state: DashboardUiState) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(NexusSize.tableRowHeight),
+                    .height(NexusSize.tableRowHeight)
+                    .clickable { onOpenSettings() },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = stringResource(R.string.dash_oj_connection),
                     style = NexusTheme.typography.dataSmall,
-                    color = colors.textPrimary,
+                    color = NexusTheme.colors.textPrimary,
                     modifier = Modifier.weight(1f),
                 )
-                NexusStatus(
-                    label = stringResource(R.string.dash_not_connected),
-                    tone = NexusTone.Neutral,
-                )
+                if (state.cfAccount != null) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = state.cfAccount.canonicalHandle,
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.accent,
+                        )
+                        val syncing = state.cfSyncState?.state == com.ojnexus.core.data.sync.SyncPhase.SYNCING.name
+                        NexusStatus(
+                            label = stringResource(
+                                if (syncing) R.string.settings_state_syncing else R.string.settings_state_connected,
+                            ),
+                            tone = if (syncing) NexusTone.Accent else NexusTone.Success,
+                        )
+                    }
+                } else {
+                    NexusStatus(
+                        label = stringResource(R.string.dash_not_connected),
+                        tone = NexusTone.Neutral,
+                    )
+                }
             }
             NexusDivider(insetEnd = NexusSpacing.xxs)
             Row(
@@ -139,7 +177,7 @@ private fun DashboardContent(state: DashboardUiState) {
                 Text(
                     text = stringResource(R.string.dash_local_mode),
                     style = NexusTheme.typography.dataSmall,
-                    color = colors.textPrimary,
+                    color = NexusTheme.colors.textPrimary,
                     modifier = Modifier.weight(1f),
                 )
                 NexusStatus(
@@ -151,9 +189,17 @@ private fun DashboardContent(state: DashboardUiState) {
 
         SectionGap()
 
-        // WEEK
+        // WEEK + RATING (rating appears only with a real synced profile)
         NexusSection(label = stringResource(R.string.dash_section_week)) {
             Row(modifier = Modifier.fillMaxWidth()) {
+                if (state.cfProfile?.rating != null) {
+                    NexusMetric(
+                        label = stringResource(R.string.metric_rating),
+                        value = formatCount(state.cfProfile.rating),
+                        modifier = Modifier.weight(1f),
+                    )
+                    MetricSeparator()
+                }
                 NexusMetric(
                     label = stringResource(R.string.dash_week_solved),
                     value = com.ojnexus.core.ui.formatCount(state.week.solved),
@@ -185,7 +231,7 @@ private fun DashboardContent(state: DashboardUiState) {
                     value = stringResource(R.string.format_streak_days, state.longestStreak),
                     modifier = Modifier.weight(1f),
                 )
-                Box(modifier = Modifier.weight(2f))
+                Box(modifier = Modifier.weight(if (state.cfProfile?.rating != null) 1f else 2f))
             }
         }
 
@@ -220,7 +266,17 @@ private fun DashboardContent(state: DashboardUiState) {
         SectionGap()
 
         // NEXT REVIEW
-        NexusSection(label = stringResource(R.string.dash_section_next_review)) {
+        NexusSection(
+            label = stringResource(R.string.dash_section_next_review),
+            trailing = {
+                Text(
+                    text = stringResource(R.string.contest_view_all),
+                    style = NexusTheme.typography.sectionLabel,
+                    color = colors.accent,
+                    modifier = Modifier.clickable { onOpenContests() },
+                )
+            },
+        ) {
             val review = state.nextReview
             if (review == null) {
                 Text(
@@ -255,6 +311,73 @@ private fun DashboardContent(state: DashboardUiState) {
                         style = NexusTheme.typography.dataSmall,
                         color = colors.accent,
                     )
+                }
+            }
+        }
+
+        SectionGap()
+
+        // NEXT CONTEST — real synced contest; links to the Contest Center.
+        NexusSection(label = stringResource(R.string.dash_section_next_contest)) {
+            val contest = state.nextContest
+            if (contest == null) {
+                Text(
+                    text = stringResource(R.string.dash_next_contest_pending),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textTertiary,
+                    modifier = Modifier.padding(vertical = NexusSpacing.xs),
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(NexusTheme.colors.surface, NexusRadius.md)
+                        .clickable { onOpenContests() }
+                        .padding(NexusSpacing.md),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = contest.name,
+                            style = NexusTheme.typography.title,
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        NexusTag(
+                            text = stringResource(R.string.contest_status_upcoming),
+                            tone = NexusTone.Accent,
+                            selected = true,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(NexusSpacing.sm))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.contest_label_start),
+                                style = NexusTheme.typography.sectionLabel,
+                                color = colors.textTertiary,
+                            )
+                            Text(
+                                text = contest.startTimeSeconds?.let { formatDateTime(it * 1000) }
+                                    ?: stringResource(R.string.problems_no_value),
+                                style = NexusTheme.typography.data,
+                                color = colors.textSecondary,
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.contest_label_duration),
+                                style = NexusTheme.typography.sectionLabel,
+                                color = colors.textTertiary,
+                            )
+                            Text(
+                                text = formatDuration(contest.durationSeconds / 60),
+                                style = NexusTheme.typography.data,
+                                color = colors.textSecondary,
+                            )
+                        }
+                    }
                 }
             }
         }

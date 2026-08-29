@@ -53,6 +53,22 @@ class CodeforcesSyncRepository(
 
     fun observeSyncStateFlow(judge: JudgeId) = syncStateDao.observeByJudge(judge.id)
 
+    /** Reads the already-synced remote catalog without touching the network. */
+    suspend fun searchRemoteProblems(
+        query: String,
+        solvedFilter: Int,
+        limit: Int,
+        offset: Int,
+    ): List<RemoteProblemEntity> = database.remoteProblemDao().search(
+        judge = JudgeId.CODEFORCES.id,
+        query = query.trim(),
+        minRating = null,
+        maxRating = null,
+        solvedFilter = solvedFilter,
+        limit = limit,
+        offset = offset,
+    )
+
     // --- Stage runners ---
 
     suspend fun syncProfile(account: JudgeAccountEntity, force: Boolean): StageOutcome =

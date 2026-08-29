@@ -26,11 +26,13 @@ import com.ojnexus.core.designsystem.NexusMotion
 import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.feature.analytics.AnalyticsScreen
+import com.ojnexus.feature.contests.ContestCenterScreen
 import com.ojnexus.feature.dashboard.DashboardScreen
 import com.ojnexus.feature.profile.ProfileScreen
 import com.ojnexus.feature.problems.ProblemDetailScreen
 import com.ojnexus.feature.problems.ProblemFormScreen
 import com.ojnexus.feature.problems.ProblemsScreen
+import com.ojnexus.feature.settings.SettingsScreen
 import com.ojnexus.feature.training.TrainingScreen
 
 /** Route constants. Only stable IDs travel through routes; screens load the rest. */
@@ -41,6 +43,8 @@ object NexusRoutes {
     const val REVIEW_SESSION = "review/{problemId}"
     const val SESSION_ACTIVE = "session/active"
     const val SESSION_DETAIL = "session/{sessionId}"
+    const val CONTESTS = "contests"
+    const val SETTINGS = "settings"
 }
 
 private val fadeEnter = fadeIn(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard))
@@ -77,7 +81,12 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     popEnterTransition = { fadeEnter },
                     popExitTransition = { fadeExit },
                 ) {
-                    composable(NexusDestination.DASHBOARD.route) { DashboardScreen() }
+                    composable(NexusDestination.DASHBOARD.route) {
+                        DashboardScreen(
+                            onOpenContests = { navController.navigate(NexusRoutes.CONTESTS) },
+                            onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS) },
+                        )
+                    }
                     composable(NexusDestination.PROBLEMS.route) {
                         ProblemsScreen(
                             onOpenProblem = { id -> navController.navigate("problem/$id") },
@@ -95,7 +104,16 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         )
                     }
                     composable(NexusDestination.ANALYTICS.route) { AnalyticsScreen() }
-                    composable(NexusDestination.PROFILE.route) { ProfileScreen() }
+                    composable(NexusDestination.PROFILE.route) {
+                        ProfileScreen(onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS) })
+                    }
+
+                    composable(route = NexusRoutes.CONTESTS) {
+                        ContestCenterScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable(route = NexusRoutes.SETTINGS) {
+                        SettingsScreen(onBack = { navController.popBackStack() })
+                    }
 
                     composable(
                         route = NexusRoutes.PROBLEM_DETAIL,

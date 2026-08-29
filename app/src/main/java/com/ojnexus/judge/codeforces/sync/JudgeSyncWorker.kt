@@ -34,7 +34,6 @@ class JudgeSyncWorker(
         val accountId = inputData.getLong(KEY_ACCOUNT_ID, -1L)
         if (accountId <= 0L) return Result.failure()
 
-        val account = container.problemRepository.let { } // keep reference local below
         val repo = container.judgeAccountRepository
         val found = repo.findById(accountId) ?: return Result.failure()
         if (!found.enabled) return Result.failure()
