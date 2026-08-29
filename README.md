@@ -22,15 +22,20 @@ WorkManager · Retrofit/OkHttp (later phases)
 
 ## Status
 
-Early development — **Phase 0 (Foundation)**: design system, app shell, and skeleton screens
-rendering labeled development sample data. See [docs/ROADMAP.md](docs/ROADMAP.md).
+Early development — **Phase 1 (Local Training Core)**: a working local training loop.
+Offline-first: problem library (add/edit/search/filter/sort/favorite), problem detail with
+attempt history, failure log and structured notes, spaced review (1/3/7/21/45/90 days with
+PASS/HARD/FAIL/SKIP), TODAY tasks, training sessions with pause/resume and end-of-session
+summaries, activity heatmap and analytics computed from your own data. No external OJ APIs
+yet — see [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Documentation
 
 - [Product Spec](docs/PRODUCT_SPEC.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Design System](docs/DESIGN_SYSTEM.md)
-- [Database Plan](docs/DATABASE.md)
+- [Database](docs/DATABASE.md)
+- [Training Engine](docs/TRAINING_ENGINE.md)
 - [OJ Adapter Spec](docs/OJ_ADAPTERS.md)
 - [Roadmap](docs/ROADMAP.md)
 

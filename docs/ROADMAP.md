@@ -9,10 +9,15 @@ navigation, bottom bar), five skeleton screens (Dashboard / Problems / Training 
 Profile) rendering labeled development sample data, domain enums (`JudgeId`, `Verdict`,
 `KnowledgeArea`, `TrainingType`), unit tests, CI, docs.
 
-## PHASE 1 — Local Training Core
-Room schema v1 (per DATABASE.md), repositories, ViewModels + StateFlow UiStates.
-Manual problem entry, notes, failure entries, review scheduler (1/3/7/21d), training sessions
-(local timing, end summaries). Everything works offline with user-entered data.
+## PHASE 1 — Local Training Core ✅
+Room v1 (problems/tags/attempts/failures/notes/reviews/tasks/sessions), repositories, manual DI,
+ViewModels + `Loadable` UI states. Local problem library with search/filter/sort/add/edit/
+delete/favorite, problem detail (attempts, failure log, debounced notes, review actions,
+browser open), review scheduler (1/3/7/21/45/90d + PASS/HARD/FAIL/SKIP), review queue with
+OVERDUE/DUE TODAY/UPCOMING, TODAY tasks, training sessions (create/run/pause/resume/finish/
+summary/history, process-death safe), heatmap + analytics from real local data with empty
+states, dashboard over local data only (no fake ratings), debug-only demo seeder. 64 unit tests
+including Robolectric DAO tests. No external OJ APIs — by design.
 
 ## PHASE 2 — Codeforces
 First `JudgeAdapter`: official API client, incremental submission sync, rating history,
