@@ -34,6 +34,13 @@ data class DashboardUiState(
     val recent: List<com.ojnexus.core.model.RecentAttempt>,
     /** Heatmap-style intensities (0–4) for the last 7 days, oldest first. */
     val loadWeek: List<Int>,
+    // --- Codeforces connection (null until connected) ---
+    val cfAccount: com.ojnexus.core.database.entity.JudgeAccountEntity? = null,
+    val cfProfile: com.ojnexus.core.database.entity.JudgeProfileEntity? = null,
+    val cfSyncState: com.ojnexus.core.database.entity.SyncStateEntity? = null,
+    /** Earliest upcoming contest with an announced start time. */
+    val nextContest: com.ojnexus.core.database.entity.ContestEntity? = null,
+    val nowSeconds: Long,
 )
 
 /**
@@ -45,31 +52,60 @@ class DashboardViewModel(
     reviewRepository: ReviewRepository,
     analyticsRepository: AnalyticsRepository,
     private val clock: Clock,
+    private val syncRepository: com.ojnexus.judge.codeforces.CodeforcesSyncRepository,
+    private val accountRepository: com.ojnexus.core.data.repository.JudgeAccountRepository,
 ) : ViewModel() {
 
-    private val todayEpochDay: Long = LocalDate.ofInstant(clock.instant(), clock.zone).toEpochDay()
+    private val todayEpochDay: Long = java.time.LocalDate.ofInstant(clock.instant(), clock.zone).toEpochDay()
 
-    val state: StateFlow<Loadable<DashboardUiState>> = combine(
+    /** Local-only snapshot feeding the outer combine. */
+    private data class LocalSnapshot(
+        val tasks: List<TrainingTask>,
+        val week: List<com.ojnexus.core.domain.DayActivity>,
+        val streaks: com.ojnexus.core.data.repository.Streaks,
+        val queue: List<com.ojnexus.core.model.ReviewQueueItem>,
+        val recent: List<com.ojnexus.core.model.RecentAttempt>,
+    )
+
+    private val localSnapshot = combine(
         trainingRepository.observeTasks(todayEpochDay),
         analyticsRepository.observeDailyActivity(7),
         analyticsRepository.observeStreaks(days = 365),
         reviewRepository.observeQueue(),
         analyticsRepository.observeRecentAttempts(limit = 6),
     ) { tasks, week, streaks, queue, recent ->
+        LocalSnapshot(tasks, week, streaks, queue, recent)
+    }
+
+    val state: StateFlow<Loadable<DashboardUiState>> = combine(
+        localSnapshot,
+        accountRepository.observeActive(com.ojnexus.core.model.JudgeId.CODEFORCES),
+        syncRepository.observeProfile(com.ojnexus.core.model.JudgeId.CODEFORCES),
+        syncRepository.observeSyncStateFlow(com.ojnexus.core.model.JudgeId.CODEFORCES),
+        syncRepository.observeContests(com.ojnexus.core.model.JudgeId.CODEFORCES),
+    ) { local, account, profile, syncState, contests ->
+        val now = clock.instant().epochSecond
         Loadable.Ready(
             DashboardUiState(
-                todayTasks = tasks,
+                todayTasks = local.tasks,
                 week = WeekSummary(
-                    solved = week.sumOf { it.solved },
-                    attempts = week.sumOf { it.attempts },
-                    trainingMs = week.sumOf { it.trainingMs },
+                    solved = local.week.sumOf { it.solved },
+                    attempts = local.week.sumOf { it.attempts },
+                    trainingMs = local.week.sumOf { it.trainingMs },
                 ),
-                currentStreak = streaks.current,
-                longestStreak = streaks.longest,
-                nextReview = queue.filter { it.dueDayIndex <= todayEpochDay }
+                currentStreak = local.streaks.current,
+                longestStreak = local.streaks.longest,
+                nextReview = local.queue.filter { it.dueDayIndex <= todayEpochDay }
                     .minByOrNull { it.dueDayIndex },
-                recent = recent,
-                loadWeek = week.sortedBy { it.dayIndex }.map { ActivityScorer.intensity(it) },
+                recent = local.recent,
+                loadWeek = local.week.sortedBy { it.dayIndex }.map { ActivityScorer.intensity(it) },
+                cfAccount = account,
+                cfProfile = profile,
+                cfSyncState = syncState,
+                nextContest = contests
+                    .filter { (it.startTimeSeconds ?: 0L) > now }
+                    .minByOrNull { it.startTimeSeconds ?: Long.MAX_VALUE },
+                nowSeconds = now,
             ),
         )
     }

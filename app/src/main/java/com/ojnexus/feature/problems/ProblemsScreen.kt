@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +62,9 @@ private val ProblemRowHeight = 56.dp
 private val RatingColumnWidth = 56.dp
 private val StatusColumnWidth = 92.dp
 private val IconTouchSize = 32.dp
+private val RemoteProblemRowHeight = 82.dp
+
+private enum class ProblemScope { LIBRARY, CODEFORCES }
 
 @Composable
 fun ProblemsScreen(
@@ -69,9 +73,17 @@ fun ProblemsScreen(
 ) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<ProblemsViewModel>(
-        factory = ContainerViewModelFactory(container) { ProblemsViewModel(it.problemRepository) },
+        factory = ContainerViewModelFactory(container) {
+            ProblemsViewModel(
+                repository = it.problemRepository,
+                demoSeeder = it.demoSeeder,
+                syncRepository = it.codeforcesSyncRepository,
+            )
+        },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val remoteState by viewModel.remoteState.collectAsStateWithLifecycle()
+    var scope by rememberSaveable { mutableStateOf(ProblemScope.LIBRARY) }
 
     Column(
         modifier = Modifier
@@ -94,14 +106,27 @@ fun ProblemsScreen(
         when (val s = state) {
             Loadable.Loading -> LoadingState()
             is Loadable.Failed -> ErrorState(s.message)
-            is Loadable.Ready -> LibraryContent(
-                uiState = s.value,
-                viewModel = viewModel,
-                onOpenProblem = onOpenProblem,
-                onAddProblem = onAddProblem,
-                onInsertDemo = { viewModel.insertDemoData() },
-                onClearDemo = { viewModel.clearDemoData() },
-            )
+            is Loadable.Ready -> if (scope == ProblemScope.LIBRARY) {
+                LibraryContent(
+                    uiState = s.value,
+                    viewModel = viewModel,
+                    onOpenProblem = onOpenProblem,
+                    onAddProblem = onAddProblem,
+                    onInsertDemo = { viewModel.insertDemoData() },
+                    onClearDemo = { viewModel.clearDemoData() },
+                    onOpenRemote = {
+                        scope = ProblemScope.CODEFORCES
+                        viewModel.enterRemoteCatalog()
+                    },
+                )
+            } else {
+                RemoteCatalogContent(
+                    state = remoteState,
+                    viewModel = viewModel,
+                    onBackToLibrary = { scope = ProblemScope.LIBRARY },
+                    onOpenProblem = onOpenProblem,
+                )
+            }
         }
     }
 }
@@ -142,6 +167,7 @@ private fun LibraryContent(
     onAddProblem: () -> Unit,
     onInsertDemo: () -> Unit,
     onClearDemo: () -> Unit,
+    onOpenRemote: () -> Unit,
 ) {
     var deleteTarget by remember { mutableStateOf<Problem?>(null) }
     val colors = NexusTheme.colors
@@ -150,9 +176,15 @@ private fun LibraryContent(
         item(key = "search") {
             Column(modifier = Modifier.padding(horizontal = NexusSpacing.screenHorizontal)) {
                 Spacer(modifier = Modifier.height(NexusSpacing.sm))
+                ScopeSwitcher(
+                    selected = ProblemScope.LIBRARY,
+                    onSelectRemote = onOpenRemote,
+                )
+                Spacer(modifier = Modifier.height(NexusSpacing.xs))
                 SearchField(
                     query = uiState.filter.query,
                     onQueryChange = viewModel::setQuery,
+                    hintText = stringResource(R.string.problems_search_hint),
                 )
                 if (BuildConfig.DEBUG) {
                     Spacer(modifier = Modifier.height(NexusSpacing.xs))
@@ -281,7 +313,30 @@ private fun EmptyHint(title: String, hint: String) {
 }
 
 @Composable
-private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
+private fun ScopeSwitcher(selected: ProblemScope, onSelectRemote: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+    ) {
+        FilterChip(
+            label = stringResource(R.string.problems_scope_library),
+            selected = selected == ProblemScope.LIBRARY,
+            onClick = {},
+        )
+        FilterChip(
+            label = stringResource(R.string.problems_scope_codeforces),
+            selected = selected == ProblemScope.CODEFORCES,
+            onClick = onSelectRemote,
+        )
+    }
+}
+
+@Composable
+private fun SearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    hintText: String,
+) {
     val colors = NexusTheme.colors
     Row(
         modifier = Modifier
@@ -300,7 +355,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
         Box(modifier = Modifier.weight(1f)) {
             if (query.isEmpty()) {
                 Text(
-                    text = stringResource(R.string.problems_search_hint),
+                    text = hintText,
                     style = NexusTheme.typography.dataSmall,
                     color = colors.textTertiary,
                 )
@@ -325,6 +380,181 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
                     .padding(start = NexusSpacing.xs),
             )
         }
+    }
+}
+
+@Composable
+private fun RemoteCatalogContent(
+    state: RemoteProblemsUiState,
+    viewModel: ProblemsViewModel,
+    onBackToLibrary: () -> Unit,
+    onOpenProblem: (Long) -> Unit,
+) {
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        item(key = "remote-controls") {
+            Column(modifier = Modifier.padding(horizontal = NexusSpacing.screenHorizontal)) {
+                Spacer(modifier = Modifier.height(NexusSpacing.sm))
+                ScopeSwitcher(
+                    selected = ProblemScope.CODEFORCES,
+                    onSelectRemote = {},
+                )
+                Spacer(modifier = Modifier.height(NexusSpacing.xs))
+                SearchField(
+                    query = state.query,
+                    onQueryChange = viewModel::setRemoteQuery,
+                    hintText = stringResource(R.string.problems_remote_search_hint),
+                )
+                Spacer(modifier = Modifier.height(NexusSpacing.xs))
+                Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+                    FilterChip(
+                        label = stringResource(R.string.problems_scope_filter_all),
+                        selected = state.solvedFilter == 0,
+                        onClick = { viewModel.setRemoteSolvedFilter(0) },
+                    )
+                    FilterChip(
+                        label = stringResource(R.string.problems_scope_filter_solved),
+                        selected = state.solvedFilter == 1,
+                        onClick = { viewModel.setRemoteSolvedFilter(1) },
+                    )
+                    FilterChip(
+                        label = stringResource(R.string.problems_scope_filter_unsolved),
+                        selected = state.solvedFilter == 2,
+                        onClick = { viewModel.setRemoteSolvedFilter(2) },
+                    )
+                }
+                Spacer(modifier = Modifier.height(NexusSpacing.sm))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.problems_scope_codeforces),
+                        style = NexusTheme.typography.sectionLabel,
+                        color = NexusTheme.colors.textTertiary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = stringResource(R.string.problems_scope_library),
+                        style = NexusTheme.typography.sectionLabel,
+                        color = NexusTheme.colors.accent,
+                        modifier = Modifier.clickable(role = Role.Button, onClick = onBackToLibrary),
+                    )
+                }
+                Spacer(modifier = Modifier.height(NexusSpacing.xxs))
+                NexusDivider()
+                if (state.error != null) {
+                    Text(
+                        text = state.error,
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.danger,
+                        modifier = Modifier.padding(vertical = NexusSpacing.xs),
+                    )
+                }
+            }
+        }
+        if (state.loading && state.problems.isEmpty()) {
+            item(key = "remote-loading") {
+                LoadingState()
+            }
+        } else if (!state.loading && state.problems.isEmpty()) {
+            item(key = "remote-empty") {
+                EmptyHint(
+                    title = stringResource(R.string.problems_remote_empty),
+                    hint = "",
+                )
+            }
+        } else {
+            items(items = state.problems, key = { "remote-${it.externalId}" }) { problem ->
+                RemoteProblemRow(
+                    problem = problem,
+                    addedProblemId = state.addedProblemIds[problem.externalId],
+                    onAdd = { viewModel.addRemoteToLibrary(problem) },
+                    onOpen = { id -> onOpenProblem(id) },
+                )
+                NexusDivider(insetEnd = NexusSpacing.xxs)
+            }
+            if (state.hasMore) {
+                item(key = "remote-more") {
+                    Text(
+                        text = if (state.loading) {
+                            stringResource(R.string.sync_state_syncing)
+                        } else {
+                            stringResource(R.string.problems_load_more)
+                        },
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.accent,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                enabled = !state.loading,
+                                role = Role.Button,
+                                onClick = viewModel::loadMoreRemote,
+                            )
+                            .padding(NexusSpacing.md),
+                    )
+                }
+            }
+        }
+        item(key = "remote-footer-space") {
+            Spacer(modifier = Modifier.height(NexusSpacing.xxl))
+        }
+    }
+}
+
+@Composable
+private fun RemoteProblemRow(
+    problem: com.ojnexus.core.database.entity.RemoteProblemEntity,
+    addedProblemId: Long?,
+    onAdd: () -> Unit,
+    onOpen: (Long) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(RemoteProblemRowHeight)
+            .padding(horizontal = NexusSpacing.screenHorizontal),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = problem.externalId,
+                    style = NexusTheme.typography.data,
+                    color = NexusTheme.colors.accent,
+                )
+                Text(
+                    text = "  ${problem.name}",
+                    style = NexusTheme.typography.data,
+                    color = NexusTheme.colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                text = listOfNotNull(
+                    problem.rating?.toString(),
+                    problem.solvedCount?.let { "${it} AC" },
+                    problem.tags.split('\u001F').filter { it.isNotBlank() }.take(2).joinToString(" · "),
+                ).joinToString(" · ").ifEmpty { stringResource(R.string.problems_no_value) },
+                style = NexusTheme.typography.dataSmall,
+                color = NexusTheme.colors.textTertiary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        NexusTag(
+            text = if (addedProblemId == null) {
+                stringResource(R.string.problems_add_to_training)
+            } else {
+                stringResource(R.string.problems_in_library)
+            },
+            tone = if (addedProblemId == null) NexusTone.Accent else NexusTone.Success,
+            selected = addedProblemId == null,
+            modifier = Modifier.clickable(
+                role = Role.Button,
+                onClick = { if (addedProblemId == null) onAdd() else onOpen(addedProblemId) },
+            ),
+        )
     }
 }
 

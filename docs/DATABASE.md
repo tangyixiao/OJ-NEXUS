@@ -1,15 +1,15 @@
-# OJ NEXUS — Database (Room, v1 implemented)
+# OJ NEXUS — Database (Room, v2 implemented)
 
-Status: **implemented** (Phase 1). Schema JSON is exported to `app/schemas/` and committed;
-version 1 ships with the Phase 1 code. No destructive migration is configured — future schema
-changes require forward migrations with tests.
+Status: **implemented** (Phase 2). Schema JSON is exported to `app/schemas/` and committed;
+version 2 ships with the Codeforces integration. `MIGRATION_1_2` is registered and tested;
+destructive migration is not configured.
 
 Deviation from the original plan: there is **no `ActivityEntity` daily-aggregate table**.
 Activity is computed by `AnalyticsDao` with SQL `GROUP BY` over precomputed `day_index` columns
 (local epoch day, written at record time). At current scale this is simpler, cannot drift, and
 already reads only aggregates — revisit if volumes grow.
 
-## Entities (app/schemas/com.ojnexus.core.database.OjNexusDatabase/1.json)
+## Entities (app/schemas/com.ojnexus.core.database.OjNexusDatabase/2.json)
 
 | Table | Purpose | Keys / Notes |
 | --- | --- | --- |
@@ -24,6 +24,12 @@ already reads only aggregates — revisit if volumes grow.
 | `training_tasks` | TODAY list | FK→problems CASCADE; `date_epoch_day` local day key |
 | `training_sessions` | session lifecycle | state PLANNED/RUNNING/PAUSED/FINISHED/CANCELLED; timing = persisted snapshots (`started_at`,`paused_at`,`total_paused_ms`,`finished_at`), never ticked |
 | `training_session_problems` | session ↔ problem | PK(`session_id`,`problem_id`), FK CASCADE both |
+| `judge_accounts` | public OJ connections | one active account per judge; no credentials |
+| `judge_profiles` | cached public profile | normalized profile fields, not a JSON blob |
+| `rating_changes` | rating history | stable contest identity for idempotent upsert |
+| `remote_problems` | judge catalog cache | PK(`judge`,`external_id`); remote tags stay separate |
+| `contests` | contest cache | PK(`judge`,`external_contest_id`); raw phase preserved |
+| `sync_state` | per-judge sync cursor/status | stage timestamps, overlap cursor and partial progress |
 
 ## Conventions & Rules
 
@@ -34,7 +40,7 @@ already reads only aggregates — revisit if volumes grow.
   throwing (`Verdict.OTHER`, `FailureCategory.OTHER`, …).
 - Foreign keys declare explicit `onDelete`; Room enables FK enforcement. Cascades are covered
   by Robolectric DAO tests (`OjNexusDatabaseTest`).
-- Unique constraints carry sync idempotency: `(judge, external_id)` will be the dedup key for
-  future OJ adapters; the local DB rejects duplicates.
+- Unique constraints carry sync idempotency: `(judge, external_id)` identifies problems and
+  remote catalogs; `(source_judge, external_submission_id)` identifies imported attempts.
 - DAOs return `Flow` for reactive reads and `suspend` for writes; repositories own
   `withTransaction` blocks so multi-table invariants (counters + attempt rows) stay atomic.

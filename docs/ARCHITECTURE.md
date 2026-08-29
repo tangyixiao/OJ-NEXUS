@@ -11,8 +11,8 @@ com.ojnexus
 ├── MainActivity            # single activity, edge-to-edge, NexusTheme
 ├── app/                    # shell: NexusApp (NavHost), NexusDestination, NexusBottomBar
 ├── core/
-│   ├── database/           # Room v1: entities, DAOs, relations, mappers (schema exported)
-│   ├── data/               # repositories (problem/review/training/analytics), DataResult
+│   ├── database/           # Room v2: entities, DAOs, relations, migrations (schema exported)
+│   ├── data/               # local repositories, DataResult and sync state models
 │   ├── designsystem/       # tokens (colors/typography/spacing/motion) + components
 │   ├── domain/             # pure engines: ReviewScheduler, StreakCalculator,
 │   │                       # SessionStateMachine/SessionClock, ActivityScorer/Policy
@@ -21,7 +21,7 @@ com.ojnexus
 └── feature/
     ├── dashboard/  problems/ (library, form, detail)  training/ (queue, tasks,
     │                          sessions, review session)  analytics/  profile/
-    └── (later: contests, arena, knowledge, achievements, settings, command)
+    └── contests/ settings/   # Phase 2 entry points; arena/knowledge later
 ```
 
 ## Dependency Injection
@@ -31,7 +31,7 @@ Manual container (`AppContainer` in `OjNexusApplication`), provided to Compose v
 brand-new AGP 9 built-in-Kotlin toolchain — stability beats framework dogma. ViewModels are
 created with `ContainerViewModelFactory`; composables never touch repositories or DAOs.
 
-## Data Flow (Phase 1)
+## Data Flow (Phase 2)
 
 ```
 Room (Flow) → Repository (transactions, derived fields) → ViewModel (combine → Loadable<T>)
@@ -48,8 +48,11 @@ Room (Flow) → Repository (transactions, derived fields) → ViewModel (combine
 ## Rules
 
 - Composables render state; they never perform I/O or business logic.
-- Local First: everything in Phase 1 works fully offline; the network layer arrives in Phase 2
-  behind the JudgeAdapter boundary.
+- Local First: Phase 1 data and all synced Phase 2 data remain readable without a network.
+- Codeforces network DTOs stay in `judge/codeforces`; `CodeforcesSyncCoordinator` runs ordered
+  stages and repositories persist each page/module before the next request.
+- Settings binds a public handle and enqueues unique WorkManager work. Dashboard, Profile,
+  Analytics, Contests and the remote Problems catalog observe Room only.
 - Deterministic engines (Mastery, Training, Review scheduling, Sync) are pure Kotlin —
   unit-testable without Android.
 - Day-key discipline: UTC epoch millis stored, local epoch days precomputed at write time.

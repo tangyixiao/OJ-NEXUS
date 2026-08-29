@@ -18,16 +18,16 @@ mastery, and analytics into one dark, telemetry-style tool.
 ## Tech Stack
 
 Kotlin · Jetpack Compose · Material 3 · Navigation Compose · Room · Coroutines/Flow ·
-WorkManager · Retrofit/OkHttp (later phases)
+WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 1 (Local Training Core)**: a working local training loop.
-Offline-first: problem library (add/edit/search/filter/sort/favorite), problem detail with
-attempt history, failure log and structured notes, spaced review (1/3/7/21/45/90 days with
-PASS/HARD/FAIL/SKIP), TODAY tasks, training sessions with pause/resume and end-of-session
-summaries, activity heatmap and analytics computed from your own data. No external OJ APIs
-yet — see [docs/ROADMAP.md](docs/ROADMAP.md).
+Early development — **Phase 2 (Codeforces Integration)**: the local-first training loop now
+has public Codeforces handle binding, Room-cached profile/rating/submissions/contests/problemset
+data, incremental submission sync, rejudge-safe upserts, and unique WorkManager refreshes.
+Problems can search the synced remote catalog without another network call. No passwords,
+cookies, private API signing, scraping, or auto-submit are used. See [docs/CODEFORCES.md](docs/CODEFORCES.md),
+[docs/SYNC_ENGINE.md](docs/SYNC_ENGINE.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Documentation
 

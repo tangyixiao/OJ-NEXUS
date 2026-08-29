@@ -44,6 +44,13 @@ interface ProblemDao {
     @Query("SELECT * FROM problems WHERE judge = :judge AND external_id = :externalId")
     suspend fun findByKey(judge: String, externalId: String): ProblemEntity?
 
+    @Transaction
+    @Query(
+        "SELECT *, EXISTS(SELECT 1 FROM reviews WHERE reviews.problem_id = problems.id) AS in_review " +
+            "FROM problems WHERE judge = :judge AND external_id = :externalId LIMIT 1",
+    )
+    suspend fun findWithTagsByKey(judge: String, externalId: String): ProblemWithTagsPojo?
+
     @Insert
     suspend fun insert(problem: ProblemEntity): Long
 
@@ -76,6 +83,29 @@ interface ProblemDao {
 
     @Query("UPDATE problems SET updated_at = :updatedAt WHERE id = :id")
     suspend fun touch(id: Long, updatedAt: Long)
+
+    /**
+     * Rejudge-safe solved promotion: a synced AC promotes the problem to solved without
+     * incrementing counters, and never moves an existing first-solved timestamp.
+     */
+    @Query(
+        "UPDATE problems SET solved = 1, first_solved_at = COALESCE(first_solved_at, :solvedAt), " +
+            "updated_at = :updatedAt WHERE id = :id",
+    )
+    suspend fun promoteSolved(id: Long, solvedAt: Long, updatedAt: Long)
+
+    /** Remote-metadata merge (Phase 2): title/difficulty/url are remote-authoritative. */
+    @Query(
+        "UPDATE problems SET title = :title, difficulty = :difficulty, " +
+            "source_url = :sourceUrl, updated_at = :updatedAt WHERE id = :id",
+    )
+    suspend fun applyRemoteMetadata(
+        id: Long,
+        title: String,
+        difficulty: Int?,
+        sourceUrl: String?,
+        updatedAt: Long,
+    )
 
     @Query("SELECT COUNT(*) FROM problems")
     suspend fun count(): Int

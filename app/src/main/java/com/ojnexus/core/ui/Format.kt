@@ -29,6 +29,18 @@ fun formatDuration(minutes: Long): String {
     return String.format(Locale.getDefault(), "%dH %02dM", total / 60, total % 60)
 }
 
+/** 3661 -> "01:01:01" for contest countdowns. */
+fun formatCountdown(seconds: Long): String {
+    val total = seconds.coerceAtLeast(0L)
+    return String.format(
+        Locale.getDefault(),
+        "%02d:%02d:%02d",
+        total / 3_600,
+        (total / 60) % 60,
+        total % 60,
+    )
+}
+
 private val dateTimeFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault())
 private val dateFormatter: DateTimeFormatter =

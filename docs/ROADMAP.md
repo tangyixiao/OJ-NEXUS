@@ -19,12 +19,14 @@ summary/history, process-death safe), heatmap + analytics from real local data w
 states, dashboard over local data only (no fake ratings), debug-only demo seeder. 64 unit tests
 including Robolectric DAO tests. No external OJ APIs — by design.
 
-## PHASE 2 — Codeforces
-First `JudgeAdapter`: official API client, incremental submission sync, rating history,
-problems + tags, contests. Sync engine (manual + WorkManager background), sync states,
-pull-to-refresh, offline cache correctness.
+## PHASE 2 — Codeforces ✅
+First judge adapter is implemented with the official public API, centralized request spacing,
+bounded retry/error mapping, Room v2 migration, public-handle binding, rejudge-safe incremental
+submissions, remote problem catalog, contests, local-first UI, and unique WorkManager sync.
+The branch is locally complete; push/PR/CI remain separate release actions requiring explicit
+authorization.
 
-## PHASE 3 — Analytics
+## PHASE 3 — Analytics (next)
 Heatmap (tap-through day detail), verdict/difficulty/knowledge distributions, rating chart,
 trend metrics, weak tags — all computed from local data, drawn with Compose.
 

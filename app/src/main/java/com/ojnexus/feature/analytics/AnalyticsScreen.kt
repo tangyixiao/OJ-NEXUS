@@ -2,6 +2,7 @@ package com.ojnexus.feature.analytics
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,7 +25,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -37,8 +43,10 @@ import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.designsystem.component.NexusDivider
 import com.ojnexus.core.designsystem.component.NexusMetric
 import com.ojnexus.core.designsystem.component.NexusSection
+import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
 import com.ojnexus.core.designsystem.component.foregroundColor
+import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.domain.ActivityScorer
 import com.ojnexus.core.domain.DayActivity
 import com.ojnexus.core.ui.ContainerViewModelFactory
@@ -47,6 +55,7 @@ import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.formatCount
 import com.ojnexus.core.ui.formatDate
 import com.ojnexus.core.ui.formatDuration
+import com.ojnexus.core.ui.formatDateTime
 import com.ojnexus.core.ui.labelRes
 import com.ojnexus.core.ui.tone
 import java.time.LocalDate
@@ -58,6 +67,7 @@ private val TrendBarHeight = 48.dp
 private val DistributionBarHeight = 8.dp
 private val DistributionLabelWidth = 56.dp
 private val DistributionCountWidth = 48.dp
+private val RatingChartHeight = 140.dp
 
 @Composable
 fun AnalyticsScreen() {
@@ -119,10 +129,14 @@ private fun AnalyticsContent(state: AnalyticsUiState) {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = NexusSpacing.screenHorizontal),
     ) {
-        Spacer(modifier = Modifier.height(NexusSpacing.md))
-        HeatmapSection(state)
-        SectionGap()
-        TotalsSection(state)
+            Spacer(modifier = Modifier.height(NexusSpacing.md))
+            HeatmapSection(state)
+            SectionGap()
+            if (state.cfConnected && state.ratingHistory.isNotEmpty()) {
+                RatingSection(state.ratingHistory)
+                SectionGap()
+            }
+            TotalsSection(state)
         SectionGap()
         TrendSection(state)
         SectionGap()
@@ -504,6 +518,110 @@ private fun TrainingTimeSection(state: AnalyticsUiState) {
                         .height((TrendBarHeight * fraction).coerceAtLeast(2.dp))
                         .background(colors.success.copy(alpha = 0.6f), NexusRadius.xs),
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RatingSection(history: List<com.ojnexus.core.database.entity.RatingChangeEntity>) {
+    val colors = NexusTheme.colors
+    var selected by remember { mutableStateOf<Int?>(null) }
+    NexusSection(
+        label = stringResource(R.string.rating_section),
+        trailing = {
+            Text(
+                text = history.last().newRating.toString(),
+                style = NexusTheme.typography.dataLarge,
+                color = colors.textPrimary,
+            )
+        },
+    ) {
+        val chartDescription = stringResource(R.string.rating_chart_cd)
+        val peak = history.maxOf { it.newRating }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(RatingChartHeight)
+                .semantics { contentDescription = chartDescription },
+        ) {
+            val min = history.minOf { minOf(it.oldRating, it.newRating) }
+            val max = maxOf(peak, history.maxOf { it.newRating })
+            val range = (max - min).coerceAtLeast(1)
+            fun yOf(rating: Int): Float = size.height * (1f - (rating - min).toFloat() / range)
+            val stepX = size.width / (history.size - 1).coerceAtLeast(1)
+            val path = Path()
+            history.forEachIndexed { index, point ->
+                val x = stepX * index
+                val y = yOf(point.newRating)
+                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(
+                path = path,
+                color = colors.accent,
+                style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
+            )
+            // Node markers; selected node highlighted.
+            history.forEachIndexed { index, point ->
+                val x = stepX * index
+                val y = yOf(point.newRating)
+                drawCircle(
+                    color = if (selected == index) colors.textPrimary else colors.accent,
+                    radius = if (selected == index) 6.dp.toPx() else 3.dp.toPx(),
+                    center = Offset(x, y),
+                )
+            }
+        }
+        // Node selection rows (tap targets below the canvas, keyboard/screen-reader safe).
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+        ) {
+            history.indices.forEach { index ->
+                NexusTag(
+                    text = (index + 1).toString(),
+                    tone = NexusTone.Accent,
+                    selected = selected == index,
+                    modifier = Modifier.clickable(role = Role.Button) {
+                        selected = if (selected == index) null else index
+                    },
+                )
+            }
+        }
+        selected?.let { index ->
+            val point = history.getOrNull(index) ?: return@let
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            NexusDivider()
+            Spacer(modifier = Modifier.height(NexusSpacing.xxs))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = point.contestName,
+                        style = NexusTheme.typography.dataSmall,
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = formatDateTime(point.ratingUpdateTimeSeconds * 1000),
+                        style = NexusTheme.typography.dataSmall,
+                        color = colors.textTertiary,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "${point.oldRating} → ${point.newRating}",
+                        style = NexusTheme.typography.dataSmall,
+                        color = colors.textSecondary,
+                    )
+                    Text(
+                        text = "${stringResource(R.string.rating_rank_label)} ${point.rank}",
+                        style = NexusTheme.typography.dataSmall,
+                        color = colors.textTertiary,
+                    )
+                }
             }
         }
     }

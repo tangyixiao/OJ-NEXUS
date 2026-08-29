@@ -31,6 +31,8 @@ data class AnalyticsUiState(
     val dailyTrainingMs: List<DayActivity>,
     val currentStreak: Int,
     val longestStreak: Int,
+    val cfConnected: Boolean,
+    val ratingHistory: List<com.ojnexus.core.database.entity.RatingChangeEntity>,
 ) {
     /** True when there is nothing to show yet — drives the empty state. */
     val isEmpty: Boolean
@@ -45,25 +47,46 @@ class AnalyticsViewModel(
     private val heatmapWindowDays = 365
     private val trendWindowDays = 14
 
-    val state: StateFlow<Loadable<AnalyticsUiState>> = combine(
+    private val localData = combine(
         analyticsRepository.observeDailyActivity(heatmapWindowDays),
         analyticsRepository.observeVerdictCounts(),
         analyticsRepository.observeDifficultyCounts(),
         analyticsRepository.observeTotals(),
         analyticsRepository.observeStreaks(days = heatmapWindowDays),
     ) { daily, verdicts, difficulties, totals, streaks ->
+        LocalAnalytics(daily, verdicts, difficulties, totals, streaks)
+    }
+
+    private data class LocalAnalytics(
+        val daily: List<DayActivity>,
+        val verdictCounts: List<Pair<Verdict, Int>>,
+        val difficultyCounts: List<Pair<Int?, Int>>,
+        val totals: com.ojnexus.core.data.repository.Totals,
+        val streaks: com.ojnexus.core.data.repository.Streaks,
+    )
+
+    val state: StateFlow<Loadable<AnalyticsUiState>> = kotlinx.coroutines.flow.combine(
+        localData,
+        analyticsRepository.observeJudgeAccounts(),
+        analyticsRepository.observeJudgeProfile(com.ojnexus.core.model.JudgeId.CODEFORCES.id),
+        analyticsRepository.observeRatingChanges(com.ojnexus.core.model.JudgeId.CODEFORCES.id),
+    ) { local, accounts, _, ratingHistory ->
         Loadable.Ready(
             AnalyticsUiState(
-                heatmapDays = daily,
-                gridStartEpochDay = gridStart(daily),
-                solveTrend = daily.takeLast(trendWindowDays),
-                verdictCounts = verdicts,
-                difficultyCounts = difficulties,
-                totals = totals,
-                trainingMsTotal = daily.sumOf { it.trainingMs },
-                dailyTrainingMs = daily.takeLast(trendWindowDays),
-                currentStreak = streaks.current,
-                longestStreak = streaks.longest,
+                heatmapDays = local.daily,
+                gridStartEpochDay = gridStart(local.daily),
+                solveTrend = local.daily.takeLast(trendWindowDays),
+                verdictCounts = local.verdictCounts,
+                difficultyCounts = local.difficultyCounts,
+                totals = local.totals,
+                trainingMsTotal = local.daily.sumOf { it.trainingMs },
+                dailyTrainingMs = local.daily.takeLast(trendWindowDays),
+                currentStreak = local.streaks.current,
+                longestStreak = local.streaks.longest,
+                cfConnected = accounts.any {
+                    it.judge == com.ojnexus.core.model.JudgeId.CODEFORCES.id && it.enabled
+                },
+                ratingHistory = ratingHistory,
             ),
         )
     }
