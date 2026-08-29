@@ -346,6 +346,7 @@
     <string name="settings_disconnect_body">UNBIND THE ACCOUNT? YOUR LOCAL TRAINING HISTORY, NOTES AND REVIEWS ARE KEPT.</string>
     <string name="settings_purge_cache">ALSO REMOVE CACHED CODEFORCES DATA</string>
     <string name="settings_handle_empty">HANDLE REQUIRED</string>
+    <string name="settings_handle_invalid">HANDLE FORMAT IS INVALID</string>
     <string name="settings_handle_not_found">HANDLE NOT FOUND</string>
     <string name="settings_rate_limited">RATE LIMITED — TRY AGAIN SHORTLY</string>
     <string name="settings_network_unavailable">NETWORK UNAVAILABLE</string>

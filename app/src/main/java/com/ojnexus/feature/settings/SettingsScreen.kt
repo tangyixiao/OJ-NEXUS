@@ -230,6 +230,7 @@ fun SettingsScreen(onBack: () -> Unit) {
 @Composable
 private fun errorLabel(error: SettingsViewModel.ConnectError): String = when (error) {
     SettingsViewModel.ConnectError.HandleEmpty -> stringResource(R.string.settings_handle_empty)
+    SettingsViewModel.ConnectError.InvalidHandle -> stringResource(R.string.settings_handle_invalid)
     SettingsViewModel.ConnectError.UserNotFound -> stringResource(R.string.settings_handle_not_found)
     SettingsViewModel.ConnectError.RateLimited -> stringResource(R.string.settings_rate_limited)
     SettingsViewModel.ConnectError.Network -> stringResource(R.string.settings_network_unavailable)

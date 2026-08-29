@@ -8,7 +8,9 @@ import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.data.DataError
 import com.ojnexus.core.data.DataResult
 import com.ojnexus.judge.codeforces.CodeforcesAdapter
-import com.ojnexus.judge.codeforces.CodeforcesApiError
+import com.ojnexus.judge.AccountBindingError
+import com.ojnexus.judge.JudgeRegistry
+import com.ojnexus.judge.codeforces.CodeforcesAccountConnector
 import kotlinx.coroutines.flow.Flow
 import java.time.Clock
 
@@ -23,9 +25,18 @@ import java.time.Clock
  */
 class JudgeAccountRepository(
     private val database: OjNexusDatabase,
-    private val adapter: CodeforcesAdapter,
+    private val registry: JudgeRegistry,
     private val clock: Clock,
 ) {
+    constructor(
+        database: OjNexusDatabase,
+        adapter: CodeforcesAdapter,
+        clock: Clock,
+    ) : this(
+        database,
+        JudgeRegistry(listOf(adapter), listOf(CodeforcesAccountConnector(adapter))),
+        clock,
+    )
     private val accountDao = database.judgeAccountDao()
 
     fun observeAll(): Flow<List<JudgeAccountEntity>> = accountDao.observeAll()
@@ -41,6 +52,7 @@ class JudgeAccountRepository(
     /** Validation failures surfaced as typed errors; UI maps them to inline strings. */
     sealed class ConnectError : Exception() {
         class HandleEmpty : ConnectError()
+        class InvalidHandle : ConnectError()
         class UserNotFound(val comment: String?) : ConnectError()
         class ApiFailure(val comment: String?) : ConnectError()
         class Network(val wrappedCause: Exception) : ConnectError()
@@ -55,18 +67,20 @@ class JudgeAccountRepository(
         val trimmed = rawHandle.trim()
         if (trimmed.isEmpty()) throw ConnectError.HandleEmpty()
 
-        val profile = try {
-            adapter.fetchProfile(trimmed)
-        } catch (e: CodeforcesApiError.UserNotFound) {
-            throw ConnectError.UserNotFound(e.rawComment)
-        } catch (e: CodeforcesApiError) {
-            throw ConnectError.ApiFailure(e.rawComment)
+        val binding = try {
+            registry.accountConnector(judge).bind(rawHandle)
+        } catch (e: AccountBindingError.InvalidHandle) {
+            throw ConnectError.InvalidHandle()
+        } catch (e: AccountBindingError.NotFound) {
+            throw ConnectError.UserNotFound(e.message)
+        } catch (e: AccountBindingError.Unavailable) {
+            throw ConnectError.ApiFailure(e.message)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
             throw ConnectError.Network(e)
         }
-        val canonical = profile.handle.trim()
+        val canonical = binding.canonicalHandle.trim()
         require(canonical.isNotEmpty()) { "API returned an empty handle" }
 
         val now = clock.millis()
@@ -79,22 +93,32 @@ class JudgeAccountRepository(
                 database.syncStateDao().deleteByJudge(judge.id)
             }
             val accountId = if (existing != null && sameHandle) {
-                accountDao.update(existing.copy(handle = rawHandle, updatedAt = now))
+                accountDao.update(
+                    existing.copy(
+                        handle = binding.storedHandle,
+                        verificationState = binding.verificationState.name,
+                        sourceReliability = binding.reliability.name,
+                        updatedAt = now,
+                    ),
+                )
                 existing.id
             } else {
                 accountDao.insert(
                     JudgeAccountEntity(
                         judge = judge.id,
-                        handle = rawHandle,
+                        handle = binding.storedHandle,
                         canonicalHandle = canonical,
                         connectedAt = now,
                         updatedAt = now,
+                        verificationState = binding.verificationState.name,
+                        sourceReliability = binding.reliability.name,
                     ),
                 )
             }
-            if (database.syncStateDao().findByJudge(judge.id) == null) {
-                database.syncStateDao().upsert(SyncStateEntity(judge = judge.id))
-            }
+            val state = database.syncStateDao().findByJudge(judge.id)
+            database.syncStateDao().upsert(
+                (state ?: SyncStateEntity(judge = judge.id)).copy(accountId = accountId),
+            )
             accountId
         }
         return accountDao.findActiveByJudge(judge.id)
@@ -129,6 +153,7 @@ class JudgeAccountRepository(
 /** Small typed helper for callers that prefer DataResult-style handling of connect. */
 fun JudgeAccountRepository.ConnectError.toDataError(): DataError = when (this) {
     is JudgeAccountRepository.ConnectError.HandleEmpty -> DataError.NotFound("handle")
+    is JudgeAccountRepository.ConnectError.InvalidHandle -> DataError.NotFound("invalid handle")
     is JudgeAccountRepository.ConnectError.UserNotFound -> DataError.NotFound(comment ?: "handle")
     else -> DataError.Storage(message ?: "connect failed")
 }

@@ -9,7 +9,7 @@ enum class SyncStage {
     RATING,
     SUBMISSIONS,
     CONTESTS,
-    PROBLEMSET,
+    PROBLEMS,
     DONE,
 }
 

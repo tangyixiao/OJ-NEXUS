@@ -287,7 +287,8 @@ abstract class OjNexusDatabase : RoomDatabase() {
                         "`raw_verdict` TEXT, `duration_min` INTEGER, `language` TEXT, `note` TEXT, " +
                         "`source_judge` TEXT, `external_submission_id` TEXT, `contest_id` TEXT, " +
                         "`participant_type` TEXT, `testset` TEXT, `passed_test_count` INTEGER, " +
-                        "`execution_time_ms` INTEGER, `memory_bytes` INTEGER, " +
+                        "`execution_time_ms` INTEGER, `memory_bytes` INTEGER, `score` REAL, " +
+                        "`code_length_bytes` INTEGER, " +
                         "FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) " +
                         "ON UPDATE NO ACTION ON DELETE CASCADE)",
                 )
@@ -295,7 +296,8 @@ abstract class OjNexusDatabase : RoomDatabase() {
                     "INSERT INTO `attempts_new` SELECT `id`, `problem_id`, `timestamp`, `day_index`, " +
                         "`verdict`, `raw_verdict`, `duration_min`, `language`, `note`, `source_judge`, " +
                         "`external_submission_id`, CAST(`contest_id` AS TEXT), `participant_type`, " +
-                        "`testset`, `passed_test_count`, `execution_time_ms`, `memory_bytes` FROM `attempts`",
+                        "`testset`, `passed_test_count`, `execution_time_ms`, `memory_bytes`, NULL, NULL " +
+                        "FROM `attempts`",
                 )
                 db.execSQL("DROP TABLE `attempts`")
                 db.execSQL("ALTER TABLE `attempts_new` RENAME TO `attempts`")

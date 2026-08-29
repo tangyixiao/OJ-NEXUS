@@ -43,6 +43,12 @@ interface AttemptDao {
     )
     suspend fun findByExternalId(sourceJudge: String, externalId: String): AttemptEntity?
 
+    @Query(
+        "SELECT external_submission_id FROM attempts WHERE source_judge = :sourceJudge " +
+            "AND external_submission_id IN (:externalIds)",
+    )
+    suspend fun findExistingExternalIds(sourceJudge: String, externalIds: List<String>): List<String>
+
     @Update
     suspend fun update(attempt: AttemptEntity)
 }

@@ -41,3 +41,25 @@ interface JudgeAdapter {
 
     suspend fun status(): AdapterStatus
 }
+
+enum class AccountVerificationState { VERIFIED, UNVERIFIED }
+
+data class AccountBinding(
+    val storedHandle: String,
+    val canonicalHandle: String,
+    val verificationState: AccountVerificationState,
+    val reliability: DataSourceReliability,
+)
+
+sealed class AccountBindingError(message: String? = null, cause: Throwable? = null) :
+    Exception(message, cause) {
+    class InvalidHandle : AccountBindingError("invalid handle")
+    class NotFound(message: String?) : AccountBindingError(message)
+    class Unavailable(message: String?, cause: Throwable? = null) : AccountBindingError(message, cause)
+}
+
+/** Judge-specific public-handle validation behind a shared connection lifecycle. */
+interface JudgeAccountConnector {
+    val judgeId: JudgeId
+    suspend fun bind(rawHandle: String): AccountBinding
+}

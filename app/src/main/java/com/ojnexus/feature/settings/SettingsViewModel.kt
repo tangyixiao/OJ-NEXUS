@@ -42,6 +42,7 @@ class SettingsViewModel(
 
     sealed interface ConnectError {
         data object HandleEmpty : ConnectError
+        data object InvalidHandle : ConnectError
         data object UserNotFound : ConnectError
         data object RateLimited : ConnectError
         data object Network : ConnectError
@@ -66,18 +67,21 @@ class SettingsViewModel(
             try {
                 val account = accountRepository.connect(JudgeId.CODEFORCES, handle)
                 // Initial sync runs as unique background work; the user can leave the page.
-                com.ojnexus.judge.codeforces.sync.JudgeSyncWorker.enqueueManual(
+                com.ojnexus.judge.sync.JudgeSyncWorker.enqueueManual(
                     context = com.ojnexus.core.ui.GlobalContext.application,
+                    judge = JudgeId.CODEFORCES,
                     accountId = account.id,
                     force = true,
                 )
-                com.ojnexus.judge.codeforces.sync.JudgeSyncWorker.enqueuePeriodic(
+                com.ojnexus.judge.sync.JudgeSyncWorker.enqueuePeriodic(
                     context = com.ojnexus.core.ui.GlobalContext.application,
+                    judge = JudgeId.CODEFORCES,
                     accountId = account.id,
                 )
             } catch (e: JudgeAccountRepository.ConnectError) {
                 connectError.value = when (e) {
                     is JudgeAccountRepository.ConnectError.HandleEmpty -> ConnectError.HandleEmpty
+                    is JudgeAccountRepository.ConnectError.InvalidHandle -> ConnectError.InvalidHandle
                     is JudgeAccountRepository.ConnectError.UserNotFound -> ConnectError.UserNotFound
                     is JudgeAccountRepository.ConnectError.Network -> ConnectError.Network
                     is JudgeAccountRepository.ConnectError.ApiFailure ->
@@ -96,16 +100,18 @@ class SettingsViewModel(
     fun disconnect(accountId: Long, removeCache: Boolean) {
         viewModelScope.launch {
             accountRepository.disconnect(accountId, removeCache)
-            com.ojnexus.judge.codeforces.sync.JudgeSyncWorker.cancelFor(
+            com.ojnexus.judge.sync.JudgeSyncWorker.cancelFor(
                 com.ojnexus.core.ui.GlobalContext.application,
+                JudgeId.CODEFORCES,
                 accountId,
             )
         }
     }
 
     fun syncNow(accountId: Long) {
-        com.ojnexus.judge.codeforces.sync.JudgeSyncWorker.enqueueManual(
+        com.ojnexus.judge.sync.JudgeSyncWorker.enqueueManual(
             context = com.ojnexus.core.ui.GlobalContext.application,
+            judge = JudgeId.CODEFORCES,
             accountId = accountId,
             force = true,
         )

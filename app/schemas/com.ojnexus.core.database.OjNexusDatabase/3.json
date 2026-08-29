@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "9b7de324617696a7638968d59c68436e",
+    "identityHash": "63b96f30c3774c43eda35a0cd5bcee4b",
     "entities": [
       {
         "tableName": "problems",
@@ -242,7 +242,7 @@
       },
       {
         "tableName": "attempts",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `problem_id` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL, `day_index` INTEGER NOT NULL, `verdict` TEXT NOT NULL, `raw_verdict` TEXT, `duration_min` INTEGER, `language` TEXT, `note` TEXT, `source_judge` TEXT, `external_submission_id` TEXT, `contest_id` TEXT, `participant_type` TEXT, `testset` TEXT, `passed_test_count` INTEGER, `execution_time_ms` INTEGER, `memory_bytes` INTEGER, FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `problem_id` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL, `day_index` INTEGER NOT NULL, `verdict` TEXT NOT NULL, `raw_verdict` TEXT, `duration_min` INTEGER, `language` TEXT, `note` TEXT, `source_judge` TEXT, `external_submission_id` TEXT, `contest_id` TEXT, `participant_type` TEXT, `testset` TEXT, `passed_test_count` INTEGER, `execution_time_ms` INTEGER, `memory_bytes` INTEGER, `score` REAL, `code_length_bytes` INTEGER, FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -332,6 +332,16 @@
           {
             "fieldPath": "memoryBytes",
             "columnName": "memory_bytes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "score",
+            "columnName": "score",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "codeLengthBytes",
+            "columnName": "code_length_bytes",
             "affinity": "INTEGER"
           }
         ],
@@ -1556,7 +1566,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9b7de324617696a7638968d59c68436e')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '63b96f30c3774c43eda35a0cd5bcee4b')"
     ]
   }
 }
