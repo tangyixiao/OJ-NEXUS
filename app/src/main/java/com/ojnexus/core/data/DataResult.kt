@@ -28,6 +28,10 @@ sealed interface DataResult<out T> {
 
 inline fun <T> dataResult(block: () -> T): DataResult<T> = try {
     DataResult.Success(block())
+} catch (e: kotlinx.coroutines.CancellationException) {
+    // CancellationException extends IllegalStateException — it MUST propagate so WorkManager
+    // and structured concurrency observe cancellation instead of a storage error.
+    throw e
 } catch (e: android.database.SQLException) {
     DataResult.Failure(DataError.Storage(e.message ?: "Storage error"))
 } catch (e: IllegalStateException) {
