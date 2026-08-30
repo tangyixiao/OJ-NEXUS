@@ -1,7 +1,10 @@
 package com.ojnexus.feature.settings
 
+import android.content.ContentResolver
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ojnexus.core.data.repository.BackupRepository
 import com.ojnexus.core.data.repository.JudgeAccountRepository
 import com.ojnexus.core.data.repository.JudgeDataRepository
 import com.ojnexus.core.data.sync.SyncPhase
@@ -37,6 +40,7 @@ class SettingsViewModel(
     private val accountRepository: JudgeAccountRepository,
     dataRepository: JudgeDataRepository,
     registry: JudgeRegistry,
+    private val backupRepository: BackupRepository,
 ) : ViewModel() {
     private val judges = registry.supportedJudges().sortedBy { it.ordinal }
 
@@ -73,6 +77,14 @@ class SettingsViewModel(
     val errors: StateFlow<Map<JudgeId, ConnectError>> = connectErrors.asStateFlow()
     private val connectingJudges = MutableStateFlow<Set<JudgeId>>(emptySet())
     val connecting: StateFlow<Set<JudgeId>> = connectingJudges.asStateFlow()
+    private val backupResult = MutableStateFlow<Boolean?>(null)
+    val backup: StateFlow<Boolean?> = backupResult.asStateFlow()
+
+    fun exportBackup(resolver: ContentResolver, destination: Uri) {
+        viewModelScope.launch {
+            backupResult.value = backupRepository.exportTo(resolver, destination)
+        }
+    }
 
     fun connect(judge: JudgeId, handle: String) {
         if (judge in connectingJudges.value) return

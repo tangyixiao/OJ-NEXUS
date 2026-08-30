@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
 import com.ojnexus.core.data.sync.SyncPhase
@@ -46,12 +48,26 @@ fun SettingsScreen(onBack: () -> Unit) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<SettingsViewModel>(
         factory = ContainerViewModelFactory(container) {
-            SettingsViewModel(it.judgeAccountRepository, it.judgeDataRepository, it.judgeRegistry)
+            SettingsViewModel(
+                it.judgeAccountRepository,
+                it.judgeDataRepository,
+                it.judgeRegistry,
+                it.backupRepository,
+            )
         },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
     val errors by viewModel.errors.collectAsStateWithLifecycle()
     val connecting by viewModel.connecting.collectAsStateWithLifecycle()
+    val backupResult by viewModel.backup.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val backupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream"),
+    ) { destination ->
+        if (destination != null) {
+            viewModel.exportBackup(context.contentResolver, destination)
+        }
+    }
     var disconnectAccountId by rememberSaveable { mutableStateOf<Long?>(null) }
     var purgeCache by rememberSaveable { mutableStateOf(false) }
 
@@ -82,6 +98,29 @@ fun SettingsScreen(onBack: () -> Unit) {
                         onConnect = { handle -> viewModel.connect(connection.judge, handle) },
                         onSync = { connection.account?.let(viewModel::syncNow) },
                         onDisconnect = { disconnectAccountId = connection.account?.id },
+                    )
+                }
+            }
+            Spacer(Modifier.height(NexusSpacing.xl))
+            NexusSection(label = stringResource(R.string.settings_section_data)) {
+                Text(
+                    text = stringResource(R.string.settings_backup_hint),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.textTertiary,
+                )
+                Spacer(Modifier.height(NexusSpacing.sm))
+                SettingsAction(
+                    label = stringResource(R.string.settings_export_backup),
+                    onClick = { backupLauncher.launch("oj-nexus-backup.db") },
+                )
+                backupResult?.let { success ->
+                    Spacer(Modifier.height(NexusSpacing.xs))
+                    Text(
+                        text = stringResource(
+                            if (success) R.string.settings_backup_success else R.string.settings_backup_failed,
+                        ),
+                        style = NexusTheme.typography.dataSmall,
+                        color = if (success) NexusTheme.colors.success else NexusTheme.colors.danger,
                     )
                 }
             }

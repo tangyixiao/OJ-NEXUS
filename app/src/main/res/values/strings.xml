@@ -387,6 +387,11 @@
     <string name="settings_source_format">SOURCE %1$s</string>
     <string name="settings_verification_format">IDENTITY %1$s</string>
     <string name="settings_rating_unavailable">RATING DATA UNAVAILABLE</string>
+    <string name="settings_section_data">LOCAL DATA</string>
+    <string name="settings_backup_hint">EXPORT A COPY OF THE LOCAL DATABASE. NO PASSWORDS OR COOKIES ARE INCLUDED.</string>
+    <string name="settings_export_backup">EXPORT DATABASE BACKUP</string>
+    <string name="settings_backup_success">BACKUP EXPORTED</string>
+    <string name="settings_backup_failed">BACKUP EXPORT FAILED</string>
     <string name="settings_handle_empty">HANDLE REQUIRED</string>
     <string name="settings_handle_invalid">HANDLE FORMAT IS INVALID</string>
     <string name="settings_handle_not_found">HANDLE NOT FOUND</string>

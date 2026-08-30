@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 7 (Achievements + Player Card)**: Codeforces and AtCoder now share
+Early development — **Phase 8 (Polish + Data Safety)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -31,7 +31,9 @@ heatmap day detail, first-try AC, weak-tag performance, and per-judge difficulty
 Arena adds a cached contest focus view with countdowns, local markers, and joined submission
 progress. Training now shows an explicit knowledge tree with local evidence-backed mastery
 scores and reason codes. Profile now derives and displays local achievement milestones. The
-Player Card can be exported as a PNG through the system share sheet.
+Player Card can be exported as a PNG through the system share sheet. Settings can export a
+verified copy of the local Room database through the Android document picker; it contains local
+study data only and never requires credentials.
 No passwords,
 cookies, private API signing, scraping, or auto-submit are used. See
 [docs/MULTI_OJ.md](docs/MULTI_OJ.md), [docs/ATCODER.md](docs/ATCODER.md),

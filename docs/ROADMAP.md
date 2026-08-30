@@ -56,6 +56,8 @@ candidate feed ranked by the pure candidate-level `TrainingPlanner`. See
 Deterministic local achievement unlocks, Profile Player Card achievement display, and verified
 token-colored PNG sharing through `FileProvider` are implemented.
 
-## PHASE 8 — Polish + Performance + Tests
-Reduce-motion + haptics settings, command palette, data export/import/backup, theme slots,
-startup/scroll performance pass, test coverage on engines/adapters/repositories.
+## PHASE 8 — Polish + Performance + Tests (in progress)
+Settings now exports a verified copy of the local Room database through the Android document
+picker; the export contains local study data only and never requires credentials. Remaining
+work: reduce-motion + haptics settings, command palette, import/restore flow, theme slots,
+startup/scroll performance pass, and further coverage on engines/adapters/repositories.
