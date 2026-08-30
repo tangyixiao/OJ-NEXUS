@@ -4,6 +4,10 @@ import com.ojnexus.core.network.CoroutineDelayProvider
 import com.ojnexus.core.network.DelayProvider
 import com.ojnexus.core.network.RateLimitedRequestGate
 import com.ojnexus.judge.luogu.api.LuoguApi
+import com.ojnexus.judge.luogu.api.dto.LuoguContestListResponse
+import com.ojnexus.judge.luogu.api.dto.LuoguProblemListResponse
+import com.ojnexus.judge.luogu.api.dto.LuoguRecordPageResponse
+import com.ojnexus.judge.luogu.api.dto.LuoguUserPageResponse
 import java.io.IOException
 import java.net.SocketTimeoutException
 import kotlinx.coroutines.CancellationException
@@ -17,6 +21,7 @@ sealed class LuoguApiError(message: String?, cause: Throwable? = null) : Excepti
     class Network(cause: Throwable) : LuoguApiError(cause.message, cause)
     class Timeout(cause: Throwable) : LuoguApiError(cause.message, cause)
     class ParseError(cause: Throwable) : LuoguApiError(cause.message, cause)
+    class AuthenticationRequired : LuoguApiError("Luogu authentication is required")
 }
 
 data class LuoguRetryPolicy(
@@ -38,6 +43,39 @@ class LuoguClient(
     private val delayProvider: DelayProvider = CoroutineDelayProvider(),
 ) {
     suspend fun searchUsers(keyword: String) = call { api.searchUsers(keyword) }
+
+    suspend fun fetchUserPage(uid: Long): LuoguUserPageResponse =
+        call { api.userPage(uid) }.also(::requireSuccessful)
+
+    suspend fun fetchPracticePage(uid: Long): LuoguUserPageResponse =
+        call { api.practicePage(uid) }.also(::requireSuccessful)
+
+    suspend fun fetchProblemPage(page: Int): LuoguProblemListResponse =
+        call { api.problemPage(page) }.also(::requireSuccessful)
+
+    suspend fun fetchContestPage(page: Int): LuoguContestListResponse =
+        call { api.contestPage(page) }.also(::requireSuccessful)
+
+    suspend fun fetchRecordPage(uid: Long, page: Int): LuoguRecordPageResponse =
+        call { api.recordPage(uid, page) }.also {
+            requireSuccessful(it)
+            if (it.instance == "auth" || it.template == "login") {
+                throw LuoguApiError.AuthenticationRequired()
+            }
+        }
+
+    private fun requireSuccessful(response: Any) {
+        val status = when (response) {
+            is LuoguUserPageResponse -> response.status
+            is LuoguProblemListResponse -> response.status
+            is LuoguContestListResponse -> response.status
+            is LuoguRecordPageResponse -> response.status
+            else -> 200
+        }
+        if (status !in 200..299) {
+            throw LuoguApiError.HttpError(status)
+        }
+    }
 
     private suspend fun <T> call(block: suspend () -> T): T {
         var last: LuoguApiError? = null
