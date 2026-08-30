@@ -10,6 +10,7 @@ import com.ojnexus.judge.luogu.open.LuoguProblemJudgeRequest
 import com.ojnexus.judge.luogu.open.LuoguRunRequest
 import com.ojnexus.judge.luogu.open.LuoguSubmissionHistory
 import com.ojnexus.judge.luogu.open.OpenAppCredentialStore
+import com.ojnexus.judge.luogu.open.SubmissionJobKind
 import com.ojnexus.judge.luogu.open.SubmissionJobStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 private const val DEFAULT_LANGUAGE = "cxx/14/gcc"
 
@@ -51,6 +53,7 @@ enum class WorkspaceError {
     NOT_FOUND,
     NETWORK,
     SERVER,
+    PREVIOUS_REQUEST_FAILED,
 }
 
 class WorkspaceViewModel(
@@ -63,6 +66,7 @@ class WorkspaceViewModel(
 ) : ViewModel() {
     private val workScope = testScope ?: viewModelScope
     private val mutableState = MutableStateFlow(WorkspaceState(pid = pid, title = title))
+    private val submissionStarted = AtomicBoolean(false)
     val state: StateFlow<WorkspaceState> = mutableState.asStateFlow()
 
     init {
@@ -71,29 +75,48 @@ class WorkspaceViewModel(
         }
         workScope.launch(start = CoroutineStart.UNDISPATCHED) {
             val job = history?.latestForProblem(pid) ?: return@launch
-            val ready = job.status == SubmissionJobStatus.READY.name
             mutableState.update {
-                it.copy(
-                    requestId = job.requestId,
-                    resultState = if (ready) WorkspaceResultState.READY else WorkspaceResultState.PENDING,
-                    evaluation = if (ready) {
-                        LuoguOpenEvaluation(
-                            requestId = job.requestId,
-                            trackId = job.trackId,
-                            type = "judge",
-                            compileSuccess = null,
-                            compileMessage = null,
-                            status = job.judgeStatus,
-                            score = job.score,
-                            timeMs = null,
-                            memoryKiB = null,
-                            output = null,
-                            exitCode = null,
-                        )
-                    } else {
-                        null
-                    },
-                )
+                if (submissionStarted.get()) {
+                    it
+                } else {
+                    val ready = job.status == SubmissionJobStatus.READY.name
+                    it.copy(
+                        requestId = job.requestId,
+                        language = job.language,
+                        mode = if (job.kind == SubmissionJobKind.PROBLEM.name) {
+                            WorkspaceMode.SUBMIT
+                        } else {
+                            WorkspaceMode.RUN
+                        },
+                        resultState = when (job.status) {
+                            SubmissionJobStatus.READY.name -> WorkspaceResultState.READY
+                            SubmissionJobStatus.FAILED.name -> WorkspaceResultState.IDLE
+                            else -> WorkspaceResultState.PENDING
+                        },
+                        evaluation = if (ready) {
+                            LuoguOpenEvaluation(
+                                requestId = job.requestId,
+                                trackId = job.trackId,
+                                type = "judge",
+                                compileSuccess = null,
+                                compileMessage = null,
+                                status = job.judgeStatus,
+                                score = job.score,
+                                timeMs = null,
+                                memoryKiB = null,
+                                output = null,
+                                exitCode = null,
+                            )
+                        } else {
+                            null
+                        },
+                        error = if (job.status == SubmissionJobStatus.FAILED.name) {
+                            WorkspaceError.PREVIOUS_REQUEST_FAILED
+                        } else {
+                            null
+                        },
+                    )
+                }
             }
         }
     }
@@ -110,6 +133,7 @@ class WorkspaceViewModel(
 
     fun submit() {
         if (mutableState.value.busy) return
+        submissionStarted.set(true)
         val snapshot = mutableState.value
         mutableState.update { it.copy(busy = true, error = null, resultState = WorkspaceResultState.IDLE) }
         workScope.launch(start = CoroutineStart.UNDISPATCHED) {

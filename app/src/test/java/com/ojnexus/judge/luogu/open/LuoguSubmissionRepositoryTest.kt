@@ -3,6 +3,7 @@ package com.ojnexus.judge.luogu.open
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.ojnexus.core.database.entity.SubmissionJobEntity
 import com.ojnexus.core.model.JudgeId
 import java.time.Clock
 import java.time.Instant
@@ -142,6 +143,43 @@ class LuoguSubmissionRepositoryTest {
         repository.fetchResult("req-1")
 
         assertEquals(null, database.problemDao().findByKey(JudgeId.LUOGU.id, "P1001"))
+    }
+
+    @Test
+    fun `submission history survives a Room database reopen`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val name = "submission-history-${System.nanoTime()}"
+        val first = Room.databaseBuilder(
+            context,
+            com.ojnexus.core.database.OjNexusDatabase::class.java,
+            name,
+        ).allowMainThreadQueries().build()
+        first.submissionJobDao().insert(
+            SubmissionJobEntity(
+                judge = JudgeId.LUOGU.id,
+                requestId = "req-reopen",
+                kind = SubmissionJobKind.PROBLEM.name,
+                pid = "P1001",
+                language = "cxx/14/gcc",
+                status = SubmissionJobStatus.PENDING.name,
+                createdAt = 1,
+                updatedAt = 2,
+            ),
+        )
+        first.close()
+
+        val reopened = Room.databaseBuilder(
+            context,
+            com.ojnexus.core.database.OjNexusDatabase::class.java,
+            name,
+        ).allowMainThreadQueries().build()
+        try {
+            val reopenedRepository = LuoguSubmissionRepository(reopened, gateway, clock)
+            assertEquals("req-reopen", reopenedRepository.latestForProblem("P1001")?.requestId)
+        } finally {
+            reopened.close()
+            context.deleteDatabase(name)
+        }
     }
 }
 

@@ -17,6 +17,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -84,6 +86,90 @@ class WorkspaceViewModelTest {
         assertEquals("req-restored", viewModel.state.value.requestId)
         assertEquals(WorkspaceResultState.PENDING, viewModel.state.value.resultState)
     }
+
+    @Test
+    fun `workspace restores ready submission mode and language`() = runBlocking {
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = null,
+            gateway = FakeGateway(),
+            credentialStore = FakeStore(),
+            history = FakeHistory(
+                SubmissionJobEntity(
+                    judge = "luogu",
+                    requestId = "req-ready",
+                    kind = SubmissionJobKind.PROBLEM.name,
+                    pid = "P1001",
+                    language = "cxx/17/gcc",
+                    status = SubmissionJobStatus.READY.name,
+                    judgeStatus = 12,
+                    score = 100,
+                    createdAt = 1,
+                    updatedAt = 2,
+                ),
+            ),
+            testScope = CoroutineScope(coroutineContext),
+        )
+
+        assertEquals(WorkspaceMode.SUBMIT, viewModel.state.value.mode)
+        assertEquals("cxx/17/gcc", viewModel.state.value.language)
+        assertEquals(WorkspaceResultState.READY, viewModel.state.value.resultState)
+        assertEquals(100, viewModel.state.value.evaluation?.score)
+    }
+
+    @Test
+    fun `workspace exposes a failed restored request`() = runBlocking {
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = null,
+            gateway = FakeGateway(),
+            credentialStore = FakeStore(),
+            history = FakeHistory(
+                SubmissionJobEntity(
+                    judge = "luogu",
+                    requestId = "req-failed",
+                    kind = SubmissionJobKind.PROBLEM.name,
+                    pid = "P1001",
+                    language = "cxx/14/gcc",
+                    status = SubmissionJobStatus.FAILED.name,
+                    lastErrorType = "Network",
+                    createdAt = 1,
+                    updatedAt = 2,
+                ),
+            ),
+            testScope = CoroutineScope(coroutineContext),
+        )
+
+        assertEquals(WorkspaceResultState.IDLE, viewModel.state.value.resultState)
+        assertEquals(WorkspaceError.PREVIOUS_REQUEST_FAILED, viewModel.state.value.error)
+    }
+
+    @Test
+    fun `history restoration cannot overwrite a newer submission`() = runBlocking {
+        val scope = CoroutineScope(Dispatchers.Default)
+        val history = BlockingHistory()
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = null,
+            gateway = FakeGateway(),
+            credentialStore = FakeStore(),
+            history = history,
+            testScope = scope,
+        )
+        history.started.await()
+
+        viewModel.setMode(WorkspaceMode.SUBMIT)
+        viewModel.submit()
+        withTimeout(1_000) {
+            while (viewModel.state.value.requestId != "req-1") delay(1)
+        }
+
+        history.release.complete(Unit)
+        history.finished.await()
+        assertEquals("req-1", viewModel.state.value.requestId)
+        assertEquals(WorkspaceMode.SUBMIT, viewModel.state.value.mode)
+        scope.cancel()
+    }
 }
 
 private class FakeGateway : LuoguOpenGateway {
@@ -140,4 +226,26 @@ private class FakeHistory(
     private val job: SubmissionJobEntity,
 ) : LuoguSubmissionHistory {
     override suspend fun latestForProblem(pid: String): SubmissionJobEntity? = job.takeIf { it.pid == pid }
+}
+
+private class BlockingHistory : LuoguSubmissionHistory {
+    val started = CompletableDeferred<Unit>()
+    val release = CompletableDeferred<Unit>()
+    val finished = CompletableDeferred<Unit>()
+
+    override suspend fun latestForProblem(pid: String): SubmissionJobEntity {
+        started.complete(Unit)
+        release.await()
+        finished.complete(Unit)
+        return SubmissionJobEntity(
+            judge = "luogu",
+            requestId = "req-old",
+            kind = SubmissionJobKind.PROBLEM.name,
+            pid = pid,
+            language = "cxx/14/gcc",
+            status = SubmissionJobStatus.PENDING.name,
+            createdAt = 1,
+            updatedAt = 1,
+        )
+    }
 }

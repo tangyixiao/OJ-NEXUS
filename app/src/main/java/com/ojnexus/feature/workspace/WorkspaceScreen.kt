@@ -275,4 +275,5 @@ private val WorkspaceError.labelRes: Int
         WorkspaceError.NOT_FOUND -> R.string.workspace_error_not_found
         WorkspaceError.NETWORK -> R.string.workspace_error_network
         WorkspaceError.SERVER -> R.string.workspace_error_server
+        WorkspaceError.PREVIOUS_REQUEST_FAILED -> R.string.workspace_error_previous_request_failed
     }

@@ -544,4 +544,5 @@
     <string name="workspace_error_not_found">REQUEST WAS NOT FOUND</string>
     <string name="workspace_error_network">NETWORK UNAVAILABLE</string>
     <string name="workspace_error_server">OPENAPP SERVER ERROR</string>
+    <string name="workspace_error_previous_request_failed">PREVIOUS REQUEST FAILED — CHECK RESULT AGAIN</string>
 </resources>
