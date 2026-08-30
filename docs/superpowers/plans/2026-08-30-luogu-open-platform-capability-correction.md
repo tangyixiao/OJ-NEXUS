@@ -145,3 +145,10 @@ Run: `git diff --check`, `git status --short`, and a focused secret-pattern scan
 git add README.md docs/LUOGU_OPEN_PLATFORM.md docs/ROADMAP.md
 git commit -m "docs: clarify Luogu runner capability"
 ```
+
+## Execution record
+
+- Task 1 completed in `fded633`: official endpoint paths and pre-network unsupported-run guard.
+- Task 2 completed in `d952639`: capability-aware repository, workspace state, UI controls, and tests.
+- Task 3 completed in `25f63cf`: README, roadmap, editor spec, and Open Platform documentation corrected.
+- Final verification: `clean test assembleDebug lintDebug` passed with 243 tests, 0 failures, and 0 errors.
