@@ -56,11 +56,12 @@ candidate feed ranked by the pure candidate-level `TrainingPlanner`. See
 Deterministic local achievement unlocks, Profile Player Card achievement display, and verified
 token-colored PNG sharing through `FileProvider` are implemented.
 
-## PHASE 8 — Polish + Performance + Tests (in progress)
+## PHASE 8 — Polish + Performance + Tests ✅
 Settings now exports a verified copy of the local Room database through the Android document
 picker, and reduce-motion/haptics preferences persist through DataStore. The export contains
 local study data only and never requires credentials. A global command palette now searches
 local navigation and study actions without network access. Database backups can be imported,
 schema-validated, and restored before the next app start. The visual system now exposes three
 named dark accent slots while preserving one accent per theme. The bounded-feed audit and
-repository coverage are recorded in [docs/PERFORMANCE.md](PERFORMANCE.md).
+repository coverage are recorded in [docs/PERFORMANCE.md](PERFORMANCE.md). The phase is locally
+complete; publishing remains a separate release action requiring explicit authorization.
