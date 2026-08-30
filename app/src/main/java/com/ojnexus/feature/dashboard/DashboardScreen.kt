@@ -71,8 +71,7 @@ fun DashboardScreen(
                 reviewRepository = it.reviewRepository,
                 analyticsRepository = it.analyticsRepository,
                 clock = it.clock,
-                syncRepository = it.codeforcesSyncRepository,
-                accountRepository = it.judgeAccountRepository,
+                judgeDataRepository = it.judgeDataRepository,
             )
         },
     )
@@ -122,37 +121,49 @@ private fun DashboardContent(
             label = stringResource(R.string.dash_section_system),
             trailing = {
                 NexusTag(
-                    text = if (state.cfAccount != null) {
+                    text = if (state.judgeConnections.isNotEmpty()) {
                         stringResource(R.string.sync_state_synced)
                     } else {
                         stringResource(R.string.sync_source_local)
                     },
-                    tone = if (state.cfAccount != null) NexusTone.Accent else NexusTone.Neutral,
+                    tone = if (state.judgeConnections.isNotEmpty()) NexusTone.Accent else NexusTone.Neutral,
                     selected = true,
                 )
             },
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(NexusSize.tableRowHeight)
-                    .clickable { onOpenSettings() },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.dash_oj_connection),
-                    style = NexusTheme.typography.dataSmall,
-                    color = NexusTheme.colors.textPrimary,
-                    modifier = Modifier.weight(1f),
-                )
-                if (state.cfAccount != null) {
+            if (state.judgeConnections.isEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(NexusSize.tableRowHeight).clickable { onOpenSettings() },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.dash_oj_connection),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.textPrimary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    NexusStatus(label = stringResource(R.string.dash_not_connected), tone = NexusTone.Neutral)
+                }
+            } else {
+                state.judgeConnections.forEachIndexed { index, connection ->
+                    if (index > 0) NexusDivider(insetEnd = NexusSpacing.xxs)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(NexusSize.tableRowHeight).clickable { onOpenSettings() },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = connection.judge.displayName,
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.textPrimary,
+                            modifier = Modifier.weight(1f),
+                        )
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = state.cfAccount.canonicalHandle,
+                            text = connection.account.canonicalHandle,
                             style = NexusTheme.typography.dataSmall,
                             color = NexusTheme.colors.accent,
                         )
-                        val syncing = state.cfSyncState?.state == com.ojnexus.core.data.sync.SyncPhase.SYNCING.name
+                        val syncing = connection.syncState?.state == com.ojnexus.core.data.sync.SyncPhase.SYNCING.name
                         NexusStatus(
                             label = stringResource(
                                 if (syncing) R.string.settings_state_syncing else R.string.settings_state_connected,
@@ -160,11 +171,7 @@ private fun DashboardContent(
                             tone = if (syncing) NexusTone.Accent else NexusTone.Success,
                         )
                     }
-                } else {
-                    NexusStatus(
-                        label = stringResource(R.string.dash_not_connected),
-                        tone = NexusTone.Neutral,
-                    )
+                    }
                 }
             }
             NexusDivider(insetEnd = NexusSpacing.xxs)

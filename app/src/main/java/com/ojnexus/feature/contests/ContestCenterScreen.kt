@@ -36,7 +36,8 @@ import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.formatDateTime
 import com.ojnexus.core.ui.formatCountdown
 import com.ojnexus.core.ui.formatDuration
-import com.ojnexus.judge.codeforces.mapper.ContestPhase
+import com.ojnexus.core.domain.ContestTimeState
+import com.ojnexus.core.model.JudgeId
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -46,8 +47,7 @@ fun ContestCenterScreen(onBack: () -> Unit) {
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<ContestCenterViewModel>(
         factory = ContainerViewModelFactory(container) {
             ContestCenterViewModel(
-                accountRepository = it.judgeAccountRepository,
-                syncRepository = it.codeforcesSyncRepository,
+                dataRepository = it.judgeDataRepository,
                 clock = it.clock,
             )
         },
@@ -84,6 +84,18 @@ fun ContestCenterScreen(onBack: () -> Unit) {
                 .padding(horizontal = NexusSpacing.screenHorizontal),
         ) {
             Spacer(modifier = Modifier.height(NexusSpacing.md))
+            Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+                JudgeFilterTag(stringResource(R.string.problems_scope_filter_all), envelope.selectedJudge == null) {
+                    viewModel.setJudgeFilter(null)
+                }
+                JudgeFilterTag(JudgeId.CODEFORCES.displayName, envelope.selectedJudge == JudgeId.CODEFORCES) {
+                    viewModel.setJudgeFilter(JudgeId.CODEFORCES)
+                }
+                JudgeFilterTag(JudgeId.ATCODER.displayName, envelope.selectedJudge == JudgeId.ATCODER) {
+                    viewModel.setJudgeFilter(JudgeId.ATCODER)
+                }
+            }
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
             if (rows.upcoming.isEmpty() && rows.live.isEmpty() && rows.recent.isEmpty()) {
                 Text(
                     text = stringResource(R.string.contest_empty),
@@ -124,8 +136,12 @@ private fun ContestRowView(row: ContestRow, tone: NexusTone) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                row.contestId.toLongOrNull()
-                    ?.let(com.ojnexus.judge.codeforces.CodeforcesUrls::contest)
+                when (row.judge) {
+                    JudgeId.CODEFORCES -> row.contestId.toLongOrNull()
+                        ?.let(com.ojnexus.judge.codeforces.CodeforcesUrls::contest)
+                    JudgeId.ATCODER -> com.ojnexus.judge.atcoder.AtCoderUrls.contest(row.contestId)
+                    else -> null
+                }
                     ?.let { url -> com.ojnexus.core.ui.UrlOpener.open(context, url) }
             }
             .padding(vertical = NexusSpacing.xs),
@@ -177,7 +193,7 @@ private fun ContestRowView(row: ContestRow, tone: NexusTone) {
                 Text(
                     text = formatCountdown(row.countdownSeconds),
                     style = NexusTheme.typography.dataSmall,
-                    color = if (row.phase == ContestPhase.ENDED) {
+                    color = if (row.phase == ContestTimeState.ENDED) {
                         NexusTheme.colors.textTertiary
                     } else {
                         NexusTheme.colors.accent
@@ -188,8 +204,18 @@ private fun ContestRowView(row: ContestRow, tone: NexusTone) {
     }
 }
 
-private fun ContestPhase.labelRes(): Int = when (this) {
-    ContestPhase.UPCOMING -> com.ojnexus.R.string.contest_status_upcoming
-    ContestPhase.LIVE -> com.ojnexus.R.string.contest_status_live
-    ContestPhase.ENDED -> com.ojnexus.R.string.contest_status_ended
+@Composable
+private fun JudgeFilterTag(label: String, selected: Boolean, onClick: () -> Unit) {
+    NexusTag(
+        text = label,
+        tone = if (selected) NexusTone.Accent else NexusTone.Neutral,
+        selected = selected,
+        modifier = Modifier.clickable(onClick = onClick),
+    )
+}
+
+private fun ContestTimeState.labelRes(): Int = when (this) {
+    ContestTimeState.UPCOMING -> com.ojnexus.R.string.contest_status_upcoming
+    ContestTimeState.LIVE -> com.ojnexus.R.string.contest_status_live
+    ContestTimeState.ENDED -> com.ojnexus.R.string.contest_status_ended
 }

@@ -2,20 +2,12 @@
 
 All judge-specific behavior lives behind one boundary. Core code sees only the unified model.
 
-## Interface Sketch (finalized at implementation)
+## Implemented Contract
 
-```kotlin
-interface JudgeAdapter {
-    val judgeId: JudgeId
-    val capabilities: Set<JudgeCapability>   // PROFILE, RATING, SUBMISSIONS, PROBLEMS, CONTESTS
-
-    suspend fun fetchProfile(handle: String): JudgeUser
-    suspend fun fetchRatingHistory(handle: String): List<RatingChange>
-    suspend fun fetchSubmissions(handle: String, since: Instant?): List<UnifiedSubmission>
-    suspend fun fetchProblems(cursor: ProblemCursor?): ProblemPage
-    suspend fun fetchContests(from: Instant?, to: Instant?): List<UnifiedContest>
-}
-```
+`JudgeAdapter` declares a `JudgeId`, supported `JudgeCapability` values, source
+`DataSourceReliability`, and runtime `AdapterStatus`. Judge-specific operations remain in
+the adapter package. `JudgeRegistry` resolves adapters, account connectors, and sync
+coordinators; feature code never branches on concrete network implementations.
 
 Each judge ships: DTOs (network JSON), a mapper to unified models, an adapter implementation,
 and its own error surface. DTOs never leave the judge package.
@@ -38,11 +30,13 @@ Official public API (`codeforces.com/api`). Sync: profile, rating history, submi
 (incremental via `from` count), problems + problem rating + tags, contests. Bound by the
 public rate limit — responses are cached in Room and every screen reads local data.
 
-### AtCoder (Phase 4)
-No official API. Use reliable public sources (e.g., the AtCoder Problems dataset) for
-submissions/contests; keep all quirks inside `AtCoderAdapter`.
+### AtCoder (Phase 3)
+AtCoder has no official public API used by this app. The adapter uses the documented/current
+AtCoder Problems resources for submissions, contests, merged problems, and estimated models.
+It declares no profile or rating capability. See [ATCODER.md](ATCODER.md) for source and
+pagination details.
 
-### Luogu (Phase 4)
+### Luogu (later phase)
 Unofficial/public web endpoints may change without notice. `LuoguAdapter` must:
 - treat every response as suspicious (strict parsing, defensive defaults),
 - return a clear `AdapterError` on any structure drift,

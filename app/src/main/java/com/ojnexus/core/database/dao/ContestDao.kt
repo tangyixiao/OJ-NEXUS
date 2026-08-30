@@ -9,6 +9,12 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ContestDao {
 
+    @Query(
+        "SELECT * FROM contests WHERE start_time_seconds IS NOT NULL " +
+            "ORDER BY start_time_seconds ASC",
+    )
+    fun observeAll(): Flow<List<ContestEntity>>
+
     @Upsert
     suspend fun upsertAll(contests: List<ContestEntity>)
 

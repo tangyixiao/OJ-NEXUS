@@ -10,6 +10,7 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
 import com.ojnexus.core.database.relation.ProblemDetailPojo
 import com.ojnexus.core.database.relation.ProblemWithTagsPojo
 import com.ojnexus.core.model.Attempt
+import com.ojnexus.core.model.DifficultySource
 import com.ojnexus.core.model.FailureCategory
 import com.ojnexus.core.model.FailureEntry
 import com.ojnexus.core.model.JudgeId
@@ -57,6 +58,8 @@ fun ProblemEntity.toDomain(tags: List<String> = emptyList(), inReview: Boolean =
     ),
     title = title,
     difficulty = difficulty,
+    difficultySource = DifficultySource.entries.firstOrNull { it.name == difficultySource }
+        ?: DifficultySource.UNKNOWN,
     createdAt = createdAt,
     updatedAt = updatedAt,
     firstSolvedAt = firstSolvedAt,

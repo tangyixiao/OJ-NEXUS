@@ -33,6 +33,8 @@ data class AnalyticsUiState(
     val longestStreak: Int,
     val cfConnected: Boolean,
     val ratingHistory: List<com.ojnexus.core.database.entity.RatingChangeEntity>,
+    val judgeAttemptCounts: List<Pair<com.ojnexus.core.model.JudgeId, Int>>,
+    val difficultyByJudge: Map<com.ojnexus.core.model.JudgeId, List<Pair<Int?, Int>>>,
 ) {
     /** True when there is nothing to show yet — drives the empty state. */
     val isEmpty: Boolean
@@ -65,12 +67,17 @@ class AnalyticsViewModel(
         val streaks: com.ojnexus.core.data.repository.Streaks,
     )
 
+    private val judgeBreakdown = combine(
+        analyticsRepository.observeJudgeAttemptCounts(),
+        analyticsRepository.observeDifficultyCountsByJudge(),
+    ) { attempts, difficulties -> attempts to difficulties }
+
     val state: StateFlow<Loadable<AnalyticsUiState>> = kotlinx.coroutines.flow.combine(
         localData,
         analyticsRepository.observeJudgeAccounts(),
-        analyticsRepository.observeJudgeProfile(com.ojnexus.core.model.JudgeId.CODEFORCES.id),
         analyticsRepository.observeRatingChanges(com.ojnexus.core.model.JudgeId.CODEFORCES.id),
-    ) { local, accounts, _, ratingHistory ->
+        judgeBreakdown,
+    ) { local, accounts, ratingHistory, breakdown ->
         Loadable.Ready(
             AnalyticsUiState(
                 heatmapDays = local.daily,
@@ -87,6 +94,8 @@ class AnalyticsViewModel(
                     it.judge == com.ojnexus.core.model.JudgeId.CODEFORCES.id && it.enabled
                 },
                 ratingHistory = ratingHistory,
+                judgeAttemptCounts = breakdown.first,
+                difficultyByJudge = breakdown.second,
             ),
         )
     }

@@ -142,10 +142,41 @@ private fun AnalyticsContent(state: AnalyticsUiState) {
         SectionGap()
         VerdictSection(state.verdictCounts)
         SectionGap()
+        JudgeBreakdownSection(state.judgeAttemptCounts)
+        SectionGap()
         DifficultySection(state.difficultyCounts)
         SectionGap()
         TrainingTimeSection(state)
         Spacer(modifier = Modifier.height(NexusSpacing.xxl))
+    }
+}
+
+@Composable
+private fun JudgeBreakdownSection(counts: List<Pair<com.ojnexus.core.model.JudgeId, Int>>) {
+    NexusSection(label = stringResource(R.string.analytics_section_judges)) {
+        if (counts.isEmpty()) {
+            Text(
+                stringResource(R.string.analytics_no_judge_data),
+                style = NexusTheme.typography.dataSmall,
+                color = NexusTheme.colors.textTertiary,
+            )
+        } else {
+            counts.sortedBy { it.first.ordinal }.forEach { (judge, count) ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        judge.displayName,
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.textPrimary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        formatCount(count),
+                        style = NexusTheme.typography.data,
+                        color = NexusTheme.colors.accent,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -235,7 +266,11 @@ private fun HeatmapSection(state: AnalyticsUiState) {
                         text = if (ActivityScorer.score(day) == 0) {
                             stringResource(R.string.analytics_day_zero)
                         } else {
-                            "SCORE ${ActivityScorer.score(day)} · ${ActivityScorer.intensity(day)}/4"
+                            stringResource(
+                                R.string.analytics_day_score,
+                                ActivityScorer.score(day),
+                                ActivityScorer.intensity(day),
+                            )
                         },
                         style = NexusTheme.typography.dataSmall,
                         color = colors.textTertiary,

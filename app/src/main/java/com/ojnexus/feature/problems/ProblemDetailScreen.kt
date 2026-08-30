@@ -197,7 +197,14 @@ private fun DetailContent(
                 selected = true,
             )
             if (detail.problem.difficulty != null) {
-                NexusTag(text = detail.problem.difficulty.toString(), tone = NexusTone.Neutral)
+                NexusTag(
+                    text = if (detail.problem.difficultySource == com.ojnexus.core.model.DifficultySource.ESTIMATED) {
+                        stringResource(R.string.problems_estimated_difficulty, detail.problem.difficulty)
+                    } else {
+                        detail.problem.difficulty.toString()
+                    },
+                    tone = NexusTone.Neutral,
+                )
             }
             detail.problem.tags.forEach { tag ->
                 NexusTag(text = tag, tone = NexusTone.Neutral)

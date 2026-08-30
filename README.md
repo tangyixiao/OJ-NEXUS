@@ -22,11 +22,13 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 2 (Codeforces Integration)**: the local-first training loop now
-has public Codeforces handle binding, Room-cached profile/rating/submissions/contests/problemset
-data, incremental submission sync, rejudge-safe upserts, and unique WorkManager refreshes.
-Problems can search the synced remote catalog without another network call. No passwords,
-cookies, private API signing, scraping, or auto-submit are used. See [docs/CODEFORCES.md](docs/CODEFORCES.md),
+Early development — **Phase 3 (Multi-OJ + AtCoder)**: Codeforces and AtCoder now share
+judge-independent sync contracts while keeping separate adapters, request gates, cursors,
+and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
+binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
+profile, problems, contests, and analytics expose judge-labelled local data. No passwords,
+cookies, private API signing, scraping, or auto-submit are used. See
+[docs/MULTI_OJ.md](docs/MULTI_OJ.md), [docs/ATCODER.md](docs/ATCODER.md),
 [docs/SYNC_ENGINE.md](docs/SYNC_ENGINE.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Documentation
@@ -37,6 +39,8 @@ cookies, private API signing, scraping, or auto-submit are used. See [docs/CODEF
 - [Database](docs/DATABASE.md)
 - [Training Engine](docs/TRAINING_ENGINE.md)
 - [OJ Adapter Spec](docs/OJ_ADAPTERS.md)
+- [Multi-OJ Architecture](docs/MULTI_OJ.md)
+- [AtCoder Integration](docs/ATCODER.md)
 - [Roadmap](docs/ROADMAP.md)
 
 ## Build

@@ -26,13 +26,16 @@ submissions, remote problem catalog, contests, local-first UI, and unique WorkMa
 The branch is locally complete; push/PR/CI remain separate release actions requiring explicit
 authorization.
 
-## PHASE 3 — Analytics (next)
-Heatmap (tap-through day detail), verdict/difficulty/knowledge distributions, rating chart,
-trend metrics, weak tags — all computed from local data, drawn with Compose.
+## PHASE 3 — Multi-OJ + AtCoder ✅ (current milestone)
+Judge-independent adapter/registry/sync contracts, Room v3 migration, AtCoder Problems
+transport and mapping, soft public-handle binding, timestamp-cursor submission sync, catalog
+and contest caching, per-judge WorkManager identity, and judge-labelled local-first UI.
+The branch is locally complete; push/PR/CI remain separate release actions requiring explicit
+authorization.
 
-## PHASE 4 — AtCoder + Luogu
-Second and third adapters under the isolation rules; multi-judge dashboard/aggregation;
-unified timeline across judges.
+## PHASE 4 — Analytics (next)
+Heatmap tap-through, verdict/difficulty/knowledge distributions, rating chart, trend metrics,
+weak tags, and richer per-judge breakdowns — all computed from local data and drawn with Compose.
 
 ## PHASE 5 — Arena
 Contest center polish (reminders, calendar) and the live-contest focus view: countdown,

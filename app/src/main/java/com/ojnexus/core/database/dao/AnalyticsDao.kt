@@ -18,9 +18,23 @@ data class DailyTrainingRow(val dayIndex: Long, val totalMs: Long)
 data class DailyReviewRow(val dayIndex: Long, val count: Int)
 
 data class DifficultyCountRow(val difficulty: Int?, val count: Int)
+data class JudgeAttemptCountRow(val judge: String, val count: Int)
+data class JudgeDifficultyCountRow(val judge: String, val difficulty: Int?, val count: Int)
 
 @Dao
 interface AnalyticsDao {
+
+    @Query(
+        "SELECT p.judge AS judge, COUNT(*) AS count FROM attempts a " +
+            "JOIN problems p ON p.id = a.problem_id GROUP BY p.judge",
+    )
+    fun observeAttemptCountsByJudge(): Flow<List<JudgeAttemptCountRow>>
+
+    @Query(
+        "SELECT judge, difficulty, COUNT(*) AS count FROM problems " +
+            "WHERE solved = 1 GROUP BY judge, difficulty",
+    )
+    fun observeDifficultyCountsByJudge(): Flow<List<JudgeDifficultyCountRow>>
 
     @Query("SELECT verdict, COUNT(*) AS count FROM attempts GROUP BY verdict")
     fun observeVerdictCounts(): Flow<List<VerdictCountRow>>

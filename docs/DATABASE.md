@@ -1,15 +1,15 @@
-# OJ NEXUS — Database (Room, v2 implemented)
+# OJ NEXUS — Database (Room, v3 implemented)
 
-Status: **implemented** (Phase 2). Schema JSON is exported to `app/schemas/` and committed;
-version 2 ships with the Codeforces integration. `MIGRATION_1_2` is registered and tested;
-destructive migration is not configured.
+Status: **implemented** (Phase 3). Schema JSON is exported to `app/schemas/` and committed;
+version 3 supports multiple judge identities. `MIGRATION_1_2` and `MIGRATION_2_3` are
+registered and tested; destructive migration is not configured.
 
 Deviation from the original plan: there is **no `ActivityEntity` daily-aggregate table**.
 Activity is computed by `AnalyticsDao` with SQL `GROUP BY` over precomputed `day_index` columns
 (local epoch day, written at record time). At current scale this is simpler, cannot drift, and
 already reads only aggregates — revisit if volumes grow.
 
-## Entities (app/schemas/com.ojnexus.core.database.OjNexusDatabase/2.json)
+## Entities (app/schemas/com.ojnexus.core.database.OjNexusDatabase/3.json)
 
 | Table | Purpose | Keys / Notes |
 | --- | --- | --- |
@@ -24,12 +24,12 @@ already reads only aggregates — revisit if volumes grow.
 | `training_tasks` | TODAY list | FK→problems CASCADE; `date_epoch_day` local day key |
 | `training_sessions` | session lifecycle | state PLANNED/RUNNING/PAUSED/FINISHED/CANCELLED; timing = persisted snapshots (`started_at`,`paused_at`,`total_paused_ms`,`finished_at`), never ticked |
 | `training_session_problems` | session ↔ problem | PK(`session_id`,`problem_id`), FK CASCADE both |
-| `judge_accounts` | public OJ connections | one active account per judge; no credentials |
+| `judge_accounts` | public OJ connections | one active account per judge; verification/source reliability; no credentials |
 | `judge_profiles` | cached public profile | normalized profile fields, not a JSON blob |
 | `rating_changes` | rating history | stable contest identity for idempotent upsert |
-| `remote_problems` | judge catalog cache | PK(`judge`,`external_id`); remote tags stay separate |
-| `contests` | contest cache | PK(`judge`,`external_contest_id`); raw phase preserved |
-| `sync_state` | per-judge sync cursor/status | stage timestamps, overlap cursor and partial progress |
+| `remote_problems` | judge catalog cache | PK(`judge`,`external_id`); text contest IDs, source-native difficulty, last-seen time |
+| `contests` | contest cache | PK(`judge`,`external_contest_id`); text identity and raw phase preserved |
+| `sync_state` | per-judge sync cursor/status | account ID, stage timestamps, ID cursor, timestamp cursor, and partial progress |
 
 ## Conventions & Rules
 

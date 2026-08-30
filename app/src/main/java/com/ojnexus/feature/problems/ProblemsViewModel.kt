@@ -10,8 +10,9 @@ import com.ojnexus.core.model.ProblemKey
 import com.ojnexus.core.model.Problem
 import com.ojnexus.core.model.ProblemStatus
 import com.ojnexus.core.ui.Loadable
-import com.ojnexus.judge.codeforces.CodeforcesSyncRepository
+import com.ojnexus.core.data.repository.JudgeDataRepository
 import com.ojnexus.judge.codeforces.CodeforcesUrls
+import com.ojnexus.judge.atcoder.AtCoderUrls
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -33,6 +34,7 @@ data class ProblemsUiState(
 )
 
 data class RemoteProblemsUiState(
+    val judge: JudgeId = JudgeId.CODEFORCES,
     val query: String = "",
     val solvedFilter: Int = 0,
     val problems: List<RemoteProblemEntity> = emptyList(),
@@ -46,7 +48,7 @@ data class RemoteProblemsUiState(
 class ProblemsViewModel(
     private val repository: ProblemRepository,
     private val demoSeeder: com.ojnexus.core.data.repository.DemoDataSeeder? = null,
-    private val syncRepository: CodeforcesSyncRepository? = null,
+    private val judgeDataRepository: JudgeDataRepository? = null,
 ) : ViewModel() {
 
     private val filter = MutableStateFlow(ProblemFilter())
@@ -90,6 +92,12 @@ class ProblemsViewModel(
         reloadRemote()
     }
 
+    fun setRemoteJudge(judge: JudgeId) {
+        if (remoteCatalog.value.judge == judge) return
+        remoteCatalog.update { it.copy(judge = judge, addedProblemIds = emptyMap()) }
+        reloadRemote()
+    }
+
     fun loadMoreRemote() {
         val current = remoteCatalog.value
         if (!current.hasMore || current.loading) return
@@ -97,27 +105,32 @@ class ProblemsViewModel(
     }
 
     fun addRemoteToLibrary(remote: RemoteProblemEntity) {
-        if (remoteCatalog.value.addedProblemIds.containsKey(remote.externalId)) return
+        val remoteKey = "${remote.judge}:${remote.externalId}"
+        if (remoteCatalog.value.addedProblemIds.containsKey(remoteKey)) return
         viewModelScope.launch {
             val result = repository.addProblem(
                 ProblemRepository.ProblemInput(
-                    key = ProblemKey(JudgeId.CODEFORCES, remote.externalId),
+                    key = ProblemKey(JudgeId.fromId(remote.judge) ?: return@launch, remote.externalId),
                     title = remote.name,
                     difficulty = remote.rating,
                     tags = remote.tags.split('\u001F').filter { it.isNotBlank() },
-                    sourceUrl = remote.contestId?.toLongOrNull()
-                        ?.let { CodeforcesUrls.problem(it, remote.index ?: "") },
+                    sourceUrl = when (JudgeId.fromId(remote.judge)) {
+                        JudgeId.CODEFORCES -> remote.contestId?.toLongOrNull()
+                            ?.let { CodeforcesUrls.problem(it, remote.index ?: "") }
+                        JudgeId.ATCODER -> remote.contestId?.let { AtCoderUrls.problem(it, remote.externalId) }
+                        else -> null
+                    },
                 ),
             )
             val problemId = when (result) {
                 is DataResult.Success -> result.value
                 is DataResult.Failure -> repository.findProblemByKey(
-                    ProblemKey(JudgeId.CODEFORCES, remote.externalId),
+                    ProblemKey(JudgeId.fromId(remote.judge) ?: return@launch, remote.externalId),
                 )?.id
             }
             if (problemId != null) {
                 remoteCatalog.update {
-                    it.copy(addedProblemIds = it.addedProblemIds + (remote.externalId to problemId), error = null)
+                    it.copy(addedProblemIds = it.addedProblemIds + (remoteKey to problemId), error = null)
                 }
             } else if (result is DataResult.Failure) {
                 remoteCatalog.update { it.copy(error = result.error.message) }
@@ -144,7 +157,8 @@ class ProblemsViewModel(
         }
         delay(if (append) 0 else 250)
         try {
-            val page = syncRepository?.searchRemoteProblems(
+            val page = judgeDataRepository?.searchRemoteProblems(
+                judge = remoteCatalog.value.judge,
                 query = remoteCatalog.value.query,
                 solvedFilter = remoteCatalog.value.solvedFilter,
                 limit = REMOTE_PAGE_SIZE,

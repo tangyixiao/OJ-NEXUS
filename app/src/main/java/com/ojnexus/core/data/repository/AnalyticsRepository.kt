@@ -40,6 +40,18 @@ class AnalyticsRepository(
     fun observeDifficultyCounts(): Flow<List<Pair<Int?, Int>>> =
         analyticsDao.observeSolvedDifficultyCounts().map { rows -> rows.map { it.difficulty to it.count } }
 
+    fun observeJudgeAttemptCounts(): Flow<List<Pair<JudgeId, Int>>> =
+        analyticsDao.observeAttemptCountsByJudge().map { rows ->
+            rows.mapNotNull { row -> JudgeId.fromId(row.judge)?.let { it to row.count } }
+        }
+
+    fun observeDifficultyCountsByJudge(): Flow<Map<JudgeId, List<Pair<Int?, Int>>>> =
+        analyticsDao.observeDifficultyCountsByJudge().map { rows ->
+            rows.mapNotNull { row ->
+                JudgeId.fromId(row.judge)?.let { Triple(it, row.difficulty, row.count) }
+            }.groupBy({ it.first }, { it.second to it.third })
+        }
+
     fun observeTotals(): Flow<Totals> = combine(
         analyticsDao.observeAttemptTotal(),
         analyticsDao.observeAcTotal(),

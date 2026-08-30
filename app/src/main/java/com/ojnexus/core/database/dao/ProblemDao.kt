@@ -44,6 +44,9 @@ interface ProblemDao {
     @Query("SELECT * FROM problems WHERE judge = :judge AND external_id = :externalId")
     suspend fun findByKey(judge: String, externalId: String): ProblemEntity?
 
+    @Query("SELECT * FROM problems WHERE judge = :judge")
+    suspend fun findByJudge(judge: String): List<ProblemEntity>
+
     @Transaction
     @Query(
         "SELECT *, EXISTS(SELECT 1 FROM reviews WHERE reviews.problem_id = problems.id) AS in_review " +

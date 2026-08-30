@@ -126,6 +126,19 @@ class AtCoderSyncRepository(
             }
             database.withTransaction {
                 entities.chunked(CATALOG_CHUNK).forEach { database.remoteProblemDao().upsertAll(it) }
+                val remoteById = entities.associateBy { it.externalId }
+                database.problemDao().findByJudge(JudgeId.ATCODER.id).forEach { local ->
+                    val remote = remoteById[local.externalId] ?: return@forEach
+                    database.problemDao().applyRemoteMetadata(
+                        id = local.id,
+                        title = remote.name,
+                        difficulty = remote.rating,
+                        difficultySource = remote.difficultySource,
+                        sourceUrl = local.sourceUrl?.takeIf { !it.contains("atcoder.jp") }
+                            ?: AtCoderUrls.problem(requireNotNull(remote.contestId), remote.externalId),
+                        updatedAt = now,
+                    )
+                }
             }
             entities.size
         }

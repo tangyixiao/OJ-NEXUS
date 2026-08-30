@@ -177,6 +177,22 @@ class AtCoderSyncRepositoryTest {
     }
 
     @Test
+    fun `later catalog sync enriches a problem materialized by submission`() = runBlocking {
+        adapter.pages += listOf(submission(1, 100))
+        repository.syncSubmissions(activeAccount(), force = true)
+        adapter.contests = listOf(AtCoderContestDto(1_000, "0-1999", "abc350", 7_200, "ABC 350"))
+        adapter.problems = listOf(AtCoderMergedProblemDto("abc350_a", "abc350", "A", "Past ABCs", 10, 100.0))
+        adapter.models = mapOf("abc350_a" to AtCoderProblemModelDto(difficulty = 799.8))
+
+        repository.syncProblems(activeAccount(), force = true)
+
+        val local = database.problemDao().findByKey("atcoder", "abc350_a")!!
+        assertEquals("Past ABCs", local.title)
+        assertEquals(800, local.difficulty)
+        assertEquals(DifficultySource.ESTIMATED.name, local.difficultySource)
+    }
+
+    @Test
     fun `failed catalog refresh retains previous cache`() = runBlocking {
         database.remoteProblemDao().upsertAll(
             listOf(
