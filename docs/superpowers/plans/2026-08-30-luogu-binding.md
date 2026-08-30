@@ -63,13 +63,14 @@
 - Modify: `app/src/main/res/values/strings.xml`
 - Modify: `app/src/main/res/values-zh-rCN/strings.xml`
 - Test: `app/src/test/java/com/ojnexus/judge/JudgeRegistryTest.kt`
+- Test: `app/src/test/java/com/ojnexus/feature/settings/SettingsSyncCapabilityTest.kt`
 
 **Interfaces:** Register `RetrofitLuoguAdapter` and `LuoguAccountConnector`; expose `JudgeCapability.ACCOUNT_BINDING` to the existing Settings panel; enqueue manual/periodic WorkManager jobs only when the connected judge declares `BACKGROUND_SYNC`.
 
 - [ ] **Step 1: Add failing registry/settings behavior tests.** Assert a registry with Luogu resolves its adapter and connector, and a binding-only judge does not get routed to a sync coordinator.
 - [ ] **Step 2: Run the focused registry test to verify RED.** Run `tools\\gradlew-local.bat :app:testDebugUnitTest --tests com.ojnexus.judge.JudgeRegistryTest`; expect the current registry fixture/registration behavior to lack Luogu support.
 - [ ] **Step 3: Register the Luogu API/client/adapter/connector.** Reuse the existing shared OkHttp client but give Luogu its own rate gate; include it in the adapter and connector lists while leaving coordinator registration unchanged.
-- [ ] **Step 4: Make Settings capability-aware and add localized Luogu copy.** Hide SYNC NOW for adapters without `BACKGROUND_SYNC`; guard WorkManager enqueue calls with the same capability. Add Luogu source/verification/error strings in both resource trees and keep parity tests green.
+- [ ] **Step 4: Make Settings capability-aware and reuse localized generic copy.** Hide SYNC NOW for adapters without `BACKGROUND_SYNC`; guard WorkManager enqueue calls with the same capability. Reuse the existing localized judge/source/verification/error resources and keep parity tests green.
 - [ ] **Step 5: Run focused registry, connector, and resource tests.** Expect GREEN and no untranslated new labels.
 - [ ] **Step 6: Commit.** Run `git add app/src/main/java/com/ojnexus/OjNexusApplication.kt app/src/main/java/com/ojnexus/feature/settings app/src/main/res/values app/src/main/res/values-zh-rCN app/src/test/java/com/ojnexus/judge/JudgeRegistryTest.kt` and `git commit -m "feat: expose Luogu account binding in settings"`.
 

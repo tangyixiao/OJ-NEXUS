@@ -63,4 +63,25 @@ class JudgeRegistryTest {
         assertEquals(AdapterStatus.DEGRADED, adapter.status())
         assertEquals(DataSourceReliability.COMMUNITY, adapter.reliability)
     }
+
+    @Test
+    fun `registry resolves Luogu account binding without a sync coordinator`() {
+        val luogu = FakeJudgeAdapter(
+            JudgeId.LUOGU,
+            setOf(JudgeCapability.ACCOUNT_BINDING),
+            DataSourceReliability.EXPERIMENTAL,
+        )
+        val connector = object : JudgeAccountConnector {
+            override val judgeId = JudgeId.LUOGU
+            override suspend fun bind(rawHandle: String) = error("not used in registry test")
+        }
+
+        val registry = JudgeRegistry(listOf(luogu), listOf(connector))
+
+        assertEquals(luogu, registry.adapter(JudgeId.LUOGU))
+        assertEquals(connector, registry.accountConnector(JudgeId.LUOGU))
+        assertThrows(IllegalStateException::class.java) {
+            registry.syncCoordinator(JudgeId.LUOGU)
+        }
+    }
 }

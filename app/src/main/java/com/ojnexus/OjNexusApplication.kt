@@ -34,6 +34,12 @@ import com.ojnexus.judge.atcoder.AtCoderUrls
 import com.ojnexus.judge.atcoder.RetrofitAtCoderAdapter
 import com.ojnexus.judge.atcoder.api.AtCoderProblemsApi
 import com.ojnexus.judge.codeforces.CodeforcesAccountConnector
+import com.ojnexus.judge.luogu.LuoguAccountConnector
+import com.ojnexus.judge.luogu.LuoguClient
+import com.ojnexus.judge.luogu.LuoguPolicies
+import com.ojnexus.judge.luogu.LuoguUrls
+import com.ojnexus.judge.luogu.RetrofitLuoguAdapter
+import com.ojnexus.judge.luogu.api.LuoguApi
 import kotlinx.serialization.json.Json
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -103,11 +109,28 @@ class AppContainer(context: android.content.Context) {
     private val atCoderClient = AtCoderProblemsClient(atCoderApi, atCoderGate)
     private val atCoderAdapter = RetrofitAtCoderAdapter(atCoderClient)
 
+    // --- Luogu public account binding (no password, cookies, or session state) ---
+
+    private val luoguApi: LuoguApi = Retrofit.Builder()
+        .baseUrl(LuoguUrls.API_BASE_URL)
+        .client(okHttpClient)
+        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .build()
+        .create(LuoguApi::class.java)
+    private val luoguGate = RateLimitedRequestGate(
+        minimumIntervalMs = LuoguPolicies.REQUEST_INTERVAL_MS,
+        clock = SystemMonotonicClock(),
+        delayProvider = CoroutineDelayProvider(),
+    )
+    private val luoguClient = LuoguClient(luoguApi, luoguGate)
+    private val luoguAdapter = RetrofitLuoguAdapter(luoguClient)
+
     val judgeRegistry = JudgeRegistry(
-        adapters = listOf(codeforcesAdapter, atCoderAdapter),
+        adapters = listOf(codeforcesAdapter, atCoderAdapter, luoguAdapter),
         accountConnectors = listOf(
             CodeforcesAccountConnector(codeforcesAdapter),
             AtCoderAccountConnector(atCoderAdapter),
+            LuoguAccountConnector(luoguAdapter),
         ),
     )
 

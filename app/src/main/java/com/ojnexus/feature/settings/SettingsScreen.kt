@@ -49,6 +49,7 @@ import com.ojnexus.core.designsystem.component.NexusTopBar
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
+import com.ojnexus.judge.JudgeCapability
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -361,7 +362,9 @@ private fun JudgeConnectionPanel(
             }
             Spacer(Modifier.height(NexusSpacing.sm))
             Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
-                SettingsAction(stringResource(R.string.settings_sync_now), onClick = onSync)
+                if (JudgeCapability.BACKGROUND_SYNC in connection.capabilities) {
+                    SettingsAction(stringResource(R.string.settings_sync_now), onClick = onSync)
+                }
                 SettingsAction(stringResource(R.string.settings_disconnect), danger = true, onClick = onDisconnect)
             }
         }

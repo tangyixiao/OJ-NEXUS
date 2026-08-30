@@ -46,7 +46,7 @@ data class BackupResult(val operation: BackupOperation, val success: Boolean)
 class SettingsViewModel(
     private val accountRepository: JudgeAccountRepository,
     dataRepository: JudgeDataRepository,
-    registry: JudgeRegistry,
+    private val registry: JudgeRegistry,
     private val backupRepository: BackupRepository,
     private val preferencesRepository: UserPreferencesRepository,
 ) : ViewModel() {
@@ -134,6 +134,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             try {
                 val account = accountRepository.connect(judge, handle)
+                if (!shouldScheduleJudgeSync(registry.adapter(judge).capabilities)) return@launch
                 JudgeSyncWorker.enqueueManual(
                     com.ojnexus.core.ui.GlobalContext.application,
                     judge,
@@ -157,6 +158,7 @@ class SettingsViewModel(
         val judge = JudgeId.fromId(account.judge) ?: return
         viewModelScope.launch {
             accountRepository.disconnect(account.id, removeCache)
+            if (!shouldScheduleJudgeSync(registry.adapter(judge).capabilities)) return@launch
             JudgeSyncWorker.cancelFor(
                 com.ojnexus.core.ui.GlobalContext.application,
                 judge,
@@ -167,6 +169,7 @@ class SettingsViewModel(
 
     fun syncNow(account: JudgeAccountEntity) {
         val judge = JudgeId.fromId(account.judge) ?: return
+        if (!shouldScheduleJudgeSync(registry.adapter(judge).capabilities)) return
         JudgeSyncWorker.enqueueManual(
             com.ojnexus.core.ui.GlobalContext.application,
             judge,
@@ -191,3 +194,6 @@ class SettingsViewModel(
             }
     }
 }
+
+internal fun shouldScheduleJudgeSync(capabilities: Set<JudgeCapability>): Boolean =
+    JudgeCapability.BACKGROUND_SYNC in capabilities
