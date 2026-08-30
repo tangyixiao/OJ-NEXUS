@@ -36,12 +36,18 @@ AtCoder Problems resources for submissions, contests, merged problems, and estim
 It declares no profile or rating capability. See [ATCODER.md](ATCODER.md) for source and
 pagination details.
 
-### Luogu (public binding)
+### Luogu (public sync — Phase 9)
 Luogu public user search is currently integrated for account binding through
 `GET /api/user/search?keyword=...`. The adapter is marked `EXPERIMENTAL`, parses only the
 public user summary, requires an exact username match, and never stores Luogu credentials.
-It declares `ACCOUNT_BINDING` only; submission/catalog sync remains capability-gated until a
-stable public endpoint can be verified.
+Public profile, rating/ELO history, problems, and contests use the first-party structured
+`content-only` JSON transport for `/user/:uid`, `/user/:uid/practice`, `/problem/list`, and
+`/contest/list`. The adapter applies bounded retries and per-source rate spacing.
+
+The anonymous `/record/list` response is an auth/login envelope. It is surfaced as
+`AuthenticationRequired` and leaves submissions empty; password login, Cookie/Session/CSRF
+handling, and auto-submit are not part of this phase. Cloud account and cross-device sync are
+also deferred.
 
 ### Later
 LeetCode, NowCoder, AcWing, Hydro, LibreOJ, Kattis, CodeChef, SPOJ, USACO — same pattern,

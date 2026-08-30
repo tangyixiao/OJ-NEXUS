@@ -127,8 +127,8 @@ git commit -m "feat: persist Luogu public sync stages"
 **Green**
 
 - Register the Luogu coordinator with the existing dispatcher/worker path.
-- Expose only profile, rating, catalog, contests, background, and safe
-  incremental capabilities; do not expose unauthenticated submissions.
+- Expose only profile, rating, catalog, contests, and background capabilities;
+  do not advertise incremental submission support or unauthenticated submissions.
 - Keep account disconnect behavior and stale-cache semantics unchanged.
 
 **Verify and commit**
@@ -166,4 +166,3 @@ git diff --stat
   paths, fake API fixtures in production, and accidental WebView/scraping code.
 - Do not push or create a GitHub release in this plan unless the user gives a
   separate explicit release instruction after reviewing the completed build.
-

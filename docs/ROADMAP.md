@@ -65,3 +65,20 @@ schema-validated, and restored before the next app start. The visual system now 
 named dark accent slots while preserving one accent per theme. The bounded-feed audit and
 repository coverage are recorded in [docs/PERFORMANCE.md](PERFORMANCE.md). The phase is locally
 complete; publishing remains a separate release action requiring explicit authorization.
+
+## PHASE 9 — Luogu public sync ✅
+
+Luogu public profile, rating/ELO history, paginated problem catalog, and paginated contest
+catalog are synchronized through a typed content-only JSON transport into local Room v6.
+Manual and WorkManager sync use bounded retries, rate spacing, freshness timestamps, idempotent
+upserts, per-page persistence, and partial-result reporting. Anonymous submission records are
+explicitly `AUTH_REQUIRED` and never fabricated. Passwords, cookies, sessions, CSRF, auto-submit,
+editor/compiler/runner, and cloud synchronization remain later-scope work. The implementation
+is locally verified; publishing remains a separate release action requiring explicit
+authorization.
+
+## PHASE 10 — Authorized submission workflow (not started)
+
+Only after an official, user-authorized authentication path is confirmed: evaluate secure
+account linking and explicit submission actions. No plaintext passwords, harvested browser
+cookies, background submissions, or WebView shell is permitted.
