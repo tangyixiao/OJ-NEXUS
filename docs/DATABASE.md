@@ -1,8 +1,9 @@
-# OJ NEXUS — Database (Room, v3 implemented)
+# OJ NEXUS — Database (Room, v5 implemented)
 
-Status: **implemented** (Phase 3). Schema JSON is exported to `app/schemas/` and committed;
-version 3 supports multiple judge identities. `MIGRATION_1_2` and `MIGRATION_2_3` are
-registered and tested; destructive migration is not configured.
+Status: **implemented** (Phase 6 foundation). Schema JSON is exported to `app/schemas/` and
+committed; version 5 supports multiple judge identities, Arena markers, and explicit knowledge
+relations. `MIGRATION_1_2` through `MIGRATION_4_5` are registered and tested; destructive
+migration is not configured.
 
 Deviation from the original plan: there is **no `ActivityEntity` daily-aggregate table**.
 Activity is computed by `AnalyticsDao` with SQL `GROUP BY` over precomputed `day_index` columns
@@ -30,6 +31,8 @@ already reads only aggregates — revisit if volumes grow.
 | `remote_problems` | judge catalog cache | PK(`judge`,`external_id`); text contest IDs, source-native difficulty, last-seen time |
 | `contests` | contest cache | PK(`judge`,`external_contest_id`); text identity and raw phase preserved |
 | `sync_state` | per-judge sync cursor/status | account ID, stage timestamps, ID cursor, timestamp cursor, and partial progress |
+| `contest_problem_markers` | Arena local markers | PK(`judge`,`contest_id`,`problem_external_id`); never overwritten by sync |
+| `problem_knowledge` | explicit problem↔knowledge relation | PK(`problem_id`,`knowledge_area`); FK to problems with cascade |
 
 ## Conventions & Rules
 

@@ -6,6 +6,7 @@ import com.ojnexus.core.data.repository.ContestFocusRepository
 import com.ojnexus.core.data.repository.DemoDataSeeder
 import com.ojnexus.core.data.repository.JudgeAccountRepository
 import com.ojnexus.core.data.repository.JudgeDataRepository
+import com.ojnexus.core.data.repository.KnowledgeRepository
 import com.ojnexus.core.data.repository.ProblemRepository
 import com.ojnexus.core.data.repository.ReviewRepository
 import com.ojnexus.core.data.repository.TrainingRepository
@@ -54,6 +55,7 @@ class AppContainer(context: android.content.Context) {
     val trainingRepository: TrainingRepository = TrainingRepository(database, clock)
     val analyticsRepository: AnalyticsRepository = AnalyticsRepository(database, clock)
     val contestFocusRepository: ContestFocusRepository = ContestFocusRepository(database, clock)
+    val knowledgeRepository: KnowledgeRepository = KnowledgeRepository(database)
     val judgeDataRepository = JudgeDataRepository(database)
 
     // --- Codeforces adapter stack (single request gate for the whole process) ---

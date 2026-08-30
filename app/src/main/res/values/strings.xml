@@ -275,6 +275,12 @@
     <!-- Training screen -->
     <string name="training_section_target">TODAY\'S TARGET</string>
     <string name="training_section_weak">WEAK AREAS</string>
+    <string name="training_section_knowledge">KNOWLEDGE TREE</string>
+    <string name="knowledge_area_count">%d AREAS</string>
+    <string name="knowledge_score">%d%%</string>
+    <string name="mastery_reason_no_evidence">NO EVIDENCE</string>
+    <string name="mastery_reason_low_ac">LOW AC RATE</string>
+    <string name="mastery_reason_failures">FAILURE LOG</string>
     <string name="target_priority">PRIORITY %d</string>
     <string name="target_range_label">RANGE</string>
 

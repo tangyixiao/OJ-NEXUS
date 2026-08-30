@@ -13,6 +13,7 @@ import com.ojnexus.core.database.dao.ContestProblemMarkerDao
 import com.ojnexus.core.database.dao.FailureDao
 import com.ojnexus.core.database.dao.JudgeAccountDao
 import com.ojnexus.core.database.dao.JudgeProfileDao
+import com.ojnexus.core.database.dao.KnowledgeDao
 import com.ojnexus.core.database.dao.NoteDao
 import com.ojnexus.core.database.dao.ProblemDao
 import com.ojnexus.core.database.dao.RatingChangeDao
@@ -29,6 +30,7 @@ import com.ojnexus.core.database.entity.JudgeAccountEntity
 import com.ojnexus.core.database.entity.JudgeProfileEntity
 import com.ojnexus.core.database.entity.ProblemEntity
 import com.ojnexus.core.database.entity.ProblemNoteEntity
+import com.ojnexus.core.database.entity.ProblemKnowledgeEntity
 import com.ojnexus.core.database.entity.ProblemTagCrossRef
 import com.ojnexus.core.database.entity.ProblemTagEntity
 import com.ojnexus.core.database.entity.RatingChangeEntity
@@ -53,6 +55,8 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
  * verification/source reliability, and difficulty provenance for real multi-judge data.
  *
  * v4 (Phase 5): local-only contest problem markers for Arena focus tracking.
+ *
+ * v5 (Phase 6): explicit problem-to-knowledge relations for local mastery evidence.
  */
 @Database(
     entities = [
@@ -73,9 +77,10 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
         RemoteProblemEntity::class,
         ContestEntity::class,
         ContestProblemMarkerEntity::class,
+        ProblemKnowledgeEntity::class,
         SyncStateEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class OjNexusDatabase : RoomDatabase() {
@@ -94,6 +99,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
     abstract fun remoteProblemDao(): RemoteProblemDao
     abstract fun contestDao(): ContestDao
     abstract fun contestProblemMarkerDao(): ContestProblemMarkerDao
+    abstract fun knowledgeDao(): KnowledgeDao
     abstract fun syncStateDao(): SyncStateDao
 
     companion object {
@@ -409,9 +415,25 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `problem_knowledge` (" +
+                        "`problem_id` INTEGER NOT NULL, `knowledge_area` TEXT NOT NULL, " +
+                        "PRIMARY KEY(`problem_id`, `knowledge_area`), " +
+                        "FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_problem_knowledge_knowledge_area` " +
+                        "ON `problem_knowledge` (`knowledge_area`)",
+                )
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, "oj-nexus.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
     }
 }

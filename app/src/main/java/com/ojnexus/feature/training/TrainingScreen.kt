@@ -44,6 +44,8 @@ import com.ojnexus.core.model.TaskType
 import com.ojnexus.core.model.TrainingSession
 import com.ojnexus.core.model.TrainingTask
 import com.ojnexus.core.model.TrainingType
+import com.ojnexus.core.data.repository.KnowledgeAreaState
+import com.ojnexus.core.domain.MasteryReason
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
@@ -64,6 +66,7 @@ fun TrainingScreen(
                 trainingRepository = it.trainingRepository,
                 reviewRepository = it.reviewRepository,
                 problemRepository = it.problemRepository,
+                knowledgeRepository = it.knowledgeRepository,
                 clock = it.clock,
             )
         },
@@ -164,6 +167,10 @@ private fun TrainingContent(
 
         SectionGap()
 
+        KnowledgeSection(uiState.knowledge)
+
+        SectionGap()
+
         // TODAY tasks
         NexusSection(
             label = stringResource(R.string.dash_section_today),
@@ -239,6 +246,49 @@ private fun TrainingContent(
             },
             onDismiss = { showSessionDialog = false },
         )
+    }
+}
+
+@Composable
+private fun KnowledgeSection(areas: List<KnowledgeAreaState>) {
+    NexusSection(
+        label = stringResource(R.string.training_section_knowledge),
+        trailing = {
+            Text(
+                text = stringResource(R.string.knowledge_area_count, areas.size),
+                style = NexusTheme.typography.sectionLabel,
+                color = NexusTheme.colors.textTertiary,
+            )
+        },
+    ) {
+        areas.forEachIndexed { index, area ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = NexusSpacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(area.area.labelRes()),
+                    style = NexusTheme.typography.data,
+                    color = NexusTheme.colors.textPrimary,
+                    modifier = Modifier.weight(1f),
+                )
+                area.reasons.take(2).forEach { reason ->
+                    NexusTag(
+                        text = stringResource(reason.labelRes()),
+                        tone = if (reason == MasteryReason.FAILURE_LOG) NexusTone.Danger else NexusTone.Warning,
+                        modifier = Modifier.padding(end = NexusSpacing.xxs),
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.knowledge_score, area.score),
+                    style = NexusTheme.typography.dataSmall,
+                    color = if (area.score >= 80) NexusTheme.colors.success else NexusTheme.colors.accent,
+                )
+            }
+            if (index != areas.lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
+        }
     }
 }
 

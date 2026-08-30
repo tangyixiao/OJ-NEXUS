@@ -25,6 +25,7 @@ class TrainingViewModel(
     private val trainingRepository: TrainingRepository,
     private val reviewRepository: ReviewRepository,
     private val problemRepository: ProblemRepository,
+    private val knowledgeRepository: com.ojnexus.core.data.repository.KnowledgeRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -42,8 +43,8 @@ class TrainingViewModel(
         trainingRepository.observeTasks(todayEpochDay),
         trainingRepository.observeActiveSession(),
         trainingRepository.observeHistory(limit = 10),
-        refresh,
-    ) { queue, tasks, activeSession, history, _ ->
+        combine(knowledgeRepository.observeMastery(), refresh) { knowledge, _ -> knowledge },
+    ) { queue, tasks, activeSession, history, knowledge ->
         Loadable.Ready(
             TrainingUiState(
                 todayEpochDay = todayEpochDay,
@@ -51,6 +52,7 @@ class TrainingViewModel(
                 reviews = bucketReviews(todayEpochDay, queue),
                 activeSession = activeSession,
                 history = history,
+                knowledge = knowledge,
             ),
         )
     }

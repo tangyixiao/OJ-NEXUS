@@ -161,6 +161,7 @@ class MigrationTest {
             OjNexusDatabase.MIGRATION_1_2,
             OjNexusDatabase.MIGRATION_2_3,
             OjNexusDatabase.MIGRATION_3_4,
+            OjNexusDatabase.MIGRATION_4_5,
         ).build()
 
         try {
@@ -245,7 +246,11 @@ class MigrationTest {
         v2.close()
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_2_3, OjNexusDatabase.MIGRATION_3_4)
+            .addMigrations(
+                OjNexusDatabase.MIGRATION_2_3,
+                OjNexusDatabase.MIGRATION_3_4,
+                OjNexusDatabase.MIGRATION_4_5,
+            )
             .build()
         db.openHelper.writableDatabase
         db.close()
@@ -313,6 +318,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_1_2,
                 OjNexusDatabase.MIGRATION_2_3,
                 OjNexusDatabase.MIGRATION_3_4,
+                OjNexusDatabase.MIGRATION_4_5,
             )
             .build()
         try {
