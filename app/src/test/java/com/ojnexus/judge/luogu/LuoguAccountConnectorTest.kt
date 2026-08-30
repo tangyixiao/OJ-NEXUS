@@ -22,6 +22,7 @@ class LuoguAccountConnectorTest {
         assertEquals("user_7", binding.canonicalHandle)
         assertEquals(AccountVerificationState.VERIFIED, binding.verificationState)
         assertEquals(DataSourceReliability.EXPERIMENTAL, binding.reliability)
+        Unit
     }
 
     @Test
@@ -30,6 +31,7 @@ class LuoguAccountConnectorTest {
 
         assertThrows(AccountBindingError.InvalidHandle::class.java) { runBlocking { connector.bind(" ") } }
         assertThrows(AccountBindingError.InvalidHandle::class.java) { runBlocking { connector.bind("用户") } }
+        Unit
     }
 
     @Test
@@ -39,6 +41,7 @@ class LuoguAccountConnectorTest {
         assertThrows(AccountBindingError.NotFound::class.java) {
             runBlocking { connector.bind("missing") }
         }
+        Unit
     }
 
     @Test
@@ -50,6 +53,7 @@ class LuoguAccountConnectorTest {
         assertThrows(AccountBindingError.NotFound::class.java) {
             runBlocking { connector.bind("user_7") }
         }
+        Unit
     }
 
     private class FakeLuoguAdapter(
