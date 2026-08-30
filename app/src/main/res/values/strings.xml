@@ -9,6 +9,18 @@
     <string name="nav_training">TRAINING</string>
     <string name="nav_analytics">ANALYTICS</string>
     <string name="nav_profile">PROFILE</string>
+    <string name="command_palette_button">COMMANDS</string>
+    <string name="command_palette_title">COMMAND PALETTE</string>
+    <string name="command_palette_hint">SEARCH COMMANDS</string>
+    <string name="command_palette_empty">NO MATCHING COMMANDS</string>
+    <string name="command_open_dashboard">OPEN DASHBOARD OVERVIEW</string>
+    <string name="command_open_problems">OPEN LOCAL PROBLEM LIBRARY</string>
+    <string name="command_open_training">OPEN TRAINING AND REVIEW QUEUE</string>
+    <string name="command_open_analytics">OPEN LOCAL PERFORMANCE METRICS</string>
+    <string name="command_open_profile">OPEN PLAYER PROFILE AND CARD</string>
+    <string name="command_open_contests">OPEN CONTEST CENTER AND ARENA</string>
+    <string name="command_add_problem">CREATE A LOCAL PROBLEM</string>
+    <string name="command_open_settings">OPEN SETTINGS AND DATA TOOLS</string>
 
     <!-- Verdicts (unified codes) -->
     <string name="verdict_ac">AC</string>

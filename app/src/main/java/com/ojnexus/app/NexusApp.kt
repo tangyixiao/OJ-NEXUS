@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
@@ -61,6 +64,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    var commandPaletteOpen by rememberSaveable { mutableStateOf(false) }
     val enterTransition = if (NexusTheme.reduceMotion) {
         EnterTransition.None
     } else {
@@ -205,8 +209,24 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             navController.navigateToTopLevel(destination.route)
                         }
                     },
+                    onOpenCommandPalette = { commandPaletteOpen = true },
                 )
             }
+        }
+        if (commandPaletteOpen) {
+            CommandPalette(
+                onDismiss = { commandPaletteOpen = false },
+                onExecute = { command ->
+                    commandPaletteOpen = false
+                    when (command) {
+                        "dashboard", "problems", "training", "analytics", "profile" ->
+                            navController.navigateToTopLevel(command)
+                        "contests" -> navController.navigate(NexusRoutes.CONTESTS)
+                        "add_problem" -> navController.navigate(NexusRoutes.PROBLEM_ADD)
+                        "settings" -> navController.navigate(NexusRoutes.SETTINGS)
+                    }
+                },
+            )
         }
     }
 }

@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -24,6 +26,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import com.ojnexus.R
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
@@ -38,6 +41,7 @@ fun NexusBottomBar(
     destinations: List<NexusDestination>,
     currentRoute: String?,
     onSelect: (NexusDestination) -> Unit,
+    onOpenCommandPalette: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = NexusTheme.colors
@@ -45,6 +49,19 @@ fun NexusBottomBar(
     val hapticFeedback = LocalHapticFeedback.current
     Column(modifier = modifier.background(colors.surface)) {
         NexusDivider()
+        Row(
+            modifier = Modifier.fillMaxWidth().height(NexusSize.commandBarHeight)
+                .padding(horizontal = NexusSpacing.screenHorizontal),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.command_palette_button),
+                style = NexusTheme.typography.sectionLabel,
+                color = colors.accent,
+                modifier = Modifier.clickable(role = Role.Button, onClick = onOpenCommandPalette),
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()

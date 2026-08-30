@@ -34,7 +34,8 @@ scores and reason codes. Profile now derives and displays local achievement mile
 Player Card can be exported as a PNG through the system share sheet. Settings can export a
 verified copy of the local Room database through the Android document picker; it contains local
 study data only and never requires credentials. Reduce-motion and haptics preferences are
-persisted locally and affect navigation and primary-tab feedback.
+persisted locally and affect navigation and primary-tab feedback. The global command palette
+searches local navigation and study actions without network access.
 No passwords,
 cookies, private API signing, scraping, or auto-submit are used. See
 [docs/MULTI_OJ.md](docs/MULTI_OJ.md), [docs/ATCODER.md](docs/ATCODER.md),
