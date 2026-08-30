@@ -146,19 +146,13 @@ internal data class LuoguExecutionInfoDto(
 )
 
 internal interface LuoguOpenPlatformApi {
-    @POST("problem")
+    @POST("judge/problem")
     suspend fun submitProblem(
         @Header("Authorization") authorization: String,
         @Body request: LuoguProblemJudgeRequestDto,
     ): Response<LuoguAsyncResponseDto>
 
-    @POST("run")
-    suspend fun run(
-        @Header("Authorization") authorization: String,
-        @Body request: LuoguRunRequestDto,
-    ): Response<LuoguAsyncResponseDto>
-
-    @GET("result/{id}")
+    @GET("judge/result/{id}")
     suspend fun result(
         @Header("Authorization") authorization: String,
         @Path("id") requestId: String,
@@ -200,6 +194,10 @@ data class LuoguOpenEvaluation(
 data class LuoguOpenSubmission(val requestId: String)
 
 interface LuoguOpenGateway {
+    /** True only when the concrete provider documents custom-input execution. */
+    val supportsCustomInputRun: Boolean
+        get() = true
+
     suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission
     suspend fun run(request: LuoguRunRequest): LuoguOpenSubmission
     suspend fun fetchResult(requestId: String): LuoguOpenResult
@@ -218,6 +216,7 @@ sealed class LuoguOpenApiError(message: String) : Exception(message) {
     data object Forbidden : LuoguOpenApiError("Open Platform access is forbidden")
     data object QuotaExceeded : LuoguOpenApiError("Open Platform quota is insufficient")
     data object NotFound : LuoguOpenApiError("Open Platform resource was not found")
+    data object UnsupportedOperation : LuoguOpenApiError("Luogu Open Platform does not expose custom-input execution")
     data class Http(val status: Int) : LuoguOpenApiError("Open Platform HTTP $status")
     data class Network(val wrapped: IOException) : LuoguOpenApiError("Open Platform network error")
     data object MalformedResponse : LuoguOpenApiError("Open Platform returned no request ID")
@@ -227,6 +226,8 @@ class LuoguOpenPlatformClient internal constructor(
     private val api: LuoguOpenPlatformApi,
     private val credentialStore: OpenAppCredentialStore,
 ) : LuoguOpenGateway {
+    override val supportsCustomInputRun: Boolean = false
+
     override suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission =
         executeSubmission(
             validation = LuoguOpenRequestValidator.validateProblem(request),
@@ -244,14 +245,7 @@ class LuoguOpenPlatformClient internal constructor(
         }.let { LuoguOpenSubmission(it.requestId ?: throw LuoguOpenApiError.MalformedResponse) }
 
     override suspend fun run(request: LuoguRunRequest): LuoguOpenSubmission =
-        executeSubmission(
-            validation = LuoguOpenRequestValidator.validateRun(request),
-        ) { authorization ->
-            api.run(
-                authorization,
-                LuoguRunRequestDto(request.input, request.lang.trim(), request.o2, request.code, request.trackId),
-            )
-        }.let { LuoguOpenSubmission(it.requestId ?: throw LuoguOpenApiError.MalformedResponse) }
+        throw LuoguOpenApiError.UnsupportedOperation
 
     override suspend fun fetchResult(requestId: String): LuoguOpenResult {
         if (requestId.isBlank()) throw LuoguOpenApiError.InvalidRequest(LuoguOpenRequestValidation.CodeRequired)

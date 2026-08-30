@@ -112,7 +112,7 @@ class LuoguOpenPlatformClientTest {
         assertEquals("req-1", response.requestId)
         val request = server.takeRequest()
         assertEquals("POST", request.method)
-        assertEquals("/problem", request.path)
+        assertEquals("/judge/problem", request.path)
         assertEquals("Basic dTpz", request.getHeader("Authorization"))
     }
 
@@ -121,7 +121,7 @@ class LuoguOpenPlatformClientTest {
         server.enqueue(MockResponse().setResponseCode(204))
 
         assertEquals(LuoguOpenResult.Pending, client.fetchResult("req-1"))
-        assertEquals("/result/req-1", server.takeRequest().path)
+        assertEquals("/judge/result/req-1", server.takeRequest().path)
     }
 
     @Test
@@ -129,10 +129,35 @@ class LuoguOpenPlatformClientTest {
         server.enqueue(MockResponse().setResponseCode(402))
 
         try {
-            client.run(LuoguRunRequest(input = "", lang = "cxx/14/gcc", o2 = false, code = "int main() {}"))
+            client.submitProblem(
+                LuoguProblemJudgeRequest(
+                    pid = "P1001",
+                    lang = "cxx/14/gcc",
+                    o2 = false,
+                    code = "int main() {}",
+                ),
+            )
             throw AssertionError("expected quota error")
         } catch (error: LuoguOpenApiError.QuotaExceeded) {
             assertEquals(1, server.requestCount)
+        }
+    }
+
+    @Test
+    fun `custom input execution is rejected before any network request`() = runBlocking {
+        try {
+            client.run(
+                LuoguRunRequest(
+                    input = "1 2",
+                    lang = "cxx/14/gcc",
+                    o2 = false,
+                    code = "int main() {}",
+                ),
+            )
+            throw AssertionError("expected unsupported operation")
+        } catch (error: LuoguOpenApiError.UnsupportedOperation) {
+            assertEquals("Luogu Open Platform does not expose custom-input execution", error.message)
+            assertEquals(0, server.requestCount)
         }
     }
 }
