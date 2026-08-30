@@ -8,7 +8,7 @@ when the codebase justifies it (no premature 20-module split).
 ```
 com.ojnexus
 ├── OjNexusApplication      # manual DI container (AppContainer): db, clock, repositories
-├── MainActivity            # single activity, edge-to-edge, NexusTheme
+├── MainActivity            # single AppCompat activity, edge-to-edge, locale-aware NexusTheme
 ├── app/                    # shell: NexusApp (NavHost), NexusDestination, NexusBottomBar
 ├── core/
 │   ├── database/           # Room v3: entities, DAOs, relations, migrations (schema exported)
@@ -55,6 +55,8 @@ Room (Flow) → Repository (transactions, derived fields) → ViewModel (combine
   starts network work. Unsupported capabilities are absent rather than stubbed.
 - Settings binds a public handle and enqueues unique WorkManager work. Dashboard, Profile,
   Analytics, Contests and the remote Problems catalog observe Room only.
+- App language uses AndroidX AppCompat per-app locales: an empty app locale follows the system,
+  while `en` and `zh-CN` are explicit in-app choices and trigger Activity recreation.
 - Deterministic engines (Mastery, Training, Review scheduling, Sync) are pure Kotlin —
   unit-testable without Android.
 - Day-key discipline: UTC epoch millis stored, local epoch days precomputed at write time.

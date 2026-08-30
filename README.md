@@ -39,6 +39,8 @@ searches local navigation and study actions without network access. A validated 
 can be imported and restored before the next app start. See [docs/DATA_SAFETY.md](docs/DATA_SAFETY.md).
 Settings also exposes three named dark accent slots: BLUE, GREEN, and AMBER.
 The performance audit and bounded-feed check are documented in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+The interface follows the system language by default and can be switched between SYSTEM,
+ENGLISH, and 简体中文 in Settings.
 No passwords,
 cookies, private API signing, scraping, or auto-submit are used. See
 [docs/MULTI_OJ.md](docs/MULTI_OJ.md), [docs/ATCODER.md](docs/ATCODER.md),
