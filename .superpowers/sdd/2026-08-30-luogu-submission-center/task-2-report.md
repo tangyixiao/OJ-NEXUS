@@ -58,3 +58,40 @@ Self-review checks:
 
 - I ran only the focused `SubmissionCenterViewModelTest` slice, as required by the brief; I did not run the full `test` or `assembleDebug` suite.
 - The Gradle test run emits existing JVM native-access warnings from Conscrypt under Robolectric; they did not fail the build and were not changed here.
+
+## Fix Round 1
+
+Review-driven requirement:
+
+- do not clear a request's existing action error until that same request refresh succeeds
+- keep the error visible while that request retry is in flight or fails again
+- prevent one request's successful refresh from clearing another request's error
+
+Production changes:
+
+- `SubmissionCenterActionError` is now request-aware through `requestId`
+- `checkResult(requestId)` no longer clears `actionError` at retry start
+- successful refresh clears the error only when the current visible error belongs to the same `requestId`
+- failed refresh still updates the visible error for that request while cached rows remain unchanged
+
+Additional TDD log:
+
+Red step:
+
+- Command: `.\tools\gradlew-local.bat testDebugUnitTest --tests "com.ojnexus.feature.submissions.SubmissionCenterViewModelTest"`
+- First result: compile failure because the new request-aware test expectations referenced a `requestId` property that the current `SubmissionCenterActionError.Generic` did not expose yet
+- Second result after introducing request-aware errors: 2 failing tests due to test timing assumptions around immediate retry completion
+- Root cause: the new tests were trying to observe "retry in flight" on immediate refresh outcomes, so there was no busy window to assert against
+
+Green step:
+
+- Updated the retry tests to use blocking second-attempt refresh helpers
+- Command: `.\tools\gradlew-local.bat testDebugUnitTest --tests "com.ojnexus.feature.submissions.SubmissionCenterViewModelTest"`
+- Result: `BUILD SUCCESSFUL`
+- Final task output: `6 tests completed, 0 failed`
+
+Files updated in fix round:
+
+- `app/src/main/java/com/ojnexus/feature/submissions/SubmissionCenterViewModel.kt`
+- `app/src/test/java/com/ojnexus/feature/submissions/SubmissionCenterViewModelTest.kt`
+- `.superpowers/sdd/2026-08-30-luogu-submission-center/task-2-report.md`
