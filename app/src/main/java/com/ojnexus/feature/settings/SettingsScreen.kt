@@ -21,6 +21,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -309,8 +310,9 @@ private fun OpenAppCredentialEditor(
     error: Boolean,
     onSave: (String, String) -> Unit,
 ) {
-    var user by rememberSaveable { mutableStateOf("") }
-    var secret by rememberSaveable { mutableStateOf("") }
+    // Credentials must not enter saved-instance-state or backup bundles.
+    var user by remember { mutableStateOf("") }
+    var secret by remember { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(NexusSpacing.xs)) {
         CredentialField(
             label = stringResource(R.string.settings_openapp_user),

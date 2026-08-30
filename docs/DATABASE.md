@@ -1,8 +1,9 @@
-# OJ NEXUS — Database (Room, v5 implemented)
+# OJ NEXUS — Database (Room, v7 implemented)
 
 Status: **implemented** (Phase 6 foundation). Schema JSON is exported to `app/schemas/` and
-committed; version 5 supports multiple judge identities, Arena markers, and explicit knowledge
-relations. `MIGRATION_1_2` through `MIGRATION_4_5` are registered and tested; destructive
+committed; version 7 supports multiple judge identities, Arena markers, explicit knowledge
+relations, and local Open Platform submission-job metadata. `MIGRATION_1_2` through
+`MIGRATION_6_7` are registered and tested; destructive
 migration is not configured.
 
 Deviation from the original plan: there is **no `ActivityEntity` daily-aggregate table**.
@@ -10,7 +11,7 @@ Activity is computed by `AnalyticsDao` with SQL `GROUP BY` over precomputed `day
 (local epoch day, written at record time). At current scale this is simpler, cannot drift, and
 already reads only aggregates — revisit if volumes grow.
 
-## Entities (app/schemas/com.ojnexus.core.database.OjNexusDatabase/3.json)
+## Entities (app/schemas/com.ojnexus.core.database.OjNexusDatabase/7.json)
 
 | Table | Purpose | Keys / Notes |
 | --- | --- | --- |

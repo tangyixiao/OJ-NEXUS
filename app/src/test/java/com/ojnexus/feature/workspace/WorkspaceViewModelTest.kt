@@ -6,8 +6,12 @@ import com.ojnexus.judge.luogu.open.LuoguOpenSubmission
 import com.ojnexus.judge.luogu.open.LuoguOpenGateway
 import com.ojnexus.judge.luogu.open.LuoguProblemJudgeRequest
 import com.ojnexus.judge.luogu.open.LuoguRunRequest
+import com.ojnexus.judge.luogu.open.LuoguSubmissionHistory
 import com.ojnexus.judge.luogu.open.OpenAppCredential
 import com.ojnexus.judge.luogu.open.OpenAppCredentialStore
+import com.ojnexus.core.database.entity.SubmissionJobEntity
+import com.ojnexus.judge.luogu.open.SubmissionJobKind
+import com.ojnexus.judge.luogu.open.SubmissionJobStatus
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CompletableDeferred
@@ -52,6 +56,33 @@ class WorkspaceViewModelTest {
         assertEquals(1, gateway.submitCount)
         gateway.release.complete(Unit)
         scope.cancel()
+    }
+
+    @Test
+    fun `workspace restores the latest local request metadata`() = runBlocking {
+        val scope = CoroutineScope(coroutineContext)
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = null,
+            gateway = FakeGateway(),
+            credentialStore = FakeStore(),
+            history = FakeHistory(
+                SubmissionJobEntity(
+                    judge = "luogu",
+                    requestId = "req-restored",
+                    kind = SubmissionJobKind.PROBLEM.name,
+                    pid = "P1001",
+                    language = "cxx/14/gcc",
+                    status = SubmissionJobStatus.PENDING.name,
+                    createdAt = 1,
+                    updatedAt = 2,
+                ),
+            ),
+            testScope = scope,
+        )
+
+        assertEquals("req-restored", viewModel.state.value.requestId)
+        assertEquals(WorkspaceResultState.PENDING, viewModel.state.value.resultState)
     }
 }
 
@@ -103,4 +134,10 @@ private class FakeStore : OpenAppCredentialStore {
     override suspend fun read(): OpenAppCredential = OpenAppCredential("u", "s")
     override suspend fun write(value: OpenAppCredential) = Unit
     override suspend fun clear() = Unit
+}
+
+private class FakeHistory(
+    private val job: SubmissionJobEntity,
+) : LuoguSubmissionHistory {
+    override suspend fun latestForProblem(pid: String): SubmissionJobEntity? = job.takeIf { it.pid == pid }
 }

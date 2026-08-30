@@ -55,6 +55,7 @@ fun WorkspaceScreen(
                 title = null,
                 gateway = it.luoguSubmissionRepository,
                 credentialStore = it.luoguOpenCredentialStore,
+                history = it.luoguSubmissionRepository,
             )
         },
     )

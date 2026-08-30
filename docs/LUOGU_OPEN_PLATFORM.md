@@ -10,7 +10,8 @@
 
 应用只在设置页显式录入 OpenApp 用户和密钥，并通过 Android Keystore 加密后写入
 `noBackupFilesDir`。凭据不进入 Room、数据库备份、日志或同步任务。工作区代码和标准输入
-只保留在当前 ViewModel/UI 生命周期内；提交任务只保留请求 ID、题目、语言和结果元数据。
+只保留在当前 ViewModel/UI 生命周期内；提交任务只保留请求 ID、题目、语言和结果元数据，
+并在工作区重启后恢复该题最近一次本地任务的查询状态。
 
 题库评测产生终态结果后，任务仓库会将一次真实的用户发起评测幂等写入本地 `attempts`，
 并用 `(source_judge, external_submission_id)` 防止重复计数。历史主站提交记录仍不能由此

@@ -3,11 +3,14 @@ package com.ojnexus.feature.workspace
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ojnexus.judge.luogu.open.LuoguOpenApiError
+import com.ojnexus.judge.luogu.open.LuoguOpenEvaluation
 import com.ojnexus.judge.luogu.open.LuoguOpenGateway
 import com.ojnexus.judge.luogu.open.LuoguOpenResult
 import com.ojnexus.judge.luogu.open.LuoguProblemJudgeRequest
 import com.ojnexus.judge.luogu.open.LuoguRunRequest
+import com.ojnexus.judge.luogu.open.LuoguSubmissionHistory
 import com.ojnexus.judge.luogu.open.OpenAppCredentialStore
+import com.ojnexus.judge.luogu.open.SubmissionJobStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -56,6 +59,7 @@ class WorkspaceViewModel(
     private val gateway: LuoguOpenGateway,
     private val credentialStore: OpenAppCredentialStore,
     testScope: CoroutineScope? = null,
+    private val history: LuoguSubmissionHistory? = null,
 ) : ViewModel() {
     private val workScope = testScope ?: viewModelScope
     private val mutableState = MutableStateFlow(WorkspaceState(pid = pid, title = title))
@@ -64,6 +68,33 @@ class WorkspaceViewModel(
     init {
         workScope.launch(start = CoroutineStart.UNDISPATCHED) {
             mutableState.update { it.copy(credentialConfigured = credentialStore.read() != null) }
+        }
+        workScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            val job = history?.latestForProblem(pid) ?: return@launch
+            val ready = job.status == SubmissionJobStatus.READY.name
+            mutableState.update {
+                it.copy(
+                    requestId = job.requestId,
+                    resultState = if (ready) WorkspaceResultState.READY else WorkspaceResultState.PENDING,
+                    evaluation = if (ready) {
+                        LuoguOpenEvaluation(
+                            requestId = job.requestId,
+                            trackId = job.trackId,
+                            type = "judge",
+                            compileSuccess = null,
+                            compileMessage = null,
+                            status = job.judgeStatus,
+                            score = job.score,
+                            timeMs = null,
+                            memoryKiB = null,
+                            output = null,
+                            exitCode = null,
+                        )
+                    } else {
+                        null
+                    },
+                )
+            }
         }
     }
 

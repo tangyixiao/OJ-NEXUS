@@ -8,20 +8,26 @@ import com.ojnexus.core.database.entity.SubmissionJobEntity
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.model.Verdict
 import java.time.Clock
-import java.time.LocalDate
 import com.ojnexus.judge.luogu.LuoguUrls
 
 enum class SubmissionJobKind { RUN, PROBLEM }
 
 enum class SubmissionJobStatus { PENDING, READY, FAILED }
 
+interface LuoguSubmissionHistory {
+    suspend fun latestForProblem(pid: String): SubmissionJobEntity?
+}
+
 /** Adds local-first lifecycle persistence around the official Open Platform gateway. */
 class LuoguSubmissionRepository(
     private val database: OjNexusDatabase,
     private val gateway: LuoguOpenGateway,
     private val clock: Clock,
-) : LuoguOpenGateway {
+) : LuoguOpenGateway, LuoguSubmissionHistory {
     private val dao = database.submissionJobDao()
+
+    override suspend fun latestForProblem(pid: String): SubmissionJobEntity? =
+        dao.findLatestByProblem(JudgeId.LUOGU.id, pid)
 
     override suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission {
         val response = gateway.submitProblem(request)
@@ -103,7 +109,7 @@ class LuoguSubmissionRepository(
         val attempt = AttemptEntity(
             problemId = problemId,
             timestamp = timestamp,
-            dayIndex = LocalDate.ofInstant(java.time.Instant.ofEpochMilli(timestamp), clock.zone).toEpochDay(),
+            dayIndex = java.time.Instant.ofEpochMilli(timestamp).atZone(clock.zone).toLocalDate().toEpochDay(),
             verdict = LuoguJudgeStatus.verdict(status).name,
             rawVerdict = status.toString(),
             language = job.language,
