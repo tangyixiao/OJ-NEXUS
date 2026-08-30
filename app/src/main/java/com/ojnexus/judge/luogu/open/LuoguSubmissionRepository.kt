@@ -32,6 +32,9 @@ class LuoguSubmissionRepository(
 ) : LuoguOpenGateway, LuoguSubmissionCenter {
     private val dao = database.submissionJobDao()
 
+    override val supportsCustomInputRun: Boolean
+        get() = gateway.supportsCustomInputRun
+
     override suspend fun latestForProblem(pid: String): SubmissionJobEntity? =
         dao.findLatestByProblem(JudgeId.LUOGU.id, pid)
 

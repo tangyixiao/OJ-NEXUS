@@ -491,6 +491,7 @@
     <string name="workspace_error_forbidden">OpenApp 无权访问</string>
     <string name="workspace_error_quota">OpenApp 配额不足</string>
     <string name="workspace_error_not_found">未找到该请求</string>
+    <string name="workspace_error_unsupported">洛谷 Open Platform 不支持自定义输入运行</string>
     <string name="workspace_error_network">网络不可用</string>
     <string name="workspace_error_server">OpenApp 服务器错误</string>
     <string name="workspace_error_previous_request_failed">上一次请求失败——请再次查询结果</string>

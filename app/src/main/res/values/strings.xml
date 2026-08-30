@@ -542,6 +542,7 @@
     <string name="workspace_error_forbidden">OPENAPP ACCESS IS FORBIDDEN</string>
     <string name="workspace_error_quota">OPENAPP QUOTA IS INSUFFICIENT</string>
     <string name="workspace_error_not_found">REQUEST WAS NOT FOUND</string>
+    <string name="workspace_error_unsupported">CUSTOM INPUT RUN IS NOT SUPPORTED BY LUOGU OPEN PLATFORM</string>
     <string name="workspace_error_network">NETWORK UNAVAILABLE</string>
     <string name="workspace_error_server">OPENAPP SERVER ERROR</string>
     <string name="workspace_error_previous_request_failed">PREVIOUS REQUEST FAILED — CHECK RESULT AGAIN</string>

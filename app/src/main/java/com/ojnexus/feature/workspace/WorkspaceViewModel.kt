@@ -36,6 +36,7 @@ data class WorkspaceState(
     val language: String = DEFAULT_LANGUAGE,
     val o2: Boolean = false,
     val mode: WorkspaceMode = WorkspaceMode.RUN,
+    val customRunAvailable: Boolean = true,
     val credentialConfigured: Boolean = false,
     val busy: Boolean = false,
     val requestId: String? = null,
@@ -51,6 +52,7 @@ enum class WorkspaceError {
     FORBIDDEN,
     QUOTA_EXCEEDED,
     NOT_FOUND,
+    UNSUPPORTED_OPERATION,
     NETWORK,
     SERVER,
     PREVIOUS_REQUEST_FAILED,
@@ -65,7 +67,14 @@ class WorkspaceViewModel(
     private val history: LuoguSubmissionHistory? = null,
 ) : ViewModel() {
     private val workScope = testScope ?: viewModelScope
-    private val mutableState = MutableStateFlow(WorkspaceState(pid = pid, title = title))
+    private val mutableState = MutableStateFlow(
+        WorkspaceState(
+            pid = pid,
+            title = title,
+            mode = if (gateway.supportsCustomInputRun) WorkspaceMode.RUN else WorkspaceMode.SUBMIT,
+            customRunAvailable = gateway.supportsCustomInputRun,
+        ),
+    )
     private val submissionStarted = AtomicBoolean(false)
     val state: StateFlow<WorkspaceState> = mutableState.asStateFlow()
 
@@ -83,7 +92,7 @@ class WorkspaceViewModel(
                     it.copy(
                         requestId = job.requestId,
                         language = job.language,
-                        mode = if (job.kind == SubmissionJobKind.PROBLEM.name) {
+                        mode = if (job.kind == SubmissionJobKind.PROBLEM.name || !gateway.supportsCustomInputRun) {
                             WorkspaceMode.SUBMIT
                         } else {
                             WorkspaceMode.RUN
@@ -207,6 +216,7 @@ class WorkspaceViewModel(
         LuoguOpenApiError.Forbidden -> WorkspaceError.FORBIDDEN
         LuoguOpenApiError.QuotaExceeded -> WorkspaceError.QUOTA_EXCEEDED
         LuoguOpenApiError.NotFound -> WorkspaceError.NOT_FOUND
+        LuoguOpenApiError.UnsupportedOperation -> WorkspaceError.UNSUPPORTED_OPERATION
         is LuoguOpenApiError.Network -> WorkspaceError.NETWORK
         is LuoguOpenApiError.Http, LuoguOpenApiError.MalformedResponse -> WorkspaceError.SERVER
         else -> WorkspaceError.SERVER

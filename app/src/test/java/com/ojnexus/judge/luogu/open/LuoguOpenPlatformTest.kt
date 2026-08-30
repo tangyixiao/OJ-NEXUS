@@ -145,6 +145,7 @@ class LuoguOpenPlatformClientTest {
 
     @Test
     fun `custom input execution is rejected before any network request`() = runBlocking {
+        assertEquals(false, client.supportsCustomInputRun)
         try {
             client.run(
                 LuoguRunRequest(

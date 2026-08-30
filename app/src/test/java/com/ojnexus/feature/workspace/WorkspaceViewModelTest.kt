@@ -28,6 +28,45 @@ import org.junit.Test
 class WorkspaceViewModelTest {
 
     @Test
+    fun `official gateway starts in submit mode when custom run is unavailable`() = runBlocking {
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = null,
+            gateway = FakeGateway(customRunAvailable = false),
+            credentialStore = FakeStore(),
+            testScope = CoroutineScope(coroutineContext),
+        )
+
+        assertEquals(false, viewModel.state.value.customRunAvailable)
+        assertEquals(WorkspaceMode.SUBMIT, viewModel.state.value.mode)
+    }
+
+    @Test
+    fun `unsupported gateway does not restore a stale custom run job`() = runBlocking {
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = null,
+            gateway = FakeGateway(customRunAvailable = false),
+            credentialStore = FakeStore(),
+            history = FakeHistory(
+                SubmissionJobEntity(
+                    judge = "luogu",
+                    requestId = "run-old",
+                    kind = SubmissionJobKind.RUN.name,
+                    pid = null,
+                    language = "cxx/14/gcc",
+                    status = SubmissionJobStatus.PENDING.name,
+                    createdAt = 1,
+                    updatedAt = 2,
+                ),
+            ),
+            testScope = CoroutineScope(coroutineContext),
+        )
+
+        assertEquals(WorkspaceMode.SUBMIT, viewModel.state.value.mode)
+    }
+
+    @Test
     fun `submit enters pending state and result check resolves it`() = runBlocking {
         val gateway = FakeGateway()
         val viewModel = WorkspaceViewModel("P1001", "A+B", gateway, FakeStore(), CoroutineScope(coroutineContext))
@@ -175,8 +214,11 @@ class WorkspaceViewModelTest {
     }
 }
 
-private class FakeGateway : LuoguOpenGateway {
+private class FakeGateway(
+    private val customRunAvailable: Boolean = true,
+) : LuoguOpenGateway {
     var submitCount = 0
+    override val supportsCustomInputRun: Boolean = customRunAvailable
     override suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission {
         submitCount++
         return LuoguOpenSubmission("req-1")

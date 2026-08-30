@@ -89,10 +89,12 @@ fun WorkspaceScreen(
             Spacer(Modifier.height(NexusSpacing.sm))
             NexusSection(label = stringResource(R.string.workspace_mode)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
-                    WorkspaceAction(
-                        label = stringResource(R.string.workspace_mode_run),
-                        selected = state.mode == WorkspaceMode.RUN,
-                    ) { viewModel.setMode(WorkspaceMode.RUN) }
+                    if (state.customRunAvailable) {
+                        WorkspaceAction(
+                            label = stringResource(R.string.workspace_mode_run),
+                            selected = state.mode == WorkspaceMode.RUN,
+                        ) { viewModel.setMode(WorkspaceMode.RUN) }
+                    }
                     WorkspaceAction(
                         label = stringResource(R.string.workspace_mode_submit),
                         selected = state.mode == WorkspaceMode.SUBMIT,
@@ -101,7 +103,7 @@ fun WorkspaceScreen(
                 Spacer(Modifier.height(NexusSpacing.xs))
                 Text(
                     text = stringResource(
-                        if (state.mode == WorkspaceMode.RUN) {
+                        if (state.customRunAvailable && state.mode == WorkspaceMode.RUN) {
                             R.string.workspace_mode_run_hint
                         } else {
                             R.string.workspace_mode_submit_hint
@@ -119,7 +121,7 @@ fun WorkspaceScreen(
                     placeholder = stringResource(R.string.workspace_code_hint),
                 )
             }
-            if (state.mode == WorkspaceMode.RUN) {
+            if (state.customRunAvailable && state.mode == WorkspaceMode.RUN) {
                 Spacer(Modifier.height(NexusSpacing.md))
                 NexusSection(label = stringResource(R.string.workspace_input)) {
                     CodeField(
@@ -273,6 +275,7 @@ private val WorkspaceError.labelRes: Int
         WorkspaceError.FORBIDDEN -> R.string.workspace_error_forbidden
         WorkspaceError.QUOTA_EXCEEDED -> R.string.workspace_error_quota
         WorkspaceError.NOT_FOUND -> R.string.workspace_error_not_found
+        WorkspaceError.UNSUPPORTED_OPERATION -> R.string.workspace_error_unsupported
         WorkspaceError.NETWORK -> R.string.workspace_error_network
         WorkspaceError.SERVER -> R.string.workspace_error_server
         WorkspaceError.PREVIOUS_REQUEST_FAILED -> R.string.workspace_error_previous_request_failed
