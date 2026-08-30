@@ -16,8 +16,10 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -166,6 +168,7 @@ class WorkspaceViewModelTest {
 
         history.release.complete(Unit)
         history.finished.await()
+        scope.coroutineContext[Job]?.children?.toList().orEmpty().joinAll()
         assertEquals("req-1", viewModel.state.value.requestId)
         assertEquals(WorkspaceMode.SUBMIT, viewModel.state.value.mode)
         scope.cancel()
