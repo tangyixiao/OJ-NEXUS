@@ -14,19 +14,19 @@
 **Files:** Create `app/src/test/java/com/ojnexus/core/resources/LocalizationResourceTest.kt`.
 **Interfaces:** The test reads both XML files, compares resource keys, and compares printf-style placeholder tokens.
 - [ ] **Step 1: Write the failing test.** Implement `readStrings("values")`, `readStrings("values-zh-rCN")`, and `formatTokens` using `DocumentBuilderFactory` and `Regex("%(?:\\d+\\$)?[-+0-9.]*[a-zA-Z]")`; assert equal key sets and equal token lists for every key.
-- [ ] **Step 2: Verify RED.** Run `tools\gradlew-local.bat test --tests com.ojnexus.core.resources.LocalizationResourceTest`; it must fail because `values-zh-rCN/strings.xml` is absent.
+- [ ] **Step 2: Verify RED.** Run `tools\gradlew-local.bat :app:testDebugUnitTest --tests com.ojnexus.core.resources.LocalizationResourceTest`; it must fail because `values-zh-rCN/strings.xml` is absent.
 - [ ] **Step 3: Commit the red test.** Run `git add app/src/test/java/com/ojnexus/core/resources/LocalizationResourceTest.kt` and `git commit -m "test: require complete Chinese string resources"`.
 ### Task 2: Add the complete Simplified Chinese resource set
 **Files:** Create `app/src/main/res/values-zh-rCN/strings.xml`; test with `LocalizationResourceTest.kt`.
 **Interfaces:** Every key in `app/src/main/res/values/strings.xml` receives a Chinese value with identical printf placeholders.
 - [ ] **Step 1: Add translated XML.** Preserve every `name`, format token, meaningful line break, and `AC`/`WA`/`TLE`/`MLE`/`RE`/`CE`/`PE` code. Use “题目”“训练”“复习”“掌握度”“竞赛”“设置”“本地数据” consistently; leave OJ names, titles, tags, and user data unchanged.
-- [ ] **Step 2: Verify GREEN.** Run `tools\gradlew-local.bat test --tests com.ojnexus.core.resources.LocalizationResourceTest`; expect PASS.
+- [ ] **Step 2: Verify GREEN.** Run `tools\gradlew-local.bat :app:testDebugUnitTest --tests com.ojnexus.core.resources.LocalizationResourceTest`; expect PASS.
 - [ ] **Step 3: Commit resources.** Run `git add app/src/main/res/values-zh-rCN/strings.xml` and `git commit -m "feat: add simplified Chinese resources"`.
 ### Task 3: Localize visible generic loading failures
 **Files:** Audit the loading fallbacks in Dashboard, Problems, Training, Session, Review Session, Analytics, and Profile; modify only the necessary ViewModels/resources.
 **Interfaces:** Use an injected resource-backed string provider or existing app-level accessor so ViewModels do not put `Context` calls in Composables; leave server errors, exception identifiers, data, and logs untouched.
 - [ ] **Step 1: Add matching `error_load_failed` resources and replace only literals such as `"Load failed"` that reach user-visible state.**
-- [ ] **Step 2: Run `tools\gradlew-local.bat test --tests com.ojnexus.core.resources.LocalizationResourceTest` and `git diff --check`; expect PASS and no new hardcoded UI strings.**
+- [ ] **Step 2: Run `tools\gradlew-local.bat :app:testDebugUnitTest --tests com.ojnexus.core.resources.LocalizationResourceTest` and `git diff --check`; expect PASS and no new hardcoded UI strings.**
 - [ ] **Step 3: Commit with `git add app/src/main/java app/src/main/res/values/strings.xml app/src/main/res/values-zh-rCN/strings.xml` and `git commit -m "fix: localize generic loading failures"`.**
 ### Task 4: Build and verify both locale paths
 **Files:** Verify the two string XML files and the localization test; do not change schema, navigation, or version.
