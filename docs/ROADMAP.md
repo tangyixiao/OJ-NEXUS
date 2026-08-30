@@ -75,13 +75,15 @@ upserts, per-page persistence, and partial-result reporting. Anonymous submissio
 explicitly `AUTH_REQUIRED` and never fabricated. The implementation is locally verified;
 publishing remains a separate release action requiring explicit authorization.
 
-## PHASE 10 — Authorized submission workflow (in progress)
+## PHASE 10 — Authorized submission workflow ✅ (safe local slice)
 
 The first slice uses the official Luogu Open Platform HTTP Basic API: local Keystore-protected
 OpenApp credentials, Compose code workspace, explicit foreground `/run` and `/problem` actions,
 and user-triggered `/result/{id}` polling. POST requests are not automatically retried, and the
-workspace persists only request metadata and materializes terminal user-originated results as
-idempotent local attempts; it does not persist source code or standard input. No plaintext main-site passwords,
-harvested browser cookies, background submissions, WebView shell, local bundled compiler, or
-cloud synchronization is permitted. Local Android runtime verification with a real OpenApp
-credential remains separate from the unit-test/build verification.
+workspace persists only request metadata, restores the latest local task after a restart, and
+materializes terminal user-originated results as idempotent local attempts; it does not persist
+source code or standard input. No plaintext main-site passwords, harvested browser cookies,
+background submissions, WebView shell, local bundled compiler, or cloud synchronization is
+permitted. Local Android runtime verification with a real OpenApp credential remains separate
+from the unit-test/build verification. Main-site login, background automation, local compilation,
+and cloud/cross-device sync remain intentionally out of scope for this safe slice.
