@@ -6,6 +6,7 @@ import com.ojnexus.judge.luogu.open.LuoguOpenApiError
 import com.ojnexus.judge.luogu.open.LuoguOpenEvaluation
 import com.ojnexus.judge.luogu.open.LuoguOpenGateway
 import com.ojnexus.judge.luogu.open.LuoguOpenResult
+import com.ojnexus.judge.luogu.open.LuoguLanguages
 import com.ojnexus.judge.luogu.open.LuoguProblemJudgeRequest
 import com.ojnexus.judge.luogu.open.LuoguRunRequest
 import com.ojnexus.judge.luogu.open.LuoguSubmissionHistory
@@ -22,8 +23,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
-private const val DEFAULT_LANGUAGE = "cxx/14/gcc"
-
 enum class WorkspaceMode { RUN, SUBMIT }
 
 enum class WorkspaceResultState { IDLE, PENDING, READY }
@@ -33,7 +32,7 @@ data class WorkspaceState(
     val title: String?,
     val code: String = "",
     val input: String = "",
-    val language: String = DEFAULT_LANGUAGE,
+    val language: String = LuoguLanguages.DEFAULT_ID,
     val o2: Boolean = false,
     val mode: WorkspaceMode = WorkspaceMode.RUN,
     val customRunAvailable: Boolean = true,
@@ -133,6 +132,8 @@ class WorkspaceViewModel(
     fun setCode(value: String) = mutableState.update { it.copy(code = value, error = null) }
 
     fun setInput(value: String) = mutableState.update { it.copy(input = value, error = null) }
+
+    fun setLanguage(value: String) = mutableState.update { it.copy(language = value, error = null) }
 
     fun setMode(value: WorkspaceMode) = mutableState.update {
         it.copy(mode = value, resultState = WorkspaceResultState.IDLE, evaluation = null, error = null)

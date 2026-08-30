@@ -85,6 +85,19 @@ class WorkspaceViewModelTest {
     }
 
     @Test
+    fun `submit forwards the language selected in the editor`() = runBlocking {
+        val gateway = FakeGateway()
+        val viewModel = WorkspaceViewModel("P1001", "A+B", gateway, FakeStore(), CoroutineScope(coroutineContext))
+
+        viewModel.setLanguage("python3/c")
+        viewModel.setCode("print(1 + 2)")
+        viewModel.setMode(WorkspaceMode.SUBMIT)
+        viewModel.submit()
+
+        assertEquals("python3/c", gateway.lastProblemRequest?.lang)
+    }
+
+    @Test
     fun `busy submit is not duplicated`() = runBlocking {
         val gateway = BusyGateway()
         val scope = CoroutineScope(Dispatchers.Default)
@@ -218,9 +231,11 @@ private class FakeGateway(
     private val customRunAvailable: Boolean = true,
 ) : LuoguOpenGateway {
     var submitCount = 0
+    var lastProblemRequest: LuoguProblemJudgeRequest? = null
     override val supportsCustomInputRun: Boolean = customRunAvailable
     override suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission {
         submitCount++
+        lastProblemRequest = request
         return LuoguOpenSubmission("req-1")
     }
 

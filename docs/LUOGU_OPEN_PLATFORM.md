@@ -13,6 +13,10 @@
 只保留在当前 ViewModel/UI 生命周期内；提交任务只保留请求 ID、题目、语言和结果元数据，
 并在工作区重启后恢复该题最近一次本地任务的查询状态。
 
+代码工作区提供洛谷官方语言标识的选择器，当前覆盖 C/C++、Python/PyPy、Java、Kotlin、
+Go、Rust、Pascal、Haskell、Node.js、PHP、Ruby、Perl 和 Scala；提交请求会原样使用用户
+选择的 `lang` 标识。语言列表以官方文档为依据，平台新增语言时再单独更新列表。
+
 题库评测产生终态结果后，任务仓库会将一次真实的用户发起评测幂等写入本地 `attempts`，
 并用 `(source_judge, external_submission_id)` 防止重复计数。历史主站提交记录仍不能由此
 推断或补造。

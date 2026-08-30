@@ -47,7 +47,8 @@ content-only JSON transport, remains marked EXPERIMENTAL, and reports anonymous 
 records as AUTH_REQUIRED without importing fabricated attempts. Main-site passwords, cookies,
 sessions, and CSRF state are never requested or stored. The local code workspace uses the
 official Luogu Open Platform credential only; problem judging is an explicit foreground action,
-with no automatic POST retry or cloud code storage. The local submission center lists recent
+and the editor forwards a selected official language identifier with each request. There is no
+automatic POST retry or cloud code storage. The local submission center lists recent
 Open Platform request metadata, supports foreground result checks, and reopens related problem
 workspaces without storing source code or standard input. See
 [docs/MULTI_OJ.md](docs/MULTI_OJ.md), [docs/ATCODER.md](docs/ATCODER.md),

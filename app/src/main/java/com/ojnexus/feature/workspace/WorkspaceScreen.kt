@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +38,7 @@ import com.ojnexus.core.designsystem.component.NexusTopBar
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.judge.luogu.open.LuoguOpenEvaluation
+import com.ojnexus.judge.luogu.open.LuoguLanguages
 
 private val EditorMinHeight = 240.dp
 private val InputMinHeight = 96.dp
@@ -112,6 +114,20 @@ fun WorkspaceScreen(
                     style = NexusTheme.typography.dataSmall,
                     color = NexusTheme.colors.textTertiary,
                 )
+            }
+            Spacer(Modifier.height(NexusSpacing.md))
+            NexusSection(label = stringResource(R.string.workspace_language)) {
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+                ) {
+                    LuoguLanguages.options.forEach { option ->
+                        WorkspaceAction(
+                            label = option.label,
+                            selected = state.language == option.id,
+                        ) { viewModel.setLanguage(option.id) }
+                    }
+                }
             }
             Spacer(Modifier.height(NexusSpacing.md))
             NexusSection(label = stringResource(R.string.workspace_code)) {

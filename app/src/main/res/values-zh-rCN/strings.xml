@@ -476,8 +476,9 @@
     <string name="workspace_mode_submit">提交</string>
     <string name="workspace_mode_run_hint">使用自定义标准输入运行代码</string>
     <string name="workspace_mode_submit_hint">提交到当前洛谷题目进行评测</string>
+    <string name="workspace_language">语言</string>
     <string name="workspace_code">源代码</string>
-    <string name="workspace_code_hint">输入 C++ 代码</string>
+    <string name="workspace_code_hint">输入源代码</string>
     <string name="workspace_input">标准输入</string>
     <string name="workspace_input_hint">运行模式下可选的输入</string>
     <string name="workspace_execute">执行</string>

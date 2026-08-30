@@ -527,8 +527,9 @@
     <string name="workspace_mode_submit">SUBMIT</string>
     <string name="workspace_mode_run_hint">RUNS CODE WITH CUSTOM STANDARD INPUT</string>
     <string name="workspace_mode_submit_hint">SUBMITS TO THE SELECTED LUOGU PROBLEM</string>
+    <string name="workspace_language">LANGUAGE</string>
     <string name="workspace_code">SOURCE CODE</string>
-    <string name="workspace_code_hint">ENTER C++ CODE</string>
+    <string name="workspace_code_hint">ENTER SOURCE CODE</string>
     <string name="workspace_input">STANDARD INPUT</string>
     <string name="workspace_input_hint">OPTIONAL INPUT FOR RUN MODE</string>
     <string name="workspace_execute">EXECUTE</string>
