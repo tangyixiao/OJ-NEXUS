@@ -21,7 +21,12 @@ import kotlinx.coroutines.launch
 private const val RECENT_JOB_LIMIT = 20
 
 sealed interface SubmissionCenterActionError {
-    data class Generic(val message: String) : SubmissionCenterActionError
+    val requestId: String
+
+    data class Generic(
+        override val requestId: String,
+        val message: String,
+    ) : SubmissionCenterActionError
 }
 
 data class SubmissionCenterUiState(
@@ -65,31 +70,43 @@ class SubmissionCenterViewModel(
             }
         }
         if (!shouldLaunch) return
-        actionError.value = null
         viewModelScope.launch {
             try {
                 submissionCenter.refreshResult(requestId)
-                actionError.value = null
+                actionError.update { current ->
+                    if (current?.requestId == requestId) {
+                        null
+                    } else {
+                        current
+                    }
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                actionError.value = error.toActionError()
+                actionError.value = error.toActionError(requestId)
             } finally {
                 busyRequestIds.update { it - requestId }
             }
         }
     }
 
-    private fun Exception.toActionError(): SubmissionCenterActionError = when (this) {
-        LuoguOpenApiError.CredentialMissing -> SubmissionCenterActionError.Generic(message ?: "OpenApp credential is not configured")
-        is LuoguOpenApiError.InvalidRequest -> SubmissionCenterActionError.Generic(message ?: "Open Platform request is invalid")
-        LuoguOpenApiError.Unauthorized -> SubmissionCenterActionError.Generic(message ?: "Open Platform authorization failed")
-        LuoguOpenApiError.Forbidden -> SubmissionCenterActionError.Generic(message ?: "Open Platform access is forbidden")
-        LuoguOpenApiError.QuotaExceeded -> SubmissionCenterActionError.Generic(message ?: "Open Platform quota is insufficient")
-        LuoguOpenApiError.NotFound -> SubmissionCenterActionError.Generic(message ?: "Open Platform resource was not found")
-        is LuoguOpenApiError.Network -> SubmissionCenterActionError.Generic(message ?: "Open Platform network error")
+    private fun Exception.toActionError(requestId: String): SubmissionCenterActionError = when (this) {
+        LuoguOpenApiError.CredentialMissing ->
+            SubmissionCenterActionError.Generic(requestId, message ?: "OpenApp credential is not configured")
+        is LuoguOpenApiError.InvalidRequest ->
+            SubmissionCenterActionError.Generic(requestId, message ?: "Open Platform request is invalid")
+        LuoguOpenApiError.Unauthorized ->
+            SubmissionCenterActionError.Generic(requestId, message ?: "Open Platform authorization failed")
+        LuoguOpenApiError.Forbidden ->
+            SubmissionCenterActionError.Generic(requestId, message ?: "Open Platform access is forbidden")
+        LuoguOpenApiError.QuotaExceeded ->
+            SubmissionCenterActionError.Generic(requestId, message ?: "Open Platform quota is insufficient")
+        LuoguOpenApiError.NotFound ->
+            SubmissionCenterActionError.Generic(requestId, message ?: "Open Platform resource was not found")
+        is LuoguOpenApiError.Network ->
+            SubmissionCenterActionError.Generic(requestId, message ?: "Open Platform network error")
         is LuoguOpenApiError.Http, LuoguOpenApiError.MalformedResponse ->
-            SubmissionCenterActionError.Generic(message ?: "Open Platform server error")
-        else -> SubmissionCenterActionError.Generic(message ?: localizedString(R.string.error_load_failed))
+            SubmissionCenterActionError.Generic(requestId, message ?: "Open Platform server error")
+        else -> SubmissionCenterActionError.Generic(requestId, message ?: localizedString(R.string.error_load_failed))
     }
 }

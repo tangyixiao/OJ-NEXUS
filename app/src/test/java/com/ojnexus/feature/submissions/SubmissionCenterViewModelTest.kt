@@ -80,30 +80,15 @@ class SubmissionCenterViewModelTest {
     @Test
     fun `action errors clear on retry while cached rows remain available`() = runBlocking {
         val jobs = MutableStateFlow(listOf(readyJob(requestId = "req-retry")))
+        val retryGate = BlockingRefresh()
         val center = FakeSubmissionCenter(
             jobs = jobs,
-            refreshResults = ArrayDeque(
+            refresh = SequentialRefresh(
                 listOf(
                     RefreshOutcome.Throw(LuoguOpenApiError.Network(IOException("offline"))),
-                    RefreshOutcome.Return(
-                        LuoguOpenResult.Ready(
-                            LuoguOpenEvaluation(
-                                requestId = "req-retry",
-                                trackId = null,
-                                type = "judge",
-                                compileSuccess = true,
-                                compileMessage = null,
-                                status = 12,
-                                score = 100,
-                                timeMs = 1,
-                                memoryKiB = 1,
-                                output = null,
-                                exitCode = null,
-                            ),
-                        ),
-                    ),
+                    RefreshOutcome.Suspend { requestId -> retryGate.refresh(requestId) },
                 ),
-            ),
+            )::refresh,
         )
         val viewModel = SubmissionCenterViewModel(center)
         val collector = collectState(viewModel)
@@ -114,15 +99,134 @@ class SubmissionCenterViewModelTest {
         val failed = awaitReady(viewModel)
         assertEquals(listOf("req-retry"), failed.jobs.map { it.requestId })
         assertEquals(
-            SubmissionCenterActionError.Generic("Open Platform network error"),
+            SubmissionCenterActionError.Generic(
+                requestId = "req-retry",
+                message = "Open Platform network error",
+            ),
             failed.actionError,
         )
 
         viewModel.checkResult("req-retry")
+        retryGate.started.await()
+        awaitBusyRequest(viewModel, "req-retry")
+        val retrying = awaitReady(viewModel)
+        assertEquals(
+            SubmissionCenterActionError.Generic(
+                requestId = "req-retry",
+                message = "Open Platform network error",
+            ),
+            retrying.actionError,
+        )
+        retryGate.release.complete(Unit)
         awaitNotBusyRequest(viewModel, "req-retry")
         val recovered = awaitReady(viewModel)
         assertEquals(listOf("req-retry"), recovered.jobs.map { it.requestId })
         assertNull(recovered.actionError)
+        collector.cancel()
+    }
+
+    @Test
+    fun `failed retry keeps the same request error visible`() = runBlocking {
+        val jobs = MutableStateFlow(listOf(readyJob(requestId = "req-fail")))
+        val retryGate = BlockingFailureRefresh(LuoguOpenApiError.Network(IOException("offline-again")))
+        val center = FakeSubmissionCenter(
+            jobs = jobs,
+            refresh = SequentialRefresh(
+                listOf(
+                    RefreshOutcome.Throw(LuoguOpenApiError.Network(IOException("offline"))),
+                    RefreshOutcome.Suspend { retryGate.refresh(it) },
+                ),
+            )::refresh,
+        )
+        val viewModel = SubmissionCenterViewModel(center)
+        val collector = collectState(viewModel)
+        awaitReady(viewModel)
+
+        viewModel.checkResult("req-fail")
+        awaitNotBusyRequest(viewModel, "req-fail")
+        assertEquals(
+            SubmissionCenterActionError.Generic(
+                requestId = "req-fail",
+                message = "Open Platform network error",
+            ),
+            awaitReady(viewModel).actionError,
+        )
+
+        viewModel.checkResult("req-fail")
+        retryGate.started.await()
+        awaitBusyRequest(viewModel, "req-fail")
+        assertEquals(
+            SubmissionCenterActionError.Generic(
+                requestId = "req-fail",
+                message = "Open Platform network error",
+            ),
+            awaitReady(viewModel).actionError,
+        )
+        retryGate.release.complete(Unit)
+        awaitNotBusyRequest(viewModel, "req-fail")
+        assertEquals(
+            SubmissionCenterActionError.Generic(
+                requestId = "req-fail",
+                message = "Open Platform network error",
+            ),
+            awaitReady(viewModel).actionError,
+        )
+        collector.cancel()
+    }
+
+    @Test
+    fun `success for another request does not clear an existing action error`() = runBlocking {
+        val jobs = MutableStateFlow(
+            listOf(
+                readyJob(requestId = "req-a"),
+                readyJob(requestId = "req-b"),
+            ),
+        )
+        val gate = BlockingRefresh()
+        val center = FakeSubmissionCenter(
+            jobs = jobs,
+            refresh = { requestId ->
+                when (requestId) {
+                    "req-a" -> throw LuoguOpenApiError.Network(IOException("offline"))
+                    "req-b" -> gate.refresh(requestId)
+                    else -> error("unexpected requestId: $requestId")
+                }
+            },
+        )
+        val viewModel = SubmissionCenterViewModel(center)
+        val collector = collectState(viewModel)
+        awaitReady(viewModel)
+
+        viewModel.checkResult("req-a")
+        awaitNotBusyRequest(viewModel, "req-a")
+        assertEquals(
+            SubmissionCenterActionError.Generic(
+                requestId = "req-a",
+                message = "Open Platform network error",
+            ),
+            awaitReady(viewModel).actionError,
+        )
+
+        viewModel.checkResult("req-b")
+        gate.started.await()
+        awaitBusyRequest(viewModel, "req-b")
+        assertEquals(
+            SubmissionCenterActionError.Generic(
+                requestId = "req-a",
+                message = "Open Platform network error",
+            ),
+            awaitReady(viewModel).actionError,
+        )
+
+        gate.release.complete(Unit)
+        awaitNotBusyRequest(viewModel, "req-b")
+        assertEquals(
+            SubmissionCenterActionError.Generic(
+                requestId = "req-a",
+                message = "Open Platform network error",
+            ),
+            awaitReady(viewModel).actionError,
+        )
         collector.cancel()
     }
 
@@ -202,6 +306,7 @@ private class FakeSubmissionCenter(
         return when (val outcome = refreshResults.removeFirst()) {
             is RefreshOutcome.Return -> outcome.result
             is RefreshOutcome.Throw -> throw outcome.error
+            is RefreshOutcome.Suspend -> outcome.block(requestId)
         }
     }
 
@@ -211,6 +316,7 @@ private class FakeSubmissionCenter(
 private sealed interface RefreshOutcome {
     data class Return(val result: LuoguOpenResult) : RefreshOutcome
     data class Throw(val error: Throwable) : RefreshOutcome
+    data class Suspend(val block: suspend (String) -> LuoguOpenResult) : RefreshOutcome
 }
 
 private class BlockingRefresh {
@@ -236,4 +342,30 @@ private class BlockingRefresh {
             ),
         )
     }
+}
+
+private class BlockingFailureRefresh(
+    private val error: Throwable,
+) {
+    val started = CompletableDeferred<Unit>()
+    val release = CompletableDeferred<Unit>()
+
+    suspend fun refresh(requestId: String): LuoguOpenResult {
+        started.complete(Unit)
+        release.await()
+        throw error
+    }
+}
+
+private class SequentialRefresh(
+    outcomes: List<RefreshOutcome>,
+) {
+    private val outcomes = ArrayDeque(outcomes)
+
+    suspend fun refresh(requestId: String): LuoguOpenResult =
+        when (val outcome = outcomes.removeFirst()) {
+            is RefreshOutcome.Return -> outcome.result
+            is RefreshOutcome.Throw -> throw outcome.error
+            is RefreshOutcome.Suspend -> outcome.block(requestId)
+        }
 }
