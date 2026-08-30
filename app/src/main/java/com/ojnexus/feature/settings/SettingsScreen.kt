@@ -66,6 +66,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     it.backupRepository,
                     it.userPreferencesRepository,
                     it.luoguOpenCredentialStore,
+                    it.luoguOpenClient,
                 )
         },
     )
@@ -74,6 +75,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     val connecting by viewModel.connecting.collectAsStateWithLifecycle()
     val backupResult by viewModel.backup.collectAsStateWithLifecycle()
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
+    val openAppState by viewModel.openApp.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
@@ -188,7 +190,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                     color = NexusTheme.colors.textTertiary,
                 )
                 Spacer(Modifier.height(NexusSpacing.sm))
-                val openAppState by viewModel.openApp.collectAsStateWithLifecycle()
                 if (openAppState.configured) {
                     Text(
                         text = stringResource(R.string.settings_openapp_configured),
@@ -201,6 +202,44 @@ fun SettingsScreen(onBack: () -> Unit) {
                         danger = true,
                         onClick = viewModel::clearOpenAppCredential,
                     )
+                    Spacer(Modifier.height(NexusSpacing.sm))
+                    SettingsAction(
+                        label = stringResource(
+                            if (openAppState.checkingQuota) {
+                                R.string.settings_openapp_quota_checking
+                            } else {
+                                R.string.settings_openapp_quota_check
+                            },
+                        ),
+                        onClick = viewModel::checkOpenAppQuota,
+                    )
+                    openAppState.quota?.let { quota ->
+                        Spacer(Modifier.height(NexusSpacing.xs))
+                        Text(
+                            text = stringResource(
+                                R.string.settings_openapp_quota_available,
+                                quota.totalAvailablePoints,
+                            ),
+                            style = NexusTheme.typography.data,
+                            color = NexusTheme.colors.accent,
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.settings_openapp_quota_buckets,
+                                quota.quotas.size,
+                            ),
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.textTertiary,
+                        )
+                    }
+                    openAppState.quotaError?.let { error ->
+                        Spacer(Modifier.height(NexusSpacing.xxs))
+                        Text(
+                            text = quotaErrorLabel(error),
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.danger,
+                        )
+                    }
                 } else {
                     OpenAppCredentialEditor(
                         saving = openAppState.saving,
@@ -302,6 +341,17 @@ fun SettingsScreen(onBack: () -> Unit) {
             },
         )
     }
+}
+
+@Composable
+private fun quotaErrorLabel(error: OpenAppQuotaError): String = when (error) {
+    OpenAppQuotaError.CREDENTIAL_MISSING -> stringResource(R.string.settings_openapp_quota_missing)
+    OpenAppQuotaError.UNAUTHORIZED -> stringResource(R.string.settings_openapp_quota_unauthorized)
+    OpenAppQuotaError.FORBIDDEN -> stringResource(R.string.settings_openapp_quota_forbidden)
+    OpenAppQuotaError.QUOTA_EXCEEDED -> stringResource(R.string.settings_openapp_quota_exceeded)
+    OpenAppQuotaError.NOT_FOUND -> stringResource(R.string.settings_openapp_quota_api_error)
+    OpenAppQuotaError.NETWORK -> stringResource(R.string.settings_network_unavailable)
+    OpenAppQuotaError.API -> stringResource(R.string.settings_openapp_quota_api_error)
 }
 
 @Composable

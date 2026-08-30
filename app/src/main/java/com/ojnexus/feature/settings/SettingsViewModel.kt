@@ -21,6 +21,9 @@ import com.ojnexus.judge.JudgeRegistry
 import com.ojnexus.judge.sync.JudgeSyncWorker
 import com.ojnexus.judge.luogu.open.OpenAppCredential
 import com.ojnexus.judge.luogu.open.OpenAppCredentialStore
+import com.ojnexus.judge.luogu.open.LuoguOpenApiError
+import com.ojnexus.judge.luogu.open.LuoguOpenQuotaReader
+import com.ojnexus.judge.luogu.open.LuoguOpenQuotaSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -49,7 +52,20 @@ data class OpenAppUiState(
     val configured: Boolean = false,
     val saving: Boolean = false,
     val error: Boolean = false,
+    val checkingQuota: Boolean = false,
+    val quota: LuoguOpenQuotaSnapshot? = null,
+    val quotaError: OpenAppQuotaError? = null,
 )
+
+enum class OpenAppQuotaError {
+    CREDENTIAL_MISSING,
+    UNAUTHORIZED,
+    FORBIDDEN,
+    QUOTA_EXCEEDED,
+    NOT_FOUND,
+    NETWORK,
+    API,
+}
 
 class SettingsViewModel(
     private val accountRepository: JudgeAccountRepository,
@@ -58,6 +74,7 @@ class SettingsViewModel(
     private val backupRepository: BackupRepository,
     private val preferencesRepository: UserPreferencesRepository,
     private val openAppCredentialStore: OpenAppCredentialStore? = null,
+    private val openAppQuotaReader: LuoguOpenQuotaReader? = null,
 ) : ViewModel() {
     private val judges = registry.supportedJudges().sortedBy { it.ordinal }
 
@@ -133,6 +150,31 @@ class SettingsViewModel(
         viewModelScope.launch {
             runCatching { store.clear() }
             openAppState.value = OpenAppUiState()
+        }
+    }
+
+    fun checkOpenAppQuota() {
+        val reader = openAppQuotaReader ?: return
+        if (openAppState.value.checkingQuota) return
+        openAppState.update { it.copy(checkingQuota = true, quotaError = null) }
+        viewModelScope.launch {
+            try {
+                openAppState.update {
+                    it.copy(
+                        checkingQuota = false,
+                        quota = reader.fetchQuota(),
+                        quotaError = null,
+                    )
+                }
+            } catch (error: LuoguOpenApiError) {
+                openAppState.update {
+                    it.copy(checkingQuota = false, quotaError = error.toQuotaError())
+                }
+            } catch (_: Exception) {
+                openAppState.update {
+                    it.copy(checkingQuota = false, quotaError = OpenAppQuotaError.API)
+                }
+            }
         }
     }
 
@@ -235,6 +277,16 @@ class SettingsViewModel(
             } else {
                 ConnectError.ApiFailed
             }
+    }
+
+    private fun LuoguOpenApiError.toQuotaError(): OpenAppQuotaError = when (this) {
+        LuoguOpenApiError.CredentialMissing -> OpenAppQuotaError.CREDENTIAL_MISSING
+        LuoguOpenApiError.Unauthorized -> OpenAppQuotaError.UNAUTHORIZED
+        LuoguOpenApiError.Forbidden -> OpenAppQuotaError.FORBIDDEN
+        LuoguOpenApiError.QuotaExceeded -> OpenAppQuotaError.QUOTA_EXCEEDED
+        LuoguOpenApiError.NotFound -> OpenAppQuotaError.NOT_FOUND
+        is LuoguOpenApiError.Network -> OpenAppQuotaError.NETWORK
+        else -> OpenAppQuotaError.API
     }
 }
 

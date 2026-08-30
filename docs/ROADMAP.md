@@ -94,4 +94,5 @@ metadata from Room, shows pending/ready/failed state and available evaluation me
 user manually query pending or failed requests, and reopens the related problem workspace. It is
 reachable from Profile and the command palette; the five primary bottom-bar destinations remain
 unchanged. The center is local-only and does not turn anonymous Luogu history into fabricated
-submissions.
+submissions. Settings also provides a user-triggered foreground query of Open Platform available
+quota points; the response is transient UI state only and is not persisted or synchronized.

@@ -157,6 +157,11 @@ internal interface LuoguOpenPlatformApi {
         @Header("Authorization") authorization: String,
         @Path("id") requestId: String,
     ): Response<LuoguJudgeCallbackDto>
+
+    @GET("judge/quotaAvailable")
+    suspend fun quotaAvailable(
+        @Header("Authorization") authorization: String,
+    ): Response<LuoguQuotaAvailableResponseDto>
 }
 
 @Serializable
@@ -177,6 +182,26 @@ internal data class LuoguRunRequestDto(
     val trackId: String? = null,
 )
 
+@Serializable
+internal data class LuoguQuotaAvailableResponseDto(
+    val quotas: List<LuoguQuotaDto> = emptyList(),
+)
+
+@Serializable
+internal data class LuoguQuotaDto(
+    val availablePoints: Long = 0,
+    val createTime: Long = 0,
+    val validAfter: Long = 0,
+    val expireTime: Long = 0,
+    val points: LuoguQuotaPointsDto = LuoguQuotaPointsDto(),
+)
+
+@Serializable
+internal data class LuoguQuotaPointsDto(
+    val max: Long = 0,
+    val used: Long = 0,
+)
+
 data class LuoguOpenEvaluation(
     val requestId: String,
     val trackId: String?,
@@ -192,6 +217,24 @@ data class LuoguOpenEvaluation(
 )
 
 data class LuoguOpenSubmission(val requestId: String)
+
+data class LuoguOpenQuota(
+    val availablePoints: Long,
+    val createTime: Long,
+    val validAfter: Long,
+    val expireTime: Long,
+    val maxPoints: Long,
+    val usedPoints: Long,
+)
+
+data class LuoguOpenQuotaSnapshot(val quotas: List<LuoguOpenQuota>) {
+    val totalAvailablePoints: Long
+        get() = quotas.sumOf { it.availablePoints }
+}
+
+interface LuoguOpenQuotaReader {
+    suspend fun fetchQuota(): LuoguOpenQuotaSnapshot
+}
 
 interface LuoguOpenGateway {
     /** True only when the concrete provider documents custom-input execution. */
@@ -225,7 +268,7 @@ sealed class LuoguOpenApiError(message: String) : Exception(message) {
 class LuoguOpenPlatformClient internal constructor(
     private val api: LuoguOpenPlatformApi,
     private val credentialStore: OpenAppCredentialStore,
-) : LuoguOpenGateway {
+) : LuoguOpenGateway, LuoguOpenQuotaReader {
     override val supportsCustomInputRun: Boolean = false
 
     override suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission =
@@ -273,6 +316,24 @@ class LuoguOpenPlatformClient internal constructor(
                 exitCode = data.run?.result?.exitCode,
             ),
         )
+    }
+
+    override suspend fun fetchQuota(): LuoguOpenQuotaSnapshot {
+        val response = try {
+            api.quotaAvailable(authorizationHeader())
+        } catch (error: IOException) {
+            throw LuoguOpenApiError.Network(error)
+        }
+        return bodyOrThrow(response).quotas.map { quota ->
+            LuoguOpenQuota(
+                availablePoints = quota.availablePoints,
+                createTime = quota.createTime,
+                validAfter = quota.validAfter,
+                expireTime = quota.expireTime,
+                maxPoints = quota.points.max,
+                usedPoints = quota.points.used,
+            )
+        }.let(::LuoguOpenQuotaSnapshot)
     }
 
     private suspend fun <T> executeSubmission(

@@ -412,6 +412,15 @@
     <string name="settings_openapp_configured">OPENAPP CREDENTIAL CONFIGURED</string>
     <string name="settings_openapp_clear">CLEAR OPENAPP CREDENTIAL</string>
     <string name="settings_openapp_error">CREDENTIAL COULD NOT BE SAVED</string>
+    <string name="settings_openapp_quota_check">CHECK AVAILABLE POINTS</string>
+    <string name="settings_openapp_quota_checking">CHECKING POINTS…</string>
+    <string name="settings_openapp_quota_available">AVAILABLE POINTS %1$d</string>
+    <string name="settings_openapp_quota_buckets">%1$d ACTIVE QUOTA BUCKETS</string>
+    <string name="settings_openapp_quota_missing">OPENAPP CREDENTIAL IS MISSING</string>
+    <string name="settings_openapp_quota_unauthorized">OPENAPP AUTHORIZATION FAILED</string>
+    <string name="settings_openapp_quota_forbidden">OPENAPP ACCESS IS FORBIDDEN</string>
+    <string name="settings_openapp_quota_exceeded">OPENAPP QUOTA IS INSUFFICIENT</string>
+    <string name="settings_openapp_quota_api_error">OPENAPP QUOTA QUERY FAILED</string>
     <string name="settings_section_data">LOCAL DATA</string>
     <string name="settings_backup_hint">EXPORT A COPY OF THE LOCAL DATABASE. NO PASSWORDS OR COOKIES ARE INCLUDED.</string>
     <string name="settings_export_backup">EXPORT DATABASE BACKUP</string>

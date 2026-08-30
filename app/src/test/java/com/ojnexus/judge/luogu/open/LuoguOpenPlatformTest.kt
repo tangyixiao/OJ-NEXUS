@@ -125,6 +125,46 @@ class LuoguOpenPlatformClientTest {
     }
 
     @Test
+    fun `quota endpoint maps available points and sends Basic authorization`() = runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(
+                    """
+                    {
+                      "quotas": [
+                        {
+                          "availablePoints": 30000,
+                          "createTime": 1697620471,
+                          "validAfter": 1713542400,
+                          "expireTime": 1721491199,
+                          "points": {"max": 30000, "used": 0}
+                        },
+                        {
+                          "availablePoints": 120,
+                          "createTime": 1697620472,
+                          "validAfter": 1713542400,
+                          "expireTime": 1721491199,
+                          "points": {"max": 500, "used": 380}
+                        }
+                      ]
+                    }
+                    """.trimIndent(),
+                ),
+        )
+
+        val quota = client.fetchQuota()
+
+        assertEquals(2, quota.quotas.size)
+        assertEquals(30120L, quota.totalAvailablePoints)
+        assertEquals(30000L, quota.quotas.first().maxPoints)
+        val request = server.takeRequest()
+        assertEquals("GET", request.method)
+        assertEquals("/judge/quotaAvailable", request.path)
+        assertEquals("Basic dTpz", request.getHeader("Authorization"))
+    }
+
+    @Test
     fun `quota exhaustion is typed and is never retried`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(402))
 
