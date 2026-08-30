@@ -161,6 +161,9 @@
     <string name="error_difficulty_invalid">DIFFICULTY MUST BE A NUMBER</string>
     <string name="error_url_invalid">URL MUST START WITH HTTP(S)</string>
     <string name="error_generic">SAVE FAILED</string>
+    <string name="error_load_failed">LOAD FAILED</string>
+    <string name="error_remote_catalog_unavailable">REMOTE CATALOG UNAVAILABLE</string>
+    <string name="error_focus_load_failed">FOCUS DATA UNAVAILABLE</string>
     <string name="action_save">SAVE</string>
     <string name="action_cancel">CANCEL</string>
     <string name="action_delete">DELETE</string>

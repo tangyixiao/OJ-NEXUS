@@ -138,6 +138,9 @@
     <string name="error_difficulty_invalid">难度必须是数字</string>
     <string name="error_url_invalid">链接必须以 HTTP(S) 开头</string>
     <string name="error_generic">保存失败</string>
+    <string name="error_load_failed">加载失败</string>
+    <string name="error_remote_catalog_unavailable">远程题库不可用</string>
+    <string name="error_focus_load_failed">专注数据不可用</string>
     <string name="action_save">保存</string>
     <string name="action_cancel">取消</string>
     <string name="action_delete">删除</string>

@@ -114,7 +114,9 @@ class AnalyticsViewModel(
             ),
         )
     }
-        .catch<Loadable<AnalyticsUiState>> { emit(Loadable.Failed(it.message ?: "Load failed")) }
+        .catch<Loadable<AnalyticsUiState>> {
+            emit(Loadable.Failed(it.message ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_load_failed)))
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
 
     /** Monday of the week containing the first heatmap day. */

@@ -22,7 +22,7 @@ class ContestFocusViewModel(
     val state: StateFlow<Loadable<ContestFocusSnapshot>> = repository
         .observeFocus(judge, contestId)
         .map<ContestFocusSnapshot, Loadable<ContestFocusSnapshot>> { Loadable.Ready(it) }
-        .catch { emit(Loadable.Failed(it.message ?: "focus load failed")) }
+        .catch { emit(Loadable.Failed(it.message ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_focus_load_failed))) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
 
     fun cycleMarker(problemExternalId: String) {

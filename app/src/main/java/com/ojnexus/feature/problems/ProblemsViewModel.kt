@@ -71,7 +71,9 @@ class ProblemsViewModel(
                 ),
             )
         }
-            .catch<Loadable<ProblemsUiState>> { emit(Loadable.Failed(it.message ?: "Load failed")) }
+            .catch<Loadable<ProblemsUiState>> {
+                emit(Loadable.Failed(it.message ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_load_failed)))
+            }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
 
     private val remoteCatalog = kotlinx.coroutines.flow.MutableStateFlow(RemoteProblemsUiState())
@@ -175,7 +177,12 @@ class ProblemsViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            remoteCatalog.update { it.copy(loading = false, error = e.message ?: "Remote catalog unavailable") }
+            remoteCatalog.update {
+                it.copy(
+                    loading = false,
+                    error = e.message ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_remote_catalog_unavailable),
+                )
+            }
         }
     }
 
