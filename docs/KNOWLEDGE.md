@@ -28,7 +28,9 @@ is available in problem detail and updates the tree reactively.
 
 ## Candidate priority
 
-`TrainingPlanner` is the pure ranking boundary for the next training-plan surface. It assigns
+`TrainingPlanner` is the pure ranking boundary for the training-plan surface. It assigns
 points only from explicit local signals: unsolved state (35), review due (25), failure history
 (up to 20), fitting difficulty (15), and coverage value (5). It returns reason codes together
-with the clamped 0–100 priority, so a future candidate feed can show why a problem is selected.
+with the clamped 0–100 priority, and the Training screen now renders the top local candidates
+with those reasons. An optional target difficulty can be supplied to activate the difficulty-fit
+signal; the current UI leaves it unset rather than inventing a target.

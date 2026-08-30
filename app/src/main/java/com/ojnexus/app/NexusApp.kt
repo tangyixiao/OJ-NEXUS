@@ -97,6 +97,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     }
                     composable(NexusDestination.TRAINING.route) {
                         TrainingScreen(
+                            onOpenProblem = { id -> navController.navigate("problem/$id") },
                             onOpenSession = { id ->
                                 navController.navigate(
                                     if (id == null) NexusRoutes.SESSION_ACTIVE else "session/$id",

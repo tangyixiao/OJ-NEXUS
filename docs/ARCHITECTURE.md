@@ -2,7 +2,7 @@
 
 ## Module Layout
 
-Phase 0–3: single `app` module with strict package boundaries. Real Gradle modularization only
+Phase 0–6: single `app` module with strict package boundaries. Real Gradle modularization only
 when the codebase justifies it (no premature 20-module split).
 
 ```
@@ -21,7 +21,7 @@ com.ojnexus
 └── feature/
     ├── dashboard/  problems/ (library, form, detail)  training/ (queue, tasks,
     │                          sessions, review session)  analytics/  profile/
-    └── contests/ settings/   # Multi-OJ entry points; arena/knowledge later
+    └── contests/ settings/   # Multi-OJ entry points and Arena focus
 ```
 
 ## Dependency Injection

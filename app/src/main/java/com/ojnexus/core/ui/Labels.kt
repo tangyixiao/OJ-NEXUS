@@ -11,6 +11,7 @@ import com.ojnexus.core.model.TaskType
 import com.ojnexus.core.model.TrainingType
 import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.domain.MasteryReason
+import com.ojnexus.core.domain.TrainingReason
 
 /** UI label resources for domain enums — centralized so screens never map inline. */
 
@@ -33,6 +34,15 @@ fun MasteryReason.labelRes(): Int = when (this) {
     MasteryReason.NO_EVIDENCE -> R.string.mastery_reason_no_evidence
     MasteryReason.LOW_AC_RATE -> R.string.mastery_reason_low_ac
     MasteryReason.FAILURE_LOG -> R.string.mastery_reason_failures
+}
+
+@StringRes
+fun TrainingReason.labelRes(): Int = when (this) {
+    TrainingReason.UNSOLVED -> R.string.training_reason_unsolved
+    TrainingReason.REVIEW_DUE -> R.string.training_reason_review
+    TrainingReason.FAILURE_HISTORY -> R.string.training_reason_failures
+    TrainingReason.DIFFICULTY_FIT -> R.string.training_reason_difficulty
+    TrainingReason.COVERAGE_VALUE -> R.string.training_reason_coverage
 }
 
 @StringRes

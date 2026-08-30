@@ -45,12 +45,12 @@ problem tracker, local-only marker cycle, and submission progress joined from lo
 Contest and problem links use Custom Tabs; no scraping, auto-submit, passwords, or cookies.
 See [docs/ARENA.md](ARENA.md).
 
-## PHASE 6 — Knowledge + Mastery foundation ✅ (current milestone)
+## PHASE 6 — Knowledge + Mastery ✅ (current milestone)
 Explicit problem-knowledge relations, Room v5 migration, complete knowledge-tree display in
 Training, SQL evidence aggregation, and explainable deterministic Mastery Engine with reason
-codes are implemented. Problem detail edits relations, and the pure candidate-level
-`TrainingPlanner` now defines explainable priority inputs; wiring a full candidate feed into the
-plan generator is the next incremental slice. See [docs/KNOWLEDGE.md](KNOWLEDGE.md).
+codes are implemented. Problem detail edits relations, and Training now displays a real local
+candidate feed ranked by the pure candidate-level `TrainingPlanner`. See
+[docs/KNOWLEDGE.md](KNOWLEDGE.md).
 
 ## PHASE 7 — Achievements + Player Card
 Achievement set with unlock detection, Player Card, share-image generation.

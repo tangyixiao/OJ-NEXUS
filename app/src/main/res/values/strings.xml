@@ -277,6 +277,14 @@
     <!-- Training screen -->
     <string name="training_section_target">TODAY\'S TARGET</string>
     <string name="training_section_weak">WEAK AREAS</string>
+    <string name="training_section_targets">TRAINING TARGETS</string>
+    <string name="training_target_empty">NO ACTIVE TRAINING TARGETS</string>
+    <string name="training_priority">P%d</string>
+    <string name="training_reason_unsolved">UNSOLVED</string>
+    <string name="training_reason_review">REVIEW DUE</string>
+    <string name="training_reason_failures">FAILURE HISTORY</string>
+    <string name="training_reason_difficulty">DIFFICULTY FIT</string>
+    <string name="training_reason_coverage">COVERAGE VALUE</string>
     <string name="training_section_knowledge">KNOWLEDGE TREE</string>
     <string name="knowledge_area_count">%d AREAS</string>
     <string name="knowledge_score">%d%%</string>

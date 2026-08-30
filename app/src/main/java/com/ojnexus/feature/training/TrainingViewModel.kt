@@ -9,6 +9,8 @@ import com.ojnexus.core.model.Problem
 import com.ojnexus.core.model.ReviewQueueItem
 import com.ojnexus.core.model.TaskType
 import com.ojnexus.core.model.TrainingType
+import com.ojnexus.core.domain.TrainingCandidate
+import com.ojnexus.core.domain.TrainingPlanner
 import com.ojnexus.core.ui.Loadable
 import java.time.Clock
 import java.time.LocalDate
@@ -38,13 +40,22 @@ class TrainingViewModel(
     /** Manual re-sync trigger for flows whose sources change outside Room (none currently). */
     private val refresh = MutableStateFlow(0)
 
+    private data class TrainingSignals(
+        val knowledge: List<com.ojnexus.core.data.repository.KnowledgeAreaState>,
+        val candidates: List<com.ojnexus.core.database.dao.TrainingCandidateRow>,
+    )
+
     val state: StateFlow<Loadable<TrainingUiState>> = combine(
         reviewRepository.observeQueue(),
         trainingRepository.observeTasks(todayEpochDay),
         trainingRepository.observeActiveSession(),
         trainingRepository.observeHistory(limit = 10),
-        combine(knowledgeRepository.observeMastery(), refresh) { knowledge, _ -> knowledge },
-    ) { queue, tasks, activeSession, history, knowledge ->
+        combine(
+            knowledgeRepository.observeMastery(),
+            trainingRepository.observeCandidateRows(todayEpochDay),
+            refresh,
+        ) { knowledge, candidates, _ -> TrainingSignals(knowledge, candidates) },
+    ) { queue, tasks, activeSession, history, signals ->
         Loadable.Ready(
             TrainingUiState(
                 todayEpochDay = todayEpochDay,
@@ -52,7 +63,30 @@ class TrainingViewModel(
                 reviews = bucketReviews(todayEpochDay, queue),
                 activeSession = activeSession,
                 history = history,
-                knowledge = knowledge,
+                knowledge = signals.knowledge,
+                recommendations = signals.candidates
+                    .map { row ->
+                        val priority = TrainingPlanner.rank(
+                            TrainingCandidate(
+                                solved = row.solved,
+                                attemptCount = row.attemptCount,
+                                failureCount = row.failureCount,
+                                reviewDue = row.reviewDue,
+                                difficulty = row.difficulty,
+                                targetDifficulty = null,
+                                coverageValue = row.coverageValue,
+                            ),
+                        )
+                        TrainingRecommendation(
+                            problemId = row.id,
+                            judge = row.judge,
+                            externalId = row.externalId,
+                            title = row.title,
+                            priority = priority.priority,
+                            reasons = priority.reasons,
+                        )
+                    }
+                    .sortedWith(compareByDescending<TrainingRecommendation> { it.priority }.thenBy { it.problemId }),
             ),
         )
     }

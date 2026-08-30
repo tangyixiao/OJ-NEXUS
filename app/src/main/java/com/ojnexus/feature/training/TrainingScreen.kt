@@ -46,6 +46,7 @@ import com.ojnexus.core.model.TrainingTask
 import com.ojnexus.core.model.TrainingType
 import com.ojnexus.core.data.repository.KnowledgeAreaState
 import com.ojnexus.core.domain.MasteryReason
+import com.ojnexus.core.domain.TrainingReason
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
@@ -58,6 +59,7 @@ import com.ojnexus.core.ui.tone
 fun TrainingScreen(
     onOpenSession: (Long?) -> Unit,
     onOpenReview: (Long) -> Unit,
+    onOpenProblem: (Long) -> Unit,
 ) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<TrainingViewModel>(
@@ -89,6 +91,7 @@ fun TrainingScreen(
                 viewModel = viewModel,
                 onOpenSession = onOpenSession,
                 onOpenReview = onOpenReview,
+                onOpenProblem = onOpenProblem,
             )
         }
     }
@@ -112,6 +115,7 @@ private fun TrainingContent(
     viewModel: TrainingViewModel,
     onOpenSession: (Long?) -> Unit,
     onOpenReview: (Long) -> Unit,
+    onOpenProblem: (Long) -> Unit,
 ) {
     var showTaskDialog by rememberSaveable { mutableStateOf(false) }
     var showSessionDialog by rememberSaveable { mutableStateOf(false) }
@@ -164,6 +168,10 @@ private fun TrainingContent(
                 }
             }
         }
+
+        SectionGap()
+
+        RecommendationSection(uiState.recommendations, onOpenProblem)
 
         SectionGap()
 
@@ -246,6 +254,64 @@ private fun TrainingContent(
             },
             onDismiss = { showSessionDialog = false },
         )
+    }
+}
+
+@Composable
+private fun RecommendationSection(
+    recommendations: List<TrainingRecommendation>,
+    onOpenProblem: (Long) -> Unit,
+) {
+    NexusSection(label = stringResource(R.string.training_section_targets)) {
+        if (recommendations.isEmpty()) {
+            SectionEmpty(stringResource(R.string.training_target_empty))
+        } else {
+            recommendations.take(5).forEachIndexed { index, recommendation ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(role = Role.Button) { onOpenProblem(recommendation.problemId) }
+                        .padding(vertical = NexusSpacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = recommendation.judge.uppercase(),
+                                style = NexusTheme.typography.sectionLabel,
+                                color = NexusTheme.colors.textTertiary,
+                                modifier = Modifier.padding(end = NexusSpacing.xxs),
+                            )
+                            Text(
+                                text = recommendation.externalId,
+                                style = NexusTheme.typography.data,
+                                color = NexusTheme.colors.accent,
+                            )
+                        }
+                        Text(
+                            text = recommendation.title,
+                            style = NexusTheme.typography.label,
+                            color = NexusTheme.colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    TrainingReason.entries.filter { it in recommendation.reasons }.take(2).forEach { reason ->
+                        NexusTag(
+                            text = stringResource(reason.labelRes()),
+                            tone = NexusTone.Warning,
+                            modifier = Modifier.padding(end = NexusSpacing.xxs),
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.training_priority, recommendation.priority),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.accent,
+                    )
+                }
+                if (index != recommendations.take(5).lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
+            }
+        }
     }
 }
 
