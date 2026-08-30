@@ -38,6 +38,7 @@ import com.ojnexus.core.database.entity.RemoteProblemEntity
 import com.ojnexus.core.database.entity.ReviewEntity
 import com.ojnexus.core.database.entity.ReviewLogEntity
 import com.ojnexus.core.database.entity.SyncStateEntity
+import com.ojnexus.core.database.entity.SubmissionJobEntity
 import com.ojnexus.core.database.entity.TrainingSessionEntity
 import com.ojnexus.core.database.entity.TrainingSessionProblemEntity
 import com.ojnexus.core.database.entity.TrainingTaskEntity
@@ -59,8 +60,11 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
  * v5 (Phase 6): explicit problem-to-knowledge relations for local mastery evidence.
  *
  * v6 (Phase 1 Luogu): nullable public Luogu profile metadata and nullable rating facts.
+ *
+ * v7 (Phase 2 Luogu): local Open Platform request lifecycle metadata. Source code, input,
+ * and credentials are intentionally not database columns.
  */
-const val OJ_NEXUS_SCHEMA_VERSION = 6
+const val OJ_NEXUS_SCHEMA_VERSION = 7
 
 @Database(
     entities = [
@@ -83,6 +87,7 @@ const val OJ_NEXUS_SCHEMA_VERSION = 6
         ContestProblemMarkerEntity::class,
         ProblemKnowledgeEntity::class,
         SyncStateEntity::class,
+        SubmissionJobEntity::class,
     ],
     version = OJ_NEXUS_SCHEMA_VERSION,
     exportSchema = true,
@@ -105,6 +110,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
     abstract fun contestProblemMarkerDao(): ContestProblemMarkerDao
     abstract fun knowledgeDao(): KnowledgeDao
     abstract fun syncStateDao(): SyncStateDao
+    abstract fun submissionJobDao(): com.ojnexus.core.database.dao.SubmissionJobDao
 
     companion object {
         const val DATABASE_NAME = "oj-nexus.db"
@@ -476,9 +482,26 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `submission_jobs` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`judge` TEXT NOT NULL, `request_id` TEXT NOT NULL, `track_id` TEXT, " +
+                        "`kind` TEXT NOT NULL, `pid` TEXT, `language` TEXT NOT NULL, " +
+                        "`status` TEXT NOT NULL, `judge_status` INTEGER, `score` INTEGER, " +
+                        "`created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, " +
+                        "`last_error_type` TEXT)",
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_submission_jobs_request_id` ON `submission_jobs` (`request_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_submission_jobs_status` ON `submission_jobs` (`status`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_submission_jobs_updated_at` ON `submission_jobs` (`updated_at`)")
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .build()
     }
 }

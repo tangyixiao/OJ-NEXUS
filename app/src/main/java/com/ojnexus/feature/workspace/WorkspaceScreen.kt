@@ -53,7 +53,7 @@ fun WorkspaceScreen(
             WorkspaceViewModel(
                 pid = pid,
                 title = null,
-                gateway = it.luoguOpenClient,
+                gateway = it.luoguSubmissionRepository,
                 credentialStore = it.luoguOpenCredentialStore,
             )
         },

@@ -163,6 +163,7 @@ class MigrationTest {
             OjNexusDatabase.MIGRATION_3_4,
             OjNexusDatabase.MIGRATION_4_5,
             OjNexusDatabase.MIGRATION_5_6,
+            OjNexusDatabase.MIGRATION_6_7,
         ).build()
 
         try {
@@ -252,6 +253,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_3_4,
                 OjNexusDatabase.MIGRATION_4_5,
                 OjNexusDatabase.MIGRATION_5_6,
+                OjNexusDatabase.MIGRATION_6_7,
             )
             .build()
         db.openHelper.writableDatabase
@@ -322,6 +324,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_3_4,
                 OjNexusDatabase.MIGRATION_4_5,
                 OjNexusDatabase.MIGRATION_5_6,
+                OjNexusDatabase.MIGRATION_6_7,
             )
             .build()
         try {
@@ -336,7 +339,7 @@ class MigrationTest {
         createDatabaseFromSchema(5)
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_5_6)
+            .addMigrations(OjNexusDatabase.MIGRATION_5_6, OjNexusDatabase.MIGRATION_6_7)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -356,6 +359,35 @@ class MigrationTest {
         }
         assertTrue(columns("judge_profiles").containsAll(setOf("introduction", "ranking", "badge")))
         assertTrue(columns("rating_changes").containsAll(setOf("old_rating", "rank")))
+        raw.close()
+    }
+
+    @Test
+    fun `migrate 6 to 7 adds local submission jobs without source columns`() {
+        createDatabaseFromSchema(6)
+
+        val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
+            .addMigrations(OjNexusDatabase.MIGRATION_6_7)
+            .build()
+        try {
+            db.openHelper.writableDatabase
+        } finally {
+            db.close()
+        }
+
+        val raw = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        val columns = buildSet {
+            raw.rawQuery("PRAGMA table_info(`submission_jobs`)", null).use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+            }
+        }
+        assertTrue(columns.containsAll(setOf("request_id", "kind", "status", "created_at", "updated_at")))
+        assertTrue("code" !in columns)
+        assertTrue("input" !in columns)
         raw.close()
     }
 }

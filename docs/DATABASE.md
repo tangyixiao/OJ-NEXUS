@@ -25,6 +25,7 @@ already reads only aggregates — revisit if volumes grow.
 | `training_tasks` | TODAY list | FK→problems CASCADE; `date_epoch_day` local day key |
 | `training_sessions` | session lifecycle | state PLANNED/RUNNING/PAUSED/FINISHED/CANCELLED; timing = persisted snapshots (`started_at`,`paused_at`,`total_paused_ms`,`finished_at`), never ticked |
 | `training_session_problems` | session ↔ problem | PK(`session_id`,`problem_id`), FK CASCADE both |
+| `submission_jobs` | Open Platform request lifecycle metadata | request ID, mode, problem/language, result status; never source code, input, or credentials |
 | `judge_accounts` | public OJ connections | one active account per judge; verification/source reliability; no credentials |
 | `judge_profiles` | cached public profile | normalized profile fields, not a JSON blob |
 | `rating_changes` | rating history | stable contest identity for idempotent upsert |

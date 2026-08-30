@@ -80,7 +80,8 @@ publishing remains a separate release action requiring explicit authorization.
 The first slice uses the official Luogu Open Platform HTTP Basic API: local Keystore-protected
 OpenApp credentials, Compose code workspace, explicit foreground `/run` and `/problem` actions,
 and user-triggered `/result/{id}` polling. POST requests are not automatically retried, and the
-workspace does not persist source code or standard input. No plaintext main-site passwords,
+workspace persists only request metadata and materializes terminal user-originated results as
+idempotent local attempts; it does not persist source code or standard input. No plaintext main-site passwords,
 harvested browser cookies, background submissions, WebView shell, local bundled compiler, or
 cloud synchronization is permitted. Local Android runtime verification with a real OpenApp
 credential remains separate from the unit-test/build verification.

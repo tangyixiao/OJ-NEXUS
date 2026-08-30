@@ -45,6 +45,7 @@ import com.ojnexus.judge.luogu.api.LuoguApi
 import com.ojnexus.judge.luogu.open.AndroidOpenAppCredentialStore
 import com.ojnexus.judge.luogu.open.LuoguOpenPlatformApi
 import com.ojnexus.judge.luogu.open.LuoguOpenPlatformClient
+import com.ojnexus.judge.luogu.open.LuoguSubmissionRepository
 import kotlinx.serialization.json.Json
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -140,6 +141,7 @@ class AppContainer(context: android.content.Context) {
         .build()
         .create(LuoguOpenPlatformApi::class.java)
     val luoguOpenClient = LuoguOpenPlatformClient(luoguOpenApi, luoguOpenCredentialStore)
+    val luoguSubmissionRepository = LuoguSubmissionRepository(database, luoguOpenClient, clock)
 
     val judgeRegistry = JudgeRegistry(
         adapters = listOf(codeforcesAdapter, atCoderAdapter, luoguAdapter),
