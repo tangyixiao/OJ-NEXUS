@@ -87,3 +87,10 @@ background submissions, WebView shell, local bundled compiler, or cloud synchron
 permitted. Local Android runtime verification with a real OpenApp credential remains separate
 from the unit-test/build verification. Main-site login, background automation, local compilation,
 and cloud/cross-device sync remain intentionally out of scope for this safe slice.
+
+The local submission center is now included in this slice. It lists recent Open Platform request
+metadata from Room, shows pending/ready/failed state and available evaluation metadata, lets the
+user manually query pending or failed requests, and reopens the related problem workspace. It is
+reachable from Profile and the command palette; the five primary bottom-bar destinations remain
+unchanged. The center is local-only and does not turn anonymous Luogu history into fabricated
+submissions.
