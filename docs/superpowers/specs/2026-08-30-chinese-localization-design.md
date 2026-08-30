@@ -2,19 +2,21 @@
 
 ## 目标
 
-为 OJ NEXUS 增加完整的简体中文界面。应用根据 Android 系统语言自动选择中文资源；非中文系统继续使用现有英文资源作为默认回退。功能、数据模型、网络协议和 OJ 数据内容不改变。
+为 OJ NEXUS 增加完整的简体中文界面。应用初始默认跟随 Android 系统语言，用户也可以在设置中选择“跟随系统 / English / 简体中文”；非中文系统继续使用现有英文资源作为默认回退。功能、数据模型、网络协议和 OJ 数据内容不改变。
 
 ## 范围
 
 - 新增 `app/src/main/res/values-zh-rCN/strings.xml`，覆盖默认资源目录中的全部字符串键。
 - 翻译导航、页面标题、操作按钮、状态、错误、空状态、设置、无障碍描述和数据安全提示。
 - 保留 Codeforces、AtCoder、题目标题、题目标签、判题结果代码及用户输入等数据原文。
-- 保留英文 `values/strings.xml` 作为默认资源，不增加应用内语言开关或额外持久化状态。
+- 保留英文 `values/strings.xml` 作为默认资源。
+- 使用 AndroidX AppCompat 的 per-app locale API 实现语言选择：空 locale 列表表示跟随系统，`en` 表示英文，`zh-CN` 表示简体中文；Android 13+ 与系统语言设置同步，Android 12 及以下使用 AppCompat 的自动存储兼容路径。
+- 在 manifest 声明 `localeConfig` 和 AppCompat locale metadata，使语言选择可被系统识别并在 Activity 重建后保持。
 - 处理少量 Kotlin 中作为异常回退的英文文案，使用户可见的基础错误信息也能通过资源本地化；服务端错误类型、题目数据和日志标识不翻译。
 
 ## 资源与架构
 
-Android 的资源选择机制负责按系统 locale 选择 `values-zh-rCN`。不在 Composable 中判断语言，不复制业务逻辑，不改变导航路由。格式化参数沿用英文资源的参数编号和类型；换行、标点和大写风格以简体中文可读性为准。
+Android 的资源选择机制负责按系统或应用 locale 选择 `values-zh-rCN`。设置页只负责把用户选择交给 AppCompat locale API，不在 Composable 中复制业务逻辑或手动改 Context；API 会触发 Activity 重建，Compose 自动重新解析 `stringResource`。格式化参数沿用英文资源的参数编号和类型；换行、标点和大写风格以简体中文可读性为准。
 
 中文资源必须与默认资源键集合一致。资源一致性测试读取两个 XML 文件，验证：
 
@@ -29,11 +31,12 @@ Android 的资源选择机制负责按系统 locale 选择 `values-zh-rCN`。不
 - 资源一致性测试通过，覆盖所有现有字符串键及格式占位符。
 - 中文系统环境下启动后，Dashboard、Problems、Training、Analytics、Profile、Settings、Command Palette 和 Contest/Arena 的静态界面文案显示为简体中文。
 - 英文系统环境下界面保持现有英文表现。
+- 设置中的语言选择默认为“跟随系统”，选择 English 或简体中文后立即重建 Activity 并保持选择；重新选择“跟随系统”后恢复系统语言。
 - 题目标题、OJ 名称、标签、AC/WA 等判题代码和用户数据保持原样。
 - `test`、`assembleDebug`、`lintDebug` 全部成功，且无新增本地化相关警告。
 
 ## 非目标
 
-- 不加入应用内语言选择器。
+- 不支持除 English 和简体中文之外的额外应用语言。
 - 不翻译远端 OJ 返回的题目、标签、比赛名称或错误原文。
 - 不修改数据库 schema、同步逻辑、主题色、导航结构或发布版本号。

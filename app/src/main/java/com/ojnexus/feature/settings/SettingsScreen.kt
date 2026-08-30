@@ -31,9 +31,12 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
 import com.ojnexus.core.data.sync.SyncPhase
+import com.ojnexus.core.data.preferences.AppLanguage
 import com.ojnexus.core.designsystem.NexusRadius
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
@@ -83,6 +86,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     }
     var disconnectAccountId by rememberSaveable { mutableStateOf<Long?>(null) }
     var purgeCache by rememberSaveable { mutableStateOf(false) }
+    val appLanguage = AppLanguage.fromLocaleTags(AppCompatDelegate.getApplicationLocales().toLanguageTags())
 
     Column(Modifier.fillMaxSize().background(NexusTheme.colors.background)) {
         NexusTopBar(
@@ -170,6 +174,29 @@ fun SettingsScreen(onBack: () -> Unit) {
                     checked = preferences.hapticsEnabled,
                     onCheckedChange = viewModel::setHapticsEnabled,
                 )
+            }
+            Spacer(Modifier.height(NexusSpacing.xl))
+            NexusSection(label = stringResource(R.string.settings_section_language)) {
+                Text(
+                    text = stringResource(R.string.settings_language_hint),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.textTertiary,
+                )
+                Spacer(Modifier.height(NexusSpacing.sm))
+                Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+                    AppLanguage.entries.forEach { language ->
+                        LanguageAction(
+                            language = language,
+                            selected = language == appLanguage,
+                            onClick = {
+                                AppCompatDelegate.setApplicationLocales(
+                                    LocaleListCompat.forLanguageTags(language.localeTag),
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
             Spacer(Modifier.height(NexusSpacing.xl))
             NexusSection(label = stringResource(R.string.settings_section_theme)) {
@@ -463,6 +490,35 @@ private fun ThemeSlotAction(
                     NexusThemeSlot.NEXUS_BLUE -> R.string.settings_theme_blue
                     NexusThemeSlot.TERMINAL_GREEN -> R.string.settings_theme_green
                     NexusThemeSlot.AMBER_SIGNAL -> R.string.settings_theme_amber
+                },
+            ),
+            style = NexusTheme.typography.dataSmall,
+            color = if (selected) colors.accent else colors.textSecondary,
+        )
+    }
+}
+
+@Composable
+private fun LanguageAction(
+    language: AppLanguage,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = NexusTheme.colors
+    Box(
+        modifier.background(if (selected) colors.accentContainer else colors.surface, NexusRadius.sm)
+            .border(NexusSize.dividerThickness, if (selected) colors.accent else colors.border, NexusRadius.sm)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = NexusSpacing.xxs, vertical = NexusSpacing.xs),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = stringResource(
+                when (language) {
+                    AppLanguage.SYSTEM -> R.string.settings_language_system
+                    AppLanguage.ENGLISH -> R.string.settings_language_english
+                    AppLanguage.SIMPLIFIED_CHINESE -> R.string.settings_language_chinese
                 },
             ),
             style = NexusTheme.typography.dataSmall,

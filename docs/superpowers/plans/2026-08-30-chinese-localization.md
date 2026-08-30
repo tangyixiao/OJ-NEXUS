@@ -1,14 +1,15 @@
 # Simplified Chinese Localization Implementation Plan
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-**Goal:** Add complete Simplified Chinese Android resources that follow the system locale while preserving English fallback and all user/OJ data.
-**Architecture:** Keep `values/strings.xml` as the default and add a mirrored `values-zh-rCN/strings.xml`. Android resource selection handles locale choice; a JVM test compares resource keys and format placeholders.
-**Tech Stack:** Android resources, Kotlin/JUnit, standard JDK XML parser, Gradle Android resource processing.
+**Goal:** Add complete Simplified Chinese Android resources that follow the system locale by default while allowing an in-app switch between system, English, and Simplified Chinese.
+**Architecture:** Keep `values/strings.xml` as the default and add a mirrored `values-zh-rCN/strings.xml`. AndroidX AppCompat per-app locales owns the override and persistence; an empty app locale means follow system. A JVM test compares resource keys and format placeholders, and a pure Kotlin test covers language-mode mapping.
+**Tech Stack:** Android resources, AndroidX AppCompat 1.7.1, Kotlin/JUnit, standard JDK XML parser, Gradle Android resource processing.
 **Spec:** `docs/superpowers/specs/2026-08-30-chinese-localization-design.md`
 ## Global Constraints
 - UI tone remains native Android competitive-programming telemetry UI; no marketing copy.
 - OJ names, problem titles, tags, user input, and verdict codes remain unchanged.
 - Do not change database schema, sync behavior, theme, navigation, or version number.
 - Every new user-visible label is a string resource.
+- The language selector offers exactly `SYSTEM`, `ENGLISH`, and `SIMPLIFIED_CHINESE`; `SYSTEM` maps to an empty AppCompat locale list.
 - Run `tools\gradlew-local.bat test assembleDebug lintDebug` before completion.
 ### Task 1: Add a failing resource-parity test
 **Files:** Create `app/src/test/java/com/ojnexus/core/resources/LocalizationResourceTest.kt`.
@@ -28,7 +29,15 @@
 - [ ] **Step 1: Add matching `error_load_failed` resources and replace only literals such as `"Load failed"` that reach user-visible state.**
 - [ ] **Step 2: Run `tools\gradlew-local.bat :app:testDebugUnitTest --tests com.ojnexus.core.resources.LocalizationResourceTest` and `git diff --check`; expect PASS and no new hardcoded UI strings.**
 - [ ] **Step 3: Commit with `git add app/src/main/java app/src/main/res/values/strings.xml app/src/main/res/values-zh-rCN/strings.xml` and `git commit -m "fix: localize generic loading failures"`.**
-### Task 4: Build and verify both locale paths
+### Task 4: Add the in-app language selector
+**Files:** Create `app/src/test/java/com/ojnexus/core/data/preferences/AppLanguageTest.kt`; create `app/src/main/java/com/ojnexus/core/data/preferences/AppLanguage.kt`; modify `gradle/libs.versions.toml`, `app/build.gradle.kts`, `app/src/main/AndroidManifest.xml`, `app/src/main/java/com/ojnexus/MainActivity.kt`, `app/src/main/java/com/ojnexus/feature/settings/SettingsScreen.kt`; create `app/src/main/res/xml/locales_config.xml`; update both string XML files.
+**Interfaces:** `AppLanguage` exposes `SYSTEM`, `ENGLISH`, and `SIMPLIFIED_CHINESE`, plus deterministic tag conversion and parsing. Settings calls `AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(...))`; Activity extends `AppCompatActivity` so Compose receives the recreated localized configuration.
+- [ ] **Step 1: Write the failing pure mapping test.** Assert `SYSTEM` maps to an empty tag, `ENGLISH` maps to `en`, `SIMPLIFIED_CHINESE` maps to `zh-CN`, and parsing those tags returns the matching enum.
+- [ ] **Step 2: Verify RED.** Run `tools\gradlew-local.bat :app:testDebugUnitTest --tests com.ojnexus.core.data.preferences.AppLanguageTest`; it must fail because `AppLanguage` does not exist.
+- [ ] **Step 3: Implement the locale boundary.** Add AppCompat 1.7.1, declare `en` and `zh-CN` in `res/xml/locales_config.xml`, add `android:localeConfig`, add the disabled AppCompat `AppLocalesMetadataHolderService` with `autoStoreLocales=true`, extend `MainActivity` from `AppCompatActivity`, and add a Settings language section with `FOLLOW SYSTEM`, `ENGLISH`, and `简体中文` resource labels. Set locales on the main thread and let Activity recreation refresh Compose; do not add a second DataStore language state.
+- [ ] **Step 4: Verify GREEN.** Run the focused mapping test and the localization parity test; expect PASS.
+- [ ] **Step 5: Commit the selector.** Run `git add app/src/main app/src/test gradle/libs.versions.toml app/build.gradle.kts` and `git commit -m "feat: add in-app language selector"`.
+### Task 5: Build and verify both locale paths
 **Files:** Verify the two string XML files and the localization test; do not change schema, navigation, or version.
 **Interfaces:** Produce a verified debug APK and emulator evidence for Simplified Chinese and English locales.
 - [ ] **Step 1: Run `tools\gradlew-local.bat clean test assembleDebug lintDebug`; expect `BUILD SUCCESSFUL`, all tests green, no resource/lint errors, and `app/build/outputs/apk/debug/app-debug.apk`.**

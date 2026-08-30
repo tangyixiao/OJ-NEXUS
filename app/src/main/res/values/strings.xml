@@ -411,6 +411,11 @@
     <string name="settings_reduce_motion_desc">REMOVE NAVIGATION FADE TRANSITIONS</string>
     <string name="settings_haptics">HAPTICS</string>
     <string name="settings_haptics_desc">VIBRATE LIGHTLY WHEN CHANGING PRIMARY TABS</string>
+    <string name="settings_section_language">LANGUAGE</string>
+    <string name="settings_language_hint">FOLLOW SYSTEM BY DEFAULT OR CHOOSE AN APP LANGUAGE</string>
+    <string name="settings_language_system">SYSTEM</string>
+    <string name="settings_language_english">ENGLISH</string>
+    <string name="settings_language_chinese">简体中文</string>
     <string name="settings_section_theme">THEME SLOT</string>
     <string name="settings_theme_hint">CHOOSE ONE ACCENT PALETTE FOR THE DARK INTERFACE</string>
     <string name="settings_theme_blue">BLUE</string>

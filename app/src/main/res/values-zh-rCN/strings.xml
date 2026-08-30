@@ -366,6 +366,11 @@
     <string name="settings_reduce_motion_desc">移除导航淡入淡出效果</string>
     <string name="settings_haptics">触感反馈</string>
     <string name="settings_haptics_desc">切换主标签页时轻微振动</string>
+    <string name="settings_section_language">语言</string>
+    <string name="settings_language_hint">默认跟随系统，也可以选择应用语言</string>
+    <string name="settings_language_system">跟随系统</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_chinese">简体中文</string>
     <string name="settings_section_theme">主题色</string>
     <string name="settings_theme_hint">为深色界面选择一种强调色</string>
     <string name="settings_theme_blue">蓝色</string>
