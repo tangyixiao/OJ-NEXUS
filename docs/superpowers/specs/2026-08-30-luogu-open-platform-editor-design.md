@@ -8,9 +8,8 @@
 
 - 基地址：`https://open-v1.lgapi.cn`。
 - 授权：HTTP Basic，凭据是洛谷 Open Platform 提供的 OpenApp Token，不把主站密码当作输入。
-- 评测：`POST /problem`，请求包含 `pid`、`lang`、`o2`、`code` 和可选 `trackId`。
-- 运行：`POST /run`，请求包含 `input`、`lang`、`o2`、`code` 和可选 `trackId`。
-- 结果：`GET /result/{id}`；结果尚未产生时接受 HTTP 204，结果缓存窗口有限。
+- 评测：`POST /judge/problem`，请求包含 `pid`、`lang`、`o2`、`code` 和可选 `trackId`。
+- 结果：`GET /judge/result/{id}`；结果尚未产生时接受 HTTP 204，结果缓存窗口有限。
 - 额度不足按 402 处理；401/403 不重试，不把授权失败伪装成普通网络错误。
 
 ## 安全与生命周期
@@ -29,8 +28,9 @@
 ## 编辑器与工作流
 
 - 首版采用 Compose `BasicTextField`，不使用 WebView，不捆绑本地编译器。
-- 题目评测从本地已同步题库中选择 PID；运行模式允许用户输入标准输入。
-- 运行/提交按钮在未配置 OpenApp Token、代码为空、PID 为空或请求进行中时禁用。
+- 题目评测从本地已同步题库中选择 PID；官方 Open Platform 的题库评测负责远程编译和运行。
+- 自定义输入运行不是当前官方 API 能力，工作区按 provider capability 隐藏该入口。
+- 提交按钮在未配置 OpenApp Token、代码为空、PID 为空或请求进行中时禁用。
 - 提交后保存 request ID，前台轮询结果；退到后台只停止轮询，不启动后台提交。
 - 结果页面显示编译消息、状态、输出和资源信息；不把服务器返回的原始错误当作 UI 文案。
 
@@ -48,4 +48,4 @@
 - 不抓取或持久化主站 Cookie、Session、CSRF。
 - 不自动提交，不在同步 Worker 中提交代码。
 - 不实现云端服务、账号系统、跨设备同步或云端代码保存。
-- 不把洛谷 Open Platform 当成本地 C++ 编译器；本阶段的“运行”是官方远程运行接口。
+- 不把洛谷 Open Platform 当成本地 C++ 编译器；题库评测中的远程编译和运行不等于自定义输入运行。

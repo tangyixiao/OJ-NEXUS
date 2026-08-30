@@ -4,9 +4,8 @@
 
 - API 基地址：`https://open-v1.lgapi.cn/`
 - 认证：HTTP Basic，凭据由 Open Platform 提供。
-- 题库评测：`POST /problem`
-- 自定义输入运行：`POST /run`
-- 查询异步结果：`GET /result/{requestId}`；尚未产生结果时为 204
+- 题库评测：`POST /judge/problem`
+- 查询异步结果：`GET /judge/result/{requestId}`；尚未产生结果时为 204
 
 应用只在设置页显式录入 OpenApp 用户和密钥，并通过 Android Keystore 加密后写入
 `noBackupFilesDir`。凭据不进入 Room、数据库备份、日志或同步任务。工作区代码和标准输入
@@ -27,4 +26,5 @@
 伪造题目入口。提交中心不读取源码或标准输入，也不执行后台轮询。
 
 本阶段不实现洛谷主站密码、Cookie、Session、CSRF，不实现云端服务/跨设备同步，也不捆绑
-本地 C++ 编译器。工作区的“运行”使用洛谷官方远程运行接口。
+本地 C++ 编译器。官方 Open Platform 当前只提供题库评测接口；题库评测本身包含远程编译
+和运行。自定义输入运行没有在官方 API 规范中提供，因此工作区不会把它当作可用能力。
