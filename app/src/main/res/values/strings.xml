@@ -355,6 +355,13 @@
     <string name="profile_stat_active_days">ACTIVE DAYS</string>
     <string name="profile_stat_streak">STREAK</string>
     <string name="profile_stat_max_diff">MAX DIFF</string>
+    <string name="profile_section_achievements">ACHIEVEMENTS</string>
+    <string name="achievement_none">NO ACHIEVEMENTS UNLOCKED</string>
+    <string name="achievement_first_blood">FIRST BLOOD</string>
+    <string name="achievement_ten_solved">TEN SOLVED</string>
+    <string name="achievement_iron_will">IRON WILL</string>
+    <string name="achievement_red_line">RED LINE</string>
+    <string name="achievement_contestant">CONTESTANT</string>
     <string name="profile_judge_contests">%d CONTESTS</string>
     <string name="profile_judge_solved">%d SOLVED</string>
     <string name="profile_phase2_note">OJ PROFILES CONNECT IN PHASE 2</string>

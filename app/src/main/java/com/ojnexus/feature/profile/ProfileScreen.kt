@@ -33,12 +33,16 @@ import com.ojnexus.core.designsystem.component.NexusMetric
 import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
+import com.ojnexus.core.domain.AchievementEngine
+import com.ojnexus.core.domain.AchievementEvidence
+import com.ojnexus.core.domain.AchievementState
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.formatCount
 import com.ojnexus.core.ui.formatDays
+import com.ojnexus.core.ui.labelRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -59,6 +63,7 @@ data class ProfileUiState(
     val cfAccount: com.ojnexus.core.database.entity.JudgeAccountEntity?,
     val cfProfile: com.ojnexus.core.database.entity.JudgeProfileEntity?,
     val ratedContests: Int,
+    val achievements: List<AchievementState>,
 )
 
 class ProfileViewModel(
@@ -87,6 +92,15 @@ class ProfileViewModel(
                 cfAccount = account,
                 cfProfile = connections.profiles[JudgeId.CODEFORCES],
                 ratedContests = ratingChanges.size,
+                achievements = AchievementEngine.evaluate(
+                    AchievementEvidence(
+                        solved = totals.solved,
+                        activeDays = streaks.activeDays,
+                        currentStreak = streaks.current,
+                        maxSolvedDifficulty = difficultyCounts.mapNotNull { it.first }.maxOrNull(),
+                        ratedContests = ratingChanges.size,
+                    ),
+                ),
             ),
         )
     }
@@ -273,6 +287,29 @@ private fun ProfileContent(state: ProfileUiState) {
                         ?: stringResource(R.string.problems_no_value),
                     modifier = Modifier.weight(1f),
                 )
+            }
+        }
+
+        SectionGap()
+
+        NexusSection(label = stringResource(R.string.profile_section_achievements)) {
+            val unlocked = state.achievements.filter { it.unlocked }
+            if (unlocked.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.achievement_none),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textTertiary,
+                )
+            } else {
+                Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(NexusSpacing.xxs)) {
+                    unlocked.forEach { achievement ->
+                        NexusTag(
+                            text = stringResource(achievement.id.labelRes()),
+                            tone = NexusTone.Success,
+                            selected = true,
+                        )
+                    }
+                }
             }
         }
 

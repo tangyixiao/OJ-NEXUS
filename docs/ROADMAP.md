@@ -52,8 +52,9 @@ codes are implemented. Problem detail edits relations, and Training now displays
 candidate feed ranked by the pure candidate-level `TrainingPlanner`. See
 [docs/KNOWLEDGE.md](KNOWLEDGE.md).
 
-## PHASE 7 — Achievements + Player Card
-Achievement set with unlock detection, Player Card, share-image generation.
+## PHASE 7 — Achievements + Player Card foundation ✅ (current milestone)
+Deterministic local achievement unlocks and Profile Player Card achievement display are
+implemented. Share-image rendering remains the next isolated delivery step.
 
 ## PHASE 8 — Polish + Performance + Tests
 Reduce-motion + haptics settings, command palette, data export/import/backup, theme slots,

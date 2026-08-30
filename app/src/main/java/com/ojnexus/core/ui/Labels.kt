@@ -12,6 +12,7 @@ import com.ojnexus.core.model.TrainingType
 import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.domain.MasteryReason
 import com.ojnexus.core.domain.TrainingReason
+import com.ojnexus.core.domain.AchievementId
 
 /** UI label resources for domain enums — centralized so screens never map inline. */
 
@@ -43,6 +44,15 @@ fun TrainingReason.labelRes(): Int = when (this) {
     TrainingReason.FAILURE_HISTORY -> R.string.training_reason_failures
     TrainingReason.DIFFICULTY_FIT -> R.string.training_reason_difficulty
     TrainingReason.COVERAGE_VALUE -> R.string.training_reason_coverage
+}
+
+@StringRes
+fun AchievementId.labelRes(): Int = when (this) {
+    AchievementId.FIRST_BLOOD -> R.string.achievement_first_blood
+    AchievementId.TEN_SOLVED -> R.string.achievement_ten_solved
+    AchievementId.IRON_WILL -> R.string.achievement_iron_will
+    AchievementId.RED_LINE -> R.string.achievement_red_line
+    AchievementId.CONTESTANT -> R.string.achievement_contestant
 }
 
 @StringRes
