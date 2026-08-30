@@ -402,6 +402,7 @@
     <string name="settings_source_format">SOURCE %1$s</string>
     <string name="settings_verification_format">IDENTITY %1$s</string>
     <string name="settings_rating_unavailable">RATING DATA UNAVAILABLE</string>
+    <string name="settings_sync_auth_required">PUBLIC DATA SYNCED; SUBMISSIONS REQUIRE AUTHORIZATION</string>
     <string name="settings_section_data">LOCAL DATA</string>
     <string name="settings_backup_hint">EXPORT A COPY OF THE LOCAL DATABASE. NO PASSWORDS OR COOKIES ARE INCLUDED.</string>
     <string name="settings_export_backup">EXPORT DATABASE BACKUP</string>

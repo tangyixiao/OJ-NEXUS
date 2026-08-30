@@ -353,6 +353,15 @@ private fun JudgeConnectionPanel(
                     color = NexusTheme.colors.textTertiary,
                 )
             }
+            if (connection.judge == JudgeId.LUOGU &&
+                sync?.lastErrorType == "AuthenticationRequired"
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_sync_auth_required),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.warning,
+                )
+            }
             if (sync?.state == SyncPhase.SYNCING.name && sync.currentStage == com.ojnexus.core.data.sync.SyncStage.SUBMISSIONS.name) {
                 Text(
                     text = stringResource(R.string.sync_imported_count, sync.submissionsImported ?: 0),

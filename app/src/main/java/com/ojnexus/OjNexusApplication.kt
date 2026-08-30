@@ -39,6 +39,8 @@ import com.ojnexus.judge.luogu.LuoguClient
 import com.ojnexus.judge.luogu.LuoguPolicies
 import com.ojnexus.judge.luogu.LuoguUrls
 import com.ojnexus.judge.luogu.RetrofitLuoguAdapter
+import com.ojnexus.judge.luogu.LuoguSyncCoordinator
+import com.ojnexus.judge.luogu.LuoguSyncRepository
 import com.ojnexus.judge.luogu.api.LuoguApi
 import kotlinx.serialization.json.Json
 import retrofit2.Retrofit
@@ -145,9 +147,13 @@ class AppContainer(context: android.content.Context) {
 
     val atCoderSyncRepository = AtCoderSyncRepository(database, atCoderAdapter, clock)
     val atCoderSyncCoordinator = AtCoderSyncCoordinator(judgeAccountRepository, atCoderSyncRepository)
+    val luoguSyncRepository = LuoguSyncRepository(database, luoguAdapter, clock)
+    val luoguSyncCoordinator = LuoguSyncCoordinator(judgeAccountRepository, luoguSyncRepository)
 
     init {
-        judgeRegistry.attachSyncCoordinators(listOf(syncCoordinator, atCoderSyncCoordinator))
+        judgeRegistry.attachSyncCoordinators(
+            listOf(syncCoordinator, atCoderSyncCoordinator, luoguSyncCoordinator),
+        )
     }
 
     val syncDispatcher = JudgeSyncDispatcher(judgeAccountRepository, judgeRegistry)

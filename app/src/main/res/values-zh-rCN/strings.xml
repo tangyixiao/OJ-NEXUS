@@ -357,6 +357,7 @@
     <string name="settings_source_format">来源：%1$s</string>
     <string name="settings_verification_format">身份：%1$s</string>
     <string name="settings_rating_unavailable">分数数据不可用</string>
+    <string name="settings_sync_auth_required">公开数据已同步；提交记录需要授权</string>
     <string name="settings_section_data">本地数据</string>
     <string name="settings_backup_hint">导出本地数据库副本。不包含密码或 Cookie。</string>
     <string name="settings_export_backup">导出数据库备份</string>
