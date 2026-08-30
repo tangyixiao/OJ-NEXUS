@@ -10,6 +10,7 @@ import android.graphics.Typeface
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.FileProvider
 import com.ojnexus.core.designsystem.NexusColors
+import com.ojnexus.core.designsystem.NexusThemeSlot
 import java.io.File
 
 data class PlayerCardImageData(
@@ -28,6 +29,7 @@ data class PlayerCardImageData(
     val maxDifficultyLabel: String,
     val maxDifficultyValue: String,
     val achievements: List<String>,
+    val themeSlot: NexusThemeSlot = NexusThemeSlot.NEXUS_BLUE,
 )
 
 /** Renders and shares the Player Card using the same dark palette as Compose. */
@@ -48,7 +50,7 @@ object PlayerCardShare {
     }
 
     internal fun renderToCache(context: Context, data: PlayerCardImageData): File? = runCatching {
-        val colors = NexusColors.dark()
+        val colors = NexusColors.dark(data.themeSlot)
         val bitmap = Bitmap.createBitmap(CARD_WIDTH, CARD_HEIGHT, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(colors.background.toArgb())

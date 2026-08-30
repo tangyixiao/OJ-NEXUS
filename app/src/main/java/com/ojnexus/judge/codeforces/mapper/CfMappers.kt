@@ -129,10 +129,7 @@ object CfMappers {
     ): AttemptEntity = AttemptEntity(
         problemId = problemId,
         timestamp = creationTimeSeconds * 1000,
-        dayIndex = LocalDate.ofInstant(
-            java.time.Instant.ofEpochSecond(creationTimeSeconds),
-            zone,
-        ).toEpochDay(),
+        dayIndex = java.time.Instant.ofEpochSecond(creationTimeSeconds).atZone(zone).toLocalDate().toEpochDay(),
         verdict = submissionVerdict(verdict).name,
         rawVerdict = verdict,
         language = programmingLanguage,

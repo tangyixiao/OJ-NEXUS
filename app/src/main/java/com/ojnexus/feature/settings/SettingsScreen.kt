@@ -35,8 +35,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
 import com.ojnexus.core.data.sync.SyncPhase
 import com.ojnexus.core.designsystem.NexusRadius
+import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
+import com.ojnexus.core.designsystem.NexusThemeSlot
 import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusStatus
@@ -168,6 +170,25 @@ fun SettingsScreen(onBack: () -> Unit) {
                     checked = preferences.hapticsEnabled,
                     onCheckedChange = viewModel::setHapticsEnabled,
                 )
+            }
+            Spacer(Modifier.height(NexusSpacing.xl))
+            NexusSection(label = stringResource(R.string.settings_section_theme)) {
+                Text(
+                    text = stringResource(R.string.settings_theme_hint),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.textTertiary,
+                )
+                Spacer(Modifier.height(NexusSpacing.sm))
+                Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+                    NexusThemeSlot.entries.forEach { slot ->
+                        ThemeSlotAction(
+                            slot = slot,
+                            selected = slot == preferences.themeSlot,
+                            onClick = { viewModel.setThemeSlot(slot) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
             Spacer(Modifier.height(NexusSpacing.xxl))
         }
@@ -417,6 +438,35 @@ private fun SettingsToggle(
                 uncheckedTrackColor = colors.surfaceElevated,
                 uncheckedBorderColor = colors.border,
             ),
+        )
+    }
+}
+
+@Composable
+private fun ThemeSlotAction(
+    slot: NexusThemeSlot,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = NexusTheme.colors
+    Box(
+        modifier.background(if (selected) colors.accentContainer else colors.surface, NexusRadius.sm)
+            .border(NexusSize.dividerThickness, if (selected) colors.accent else colors.border, NexusRadius.sm)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = NexusSpacing.xxs, vertical = NexusSpacing.xs),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = stringResource(
+                when (slot) {
+                    NexusThemeSlot.NEXUS_BLUE -> R.string.settings_theme_blue
+                    NexusThemeSlot.TERMINAL_GREEN -> R.string.settings_theme_green
+                    NexusThemeSlot.AMBER_SIGNAL -> R.string.settings_theme_amber
+                },
+            ),
+            style = NexusTheme.typography.dataSmall,
+            color = if (selected) colors.accent else colors.textSecondary,
         )
     }
 }

@@ -50,15 +50,23 @@ object NexusTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalHapticsEnabled.current
+
+    val themeSlot: NexusThemeSlot
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalThemeSlot.current
 }
+
+private val LocalThemeSlot = staticCompositionLocalOf { NexusThemeSlot.NEXUS_BLUE }
 
 @Composable
 fun NexusTheme(
     reduceMotion: Boolean = false,
     hapticsEnabled: Boolean = true,
+    themeSlot: NexusThemeSlot = NexusThemeSlot.NEXUS_BLUE,
     content: @Composable () -> Unit,
 ) {
-    val colors = NexusColors.dark()
+    val colors = NexusColors.dark(themeSlot)
     val typography = NexusTypography.dark()
 
     CompositionLocalProvider(
@@ -66,6 +74,7 @@ fun NexusTheme(
         LocalNexusTypography provides typography,
         LocalReduceMotion provides reduceMotion,
         LocalHapticsEnabled provides hapticsEnabled,
+        LocalThemeSlot provides themeSlot,
     ) {
         MaterialTheme(
             colorScheme = colors.toMaterialScheme(),

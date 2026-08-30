@@ -61,5 +61,6 @@ Settings now exports a verified copy of the local Room database through the Andr
 picker, and reduce-motion/haptics preferences persist through DataStore. The export contains
 local study data only and never requires credentials. A global command palette now searches
 local navigation and study actions without network access. Database backups can be imported,
-schema-validated, and restored before the next app start. Remaining work: theme slots,
-startup/scroll performance pass, and further coverage on engines/adapters/repositories.
+schema-validated, and restored before the next app start. The visual system now exposes three
+named dark accent slots while preserving one accent per theme. Remaining work: startup/scroll
+performance pass and further coverage on engines/adapters/repositories.

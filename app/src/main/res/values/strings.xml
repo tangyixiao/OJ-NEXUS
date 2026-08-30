@@ -411,6 +411,11 @@
     <string name="settings_reduce_motion_desc">REMOVE NAVIGATION FADE TRANSITIONS</string>
     <string name="settings_haptics">HAPTICS</string>
     <string name="settings_haptics_desc">VIBRATE LIGHTLY WHEN CHANGING PRIMARY TABS</string>
+    <string name="settings_section_theme">THEME SLOT</string>
+    <string name="settings_theme_hint">CHOOSE ONE ACCENT PALETTE FOR THE DARK INTERFACE</string>
+    <string name="settings_theme_blue">BLUE</string>
+    <string name="settings_theme_green">GREEN</string>
+    <string name="settings_theme_amber">AMBER</string>
     <string name="settings_handle_empty">HANDLE REQUIRED</string>
     <string name="settings_handle_invalid">HANDLE FORMAT IS INVALID</string>
     <string name="settings_handle_not_found">HANDLE NOT FOUND</string>

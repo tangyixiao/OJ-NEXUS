@@ -17,6 +17,8 @@ fun formatCount(value: Int): String = String.format(Locale.getDefault(), "%,d", 
 /** 24 -> "+24", -13 -> "-13". */
 fun formatDelta(value: Int): String = String.format(Locale.getDefault(), "%+d", value)
 
+fun formatRatio(value: Double): String = String.format(Locale.getDefault(), "%.2f", value)
+
 /** 12 -> "12D" (streak / gap lengths in days). */
 fun formatDays(value: Int): String = "${abs(value)}D"
 

@@ -119,7 +119,7 @@ class AnalyticsViewModel(
 
     /** Monday of the week containing the first heatmap day. */
     private fun gridStart(days: List<DayActivity>): Long {
-        val first = days.firstOrNull()?.dayIndex ?: return LocalDate.ofInstant(clock.instant(), clock.zone).toEpochDay()
+        val first = days.firstOrNull()?.dayIndex ?: return clock.instant().atZone(clock.zone).toLocalDate().toEpochDay()
         val dayOfWeek = LocalDate.ofEpochDay(first).dayOfWeek.value // Mon=1..Sun=7
         return first - (dayOfWeek - 1)
     }

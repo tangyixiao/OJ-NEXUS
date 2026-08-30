@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
             NexusTheme(
                 reduceMotion = preferences.reduceMotion,
                 hapticsEnabled = preferences.hapticsEnabled,
+                themeSlot = preferences.themeSlot,
             ) {
                 NexusApp()
             }

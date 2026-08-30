@@ -467,7 +467,7 @@ private fun DetailContent(
 @Composable
 private fun reviewDueLabel(dueAt: Long): String {
     val zone = ZoneId.systemDefault()
-    val dueDay = LocalDate.ofInstant(java.time.Instant.ofEpochMilli(dueAt), zone).toEpochDay()
+    val dueDay = java.time.Instant.ofEpochMilli(dueAt).atZone(zone).toLocalDate().toEpochDay()
     val today = LocalDate.now(zone).toEpochDay()
     return when {
         dueDay < today -> stringResource(R.string.review_overdue, (today - dueDay).toInt())

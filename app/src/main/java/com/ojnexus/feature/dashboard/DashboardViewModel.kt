@@ -62,7 +62,7 @@ class DashboardViewModel(
     private val judgeDataRepository: com.ojnexus.core.data.repository.JudgeDataRepository,
 ) : ViewModel() {
 
-    private val todayEpochDay: Long = java.time.LocalDate.ofInstant(clock.instant(), clock.zone).toEpochDay()
+    private val todayEpochDay: Long = clock.instant().atZone(clock.zone).toLocalDate().toEpochDay()
 
     /** Local-only snapshot feeding the outer combine. */
     private data class LocalSnapshot(

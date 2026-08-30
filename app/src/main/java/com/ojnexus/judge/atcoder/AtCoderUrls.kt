@@ -1,7 +1,6 @@
 package com.ojnexus.judge.atcoder
 
 import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 object AtCoderUrls {
     const val API_BASE_URL = "https://kenkoooo.com/"
@@ -14,5 +13,5 @@ object AtCoderUrls {
     fun user(handle: String): String = "https://atcoder.jp/users/${segment(handle)}"
 
     private fun segment(value: String): String =
-        URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20")
+        URLEncoder.encode(value, Charsets.UTF_8.name()).replace("+", "%20")
 }

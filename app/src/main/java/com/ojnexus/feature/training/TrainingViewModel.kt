@@ -35,7 +35,7 @@ class TrainingViewModel(
      * Fixed at ViewModel creation: the TODAY list belongs to the calendar day the user opened
      * the screen. A day rollover is picked up on the next app launch (documented limitation).
      */
-    private val todayEpochDay: Long = LocalDate.ofInstant(clock.instant(), clock.zone).toEpochDay()
+    private val todayEpochDay: Long = clock.instant().atZone(clock.zone).toLocalDate().toEpochDay()
 
     /** Manual re-sync trigger for flows whose sources change outside Room (none currently). */
     private val refresh = MutableStateFlow(0)

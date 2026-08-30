@@ -350,6 +350,7 @@ private fun ProfileUiState.toCardImageData(): PlayerCardImageData = PlayerCardIm
     maxDifficultyLabel = stringResource(R.string.profile_stat_max_diff),
     maxDifficultyValue = maxSolvedDifficulty?.toString() ?: stringResource(R.string.problems_no_value),
     achievements = achievements.filter { it.unlocked }.map { stringResource(it.id.labelRes()) },
+    themeSlot = NexusTheme.themeSlot,
 )
 
 @Composable

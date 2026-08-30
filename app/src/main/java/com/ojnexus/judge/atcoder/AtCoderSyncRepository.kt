@@ -220,7 +220,7 @@ class AtCoderSyncRepository(
     private fun AtCoderSubmissionDto.toAttempt(problemId: Long): AttemptEntity = AttemptEntity(
         problemId = problemId,
         timestamp = epochSecond * 1_000,
-        dayIndex = LocalDate.ofInstant(java.time.Instant.ofEpochSecond(epochSecond), zone).toEpochDay(),
+        dayIndex = java.time.Instant.ofEpochSecond(epochSecond).atZone(zone).toLocalDate().toEpochDay(),
         verdict = AtCoderMappers.verdict(result).name,
         rawVerdict = result,
         language = language,

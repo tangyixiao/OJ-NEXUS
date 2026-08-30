@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ojnexus.core.data.preferences.UserPreferences
 import com.ojnexus.core.data.preferences.UserPreferencesRepository
+import com.ojnexus.core.designsystem.NexusThemeSlot
 import com.ojnexus.core.data.repository.BackupRepository
 import com.ojnexus.core.data.repository.JudgeAccountRepository
 import com.ojnexus.core.data.repository.JudgeDataRepository
@@ -116,6 +117,10 @@ class SettingsViewModel(
 
     fun setHapticsEnabled(enabled: Boolean) {
         viewModelScope.launch { preferencesRepository.setHapticsEnabled(enabled) }
+    }
+
+    fun setThemeSlot(slot: NexusThemeSlot) {
+        viewModelScope.launch { preferencesRepository.setThemeSlot(slot) }
     }
 
     fun connect(judge: JudgeId, handle: String) {

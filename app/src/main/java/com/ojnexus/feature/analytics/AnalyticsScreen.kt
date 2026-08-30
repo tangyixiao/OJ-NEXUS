@@ -452,11 +452,7 @@ private fun TotalsSection(state: AnalyticsUiState) {
             MetricSeparator()
             NexusMetric(
                 label = stringResource(R.string.analytics_ratio),
-                value = String.format(
-                    java.util.Locale.getDefault(),
-                    "%.2f",
-                    state.totals.attemptAcRatio,
-                ),
+                    value = com.ojnexus.core.ui.formatRatio(state.totals.attemptAcRatio.toDouble()),
                 modifier = Modifier.weight(1f),
             )
             MetricSeparator()
