@@ -40,6 +40,7 @@ import com.ojnexus.feature.problems.ProblemDetailScreen
 import com.ojnexus.feature.problems.ProblemFormScreen
 import com.ojnexus.feature.problems.ProblemsScreen
 import com.ojnexus.feature.settings.SettingsScreen
+import com.ojnexus.feature.submissions.SubmissionCenterScreen
 import com.ojnexus.feature.training.TrainingScreen
 import com.ojnexus.feature.workspace.WorkspaceScreen
 
@@ -54,6 +55,7 @@ object NexusRoutes {
     const val CONTESTS = "contests"
     const val CONTEST_FOCUS = "contest-focus/{judge}/{contestId}"
     const val SETTINGS = "settings"
+    const val SUBMISSIONS = "submissions"
     const val WORKSPACE = "workspace/{pid}"
 }
 
@@ -129,7 +131,10 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     }
                     composable(NexusDestination.ANALYTICS.route) { AnalyticsScreen() }
                     composable(NexusDestination.PROFILE.route) {
-                        ProfileScreen(onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS) })
+                        ProfileScreen(
+                            onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS) },
+                            onOpenSubmissions = { navController.navigate(NexusRoutes.SUBMISSIONS) },
+                        )
                     }
 
                     composable(route = NexusRoutes.CONTESTS) {
@@ -157,6 +162,14 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     }
                     composable(route = NexusRoutes.SETTINGS) {
                         SettingsScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable(route = NexusRoutes.SUBMISSIONS) {
+                        SubmissionCenterScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenWorkspace = { pid ->
+                                navController.navigate("workspace/${android.net.Uri.encode(pid)}")
+                            },
+                        )
                     }
                     composable(
                         route = NexusRoutes.WORKSPACE,
@@ -241,6 +254,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         "dashboard", "problems", "training", "analytics", "profile" ->
                             navController.navigateToTopLevel(command)
                         "contests" -> navController.navigate(NexusRoutes.CONTESTS)
+                        "submissions" -> navController.navigate(NexusRoutes.SUBMISSIONS)
                         "add_problem" -> navController.navigate(NexusRoutes.PROBLEM_ADD)
                         "settings" -> navController.navigate(NexusRoutes.SETTINGS)
                     }

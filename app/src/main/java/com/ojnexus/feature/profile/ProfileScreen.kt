@@ -2,6 +2,7 @@ package com.ojnexus.feature.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -114,7 +115,10 @@ class ProfileViewModel(
 }
 
 @Composable
-fun ProfileScreen(onOpenSettings: () -> Unit = {}) {    val container = LocalAppContainer.current
+fun ProfileScreen(
+    onOpenSettings: () -> Unit = {},
+    onOpenSubmissions: () -> Unit = {},
+) {    val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<ProfileViewModel>(
         factory = ContainerViewModelFactory(container) {
             ProfileViewModel(
@@ -133,12 +137,20 @@ fun ProfileScreen(onOpenSettings: () -> Unit = {}) {    val container = LocalApp
         NexusTopBar(
             title = stringResource(R.string.nav_profile),
             trailing = {
-                Text(
-                    text = stringResource(R.string.settings_title),
-                    style = NexusTheme.typography.sectionLabel,
-                    color = NexusTheme.colors.accent,
-                    modifier = Modifier.clickable { onOpenSettings() },
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.sm)) {
+                    Text(
+                        text = stringResource(R.string.submissions_title),
+                        style = NexusTheme.typography.sectionLabel,
+                        color = NexusTheme.colors.accent,
+                        modifier = Modifier.clickable { onOpenSubmissions() },
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_title),
+                        style = NexusTheme.typography.sectionLabel,
+                        color = NexusTheme.colors.accent,
+                        modifier = Modifier.clickable { onOpenSettings() },
+                    )
+                }
             },
         )
         when (val s = state) {

@@ -1,6 +1,8 @@
 package com.ojnexus.app
 
+import com.ojnexus.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CommandPaletteTest {
@@ -26,5 +28,15 @@ class CommandPaletteTest {
         )
 
         assertEquals(commands, filterCommands(commands, "  "))
+    }
+
+    @Test
+    fun `submissions command uses stable id and resource-backed copy`() {
+        val command = paletteCommandSpecs().single { it.id == "submissions" }
+
+        assertEquals(R.string.submissions_title, command.titleRes)
+        assertEquals(R.string.submissions_section_recent, command.descriptionRes)
+        assertTrue(command.keywordRes.isNotEmpty())
+        assertTrue(command.keywordRes.contains(R.string.submissions_check_result))
     }
 }

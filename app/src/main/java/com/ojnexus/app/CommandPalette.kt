@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -35,6 +36,75 @@ data class PaletteCommand(
     val title: String,
     val description: String,
     val keywords: Set<String> = emptySet(),
+)
+
+internal data class PaletteCommandSpec(
+    val id: String,
+    @StringRes val titleRes: Int,
+    @StringRes val descriptionRes: Int,
+    val keywords: Set<String> = emptySet(),
+    @StringRes val keywordRes: Set<Int> = emptySet(),
+)
+
+internal fun paletteCommandSpecs(): List<PaletteCommandSpec> = listOf(
+    PaletteCommandSpec(
+        id = "dashboard",
+        titleRes = R.string.nav_dashboard,
+        descriptionRes = R.string.command_open_dashboard,
+        keywords = setOf("home", "overview"),
+    ),
+    PaletteCommandSpec(
+        id = "problems",
+        titleRes = R.string.nav_problems,
+        descriptionRes = R.string.command_open_problems,
+        keywords = setOf("library", "catalog"),
+    ),
+    PaletteCommandSpec(
+        id = "training",
+        titleRes = R.string.nav_training,
+        descriptionRes = R.string.command_open_training,
+        keywords = setOf("review", "solve"),
+    ),
+    PaletteCommandSpec(
+        id = "analytics",
+        titleRes = R.string.nav_analytics,
+        descriptionRes = R.string.command_open_analytics,
+        keywords = setOf("stats", "metrics"),
+    ),
+    PaletteCommandSpec(
+        id = "profile",
+        titleRes = R.string.nav_profile,
+        descriptionRes = R.string.command_open_profile,
+        keywords = setOf("player", "card"),
+    ),
+    PaletteCommandSpec(
+        id = "contests",
+        titleRes = R.string.contest_center_title,
+        descriptionRes = R.string.command_open_contests,
+        keywords = setOf("arena", "round"),
+    ),
+    PaletteCommandSpec(
+        id = "submissions",
+        titleRes = R.string.submissions_title,
+        descriptionRes = R.string.submissions_section_recent,
+        keywordRes = setOf(
+            R.string.submissions_title,
+            R.string.submissions_check_result,
+            R.string.workspace_open,
+        ),
+    ),
+    PaletteCommandSpec(
+        id = "add_problem",
+        titleRes = R.string.action_add_problem,
+        descriptionRes = R.string.command_add_problem,
+        keywords = setOf("create", "local"),
+    ),
+    PaletteCommandSpec(
+        id = "settings",
+        titleRes = R.string.settings_title,
+        descriptionRes = R.string.command_open_settings,
+        keywords = setOf("preferences", "backup"),
+    ),
 )
 
 internal fun filterCommands(commands: List<PaletteCommand>, query: String): List<PaletteCommand> {
@@ -125,53 +195,11 @@ fun CommandPalette(onDismiss: () -> Unit, onExecute: (String) -> Unit) {
 }
 
 @Composable
-private fun commandList(): List<PaletteCommand> = listOf(
+private fun commandList(): List<PaletteCommand> = paletteCommandSpecs().map { spec ->
     PaletteCommand(
-        id = "dashboard",
-        title = stringResource(R.string.nav_dashboard),
-        description = stringResource(R.string.command_open_dashboard),
-        keywords = setOf("home", "overview"),
-    ),
-    PaletteCommand(
-        id = "problems",
-        title = stringResource(R.string.nav_problems),
-        description = stringResource(R.string.command_open_problems),
-        keywords = setOf("library", "catalog"),
-    ),
-    PaletteCommand(
-        id = "training",
-        title = stringResource(R.string.nav_training),
-        description = stringResource(R.string.command_open_training),
-        keywords = setOf("review", "solve"),
-    ),
-    PaletteCommand(
-        id = "analytics",
-        title = stringResource(R.string.nav_analytics),
-        description = stringResource(R.string.command_open_analytics),
-        keywords = setOf("stats", "metrics"),
-    ),
-    PaletteCommand(
-        id = "profile",
-        title = stringResource(R.string.nav_profile),
-        description = stringResource(R.string.command_open_profile),
-        keywords = setOf("player", "card"),
-    ),
-    PaletteCommand(
-        id = "contests",
-        title = stringResource(R.string.contest_center_title),
-        description = stringResource(R.string.command_open_contests),
-        keywords = setOf("arena", "round"),
-    ),
-    PaletteCommand(
-        id = "add_problem",
-        title = stringResource(R.string.action_add_problem),
-        description = stringResource(R.string.command_add_problem),
-        keywords = setOf("create", "local"),
-    ),
-    PaletteCommand(
-        id = "settings",
-        title = stringResource(R.string.settings_title),
-        description = stringResource(R.string.command_open_settings),
-        keywords = setOf("preferences", "backup"),
-    ),
-)
+        id = spec.id,
+        title = stringResource(spec.titleRes),
+        description = stringResource(spec.descriptionRes),
+        keywords = spec.keywords + spec.keywordRes.map { stringResource(it) },
+    )
+}
