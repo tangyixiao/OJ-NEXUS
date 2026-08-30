@@ -163,6 +163,8 @@
     <string name="detail_section_insight">KEY INSIGHT</string>
     <string name="detail_section_notes">NOTES</string>
     <string name="detail_section_review">REVIEW</string>
+    <string name="detail_section_knowledge">KNOWLEDGE</string>
+    <string name="knowledge_relation_hint">SELECT THE KNOWLEDGE AREAS THIS PROBLEM TRAINS.</string>
     <string name="detail_section_actions">ACTIONS</string>
     <string name="problem_field_first_ac">FIRST AC</string>
     <string name="problem_field_last_attempt">LAST ATTEMPT</string>

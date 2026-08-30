@@ -21,6 +21,10 @@ data class KnowledgeAreaState(
 
 /** Owns explicit knowledge relations and maps SQL evidence through the pure mastery policy. */
 class KnowledgeRepository(private val database: OjNexusDatabase) {
+    fun observeRelations(problemId: Long): Flow<Set<KnowledgeArea>> = database.knowledgeDao()
+        .observeForProblem(problemId)
+        .map { rows -> rows.mapNotNull { raw -> KnowledgeArea.entries.firstOrNull { it.name == raw } }.toSet() }
+
     fun observeMastery(): Flow<List<KnowledgeAreaState>> = database.knowledgeDao()
         .observePerformance()
         .map { rows ->

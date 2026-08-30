@@ -16,6 +16,9 @@ data class KnowledgePerformanceRow(
 
 @Dao
 interface KnowledgeDao {
+    @Query("SELECT knowledge_area FROM problem_knowledge WHERE problem_id = :problemId ORDER BY knowledge_area")
+    fun observeForProblem(problemId: Long): Flow<List<String>>
+
     @Upsert
     suspend fun upsert(relation: ProblemKnowledgeEntity)
 

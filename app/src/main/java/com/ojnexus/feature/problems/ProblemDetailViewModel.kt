@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ojnexus.core.data.repository.ProblemRepository
 import com.ojnexus.core.data.repository.ReviewRepository
+import com.ojnexus.core.data.repository.KnowledgeRepository
 import com.ojnexus.core.model.FailureCategory
 import com.ojnexus.core.model.ProblemDetail
 import com.ojnexus.core.model.ProblemNotes
+import com.ojnexus.core.model.KnowledgeArea
 import com.ojnexus.core.model.ReviewResult
 import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.ui.Loadable
@@ -44,20 +46,24 @@ data class ProblemDetailUiState(
     val detail: ProblemDetail,
     val notesDraft: NotesDraft?,
     val notesSaving: Boolean,
+    val knowledge: Set<KnowledgeArea> = emptySet(),
 )
 
 class ProblemDetailViewModel(
     private val problemId: Long,
     private val problemRepository: ProblemRepository,
     private val reviewRepository: ReviewRepository,
+    private val knowledgeRepository: KnowledgeRepository,
 ) : ViewModel() {
 
     private val notesDraft = MutableStateFlow<NotesDraft?>(null)
     private val notesSaving = MutableStateFlow(false)
     private var notesSaveJob: Job? = null
 
-    val state: StateFlow<Loadable<ProblemDetailUiState>> = problemRepository.observeDetail(problemId)
-        .map { detail ->
+    val state: StateFlow<Loadable<ProblemDetailUiState>> = kotlinx.coroutines.flow.combine(
+        problemRepository.observeDetail(problemId),
+        knowledgeRepository.observeRelations(problemId),
+    ) { detail, knowledge ->
             if (detail == null) {
                 Loadable.Failed(NOT_FOUND)
             } else {
@@ -76,6 +82,7 @@ class ProblemDetailViewModel(
                         detail = detail,
                         notesDraft = notesDraft.value,
                         notesSaving = notesSaving.value,
+                        knowledge = knowledge,
                     ),
                 )
             }
@@ -85,6 +92,10 @@ class ProblemDetailViewModel(
 
     fun toggleFavorite(current: Boolean) {
         viewModelScope.launch { problemRepository.setFavorite(problemId, !current) }
+    }
+
+    fun setKnowledge(area: KnowledgeArea, selected: Boolean) {
+        viewModelScope.launch { knowledgeRepository.setRelation(problemId, area, selected) }
     }
 
     fun deleteProblem(onDeleted: () -> Unit) {

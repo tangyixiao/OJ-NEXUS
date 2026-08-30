@@ -55,6 +55,7 @@ import com.ojnexus.core.model.Attempt
 import com.ojnexus.core.model.FailureCategory
 import com.ojnexus.core.model.FailureEntry
 import com.ojnexus.core.model.ProblemDetail
+import com.ojnexus.core.model.KnowledgeArea
 import com.ojnexus.core.model.ReviewResult
 import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.ui.ContainerViewModelFactory
@@ -96,6 +97,7 @@ fun ProblemDetailScreen(
                 problemId = problemId,
                 problemRepository = it.problemRepository,
                 reviewRepository = it.reviewRepository,
+                knowledgeRepository = it.knowledgeRepository,
             )
         },
     )
@@ -265,6 +267,34 @@ private fun DetailContent(
                         ?.let { formatDate(it) } ?: stringResource(R.string.problems_no_value),
                     modifier = Modifier.weight(1f),
                 )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(NexusSpacing.md))
+        NexusDivider()
+        Spacer(modifier = Modifier.height(NexusSpacing.md))
+
+        NexusSection(label = stringResource(R.string.detail_section_knowledge)) {
+            Text(
+                text = stringResource(R.string.knowledge_relation_hint),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textTertiary,
+                modifier = Modifier.padding(bottom = NexusSpacing.xs),
+            )
+            KnowledgeArea.entries.chunked(2).forEach { rowAreas ->
+                Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+                    rowAreas.forEach { area ->
+                        NexusTag(
+                            text = stringResource(area.labelRes()),
+                            tone = NexusTone.Accent,
+                            selected = area in uiState.knowledge,
+                            modifier = Modifier.clickable(role = Role.Button) {
+                                viewModel.setKnowledge(area, area !in uiState.knowledge)
+                            },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(NexusSpacing.xxs))
             }
         }
 

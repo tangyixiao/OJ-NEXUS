@@ -24,4 +24,11 @@ The result is clamped to 0–100. The UI renders reason codes such as `NO EVIDEN
 and `FAILURE LOG`; it does not generate advice or hide the evidence behind a single color.
 
 The Training screen currently exposes this tree and its reason-bearing scores. Relation editing
-is repository-ready and will be attached to problem detail in the next incremental slice.
+is available in problem detail and updates the tree reactively.
+
+## Candidate priority
+
+`TrainingPlanner` is the pure ranking boundary for the next training-plan surface. It assigns
+points only from explicit local signals: unsolved state (35), review due (25), failure history
+(up to 20), fitting difficulty (15), and coverage value (5). It returns reason codes together
+with the clamped 0–100 priority, so a future candidate feed can show why a problem is selected.
