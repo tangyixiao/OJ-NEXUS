@@ -62,5 +62,5 @@ picker, and reduce-motion/haptics preferences persist through DataStore. The exp
 local study data only and never requires credentials. A global command palette now searches
 local navigation and study actions without network access. Database backups can be imported,
 schema-validated, and restored before the next app start. The visual system now exposes three
-named dark accent slots while preserving one accent per theme. Remaining work: startup/scroll
-performance pass and further coverage on engines/adapters/repositories.
+named dark accent slots while preserving one accent per theme. The bounded-feed audit and
+repository coverage are recorded in [docs/PERFORMANCE.md](PERFORMANCE.md).

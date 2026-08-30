@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -65,15 +66,20 @@ fun NexusApp(modifier: Modifier = Modifier) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     var commandPaletteOpen by rememberSaveable { mutableStateOf(false) }
-    val enterTransition = if (NexusTheme.reduceMotion) {
-        EnterTransition.None
-    } else {
-        fadeIn(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard))
+    val reduceMotion = NexusTheme.reduceMotion
+    val enterTransition = remember(reduceMotion) {
+        if (reduceMotion) {
+            EnterTransition.None
+        } else {
+            fadeIn(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard))
+        }
     }
-    val exitTransition = if (NexusTheme.reduceMotion) {
-        ExitTransition.None
-    } else {
-        fadeOut(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingExit))
+    val exitTransition = remember(reduceMotion) {
+        if (reduceMotion) {
+            ExitTransition.None
+        } else {
+            fadeOut(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingExit))
+        }
     }
 
     CompositionLocalProvider(LocalAppContainer provides container) {
