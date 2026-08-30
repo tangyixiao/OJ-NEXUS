@@ -14,6 +14,6 @@ Current deterministic milestones:
 | CONTESTANT | at least 1 rated contest in the local rating history |
 
 The existing Profile Player Card combines the app identity, public OJ handles/rating, and global
-local statistics. Unlocked milestones now appear below the global metrics. Image export remains
-the next isolated delivery step so the renderer can be verified against the same tokens without
-creating a second source of truth.
+local statistics. Unlocked milestones now appear below the global metrics. `SHARE CARD` renders
+the same data to a token-colored PNG in the app cache and shares it through `FileProvider`; no
+private app paths are exposed.

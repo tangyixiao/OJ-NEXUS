@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,8 @@ import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.formatCount
 import com.ojnexus.core.ui.formatDays
 import com.ojnexus.core.ui.labelRes
+import com.ojnexus.core.ui.PlayerCardImageData
+import com.ojnexus.core.ui.PlayerCardShare
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -141,14 +144,21 @@ fun ProfileScreen(onOpenSettings: () -> Unit = {}) {    val container = LocalApp
             is Loadable.Failed -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(text = s.message, style = NexusTheme.typography.data, color = NexusTheme.colors.danger)
             }
-            is Loadable.Ready -> ProfileContent(s.value)
+            is Loadable.Ready -> {
+                val context = LocalContext.current
+                ProfileContent(s.value) { data -> PlayerCardShare.share(context, data) }
+            }
         }
     }
 }
 
 @Composable
-private fun ProfileContent(state: ProfileUiState) {
+private fun ProfileContent(
+    state: ProfileUiState,
+    onShareCard: (PlayerCardImageData) -> Unit,
+) {
     val colors = NexusTheme.colors
+    val cardImageData = state.toCardImageData()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -173,6 +183,12 @@ private fun ProfileContent(state: ProfileUiState) {
                 text = stringResource(R.string.profile_role),
                 style = NexusTheme.typography.sectionLabel,
                 color = colors.textTertiary,
+            )
+            Text(
+                text = stringResource(R.string.profile_share_card),
+                style = NexusTheme.typography.sectionLabel,
+                color = colors.accent,
+                modifier = Modifier.align(Alignment.End).clickable { onShareCard(cardImageData) },
             )
             Spacer(modifier = Modifier.height(NexusSpacing.sm))
             NexusDivider()
@@ -316,6 +332,25 @@ private fun ProfileContent(state: ProfileUiState) {
         Spacer(modifier = Modifier.height(NexusSpacing.xxl))
     }
 }
+
+@Composable
+private fun ProfileUiState.toCardImageData(): PlayerCardImageData = PlayerCardImageData(
+    title = stringResource(R.string.app_name),
+    role = stringResource(R.string.profile_role),
+    cardLabel = stringResource(R.string.profile_card_label),
+    achievementsLabel = stringResource(R.string.profile_section_achievements),
+    solvedLabel = stringResource(R.string.profile_stat_solved),
+    solvedValue = solved.toString(),
+    attemptsLabel = stringResource(R.string.profile_stat_submissions),
+    attemptsValue = attempts.toString(),
+    activeDaysLabel = stringResource(R.string.profile_stat_active_days),
+    activeDaysValue = activeDays.toString(),
+    streakLabel = stringResource(R.string.profile_stat_streak),
+    streakValue = currentStreak.toString(),
+    maxDifficultyLabel = stringResource(R.string.profile_stat_max_diff),
+    maxDifficultyValue = maxSolvedDifficulty?.toString() ?: stringResource(R.string.problems_no_value),
+    achievements = achievements.filter { it.unlocked }.map { stringResource(it.id.labelRes()) },
+)
 
 @Composable
 private fun SectionGap() {

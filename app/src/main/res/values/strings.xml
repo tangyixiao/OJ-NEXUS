@@ -356,6 +356,8 @@
     <string name="profile_stat_streak">STREAK</string>
     <string name="profile_stat_max_diff">MAX DIFF</string>
     <string name="profile_section_achievements">ACHIEVEMENTS</string>
+    <string name="profile_share_card">SHARE CARD</string>
+    <string name="profile_card_label">PLAYER CARD</string>
     <string name="achievement_none">NO ACHIEVEMENTS UNLOCKED</string>
     <string name="achievement_first_blood">FIRST BLOOD</string>
     <string name="achievement_ten_solved">TEN SOLVED</string>
