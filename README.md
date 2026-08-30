@@ -22,15 +22,18 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 4 (Analytics)**: Codeforces and AtCoder now share
+Early development — **Phase 5 (Arena)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
 profile, problems, contests, and analytics expose judge-labelled local data. Analytics adds
 heatmap day detail, first-try AC, weak-tag performance, and per-judge difficulty breakdowns.
+Arena adds a cached contest focus view with countdowns, local markers, and joined submission
+progress.
 No passwords,
 cookies, private API signing, scraping, or auto-submit are used. See
 [docs/MULTI_OJ.md](docs/MULTI_OJ.md), [docs/ATCODER.md](docs/ATCODER.md),
+[docs/ARENA.md](docs/ARENA.md),
 [docs/SYNC_ENGINE.md](docs/SYNC_ENGINE.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Documentation

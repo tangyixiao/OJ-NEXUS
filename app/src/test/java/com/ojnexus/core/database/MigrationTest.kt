@@ -157,7 +157,11 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext<Context>(),
             OjNexusDatabase::class.java,
             dbName,
-        ).addMigrations(OjNexusDatabase.MIGRATION_1_2, OjNexusDatabase.MIGRATION_2_3).build()
+        ).addMigrations(
+            OjNexusDatabase.MIGRATION_1_2,
+            OjNexusDatabase.MIGRATION_2_3,
+            OjNexusDatabase.MIGRATION_3_4,
+        ).build()
 
         try {
             val dao = db.problemDao()
@@ -241,7 +245,7 @@ class MigrationTest {
         v2.close()
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_2_3)
+            .addMigrations(OjNexusDatabase.MIGRATION_2_3, OjNexusDatabase.MIGRATION_3_4)
             .build()
         db.openHelper.writableDatabase
         db.close()
@@ -305,7 +309,11 @@ class MigrationTest {
         v1.close()
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_1_2, OjNexusDatabase.MIGRATION_2_3)
+            .addMigrations(
+                OjNexusDatabase.MIGRATION_1_2,
+                OjNexusDatabase.MIGRATION_2_3,
+                OjNexusDatabase.MIGRATION_3_4,
+            )
             .build()
         try {
             assertEquals("Legacy", kotlinx.coroutines.runBlocking { db.problemDao().findLibrary() }.single().problem.title)

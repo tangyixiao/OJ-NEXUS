@@ -27,6 +27,7 @@ import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.feature.analytics.AnalyticsScreen
 import com.ojnexus.feature.contests.ContestCenterScreen
+import com.ojnexus.feature.contests.ContestFocusScreen
 import com.ojnexus.feature.dashboard.DashboardScreen
 import com.ojnexus.feature.profile.ProfileScreen
 import com.ojnexus.feature.problems.ProblemDetailScreen
@@ -44,6 +45,7 @@ object NexusRoutes {
     const val SESSION_ACTIVE = "session/active"
     const val SESSION_DETAIL = "session/{sessionId}"
     const val CONTESTS = "contests"
+    const val CONTEST_FOCUS = "contest-focus/{judge}/{contestId}"
     const val SETTINGS = "settings"
 }
 
@@ -109,7 +111,27 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     }
 
                     composable(route = NexusRoutes.CONTESTS) {
-                        ContestCenterScreen(onBack = { navController.popBackStack() })
+                        ContestCenterScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenFocus = { judge, contestId ->
+                                navController.navigate("contest-focus/${android.net.Uri.encode(judge)}/${android.net.Uri.encode(contestId)}")
+                            },
+                        )
+                    }
+                    composable(
+                        route = NexusRoutes.CONTEST_FOCUS,
+                        arguments = listOf(
+                            navArgument("judge") { type = NavType.StringType },
+                            navArgument("contestId") { type = NavType.StringType },
+                        ),
+                    ) { entry ->
+                        val judge = entry.arguments?.getString("judge") ?: return@composable
+                        val contestId = entry.arguments?.getString("contestId") ?: return@composable
+                        ContestFocusScreen(
+                            judge = judge,
+                            contestId = contestId,
+                            onBack = { navController.popBackStack() },
+                        )
                     }
                     composable(route = NexusRoutes.SETTINGS) {
                         SettingsScreen(onBack = { navController.popBackStack() })

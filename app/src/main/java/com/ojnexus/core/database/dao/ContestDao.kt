@@ -24,6 +24,11 @@ interface ContestDao {
     )
     fun observeByJudge(judge: String): Flow<List<ContestEntity>>
 
+    @Query(
+        "SELECT * FROM contests WHERE judge = :judge AND external_contest_id = :contestId LIMIT 1",
+    )
+    fun observeByKey(judge: String, contestId: String): Flow<ContestEntity?>
+
     @Query("SELECT COUNT(*) FROM contests WHERE judge = :judge")
     suspend fun countByJudge(judge: String): Int
 

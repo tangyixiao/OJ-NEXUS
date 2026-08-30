@@ -394,6 +394,21 @@
     <string name="contest_status_live">LIVE</string>
     <string name="contest_status_ended">ENDED</string>
     <string name="contest_view_all">VIEW ALL</string>
+    <string name="contest_focus_title">ARENA</string>
+    <string name="contest_focus_progress">PROGRESS</string>
+    <string name="contest_focus_solved">%1$d/%2$d SOLVED</string>
+    <string name="contest_focus_marked_label">MARKED</string>
+    <string name="contest_focus_problems">PROBLEMS</string>
+    <string name="contest_focus_problem_count">%d PROBLEMS</string>
+    <string name="contest_focus_attempts">%d ATTEMPTS</string>
+    <string name="contest_focus_open_problem">OPEN</string>
+    <string name="contest_focus_empty">CONTEST NOT FOUND IN LOCAL CACHE</string>
+    <string name="contest_focus_no_problems">NO CACHED PROBLEMS — SYNC THIS JUDGE FIRST</string>
+    <string name="contest_focus_error">ARENA DATA UNAVAILABLE</string>
+    <string name="contest_marker_none">UNMARKED</string>
+    <string name="contest_marker_working">WORKING</string>
+    <string name="contest_marker_solved">SOLVED</string>
+    <string name="contest_marker_skipped">SKIPPED</string>
 
     <!-- Rating -->
     <string name="rating_section">CODEFORCES RATING</string>

@@ -9,6 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.ojnexus.core.database.dao.AnalyticsDao
 import com.ojnexus.core.database.dao.AttemptDao
 import com.ojnexus.core.database.dao.ContestDao
+import com.ojnexus.core.database.dao.ContestProblemMarkerDao
 import com.ojnexus.core.database.dao.FailureDao
 import com.ojnexus.core.database.dao.JudgeAccountDao
 import com.ojnexus.core.database.dao.JudgeProfileDao
@@ -22,6 +23,7 @@ import com.ojnexus.core.database.dao.SyncStateDao
 import com.ojnexus.core.database.dao.TaskDao
 import com.ojnexus.core.database.entity.AttemptEntity
 import com.ojnexus.core.database.entity.ContestEntity
+import com.ojnexus.core.database.entity.ContestProblemMarkerEntity
 import com.ojnexus.core.database.entity.FailureEntryEntity
 import com.ojnexus.core.database.entity.JudgeAccountEntity
 import com.ojnexus.core.database.entity.JudgeProfileEntity
@@ -49,6 +51,8 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
  *
  * v3 (Phase 3): string contest identities, typed timestamp cursor metadata, account
  * verification/source reliability, and difficulty provenance for real multi-judge data.
+ *
+ * v4 (Phase 5): local-only contest problem markers for Arena focus tracking.
  */
 @Database(
     entities = [
@@ -68,9 +72,10 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
         RatingChangeEntity::class,
         RemoteProblemEntity::class,
         ContestEntity::class,
+        ContestProblemMarkerEntity::class,
         SyncStateEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class OjNexusDatabase : RoomDatabase() {
@@ -88,6 +93,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
     abstract fun ratingChangeDao(): RatingChangeDao
     abstract fun remoteProblemDao(): RemoteProblemDao
     abstract fun contestDao(): ContestDao
+    abstract fun contestProblemMarkerDao(): ContestProblemMarkerDao
     abstract fun syncStateDao(): SyncStateDao
 
     companion object {
@@ -387,9 +393,25 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `contest_problem_markers` (" +
+                        "`judge` TEXT NOT NULL, `contest_id` TEXT NOT NULL, " +
+                        "`problem_external_id` TEXT NOT NULL, `marker` TEXT NOT NULL, " +
+                        "`updated_at` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`judge`, `contest_id`, `problem_external_id`))",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_contest_problem_markers_judge_contest_id` " +
+                        "ON `contest_problem_markers` (`judge`, `contest_id`)",
+                )
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, "oj-nexus.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
     }
 }

@@ -42,7 +42,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 @Composable
-fun ContestCenterScreen(onBack: () -> Unit) {
+fun ContestCenterScreen(
+    onBack: () -> Unit,
+    onOpenFocus: (judge: String, contestId: String) -> Unit,
+) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<ContestCenterViewModel>(
         factory = ContainerViewModelFactory(container) {
@@ -105,13 +108,28 @@ fun ContestCenterScreen(onBack: () -> Unit) {
                 )
             }
             if (rows.live.isNotEmpty()) {
-                ContestGroup(stringResource(R.string.contest_section_live), rows.live, tone = NexusTone.Danger)
+                ContestGroup(
+                    label = stringResource(R.string.contest_section_live),
+                    rows = rows.live,
+                    tone = NexusTone.Danger,
+                    onOpenFocus = onOpenFocus,
+                )
             }
             if (rows.upcoming.isNotEmpty()) {
-                ContestGroup(stringResource(R.string.contest_section_upcoming), rows.upcoming, tone = NexusTone.Accent)
+                ContestGroup(
+                    label = stringResource(R.string.contest_section_upcoming),
+                    rows = rows.upcoming,
+                    tone = NexusTone.Accent,
+                    onOpenFocus = onOpenFocus,
+                )
             }
             if (rows.recent.isNotEmpty()) {
-                ContestGroup(stringResource(R.string.contest_section_recent), rows.recent, tone = NexusTone.Neutral)
+                ContestGroup(
+                    label = stringResource(R.string.contest_section_recent),
+                    rows = rows.recent,
+                    tone = NexusTone.Neutral,
+                    onOpenFocus = onOpenFocus,
+                )
             }
             Spacer(modifier = Modifier.height(NexusSpacing.xxl))
         }
@@ -119,10 +137,15 @@ fun ContestCenterScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun ContestGroup(label: String, rows: List<ContestRow>, tone: NexusTone) {
+private fun ContestGroup(
+    label: String,
+    rows: List<ContestRow>,
+    tone: NexusTone,
+    onOpenFocus: (String, String) -> Unit,
+) {
     NexusSection(label = label) {
         rows.forEachIndexed { index, row ->
-            ContestRowView(row, tone)
+            ContestRowView(row, tone, onOpenFocus)
             if (index != rows.lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
         }
     }
@@ -130,20 +153,15 @@ private fun ContestGroup(label: String, rows: List<ContestRow>, tone: NexusTone)
 }
 
 @Composable
-private fun ContestRowView(row: ContestRow, tone: NexusTone) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+private fun ContestRowView(
+    row: ContestRow,
+    tone: NexusTone,
+    onOpenFocus: (String, String) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                when (row.judge) {
-                    JudgeId.CODEFORCES -> row.contestId.toLongOrNull()
-                        ?.let(com.ojnexus.judge.codeforces.CodeforcesUrls::contest)
-                    JudgeId.ATCODER -> com.ojnexus.judge.atcoder.AtCoderUrls.contest(row.contestId)
-                    else -> null
-                }
-                    ?.let { url -> com.ojnexus.core.ui.UrlOpener.open(context, url) }
-            }
+            .clickable { onOpenFocus(row.judge.id, row.contestId) }
             .padding(vertical = NexusSpacing.xs),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

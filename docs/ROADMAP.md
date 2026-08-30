@@ -39,9 +39,11 @@ solve/training trends, first-try AC rate, weak-tag performance, and per-judge di
 breakdowns — all computed from local data and drawn with Compose. Knowledge distribution waits
 for the problem-knowledge relation in Phase 6 rather than inventing data.
 
-## PHASE 5 — Arena (next)
-Contest center polish (reminders, calendar) and the live-contest focus view: countdown,
-problem tracker, local markers, synced submission progress. No scraping, no auto-submit.
+## PHASE 5 — Arena ✅ (current milestone)
+Contest center now opens a live/upcoming Arena focus view with a ticking countdown, cached
+problem tracker, local-only marker cycle, and submission progress joined from local attempts.
+Contest and problem links use Custom Tabs; no scraping, auto-submit, passwords, or cookies.
+See [docs/ARENA.md](ARENA.md).
 
 ## PHASE 6 — Knowledge + Training Engine
 Knowledge tree UI, problem-knowledge relations, explainable Mastery Engine, deterministic
