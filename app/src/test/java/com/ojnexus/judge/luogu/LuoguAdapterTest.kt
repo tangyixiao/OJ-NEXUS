@@ -41,12 +41,25 @@ class LuoguAdapterTest {
     }
 
     @Test
-    fun `adapter exposes only public account binding`() = runBlocking {
+    fun `adapter exposes public sync capabilities without private submission access`() = runBlocking {
         val adapter = FakeLuoguAdapter(LuoguUserSearchResponse(emptyList()))
 
         assertEquals(JudgeId.LUOGU, adapter.id)
         assertEquals(DataSourceReliability.EXPERIMENTAL, adapter.reliability)
-        assertEquals(setOf(JudgeCapability.ACCOUNT_BINDING), adapter.capabilities)
+        assertEquals(
+            setOf(
+                JudgeCapability.ACCOUNT_BINDING,
+                JudgeCapability.PROFILE,
+                JudgeCapability.RATING,
+                JudgeCapability.RATING_HISTORY,
+                JudgeCapability.PROBLEM_CATALOG,
+                JudgeCapability.PROBLEM_DIFFICULTY,
+                JudgeCapability.CONTESTS,
+                JudgeCapability.BACKGROUND_SYNC,
+                JudgeCapability.INCREMENTAL_SYNC,
+            ),
+            adapter.capabilities,
+        )
         assertNull(adapter.searchUser("missing"))
     }
 

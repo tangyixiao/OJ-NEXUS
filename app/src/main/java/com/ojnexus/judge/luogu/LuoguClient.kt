@@ -22,6 +22,7 @@ sealed class LuoguApiError(message: String?, cause: Throwable? = null) : Excepti
     class Timeout(cause: Throwable) : LuoguApiError(cause.message, cause)
     class ParseError(cause: Throwable) : LuoguApiError(cause.message, cause)
     class AuthenticationRequired : LuoguApiError("Luogu authentication is required")
+    class UserNotFound : LuoguApiError("Luogu user not found")
 }
 
 data class LuoguRetryPolicy(
