@@ -19,6 +19,8 @@ import com.ojnexus.judge.DataSourceReliability
 import com.ojnexus.judge.JudgeCapability
 import com.ojnexus.judge.JudgeRegistry
 import com.ojnexus.judge.sync.JudgeSyncWorker
+import com.ojnexus.judge.luogu.open.OpenAppCredential
+import com.ojnexus.judge.luogu.open.OpenAppCredentialStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -43,12 +45,19 @@ enum class BackupOperation { EXPORT, IMPORT }
 
 data class BackupResult(val operation: BackupOperation, val success: Boolean)
 
+data class OpenAppUiState(
+    val configured: Boolean = false,
+    val saving: Boolean = false,
+    val error: Boolean = false,
+)
+
 class SettingsViewModel(
     private val accountRepository: JudgeAccountRepository,
     dataRepository: JudgeDataRepository,
     private val registry: JudgeRegistry,
     private val backupRepository: BackupRepository,
     private val preferencesRepository: UserPreferencesRepository,
+    private val openAppCredentialStore: OpenAppCredentialStore? = null,
 ) : ViewModel() {
     private val judges = registry.supportedJudges().sortedBy { it.ordinal }
 
@@ -92,6 +101,40 @@ class SettingsViewModel(
         SharingStarted.WhileSubscribed(5_000),
         UserPreferences(),
     )
+    private val openAppState = MutableStateFlow(OpenAppUiState())
+    val openApp: StateFlow<OpenAppUiState> = openAppState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val configured = runCatching { openAppCredentialStore?.read() != null }.getOrDefault(false)
+            openAppState.update { it.copy(configured = configured) }
+        }
+    }
+
+    fun saveOpenAppCredential(user: String, secret: String) {
+        val store = openAppCredentialStore ?: return
+        if (user.isBlank() || secret.isBlank()) {
+            openAppState.update { it.copy(error = true) }
+            return
+        }
+        openAppState.update { it.copy(saving = true, error = false) }
+        viewModelScope.launch {
+            try {
+                store.write(OpenAppCredential(user.trim(), secret.trim()))
+                openAppState.value = OpenAppUiState(configured = true)
+            } catch (_: Exception) {
+                openAppState.update { it.copy(saving = false, error = true) }
+            }
+        }
+    }
+
+    fun clearOpenAppCredential() {
+        val store = openAppCredentialStore ?: return
+        viewModelScope.launch {
+            runCatching { store.clear() }
+            openAppState.value = OpenAppUiState()
+        }
+    }
 
     fun exportBackup(resolver: ContentResolver, destination: Uri) {
         viewModelScope.launch {

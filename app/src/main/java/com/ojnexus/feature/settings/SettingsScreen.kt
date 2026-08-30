@@ -28,6 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -56,13 +58,14 @@ fun SettingsScreen(onBack: () -> Unit) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<SettingsViewModel>(
         factory = ContainerViewModelFactory(container) {
-            SettingsViewModel(
-                it.judgeAccountRepository,
-                it.judgeDataRepository,
-                it.judgeRegistry,
-                it.backupRepository,
-                it.userPreferencesRepository,
-            )
+                SettingsViewModel(
+                    it.judgeAccountRepository,
+                    it.judgeDataRepository,
+                    it.judgeRegistry,
+                    it.backupRepository,
+                    it.userPreferencesRepository,
+                    it.luoguOpenCredentialStore,
+                )
         },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -177,6 +180,35 @@ fun SettingsScreen(onBack: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(NexusSpacing.xl))
+            NexusSection(label = stringResource(R.string.settings_section_luogu_open)) {
+                Text(
+                    text = stringResource(R.string.settings_openapp_hint),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.textTertiary,
+                )
+                Spacer(Modifier.height(NexusSpacing.sm))
+                val openAppState by viewModel.openApp.collectAsStateWithLifecycle()
+                if (openAppState.configured) {
+                    Text(
+                        text = stringResource(R.string.settings_openapp_configured),
+                        style = NexusTheme.typography.data,
+                        color = NexusTheme.colors.success,
+                    )
+                    Spacer(Modifier.height(NexusSpacing.xs))
+                    SettingsAction(
+                        label = stringResource(R.string.settings_openapp_clear),
+                        danger = true,
+                        onClick = viewModel::clearOpenAppCredential,
+                    )
+                } else {
+                    OpenAppCredentialEditor(
+                        saving = openAppState.saving,
+                        error = openAppState.error,
+                        onSave = viewModel::saveOpenAppCredential,
+                    )
+                }
+            }
+            Spacer(Modifier.height(NexusSpacing.xl))
             NexusSection(label = stringResource(R.string.settings_section_language)) {
                 Text(
                     text = stringResource(R.string.settings_language_hint),
@@ -268,6 +300,72 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun OpenAppCredentialEditor(
+    saving: Boolean,
+    error: Boolean,
+    onSave: (String, String) -> Unit,
+) {
+    var user by rememberSaveable { mutableStateOf("") }
+    var secret by rememberSaveable { mutableStateOf("") }
+    Column(verticalArrangement = Arrangement.spacedBy(NexusSpacing.xs)) {
+        CredentialField(
+            label = stringResource(R.string.settings_openapp_user),
+            value = user,
+            onValueChange = { user = it },
+        )
+        CredentialField(
+            label = stringResource(R.string.settings_openapp_secret),
+            value = secret,
+            onValueChange = { secret = it },
+            password = true,
+        )
+        SettingsAction(
+            label = stringResource(if (saving) R.string.settings_openapp_saving else R.string.settings_openapp_save),
+            onClick = { onSave(user, secret) },
+        )
+        if (error) {
+            Text(
+                text = stringResource(R.string.settings_openapp_error),
+                style = NexusTheme.typography.dataSmall,
+                color = NexusTheme.colors.danger,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CredentialField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    password: Boolean = false,
+) {
+    val colors = NexusTheme.colors
+    Column {
+        Text(label, style = NexusTheme.typography.sectionLabel, color = colors.textTertiary)
+        Spacer(Modifier.height(NexusSpacing.xxxs))
+        Box(
+            Modifier.fillMaxWidth().background(colors.background, NexusRadius.sm)
+                .border(1.dp, colors.border, NexusRadius.sm)
+                .padding(horizontal = NexusSpacing.xs, vertical = NexusSpacing.xxxs),
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                visualTransformation = if (password) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = if (password) KeyboardType.Password else KeyboardType.Text,
+                ),
+                textStyle = NexusTheme.typography.dataSmall.copy(color = colors.textPrimary),
+                cursorBrush = SolidColor(colors.accent),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 

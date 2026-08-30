@@ -72,13 +72,15 @@ Luogu public profile, rating/ELO history, paginated problem catalog, and paginat
 catalog are synchronized through a typed content-only JSON transport into local Room v6.
 Manual and WorkManager sync use bounded retries, rate spacing, freshness timestamps, idempotent
 upserts, per-page persistence, and partial-result reporting. Anonymous submission records are
-explicitly `AUTH_REQUIRED` and never fabricated. Passwords, cookies, sessions, CSRF, auto-submit,
-editor/compiler/runner, and cloud synchronization remain later-scope work. The implementation
-is locally verified; publishing remains a separate release action requiring explicit
-authorization.
+explicitly `AUTH_REQUIRED` and never fabricated. The implementation is locally verified;
+publishing remains a separate release action requiring explicit authorization.
 
-## PHASE 10 — Authorized submission workflow (not started)
+## PHASE 10 — Authorized submission workflow (in progress)
 
-Only after an official, user-authorized authentication path is confirmed: evaluate secure
-account linking and explicit submission actions. No plaintext passwords, harvested browser
-cookies, background submissions, or WebView shell is permitted.
+The first slice uses the official Luogu Open Platform HTTP Basic API: local Keystore-protected
+OpenApp credentials, Compose code workspace, explicit foreground `/run` and `/problem` actions,
+and user-triggered `/result/{id}` polling. POST requests are not automatically retried, and the
+workspace does not persist source code or standard input. No plaintext main-site passwords,
+harvested browser cookies, background submissions, WebView shell, local bundled compiler, or
+cloud synchronization is permitted. Local Android runtime verification with a real OpenApp
+credential remains separate from the unit-test/build verification.

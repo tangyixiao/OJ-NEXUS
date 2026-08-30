@@ -1,0 +1,20 @@
+# Luogu Open Platform 工作区
+
+阶段 2 使用洛谷官方 Open Platform，而不是主站登录流程。
+
+- API 基地址：`https://open-v1.lgapi.cn/`
+- 认证：HTTP Basic，凭据由 Open Platform 提供。
+- 题库评测：`POST /problem`
+- 自定义输入运行：`POST /run`
+- 查询异步结果：`GET /result/{requestId}`；尚未产生结果时为 204
+
+应用只在设置页显式录入 OpenApp 用户和密钥，并通过 Android Keystore 加密后写入
+`noBackupFilesDir`。凭据不进入 Room、数据库备份、日志或同步任务。工作区代码和标准输入
+只保留在当前 ViewModel/UI 生命周期内。
+
+运行与提交都需要用户前台点击。提交 POST 不自动重试，结果由用户点击“查询结果”获取；
+这样不会因为网络重试造成重复评测。401、403、402 和 204 分别映射为授权失败、无权访问、
+配额不足和等待中。
+
+本阶段不实现洛谷主站密码、Cookie、Session、CSRF，不实现云端服务/跨设备同步，也不捆绑
+本地 C++ 编译器。工作区的“运行”使用洛谷官方远程运行接口。

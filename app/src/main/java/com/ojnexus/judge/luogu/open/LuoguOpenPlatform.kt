@@ -199,6 +199,12 @@ data class LuoguOpenEvaluation(
 
 data class LuoguOpenSubmission(val requestId: String)
 
+interface LuoguOpenGateway {
+    suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission
+    suspend fun run(request: LuoguRunRequest): LuoguOpenSubmission
+    suspend fun fetchResult(requestId: String): LuoguOpenResult
+}
+
 sealed interface LuoguOpenResult {
     data object Pending : LuoguOpenResult
     data class Ready(val evaluation: LuoguOpenEvaluation) : LuoguOpenResult
@@ -220,8 +226,8 @@ sealed class LuoguOpenApiError(message: String) : Exception(message) {
 class LuoguOpenPlatformClient internal constructor(
     private val api: LuoguOpenPlatformApi,
     private val credentialStore: OpenAppCredentialStore,
-) {
-    suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission =
+) : LuoguOpenGateway {
+    override suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission =
         executeSubmission(
             validation = LuoguOpenRequestValidator.validateProblem(request),
         ) { authorization ->
@@ -237,7 +243,7 @@ class LuoguOpenPlatformClient internal constructor(
             )
         }.let { LuoguOpenSubmission(it.requestId ?: throw LuoguOpenApiError.MalformedResponse) }
 
-    suspend fun run(request: LuoguRunRequest): LuoguOpenSubmission =
+    override suspend fun run(request: LuoguRunRequest): LuoguOpenSubmission =
         executeSubmission(
             validation = LuoguOpenRequestValidator.validateRun(request),
         ) { authorization ->
@@ -247,7 +253,7 @@ class LuoguOpenPlatformClient internal constructor(
             )
         }.let { LuoguOpenSubmission(it.requestId ?: throw LuoguOpenApiError.MalformedResponse) }
 
-    suspend fun fetchResult(requestId: String): LuoguOpenResult {
+    override suspend fun fetchResult(requestId: String): LuoguOpenResult {
         if (requestId.isBlank()) throw LuoguOpenApiError.InvalidRequest(LuoguOpenRequestValidation.CodeRequired)
         val authorization = authorizationHeader()
         val response = try {

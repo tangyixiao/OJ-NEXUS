@@ -88,6 +88,7 @@ fun ProblemDetailScreen(
     onBack: () -> Unit,
     onEdit: (Long) -> Unit,
     onOpenReview: (Long) -> Unit,
+    onOpenWorkspace: (String) -> Unit,
 ) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<ProblemDetailViewModel>(
@@ -123,6 +124,7 @@ fun ProblemDetailScreen(
                 onBack = onBack,
                 onEdit = onEdit,
                 onOpenReview = onOpenReview,
+                onOpenWorkspace = onOpenWorkspace,
             )
         }
     }
@@ -146,6 +148,7 @@ private fun DetailContent(
     onBack: () -> Unit,
     onEdit: (Long) -> Unit,
     onOpenReview: (Long) -> Unit,
+    onOpenWorkspace: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val detail = uiState.detail
@@ -239,6 +242,11 @@ private fun DetailContent(
                     ActionChip(stringResource(R.string.action_edit)) { onEdit(detail.problem.id) }
                     ActionChip(stringResource(R.string.action_delete), danger = true) {
                         showDeleteDialog = true
+                    }
+                }
+                if (detail.problem.key.judge == com.ojnexus.core.model.JudgeId.LUOGU) {
+                    ActionChip(stringResource(R.string.workspace_open)) {
+                        onOpenWorkspace(detail.problem.key.externalId)
                     }
                 }
             }

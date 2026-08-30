@@ -41,6 +41,7 @@ import com.ojnexus.feature.problems.ProblemFormScreen
 import com.ojnexus.feature.problems.ProblemsScreen
 import com.ojnexus.feature.settings.SettingsScreen
 import com.ojnexus.feature.training.TrainingScreen
+import com.ojnexus.feature.workspace.WorkspaceScreen
 
 /** Route constants. Only stable IDs travel through routes; screens load the rest. */
 object NexusRoutes {
@@ -53,6 +54,7 @@ object NexusRoutes {
     const val CONTESTS = "contests"
     const val CONTEST_FOCUS = "contest-focus/{judge}/{contestId}"
     const val SETTINGS = "settings"
+    const val WORKSPACE = "workspace/{pid}"
 }
 
 /**
@@ -156,6 +158,16 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     composable(route = NexusRoutes.SETTINGS) {
                         SettingsScreen(onBack = { navController.popBackStack() })
                     }
+                    composable(
+                        route = NexusRoutes.WORKSPACE,
+                        arguments = listOf(navArgument("pid") { type = NavType.StringType }),
+                    ) { entry ->
+                        val pid = entry.arguments?.getString("pid") ?: return@composable
+                        WorkspaceScreen(
+                            pid = pid,
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
 
                     composable(
                         route = NexusRoutes.PROBLEM_DETAIL,
@@ -167,6 +179,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             onBack = { navController.popBackStack() },
                             onEdit = { id -> navController.navigate("problem/$id/edit") },
                             onOpenReview = { id -> navController.navigate("review/$id") },
+                            onOpenWorkspace = { pid -> navController.navigate("workspace/${android.net.Uri.encode(pid)}") },
                         )
                     }
                     composable(route = NexusRoutes.PROBLEM_ADD) {

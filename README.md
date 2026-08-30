@@ -44,10 +44,10 @@ ENGLISH, and 简体中文 in Settings.
 Settings supports public Luogu username binding plus local-first synchronization of public
 profile, rating history, problem catalog, and contest catalog data. Luogu uses its structured
 content-only JSON transport, remains marked EXPERIMENTAL, and reports anonymous submission
-records as AUTH_REQUIRED without importing fabricated attempts. Luogu credentials and cookies
-are never requested or stored.
-No passwords,
-cookies, private API signing, scraping, or auto-submit are used. See
+records as AUTH_REQUIRED without importing fabricated attempts. Main-site passwords, cookies,
+sessions, and CSRF state are never requested or stored. The local code workspace uses the
+official Luogu Open Platform credential only; run and submit are explicit foreground actions,
+with no automatic POST retry or cloud code storage. See
 [docs/MULTI_OJ.md](docs/MULTI_OJ.md), [docs/ATCODER.md](docs/ATCODER.md),
 [docs/ARENA.md](docs/ARENA.md),
 [docs/KNOWLEDGE.md](docs/KNOWLEDGE.md),
