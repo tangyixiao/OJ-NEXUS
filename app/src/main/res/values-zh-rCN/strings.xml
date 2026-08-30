@@ -497,6 +497,7 @@
     <string name="submissions_title">提交中心</string>
     <string name="submissions_section_recent">最近请求</string>
     <string name="submissions_action_error_section">最近操作错误</string>
+    <string name="submissions_action_error_message">无法刷新请求 %1$s，请重试。</string>
     <string name="submissions_loading">正在加载本地请求</string>
     <string name="submissions_database_error">本地请求不可用</string>
     <string name="submissions_empty">还没有本地洛谷请求。在工作区运行或提交后，这里会显示历史记录。</string>

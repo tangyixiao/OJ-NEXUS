@@ -548,6 +548,7 @@
     <string name="submissions_title">SUBMISSIONS</string>
     <string name="submissions_section_recent">RECENT REQUESTS</string>
     <string name="submissions_action_error_section">LAST ACTION ERROR</string>
+    <string name="submissions_action_error_message">COULD NOT REFRESH REQUEST %1$s. TRY AGAIN.</string>
     <string name="submissions_loading">LOADING LOCAL REQUESTS</string>
     <string name="submissions_database_error">LOCAL REQUESTS UNAVAILABLE</string>
     <string name="submissions_empty">NO LOCAL LUOGU REQUESTS YET. RUN OR SUBMIT FROM THE WORKSPACE TO SEE HISTORY HERE.</string>

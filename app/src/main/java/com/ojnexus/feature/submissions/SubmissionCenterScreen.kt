@@ -98,7 +98,10 @@ private fun SubmissionCenterContent(
         if (state.actionError != null) {
             NexusSection(label = stringResource(R.string.submissions_action_error_section)) {
                 Text(
-                    text = state.actionError.toMessage(),
+                    text = stringResource(
+                        R.string.submissions_action_error_message,
+                        state.actionError.requestId,
+                    ),
                     style = NexusTheme.typography.dataSmall,
                     color = NexusTheme.colors.danger,
                 )
@@ -314,8 +317,4 @@ private fun statusTone(status: String): NexusTone = when (status) {
     SubmissionJobStatus.READY.name -> NexusTone.Success
     SubmissionJobStatus.FAILED.name -> NexusTone.Danger
     else -> NexusTone.Neutral
-}
-
-private fun SubmissionCenterActionError.toMessage(): String = when (this) {
-    is SubmissionCenterActionError.Generic -> message
 }
