@@ -9,6 +9,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -77,7 +78,7 @@ class LuoguSubmissionRepositoryTest {
             ),
         )
 
-        repository.fetchResult("req-1")
+        repository.refreshResult("req-1")
 
         val job = database.submissionJobDao().findByRequestId("req-1")
         assertEquals(SubmissionJobStatus.READY.name, job?.status)
@@ -180,6 +181,41 @@ class LuoguSubmissionRepositoryTest {
             reopened.close()
             context.deleteDatabase(name)
         }
+    }
+
+    @Test
+    fun `recent submission history returns newest jobs first`() = runBlocking {
+        val dao = database.submissionJobDao()
+        dao.insert(
+            SubmissionJobEntity(
+                judge = JudgeId.LUOGU.id,
+                requestId = "req-old",
+                kind = SubmissionJobKind.PROBLEM.name,
+                pid = "P1001",
+                language = "cxx/14/gcc",
+                status = SubmissionJobStatus.PENDING.name,
+                createdAt = 10,
+                updatedAt = 10,
+            ),
+        )
+        dao.insert(
+            SubmissionJobEntity(
+                judge = JudgeId.LUOGU.id,
+                requestId = "req-new",
+                kind = SubmissionJobKind.PROBLEM.name,
+                pid = "P1001",
+                language = "cxx/14/gcc",
+                status = SubmissionJobStatus.READY.name,
+                createdAt = 20,
+                updatedAt = 20,
+            ),
+        )
+
+        assertEquals("req-new", repository.latestForProblem("P1001")?.requestId)
+        assertEquals(
+            listOf("req-new", "req-old"),
+            repository.observeRecentJobs(2).first().map { it.requestId },
+        )
     }
 }
 

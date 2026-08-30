@@ -8,6 +8,7 @@ import com.ojnexus.core.database.entity.SubmissionJobEntity
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.model.Verdict
 import java.time.Clock
+import kotlinx.coroutines.flow.Flow
 import com.ojnexus.judge.luogu.LuoguUrls
 
 enum class SubmissionJobKind { RUN, PROBLEM }
@@ -18,16 +19,27 @@ interface LuoguSubmissionHistory {
     suspend fun latestForProblem(pid: String): SubmissionJobEntity?
 }
 
+interface LuoguSubmissionCenter : LuoguSubmissionHistory {
+    fun observeRecentJobs(limit: Int): Flow<List<SubmissionJobEntity>>
+    suspend fun refreshResult(requestId: String): LuoguOpenResult
+}
+
 /** Adds local-first lifecycle persistence around the official Open Platform gateway. */
 class LuoguSubmissionRepository(
     private val database: OjNexusDatabase,
     private val gateway: LuoguOpenGateway,
     private val clock: Clock,
-) : LuoguOpenGateway, LuoguSubmissionHistory {
+) : LuoguOpenGateway, LuoguSubmissionCenter {
     private val dao = database.submissionJobDao()
 
     override suspend fun latestForProblem(pid: String): SubmissionJobEntity? =
         dao.findLatestByProblem(JudgeId.LUOGU.id, pid)
+
+    override fun observeRecentJobs(limit: Int): Flow<List<SubmissionJobEntity>> =
+        dao.observeRecent(limit)
+
+    override suspend fun refreshResult(requestId: String): LuoguOpenResult =
+        fetchResult(requestId)
 
     override suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission {
         val response = gateway.submitProblem(request)
