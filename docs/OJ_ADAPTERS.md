@@ -36,12 +36,12 @@ AtCoder Problems resources for submissions, contests, merged problems, and estim
 It declares no profile or rating capability. See [ATCODER.md](ATCODER.md) for source and
 pagination details.
 
-### Luogu (later phase)
-Unofficial/public web endpoints may change without notice. `LuoguAdapter` must:
-- treat every response as suspicious (strict parsing, defensive defaults),
-- return a clear `AdapterError` on any structure drift,
-- never store Luogu credentials,
-- remain fully removable without touching core.
+### Luogu (public binding)
+Luogu public user search is currently integrated for account binding through
+`GET /api/user/search?keyword=...`. The adapter is marked `EXPERIMENTAL`, parses only the
+public user summary, requires an exact username match, and never stores Luogu credentials.
+It declares `ACCOUNT_BINDING` only; submission/catalog sync remains capability-gated until a
+stable public endpoint can be verified.
 
 ### Later
 LeetCode, NowCoder, AcWing, Hydro, LibreOJ, Kattis, CodeChef, SPOJ, USACO — same pattern,

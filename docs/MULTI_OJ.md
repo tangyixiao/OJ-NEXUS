@@ -1,6 +1,6 @@
 # OJ NEXUS — Multi-OJ Architecture
 
-Phase 3 establishes the boundary used by every future judge.
+The multi-OJ boundary is implemented for Codeforces, AtCoder, and Luogu public account binding.
 
 `JudgeAdapter` declares identity, capabilities, reliability, and runtime status.
 `JudgeRegistry` resolves the adapter, account connector, and sync coordinator for a
@@ -11,6 +11,10 @@ Codeforces and AtCoder have independent request gates, retry/error policies, net
 cursors, and WorkManager names. A slow or degraded community source cannot serialize or
 overwrite another judge's sync. Unsupported features are omitted from capability sets rather
 than implemented as placeholders.
+
+Luogu currently exposes only public account binding through its own experimental adapter and
+request gate. It has no sync coordinator, so Settings does not offer a sync action for a
+bound Luogu account.
 
 Room v3 uses text contest identities and stores account verification/source reliability,
 remote difficulty provenance, and the AtCoder timestamp cursor. Problem, attempt, contest,
