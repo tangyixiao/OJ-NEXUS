@@ -58,6 +58,7 @@ token-colored PNG sharing through `FileProvider` are implemented.
 
 ## PHASE 8 — Polish + Performance + Tests (in progress)
 Settings now exports a verified copy of the local Room database through the Android document
-picker; the export contains local study data only and never requires credentials. Remaining
-work: reduce-motion + haptics settings, command palette, import/restore flow, theme slots,
-startup/scroll performance pass, and further coverage on engines/adapters/repositories.
+picker, and reduce-motion/haptics preferences persist through DataStore. The export contains
+local study data only and never requires credentials. Remaining work: command palette,
+import/restore flow, theme slots, startup/scroll performance pass, and further coverage on
+engines/adapters/repositories.

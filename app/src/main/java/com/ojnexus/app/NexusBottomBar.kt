@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +41,8 @@ fun NexusBottomBar(
     modifier: Modifier = Modifier,
 ) {
     val colors = NexusTheme.colors
+    val hapticsEnabled = NexusTheme.hapticsEnabled
+    val hapticFeedback = LocalHapticFeedback.current
     Column(modifier = modifier.background(colors.surface)) {
         NexusDivider()
         Row(
@@ -59,7 +63,12 @@ fun NexusBottomBar(
                             interactionSource = null,
                             indication = null,
                             role = Role.Tab,
-                        ) { onSelect(destination) },
+                        ) {
+                            if (hapticsEnabled) {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                            onSelect(destination)
+                        },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {

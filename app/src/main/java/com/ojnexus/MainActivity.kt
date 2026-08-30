@@ -5,8 +5,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.SystemBarStyle
+import androidx.compose.runtime.getValue
 import com.ojnexus.app.NexusApp
+import com.ojnexus.core.data.preferences.UserPreferences
 import com.ojnexus.core.designsystem.NexusTheme
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Single-activity entry point. All navigation and theming live in the Compose layer.
@@ -17,12 +20,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val app = application as OjNexusApplication
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
         setContent {
-            NexusTheme {
+            val preferences by app.container.userPreferencesRepository.preferences
+                .collectAsStateWithLifecycle(initialValue = UserPreferences())
+            NexusTheme(
+                reduceMotion = preferences.reduceMotion,
+                hapticsEnabled = preferences.hapticsEnabled,
+            ) {
                 NexusApp()
             }
         }

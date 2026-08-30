@@ -1,5 +1,7 @@
 package com.ojnexus.app
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -49,9 +51,6 @@ object NexusRoutes {
     const val SETTINGS = "settings"
 }
 
-private val fadeEnter = fadeIn(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard))
-private val fadeExit = fadeOut(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingExit))
-
 /**
  * Application shell: dark background, top-level NavHost and the flat bottom bar.
  * Status bar inset is consumed once here; screens lay out below it.
@@ -62,6 +61,16 @@ fun NexusApp(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    val enterTransition = if (NexusTheme.reduceMotion) {
+        EnterTransition.None
+    } else {
+        fadeIn(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard))
+    }
+    val exitTransition = if (NexusTheme.reduceMotion) {
+        ExitTransition.None
+    } else {
+        fadeOut(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingExit))
+    }
 
     CompositionLocalProvider(LocalAppContainer provides container) {
         Box(
@@ -78,10 +87,10 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     navController = navController,
                     startDestination = NexusDestination.DASHBOARD.route,
                     modifier = Modifier.weight(1f),
-                    enterTransition = { fadeEnter },
-                    exitTransition = { fadeExit },
-                    popEnterTransition = { fadeEnter },
-                    popExitTransition = { fadeExit },
+                    enterTransition = { enterTransition },
+                    exitTransition = { exitTransition },
+                    popEnterTransition = { enterTransition },
+                    popExitTransition = { exitTransition },
                 ) {
                     composable(NexusDestination.DASHBOARD.route) {
                         DashboardScreen(

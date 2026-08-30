@@ -392,6 +392,11 @@
     <string name="settings_export_backup">EXPORT DATABASE BACKUP</string>
     <string name="settings_backup_success">BACKUP EXPORTED</string>
     <string name="settings_backup_failed">BACKUP EXPORT FAILED</string>
+    <string name="settings_section_interaction">INTERACTION</string>
+    <string name="settings_reduce_motion">REDUCE MOTION</string>
+    <string name="settings_reduce_motion_desc">REMOVE NAVIGATION FADE TRANSITIONS</string>
+    <string name="settings_haptics">HAPTICS</string>
+    <string name="settings_haptics_desc">VIBRATE LIGHTLY WHEN CHANGING PRIMARY TABS</string>
     <string name="settings_handle_empty">HANDLE REQUIRED</string>
     <string name="settings_handle_invalid">HANDLE FORMAT IS INVALID</string>
     <string name="settings_handle_not_found">HANDLE NOT FOUND</string>

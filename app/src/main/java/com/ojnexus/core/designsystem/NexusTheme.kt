@@ -15,6 +15,8 @@ private val LocalNexusColors = staticCompositionLocalOf<NexusColors> {
 private val LocalNexusTypography = staticCompositionLocalOf<NexusTypography> {
     error("NexusTypography not provided — wrap content in NexusTheme")
 }
+private val LocalReduceMotion = staticCompositionLocalOf { false }
+private val LocalHapticsEnabled = staticCompositionLocalOf { true }
 
 /**
  * Entry point for all design tokens:
@@ -38,16 +40,32 @@ object NexusTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalNexusTypography.current
+
+    val reduceMotion: Boolean
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalReduceMotion.current
+
+    val hapticsEnabled: Boolean
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalHapticsEnabled.current
 }
 
 @Composable
-fun NexusTheme(content: @Composable () -> Unit) {
+fun NexusTheme(
+    reduceMotion: Boolean = false,
+    hapticsEnabled: Boolean = true,
+    content: @Composable () -> Unit,
+) {
     val colors = NexusColors.dark()
     val typography = NexusTypography.dark()
 
     CompositionLocalProvider(
         LocalNexusColors provides colors,
         LocalNexusTypography provides typography,
+        LocalReduceMotion provides reduceMotion,
+        LocalHapticsEnabled provides hapticsEnabled,
     ) {
         MaterialTheme(
             colorScheme = colors.toMaterialScheme(),

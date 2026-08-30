@@ -11,6 +11,7 @@ import com.ojnexus.core.data.repository.KnowledgeRepository
 import com.ojnexus.core.data.repository.ProblemRepository
 import com.ojnexus.core.data.repository.ReviewRepository
 import com.ojnexus.core.data.repository.TrainingRepository
+import com.ojnexus.core.data.preferences.UserPreferencesRepository
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.network.CoroutineDelayProvider
 import com.ojnexus.core.network.SystemMonotonicClock
@@ -58,6 +59,7 @@ class AppContainer(context: android.content.Context) {
     val contestFocusRepository: ContestFocusRepository = ContestFocusRepository(database, clock)
     val knowledgeRepository: KnowledgeRepository = KnowledgeRepository(database)
     val backupRepository: BackupRepository = BackupRepository(database)
+    val userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepository(context)
     val judgeDataRepository = JudgeDataRepository(database)
 
     // --- Codeforces adapter stack (single request gate for the whole process) ---

@@ -16,6 +16,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +55,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 it.judgeDataRepository,
                 it.judgeRegistry,
                 it.backupRepository,
+                it.userPreferencesRepository,
             )
         },
     )
@@ -60,6 +63,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     val errors by viewModel.errors.collectAsStateWithLifecycle()
     val connecting by viewModel.connecting.collectAsStateWithLifecycle()
     val backupResult by viewModel.backup.collectAsStateWithLifecycle()
+    val preferences by viewModel.preferences.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
@@ -123,6 +127,22 @@ fun SettingsScreen(onBack: () -> Unit) {
                         color = if (success) NexusTheme.colors.success else NexusTheme.colors.danger,
                     )
                 }
+            }
+            Spacer(Modifier.height(NexusSpacing.xl))
+            NexusSection(label = stringResource(R.string.settings_section_interaction)) {
+                SettingsToggle(
+                    label = stringResource(R.string.settings_reduce_motion),
+                    description = stringResource(R.string.settings_reduce_motion_desc),
+                    checked = preferences.reduceMotion,
+                    onCheckedChange = viewModel::setReduceMotion,
+                )
+                Spacer(Modifier.height(NexusSpacing.sm))
+                SettingsToggle(
+                    label = stringResource(R.string.settings_haptics),
+                    description = stringResource(R.string.settings_haptics_desc),
+                    checked = preferences.hapticsEnabled,
+                    onCheckedChange = viewModel::setHapticsEnabled,
+                )
             }
             Spacer(Modifier.height(NexusSpacing.xxl))
         }
@@ -343,6 +363,36 @@ private fun SettingsAction(label: String, danger: Boolean = false, onClick: () -
             .padding(horizontal = NexusSpacing.sm, vertical = NexusSpacing.xs),
     ) {
         Text(label, style = NexusTheme.typography.dataSmall, color = foreground)
+    }
+}
+
+@Composable
+private fun SettingsToggle(
+    label: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val colors = NexusTheme.colors
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.Switch) { onCheckedChange(!checked) },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = NexusTheme.typography.data, color = colors.textPrimary)
+            Text(description, style = NexusTheme.typography.dataSmall, color = colors.textTertiary)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = null,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = colors.onAccent,
+                checkedTrackColor = colors.accent,
+                uncheckedThumbColor = colors.textTertiary,
+                uncheckedTrackColor = colors.surfaceElevated,
+                uncheckedBorderColor = colors.border,
+            ),
+        )
     }
 }
 

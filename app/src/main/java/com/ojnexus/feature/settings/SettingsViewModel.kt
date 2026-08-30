@@ -4,6 +4,8 @@ import android.content.ContentResolver
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ojnexus.core.data.preferences.UserPreferences
+import com.ojnexus.core.data.preferences.UserPreferencesRepository
 import com.ojnexus.core.data.repository.BackupRepository
 import com.ojnexus.core.data.repository.JudgeAccountRepository
 import com.ojnexus.core.data.repository.JudgeDataRepository
@@ -41,6 +43,7 @@ class SettingsViewModel(
     dataRepository: JudgeDataRepository,
     registry: JudgeRegistry,
     private val backupRepository: BackupRepository,
+    private val preferencesRepository: UserPreferencesRepository,
 ) : ViewModel() {
     private val judges = registry.supportedJudges().sortedBy { it.ordinal }
 
@@ -79,11 +82,24 @@ class SettingsViewModel(
     val connecting: StateFlow<Set<JudgeId>> = connectingJudges.asStateFlow()
     private val backupResult = MutableStateFlow<Boolean?>(null)
     val backup: StateFlow<Boolean?> = backupResult.asStateFlow()
+    val preferences: StateFlow<UserPreferences> = preferencesRepository.preferences.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        UserPreferences(),
+    )
 
     fun exportBackup(resolver: ContentResolver, destination: Uri) {
         viewModelScope.launch {
             backupResult.value = backupRepository.exportTo(resolver, destination)
         }
+    }
+
+    fun setReduceMotion(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setReduceMotion(enabled) }
+    }
+
+    fun setHapticsEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setHapticsEnabled(enabled) }
     }
 
     fun connect(judge: JudgeId, handle: String) {
