@@ -42,6 +42,9 @@ import com.ojnexus.judge.luogu.RetrofitLuoguAdapter
 import com.ojnexus.judge.luogu.LuoguSyncCoordinator
 import com.ojnexus.judge.luogu.LuoguSyncRepository
 import com.ojnexus.judge.luogu.api.LuoguApi
+import com.ojnexus.judge.luogu.open.AndroidOpenAppCredentialStore
+import com.ojnexus.judge.luogu.open.LuoguOpenPlatformApi
+import com.ojnexus.judge.luogu.open.LuoguOpenPlatformClient
 import kotlinx.serialization.json.Json
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -126,6 +129,17 @@ class AppContainer(context: android.content.Context) {
     )
     private val luoguClient = LuoguClient(luoguApi, luoguGate)
     private val luoguAdapter = RetrofitLuoguAdapter(luoguClient)
+
+    // --- Luogu Open Platform (separate from the public main-site client) ---
+
+    val luoguOpenCredentialStore = AndroidOpenAppCredentialStore(context.applicationContext)
+    private val luoguOpenApi: LuoguOpenPlatformApi = Retrofit.Builder()
+        .baseUrl(LuoguUrls.OPEN_PLATFORM_BASE_URL)
+        .client(okHttpClient)
+        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .build()
+        .create(LuoguOpenPlatformApi::class.java)
+    val luoguOpenClient = LuoguOpenPlatformClient(luoguOpenApi, luoguOpenCredentialStore)
 
     val judgeRegistry = JudgeRegistry(
         adapters = listOf(codeforcesAdapter, atCoderAdapter, luoguAdapter),
