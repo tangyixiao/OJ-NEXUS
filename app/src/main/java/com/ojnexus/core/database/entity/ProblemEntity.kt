@@ -27,6 +27,9 @@ data class ProblemEntity(
     val title: String,
     /** Unified difficulty rating. NULL means the judge does not define one — never 0. */
     val difficulty: Int?,
+    /** [com.ojnexus.core.model.DifficultySource] name. */
+    @ColumnInfo(name = "difficulty_source", defaultValue = "'UNKNOWN'")
+    val difficultySource: String = "UNKNOWN",
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
     @ColumnInfo(name = "first_solved_at") val firstSolvedAt: Long? = null,

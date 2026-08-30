@@ -13,6 +13,19 @@ import com.ojnexus.core.database.relation.ProblemDetailPojo
 import com.ojnexus.core.database.relation.ProblemWithTagsPojo
 import kotlinx.coroutines.flow.Flow
 
+data class TrainingCandidateRow(
+    val id: Long,
+    val judge: String,
+    val externalId: String,
+    val title: String,
+    val difficulty: Int?,
+    val solved: Boolean,
+    val attemptCount: Int,
+    val failureCount: Int,
+    val reviewDue: Boolean,
+    val coverageValue: Int,
+)
+
 @Dao
 interface ProblemDao {
 
@@ -22,6 +35,19 @@ interface ProblemDao {
             "FROM problems",
     )
     fun observeLibrary(): Flow<List<ProblemWithTagsPojo>>
+
+    @Query(
+        "SELECT p.id AS id, p.judge AS judge, p.external_id AS externalId, p.title AS title, " +
+            "p.difficulty AS difficulty, p.solved AS solved, p.attempt_count AS attemptCount, " +
+            "(SELECT COUNT(*) FROM failure_entries f WHERE f.problem_id = p.id) AS failureCount, " +
+            "EXISTS(SELECT 1 FROM reviews r WHERE r.problem_id = p.id " +
+            "AND r.due_day_index <= :todayEpochDay) AS reviewDue, " +
+            "(SELECT COUNT(*) FROM problem_knowledge k WHERE k.problem_id = p.id) AS coverageValue " +
+            "FROM problems p WHERE p.solved = 0 OR EXISTS(SELECT 1 FROM reviews r2 " +
+            "WHERE r2.problem_id = p.id AND r2.due_day_index <= :todayEpochDay) " +
+            "ORDER BY p.updated_at DESC LIMIT :limit",
+    )
+    fun observeTrainingCandidates(todayEpochDay: Long, limit: Int): Flow<List<TrainingCandidateRow>>
 
     @Transaction
     @Query(
@@ -43,6 +69,9 @@ interface ProblemDao {
 
     @Query("SELECT * FROM problems WHERE judge = :judge AND external_id = :externalId")
     suspend fun findByKey(judge: String, externalId: String): ProblemEntity?
+
+    @Query("SELECT * FROM problems WHERE judge = :judge")
+    suspend fun findByJudge(judge: String): List<ProblemEntity>
 
     @Transaction
     @Query(
@@ -96,13 +125,14 @@ interface ProblemDao {
 
     /** Remote-metadata merge (Phase 2): title/difficulty/url are remote-authoritative. */
     @Query(
-        "UPDATE problems SET title = :title, difficulty = :difficulty, " +
+        "UPDATE problems SET title = :title, difficulty = :difficulty, difficulty_source = :difficultySource, " +
             "source_url = :sourceUrl, updated_at = :updatedAt WHERE id = :id",
     )
     suspend fun applyRemoteMetadata(
         id: Long,
         title: String,
         difficulty: Int?,
+        difficultySource: String,
         sourceUrl: String?,
         updatedAt: Long,
     )

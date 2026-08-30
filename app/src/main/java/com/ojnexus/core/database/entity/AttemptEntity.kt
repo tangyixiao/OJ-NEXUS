@@ -48,7 +48,7 @@ data class AttemptEntity(
     @ColumnInfo(name = "source_judge") val sourceJudge: String? = null,
     /** Judge-side submission id — the sync idempotency key for imported attempts. */
     @ColumnInfo(name = "external_submission_id") val externalSubmissionId: String? = null,
-    @ColumnInfo(name = "contest_id") val contestId: Long? = null,
+    @ColumnInfo(name = "contest_id") val contestId: String? = null,
     /** Codeforces participant type (CONTESTANT / OUT_OF_COMPETITION / VIRTUAL / PRACTICE). */
     @ColumnInfo(name = "participant_type") val participantType: String? = null,
     /** Codeforces testset (SAMPLES / SYSTEM / PRETESTS). */
@@ -58,4 +58,8 @@ data class AttemptEntity(
     @ColumnInfo(name = "execution_time_ms") val executionTimeMs: Int? = null,
     /** Judge-reported memory in bytes (Codeforces memoryConsumedBytes). */
     @ColumnInfo(name = "memory_bytes") val memoryBytes: Long? = null,
+    /** Judge-reported score/points when supplied (AtCoder); null is distinct from zero. */
+    val score: Double? = null,
+    /** Submitted source length in bytes when supplied by the judge. */
+    @ColumnInfo(name = "code_length_bytes") val codeLengthBytes: Int? = null,
 )

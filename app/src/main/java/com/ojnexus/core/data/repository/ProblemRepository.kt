@@ -274,4 +274,4 @@ class ProblemRepository(
 }
 
 /** Local calendar day (epoch day) of "now" under this clock's zone — the day-bucketing key. */
-fun Clock.dayIndex(): Long = java.time.LocalDate.ofInstant(instant(), zone).toEpochDay()
+fun Clock.dayIndex(): Long = instant().atZone(zone).toLocalDate().toEpochDay()

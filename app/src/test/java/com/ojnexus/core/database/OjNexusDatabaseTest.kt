@@ -11,6 +11,7 @@ import com.ojnexus.core.database.entity.ProblemTagCrossRef
 import com.ojnexus.core.database.entity.ProblemTagEntity
 import com.ojnexus.core.database.entity.ReviewEntity
 import com.ojnexus.core.database.entity.TrainingTaskEntity
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -156,5 +157,16 @@ class OjNexusDatabaseTest {
         assertTrue(inReview.inReview)
         assertFalse(notInReview.inReview)
         assertNotNull(inReview.tags)
+    }
+
+    @Test
+    fun `training candidate query stays bounded for scroll performance`() = runBlocking {
+        repeat(40) { index ->
+            database.problemDao().insert(problem("codeforces", "candidate-$index"))
+        }
+
+        val candidates = database.problemDao().observeTrainingCandidates(0L, limit = 20).first()
+
+        assertEquals(20, candidates.size)
     }
 }

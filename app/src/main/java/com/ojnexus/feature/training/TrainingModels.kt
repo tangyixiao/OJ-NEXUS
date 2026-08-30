@@ -3,6 +3,8 @@ package com.ojnexus.feature.training
 import com.ojnexus.core.model.ReviewQueueItem
 import com.ojnexus.core.model.TrainingSession
 import com.ojnexus.core.model.TrainingTask
+import com.ojnexus.core.data.repository.KnowledgeAreaState
+import com.ojnexus.core.domain.TrainingReason
 
 /** Review queue split into the three user-facing buckets. */
 data class ReviewBuckets(
@@ -20,4 +22,15 @@ data class TrainingUiState(
     val reviews: ReviewBuckets,
     val activeSession: TrainingSession?,
     val history: List<TrainingSession>,
+    val knowledge: List<KnowledgeAreaState> = emptyList(),
+    val recommendations: List<TrainingRecommendation> = emptyList(),
+)
+
+data class TrainingRecommendation(
+    val problemId: Long,
+    val judge: String,
+    val externalId: String,
+    val title: String,
+    val priority: Int,
+    val reasons: Set<TrainingReason>,
 )

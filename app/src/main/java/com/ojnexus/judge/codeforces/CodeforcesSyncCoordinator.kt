@@ -20,9 +20,11 @@ import kotlinx.coroutines.CancellationException
 class CodeforcesSyncCoordinator(
     private val accountRepository: com.ojnexus.core.data.repository.JudgeAccountRepository,
     private val syncRepository: CodeforcesSyncRepository,
-) {
+) : com.ojnexus.judge.JudgeSyncCoordinator {
 
-    suspend fun syncAccount(accountId: Long, force: Boolean): SyncReport? {
+    override val judgeId = com.ojnexus.core.model.JudgeId.CODEFORCES
+
+    override suspend fun syncAccount(accountId: Long, force: Boolean): SyncReport? {
         val account = accountRepository.findById(accountId) ?: return null
         val outcomes = mutableListOf<StageOutcome>()
 

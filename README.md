@@ -22,11 +22,29 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 2 (Codeforces Integration)**: the local-first training loop now
-has public Codeforces handle binding, Room-cached profile/rating/submissions/contests/problemset
-data, incremental submission sync, rejudge-safe upserts, and unique WorkManager refreshes.
-Problems can search the synced remote catalog without another network call. No passwords,
-cookies, private API signing, scraping, or auto-submit are used. See [docs/CODEFORCES.md](docs/CODEFORCES.md),
+Early development — **Phase 8 (Polish + Data Safety)**: Codeforces and AtCoder now share
+judge-independent sync contracts while keeping separate adapters, request gates, cursors,
+and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
+binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
+profile, problems, contests, and analytics expose judge-labelled local data. Analytics adds
+heatmap day detail, first-try AC, weak-tag performance, and per-judge difficulty breakdowns.
+Arena adds a cached contest focus view with countdowns, local markers, and joined submission
+progress. Training now shows an explicit knowledge tree with local evidence-backed mastery
+scores and reason codes. Profile now derives and displays local achievement milestones. The
+Player Card can be exported as a PNG through the system share sheet. Settings can export a
+verified copy of the local Room database through the Android document picker; it contains local
+study data only and never requires credentials. Reduce-motion and haptics preferences are
+persisted locally and affect navigation and primary-tab feedback. The global command palette
+searches local navigation and study actions without network access. A validated database backup
+can be imported and restored before the next app start. See [docs/DATA_SAFETY.md](docs/DATA_SAFETY.md).
+Settings also exposes three named dark accent slots: BLUE, GREEN, and AMBER.
+The performance audit and bounded-feed check are documented in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+No passwords,
+cookies, private API signing, scraping, or auto-submit are used. See
+[docs/MULTI_OJ.md](docs/MULTI_OJ.md), [docs/ATCODER.md](docs/ATCODER.md),
+[docs/ARENA.md](docs/ARENA.md),
+[docs/KNOWLEDGE.md](docs/KNOWLEDGE.md),
+[docs/ACHIEVEMENTS.md](docs/ACHIEVEMENTS.md),
 [docs/SYNC_ENGINE.md](docs/SYNC_ENGINE.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Documentation
@@ -37,6 +55,9 @@ cookies, private API signing, scraping, or auto-submit are used. See [docs/CODEF
 - [Database](docs/DATABASE.md)
 - [Training Engine](docs/TRAINING_ENGINE.md)
 - [OJ Adapter Spec](docs/OJ_ADAPTERS.md)
+- [Multi-OJ Architecture](docs/MULTI_OJ.md)
+- [AtCoder Integration](docs/ATCODER.md)
+- [Analytics](docs/ANALYTICS.md)
 - [Roadmap](docs/ROADMAP.md)
 
 ## Build

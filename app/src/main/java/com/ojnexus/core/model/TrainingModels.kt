@@ -10,6 +10,7 @@ data class Problem(
     val title: String,
     /** Unified difficulty; null = unknown (the judge defines none). */
     val difficulty: Int?,
+    val difficultySource: DifficultySource = DifficultySource.UNKNOWN,
     val createdAt: Long,
     val updatedAt: Long,
     val firstSolvedAt: Long?,

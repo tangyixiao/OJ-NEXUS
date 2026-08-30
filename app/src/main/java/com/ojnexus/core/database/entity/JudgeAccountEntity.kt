@@ -26,4 +26,8 @@ data class JudgeAccountEntity(
     @ColumnInfo(name = "connected_at") val connectedAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
     val enabled: Boolean = true,
+    /** VERIFIED or UNVERIFIED; soft-bound judges may remain connected while unverified. */
+    @ColumnInfo(name = "verification_state") val verificationState: String = "VERIFIED",
+    /** [com.ojnexus.judge.DataSourceReliability] name. */
+    @ColumnInfo(name = "source_reliability") val sourceReliability: String = "OFFICIAL",
 )

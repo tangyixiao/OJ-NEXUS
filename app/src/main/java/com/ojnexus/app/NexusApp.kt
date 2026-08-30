@@ -1,5 +1,7 @@
 package com.ojnexus.app
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,6 +13,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
@@ -27,6 +33,7 @@ import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.feature.analytics.AnalyticsScreen
 import com.ojnexus.feature.contests.ContestCenterScreen
+import com.ojnexus.feature.contests.ContestFocusScreen
 import com.ojnexus.feature.dashboard.DashboardScreen
 import com.ojnexus.feature.profile.ProfileScreen
 import com.ojnexus.feature.problems.ProblemDetailScreen
@@ -44,11 +51,9 @@ object NexusRoutes {
     const val SESSION_ACTIVE = "session/active"
     const val SESSION_DETAIL = "session/{sessionId}"
     const val CONTESTS = "contests"
+    const val CONTEST_FOCUS = "contest-focus/{judge}/{contestId}"
     const val SETTINGS = "settings"
 }
-
-private val fadeEnter = fadeIn(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard))
-private val fadeExit = fadeOut(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingExit))
 
 /**
  * Application shell: dark background, top-level NavHost and the flat bottom bar.
@@ -60,6 +65,22 @@ fun NexusApp(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    var commandPaletteOpen by rememberSaveable { mutableStateOf(false) }
+    val reduceMotion = NexusTheme.reduceMotion
+    val enterTransition = remember(reduceMotion) {
+        if (reduceMotion) {
+            EnterTransition.None
+        } else {
+            fadeIn(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard))
+        }
+    }
+    val exitTransition = remember(reduceMotion) {
+        if (reduceMotion) {
+            ExitTransition.None
+        } else {
+            fadeOut(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingExit))
+        }
+    }
 
     CompositionLocalProvider(LocalAppContainer provides container) {
         Box(
@@ -76,10 +97,10 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     navController = navController,
                     startDestination = NexusDestination.DASHBOARD.route,
                     modifier = Modifier.weight(1f),
-                    enterTransition = { fadeEnter },
-                    exitTransition = { fadeExit },
-                    popEnterTransition = { fadeEnter },
-                    popExitTransition = { fadeExit },
+                    enterTransition = { enterTransition },
+                    exitTransition = { exitTransition },
+                    popEnterTransition = { enterTransition },
+                    popExitTransition = { exitTransition },
                 ) {
                     composable(NexusDestination.DASHBOARD.route) {
                         DashboardScreen(
@@ -95,6 +116,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     }
                     composable(NexusDestination.TRAINING.route) {
                         TrainingScreen(
+                            onOpenProblem = { id -> navController.navigate("problem/$id") },
                             onOpenSession = { id ->
                                 navController.navigate(
                                     if (id == null) NexusRoutes.SESSION_ACTIVE else "session/$id",
@@ -109,7 +131,27 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     }
 
                     composable(route = NexusRoutes.CONTESTS) {
-                        ContestCenterScreen(onBack = { navController.popBackStack() })
+                        ContestCenterScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenFocus = { judge, contestId ->
+                                navController.navigate("contest-focus/${android.net.Uri.encode(judge)}/${android.net.Uri.encode(contestId)}")
+                            },
+                        )
+                    }
+                    composable(
+                        route = NexusRoutes.CONTEST_FOCUS,
+                        arguments = listOf(
+                            navArgument("judge") { type = NavType.StringType },
+                            navArgument("contestId") { type = NavType.StringType },
+                        ),
+                    ) { entry ->
+                        val judge = entry.arguments?.getString("judge") ?: return@composable
+                        val contestId = entry.arguments?.getString("contestId") ?: return@composable
+                        ContestFocusScreen(
+                            judge = judge,
+                            contestId = contestId,
+                            onBack = { navController.popBackStack() },
+                        )
                     }
                     composable(route = NexusRoutes.SETTINGS) {
                         SettingsScreen(onBack = { navController.popBackStack() })
@@ -173,8 +215,24 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             navController.navigateToTopLevel(destination.route)
                         }
                     },
+                    onOpenCommandPalette = { commandPaletteOpen = true },
                 )
             }
+        }
+        if (commandPaletteOpen) {
+            CommandPalette(
+                onDismiss = { commandPaletteOpen = false },
+                onExecute = { command ->
+                    commandPaletteOpen = false
+                    when (command) {
+                        "dashboard", "problems", "training", "analytics", "profile" ->
+                            navController.navigateToTopLevel(command)
+                        "contests" -> navController.navigate(NexusRoutes.CONTESTS)
+                        "add_problem" -> navController.navigate(NexusRoutes.PROBLEM_ADD)
+                        "settings" -> navController.navigate(NexusRoutes.SETTINGS)
+                    }
+                },
+            )
         }
     }
 }

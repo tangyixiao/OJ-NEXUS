@@ -64,7 +64,7 @@ private val StatusColumnWidth = 92.dp
 private val IconTouchSize = 32.dp
 private val RemoteProblemRowHeight = 82.dp
 
-private enum class ProblemScope { LIBRARY, CODEFORCES }
+private enum class ProblemScope { LIBRARY, REMOTE }
 
 @Composable
 fun ProblemsScreen(
@@ -77,7 +77,7 @@ fun ProblemsScreen(
             ProblemsViewModel(
                 repository = it.problemRepository,
                 demoSeeder = it.demoSeeder,
-                syncRepository = it.codeforcesSyncRepository,
+                judgeDataRepository = it.judgeDataRepository,
             )
         },
     )
@@ -115,7 +115,7 @@ fun ProblemsScreen(
                     onInsertDemo = { viewModel.insertDemoData() },
                     onClearDemo = { viewModel.clearDemoData() },
                     onOpenRemote = {
-                        scope = ProblemScope.CODEFORCES
+                        scope = ProblemScope.REMOTE
                         viewModel.enterRemoteCatalog()
                     },
                 )
@@ -324,8 +324,8 @@ private fun ScopeSwitcher(selected: ProblemScope, onSelectRemote: () -> Unit) {
             onClick = {},
         )
         FilterChip(
-            label = stringResource(R.string.problems_scope_codeforces),
-            selected = selected == ProblemScope.CODEFORCES,
+            label = stringResource(R.string.problems_scope_remote),
+            selected = selected == ProblemScope.REMOTE,
             onClick = onSelectRemote,
         )
     }
@@ -395,9 +395,22 @@ private fun RemoteCatalogContent(
             Column(modifier = Modifier.padding(horizontal = NexusSpacing.screenHorizontal)) {
                 Spacer(modifier = Modifier.height(NexusSpacing.sm))
                 ScopeSwitcher(
-                    selected = ProblemScope.CODEFORCES,
+                    selected = ProblemScope.REMOTE,
                     onSelectRemote = {},
                 )
+                Spacer(modifier = Modifier.height(NexusSpacing.xs))
+                Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+                    FilterChip(
+                        label = com.ojnexus.core.model.JudgeId.CODEFORCES.displayName,
+                        selected = state.judge == com.ojnexus.core.model.JudgeId.CODEFORCES,
+                        onClick = { viewModel.setRemoteJudge(com.ojnexus.core.model.JudgeId.CODEFORCES) },
+                    )
+                    FilterChip(
+                        label = com.ojnexus.core.model.JudgeId.ATCODER.displayName,
+                        selected = state.judge == com.ojnexus.core.model.JudgeId.ATCODER,
+                        onClick = { viewModel.setRemoteJudge(com.ojnexus.core.model.JudgeId.ATCODER) },
+                    )
+                }
                 Spacer(modifier = Modifier.height(NexusSpacing.xs))
                 SearchField(
                     query = state.query,
@@ -428,7 +441,7 @@ private fun RemoteCatalogContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = stringResource(R.string.problems_scope_codeforces),
+                        text = state.judge.displayName,
                         style = NexusTheme.typography.sectionLabel,
                         color = NexusTheme.colors.textTertiary,
                         modifier = Modifier.weight(1f),
@@ -464,10 +477,10 @@ private fun RemoteCatalogContent(
                 )
             }
         } else {
-            items(items = state.problems, key = { "remote-${it.externalId}" }) { problem ->
+            items(items = state.problems, key = { "remote-${it.judge}-${it.externalId}" }) { problem ->
                 RemoteProblemRow(
                     problem = problem,
-                    addedProblemId = state.addedProblemIds[problem.externalId],
+                    addedProblemId = state.addedProblemIds["${problem.judge}:${problem.externalId}"],
                     onAdd = { viewModel.addRemoteToLibrary(problem) },
                     onOpen = { id -> onOpenProblem(id) },
                 )
@@ -532,8 +545,14 @@ private fun RemoteProblemRow(
             }
             Text(
                 text = listOfNotNull(
-                    problem.rating?.toString(),
-                    problem.solvedCount?.let { "${it} AC" },
+                    problem.rating?.let { rating ->
+                        if (problem.difficultySource == com.ojnexus.core.model.DifficultySource.ESTIMATED.name) {
+                            stringResource(R.string.problems_estimated_difficulty, rating)
+                        } else {
+                            rating.toString()
+                        }
+                    },
+                    problem.solvedCount?.let { stringResource(R.string.problems_solved_count, it) },
                     problem.tags.split('\u001F').filter { it.isNotBlank() }.take(2).joinToString(" · "),
                 ).joinToString(" · ").ifEmpty { stringResource(R.string.problems_no_value) },
                 style = NexusTheme.typography.dataSmall,
@@ -726,7 +745,13 @@ private fun ProblemRow(
                 .border(1.dp, if (problem.favorite) colors.accent else colors.borderStrong, RoundedCornerShape(2.dp)),
         )
         Text(
-            text = problem.difficulty?.toString() ?: stringResource(R.string.problems_no_value),
+            text = problem.difficulty?.let { difficulty ->
+                if (problem.difficultySource == com.ojnexus.core.model.DifficultySource.ESTIMATED) {
+                    stringResource(R.string.problems_estimated_difficulty, difficulty)
+                } else {
+                    difficulty.toString()
+                }
+            } ?: stringResource(R.string.problems_no_value),
             style = NexusTheme.typography.dataSmall,
             color = colors.textSecondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.End,

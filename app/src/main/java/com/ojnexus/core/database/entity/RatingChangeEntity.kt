@@ -24,7 +24,7 @@ data class RatingChangeEntity(
     val judge: String,
     /** Canonical handle the history was fetched for. */
     val handle: String,
-    @ColumnInfo(name = "contest_id") val contestId: Long,
+    @ColumnInfo(name = "contest_id") val contestId: String,
     @ColumnInfo(name = "contest_name") val contestName: String,
     val rank: Int,
     @ColumnInfo(name = "old_rating") val oldRating: Int,

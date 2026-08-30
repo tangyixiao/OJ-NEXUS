@@ -7,6 +7,7 @@ import com.ojnexus.core.data.dataResult
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.database.dao.SessionDao
 import com.ojnexus.core.database.dao.TaskDao
+import com.ojnexus.core.database.dao.TrainingCandidateRow
 import com.ojnexus.core.database.entity.TrainingSessionEntity
 import com.ojnexus.core.database.entity.TrainingSessionProblemEntity
 import com.ojnexus.core.database.entity.TrainingTaskEntity
@@ -35,6 +36,9 @@ class TrainingRepository(
 ) {
     private val taskDao: TaskDao = database.taskDao()
     private val sessionDao: SessionDao = database.sessionDao()
+
+    fun observeCandidateRows(todayEpochDay: Long, limit: Int = 20): Flow<List<TrainingCandidateRow>> =
+        database.problemDao().observeTrainingCandidates(todayEpochDay, limit)
 
     // --- Today tasks ---
 

@@ -9,6 +9,18 @@
     <string name="nav_training">TRAINING</string>
     <string name="nav_analytics">ANALYTICS</string>
     <string name="nav_profile">PROFILE</string>
+    <string name="command_palette_button">COMMANDS</string>
+    <string name="command_palette_title">COMMAND PALETTE</string>
+    <string name="command_palette_hint">SEARCH COMMANDS</string>
+    <string name="command_palette_empty">NO MATCHING COMMANDS</string>
+    <string name="command_open_dashboard">OPEN DASHBOARD OVERVIEW</string>
+    <string name="command_open_problems">OPEN LOCAL PROBLEM LIBRARY</string>
+    <string name="command_open_training">OPEN TRAINING AND REVIEW QUEUE</string>
+    <string name="command_open_analytics">OPEN LOCAL PERFORMANCE METRICS</string>
+    <string name="command_open_profile">OPEN PLAYER PROFILE AND CARD</string>
+    <string name="command_open_contests">OPEN CONTEST CENTER AND ARENA</string>
+    <string name="command_add_problem">CREATE A LOCAL PROBLEM</string>
+    <string name="command_open_settings">OPEN SETTINGS AND DATA TOOLS</string>
 
     <!-- Verdicts (unified codes) -->
     <string name="verdict_ac">AC</string>
@@ -121,6 +133,8 @@
     <string name="problems_empty_hint">ADD A PROBLEM TO START TRACKING</string>
     <string name="problems_no_match">NO PROBLEMS MATCH THE FILTER</string>
     <string name="problems_no_value">—</string>
+    <string name="problems_estimated_difficulty">EST. %1$d</string>
+    <string name="problems_solved_count">%1$d AC</string>
     <string name="problem_status_unsolved">UNSOLVED</string>
     <string name="problem_status_attempted">ATTEMPTED</string>
     <string name="problem_status_solved">SOLVED</string>
@@ -161,6 +175,8 @@
     <string name="detail_section_insight">KEY INSIGHT</string>
     <string name="detail_section_notes">NOTES</string>
     <string name="detail_section_review">REVIEW</string>
+    <string name="detail_section_knowledge">KNOWLEDGE</string>
+    <string name="knowledge_relation_hint">SELECT THE KNOWLEDGE AREAS THIS PROBLEM TRAINS.</string>
     <string name="detail_section_actions">ACTIONS</string>
     <string name="problem_field_first_ac">FIRST AC</string>
     <string name="problem_field_last_attempt">LAST ATTEMPT</string>
@@ -273,6 +289,20 @@
     <!-- Training screen -->
     <string name="training_section_target">TODAY\'S TARGET</string>
     <string name="training_section_weak">WEAK AREAS</string>
+    <string name="training_section_targets">TRAINING TARGETS</string>
+    <string name="training_target_empty">NO ACTIVE TRAINING TARGETS</string>
+    <string name="training_priority">P%d</string>
+    <string name="training_reason_unsolved">UNSOLVED</string>
+    <string name="training_reason_review">REVIEW DUE</string>
+    <string name="training_reason_failures">FAILURE HISTORY</string>
+    <string name="training_reason_difficulty">DIFFICULTY FIT</string>
+    <string name="training_reason_coverage">COVERAGE VALUE</string>
+    <string name="training_section_knowledge">KNOWLEDGE TREE</string>
+    <string name="knowledge_area_count">%d AREAS</string>
+    <string name="knowledge_score">%d%%</string>
+    <string name="mastery_reason_no_evidence">NO EVIDENCE</string>
+    <string name="mastery_reason_low_ac">LOW AC RATE</string>
+    <string name="mastery_reason_failures">FAILURE LOG</string>
     <string name="target_priority">PRIORITY %d</string>
     <string name="target_range_label">RANGE</string>
 
@@ -295,7 +325,17 @@
     <string name="heatmap_legend_more">MORE</string>
     <string name="analytics_section_trend">SOLVE TREND</string>
     <string name="analytics_section_verdict">VERDICT DISTRIBUTION</string>
+    <string name="analytics_section_judges">JUDGE BREAKDOWN</string>
+    <string name="analytics_no_judge_data">NO JUDGE ATTEMPTS RECORDED</string>
+    <string name="analytics_judge_difficulty">DIFFICULTY %1$s</string>
     <string name="analytics_section_difficulty">DIFFICULTY DISTRIBUTION</string>
+    <string name="analytics_section_performance">PERFORMANCE</string>
+    <string name="analytics_first_try_label">FIRST-TRY AC</string>
+    <string name="analytics_first_try_value">%1$d/%2$d</string>
+    <string name="analytics_first_try_rate">%1$.0f%%</string>
+    <string name="analytics_section_weak_tags">WEAK TAGS</string>
+    <string name="analytics_tag_no_data">NO TAG ATTEMPTS RECORDED</string>
+    <string name="analytics_tag_summary">%1$d ATTEMPTS · %2$d AC · %3$.0f%% AC</string>
     <string name="analytics_section_training">TRAINING TIME</string>
     <string name="analytics_section_totals">TOTALS</string>
     <string name="analytics_total_problems">PROBLEMS</string>
@@ -313,6 +353,7 @@
     <string name="analytics_day_reviews">REVIEWS</string>
     <string name="analytics_day_active">ACTIVE TIME</string>
     <string name="analytics_day_zero">ZERO ACTIVITY</string>
+    <string name="analytics_day_score">SCORE %1$d · %2$d/4</string>
     <string name="analytics_heatmap_cell_cd">Activity intensity %1$d of 4, %2$d solved</string>
     <string name="format_hours">%1$dH %2$02dM</string>
 
@@ -326,6 +367,15 @@
     <string name="profile_stat_active_days">ACTIVE DAYS</string>
     <string name="profile_stat_streak">STREAK</string>
     <string name="profile_stat_max_diff">MAX DIFF</string>
+    <string name="profile_section_achievements">ACHIEVEMENTS</string>
+    <string name="profile_share_card">SHARE CARD</string>
+    <string name="profile_card_label">PLAYER CARD</string>
+    <string name="achievement_none">NO ACHIEVEMENTS UNLOCKED</string>
+    <string name="achievement_first_blood">FIRST BLOOD</string>
+    <string name="achievement_ten_solved">TEN SOLVED</string>
+    <string name="achievement_iron_will">IRON WILL</string>
+    <string name="achievement_red_line">RED LINE</string>
+    <string name="achievement_contestant">CONTESTANT</string>
     <string name="profile_judge_contests">%d CONTESTS</string>
     <string name="profile_judge_solved">%d SOLVED</string>
     <string name="profile_phase2_note">OJ PROFILES CONNECT IN PHASE 2</string>
@@ -342,10 +392,32 @@
     <string name="settings_connecting">VERIFYING…</string>
     <string name="settings_sync_now">SYNC NOW</string>
     <string name="settings_disconnect">DISCONNECT</string>
-    <string name="settings_disconnect_title">DISCONNECT CODEFORCES</string>
+    <string name="settings_disconnect_title">DISCONNECT %1$s</string>
     <string name="settings_disconnect_body">UNBIND THE ACCOUNT? YOUR LOCAL TRAINING HISTORY, NOTES AND REVIEWS ARE KEPT.</string>
     <string name="settings_purge_cache">ALSO REMOVE CACHED CODEFORCES DATA</string>
+    <string name="settings_purge_judge_cache">ALSO REMOVE THIS JUDGE\'S CACHED REMOTE DATA</string>
+    <string name="settings_source_format">SOURCE %1$s</string>
+    <string name="settings_verification_format">IDENTITY %1$s</string>
+    <string name="settings_rating_unavailable">RATING DATA UNAVAILABLE</string>
+    <string name="settings_section_data">LOCAL DATA</string>
+    <string name="settings_backup_hint">EXPORT A COPY OF THE LOCAL DATABASE. NO PASSWORDS OR COOKIES ARE INCLUDED.</string>
+    <string name="settings_export_backup">EXPORT DATABASE BACKUP</string>
+    <string name="settings_import_backup">IMPORT DATABASE BACKUP</string>
+    <string name="settings_backup_success">BACKUP EXPORTED</string>
+    <string name="settings_backup_import_success">BACKUP VERIFIED — RESTART APP TO RESTORE</string>
+    <string name="settings_backup_failed">BACKUP EXPORT FAILED</string>
+    <string name="settings_section_interaction">INTERACTION</string>
+    <string name="settings_reduce_motion">REDUCE MOTION</string>
+    <string name="settings_reduce_motion_desc">REMOVE NAVIGATION FADE TRANSITIONS</string>
+    <string name="settings_haptics">HAPTICS</string>
+    <string name="settings_haptics_desc">VIBRATE LIGHTLY WHEN CHANGING PRIMARY TABS</string>
+    <string name="settings_section_theme">THEME SLOT</string>
+    <string name="settings_theme_hint">CHOOSE ONE ACCENT PALETTE FOR THE DARK INTERFACE</string>
+    <string name="settings_theme_blue">BLUE</string>
+    <string name="settings_theme_green">GREEN</string>
+    <string name="settings_theme_amber">AMBER</string>
     <string name="settings_handle_empty">HANDLE REQUIRED</string>
+    <string name="settings_handle_invalid">HANDLE FORMAT IS INVALID</string>
     <string name="settings_handle_not_found">HANDLE NOT FOUND</string>
     <string name="settings_rate_limited">RATE LIMITED — TRY AGAIN SHORTLY</string>
     <string name="settings_network_unavailable">NETWORK UNAVAILABLE</string>
@@ -376,6 +448,21 @@
     <string name="contest_status_live">LIVE</string>
     <string name="contest_status_ended">ENDED</string>
     <string name="contest_view_all">VIEW ALL</string>
+    <string name="contest_focus_title">ARENA</string>
+    <string name="contest_focus_progress">PROGRESS</string>
+    <string name="contest_focus_solved">%1$d/%2$d SOLVED</string>
+    <string name="contest_focus_marked_label">MARKED</string>
+    <string name="contest_focus_problems">PROBLEMS</string>
+    <string name="contest_focus_problem_count">%d PROBLEMS</string>
+    <string name="contest_focus_attempts">%d ATTEMPTS</string>
+    <string name="contest_focus_open_problem">OPEN</string>
+    <string name="contest_focus_empty">CONTEST NOT FOUND IN LOCAL CACHE</string>
+    <string name="contest_focus_no_problems">NO CACHED PROBLEMS — SYNC THIS JUDGE FIRST</string>
+    <string name="contest_focus_error">ARENA DATA UNAVAILABLE</string>
+    <string name="contest_marker_none">UNMARKED</string>
+    <string name="contest_marker_working">WORKING</string>
+    <string name="contest_marker_solved">SOLVED</string>
+    <string name="contest_marker_skipped">SKIPPED</string>
 
     <!-- Rating -->
     <string name="rating_section">CODEFORCES RATING</string>
@@ -394,8 +481,9 @@
     <!-- Problems: remote catalog -->
     <string name="problems_scope_library">LIBRARY</string>
     <string name="problems_scope_codeforces">CODEFORCES</string>
-    <string name="problems_remote_search_hint">SEARCH CODEFORCES PROBLEMSET</string>
-    <string name="problems_remote_empty">SYNC A CODEFORCES ACCOUNT TO SEARCH THE PROBLEMSET</string>
+    <string name="problems_scope_remote">REMOTE CATALOG</string>
+    <string name="problems_remote_search_hint">SEARCH REMOTE PROBLEM CATALOG</string>
+    <string name="problems_remote_empty">SYNC A JUDGE ACCOUNT TO SEARCH ITS PROBLEM CATALOG</string>
     <string name="problems_add_to_training">ADD TO TRAINING</string>
     <string name="problems_in_library">IN LIBRARY</string>
     <string name="problems_rating_range">RATING</string>

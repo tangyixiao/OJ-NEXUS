@@ -26,25 +26,42 @@ submissions, remote problem catalog, contests, local-first UI, and unique WorkMa
 The branch is locally complete; push/PR/CI remain separate release actions requiring explicit
 authorization.
 
-## PHASE 3 — Analytics (next)
-Heatmap (tap-through day detail), verdict/difficulty/knowledge distributions, rating chart,
-trend metrics, weak tags — all computed from local data, drawn with Compose.
+## PHASE 3 — Multi-OJ + AtCoder ✅
+Judge-independent adapter/registry/sync contracts, Room v3 migration, AtCoder Problems
+transport and mapping, soft public-handle binding, timestamp-cursor submission sync, catalog
+and contest caching, per-judge WorkManager identity, and judge-labelled local-first UI.
+The branch is locally complete; push/PR/CI remain separate release actions requiring explicit
+authorization.
 
-## PHASE 4 — AtCoder + Luogu
-Second and third adapters under the isolation rules; multi-judge dashboard/aggregation;
-unified timeline across judges.
+## PHASE 4 — Analytics ✅ (current milestone)
+Heatmap tap-through day detail, verdict/difficulty distributions, Codeforces rating chart,
+solve/training trends, first-try AC rate, weak-tag performance, and per-judge difficulty
+breakdowns — all computed from local data and drawn with Compose. Knowledge distribution waits
+for the problem-knowledge relation in Phase 6 rather than inventing data.
 
-## PHASE 5 — Arena
-Contest center polish (reminders, calendar) and the live-contest focus view: countdown,
-problem tracker, local markers, synced submission progress. No scraping, no auto-submit.
+## PHASE 5 — Arena ✅ (current milestone)
+Contest center now opens a live/upcoming Arena focus view with a ticking countdown, cached
+problem tracker, local-only marker cycle, and submission progress joined from local attempts.
+Contest and problem links use Custom Tabs; no scraping, auto-submit, passwords, or cookies.
+See [docs/ARENA.md](ARENA.md).
 
-## PHASE 6 — Knowledge + Training Engine
-Knowledge tree UI, problem-knowledge relations, explainable Mastery Engine, deterministic
-Training Engine (priority + reasons), review integration.
+## PHASE 6 — Knowledge + Mastery ✅ (current milestone)
+Explicit problem-knowledge relations, Room v5 migration, complete knowledge-tree display in
+Training, SQL evidence aggregation, and explainable deterministic Mastery Engine with reason
+codes are implemented. Problem detail edits relations, and Training now displays a real local
+candidate feed ranked by the pure candidate-level `TrainingPlanner`. See
+[docs/KNOWLEDGE.md](KNOWLEDGE.md).
 
-## PHASE 7 — Achievements + Player Card
-Achievement set with unlock detection, Player Card, share-image generation.
+## PHASE 7 — Achievements + Player Card ✅ (current milestone)
+Deterministic local achievement unlocks, Profile Player Card achievement display, and verified
+token-colored PNG sharing through `FileProvider` are implemented.
 
-## PHASE 8 — Polish + Performance + Tests
-Reduce-motion + haptics settings, command palette, data export/import/backup, theme slots,
-startup/scroll performance pass, test coverage on engines/adapters/repositories.
+## PHASE 8 — Polish + Performance + Tests ✅
+Settings now exports a verified copy of the local Room database through the Android document
+picker, and reduce-motion/haptics preferences persist through DataStore. The export contains
+local study data only and never requires credentials. A global command palette now searches
+local navigation and study actions without network access. Database backups can be imported,
+schema-validated, and restored before the next app start. The visual system now exposes three
+named dark accent slots while preserving one accent per theme. The bounded-feed audit and
+repository coverage are recorded in [docs/PERFORMANCE.md](PERFORMANCE.md). The phase is locally
+complete; publishing remains a separate release action requiring explicit authorization.

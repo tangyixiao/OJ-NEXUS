@@ -55,6 +55,7 @@ import com.ojnexus.core.model.Attempt
 import com.ojnexus.core.model.FailureCategory
 import com.ojnexus.core.model.FailureEntry
 import com.ojnexus.core.model.ProblemDetail
+import com.ojnexus.core.model.KnowledgeArea
 import com.ojnexus.core.model.ReviewResult
 import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.ui.ContainerViewModelFactory
@@ -96,6 +97,7 @@ fun ProblemDetailScreen(
                 problemId = problemId,
                 problemRepository = it.problemRepository,
                 reviewRepository = it.reviewRepository,
+                knowledgeRepository = it.knowledgeRepository,
             )
         },
     )
@@ -197,7 +199,14 @@ private fun DetailContent(
                 selected = true,
             )
             if (detail.problem.difficulty != null) {
-                NexusTag(text = detail.problem.difficulty.toString(), tone = NexusTone.Neutral)
+                NexusTag(
+                    text = if (detail.problem.difficultySource == com.ojnexus.core.model.DifficultySource.ESTIMATED) {
+                        stringResource(R.string.problems_estimated_difficulty, detail.problem.difficulty)
+                    } else {
+                        detail.problem.difficulty.toString()
+                    },
+                    tone = NexusTone.Neutral,
+                )
             }
             detail.problem.tags.forEach { tag ->
                 NexusTag(text = tag, tone = NexusTone.Neutral)
@@ -258,6 +267,34 @@ private fun DetailContent(
                         ?.let { formatDate(it) } ?: stringResource(R.string.problems_no_value),
                     modifier = Modifier.weight(1f),
                 )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(NexusSpacing.md))
+        NexusDivider()
+        Spacer(modifier = Modifier.height(NexusSpacing.md))
+
+        NexusSection(label = stringResource(R.string.detail_section_knowledge)) {
+            Text(
+                text = stringResource(R.string.knowledge_relation_hint),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textTertiary,
+                modifier = Modifier.padding(bottom = NexusSpacing.xs),
+            )
+            KnowledgeArea.entries.chunked(2).forEach { rowAreas ->
+                Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+                    rowAreas.forEach { area ->
+                        NexusTag(
+                            text = stringResource(area.labelRes()),
+                            tone = NexusTone.Accent,
+                            selected = area in uiState.knowledge,
+                            modifier = Modifier.clickable(role = Role.Button) {
+                                viewModel.setKnowledge(area, area !in uiState.knowledge)
+                            },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(NexusSpacing.xxs))
             }
         }
 
@@ -430,7 +467,7 @@ private fun DetailContent(
 @Composable
 private fun reviewDueLabel(dueAt: Long): String {
     val zone = ZoneId.systemDefault()
-    val dueDay = LocalDate.ofInstant(java.time.Instant.ofEpochMilli(dueAt), zone).toEpochDay()
+    val dueDay = java.time.Instant.ofEpochMilli(dueAt).atZone(zone).toLocalDate().toEpochDay()
     val today = LocalDate.now(zone).toEpochDay()
     return when {
         dueDay < today -> stringResource(R.string.review_overdue, (today - dueDay).toInt())

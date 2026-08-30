@@ -16,6 +16,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +29,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
 import com.ojnexus.core.data.sync.SyncPhase
@@ -34,36 +38,53 @@ import com.ojnexus.core.designsystem.NexusRadius
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
+import com.ojnexus.core.designsystem.NexusThemeSlot
 import com.ojnexus.core.designsystem.NexusTone
-import com.ojnexus.core.designsystem.component.NexusDivider
 import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusStatus
-import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
+import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.ui.ContainerViewModelFactory
-import com.ojnexus.core.ui.GlobalContext
 import com.ojnexus.core.ui.LocalAppContainer
-import java.time.ZoneId
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<SettingsViewModel>(
         factory = ContainerViewModelFactory(container) {
-            SettingsViewModel(it.judgeAccountRepository, it.codeforcesSyncRepository)
+            SettingsViewModel(
+                it.judgeAccountRepository,
+                it.judgeDataRepository,
+                it.judgeRegistry,
+                it.backupRepository,
+                it.userPreferencesRepository,
+            )
         },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val error by viewModel.error.collectAsStateWithLifecycle()
-    val connecting by viewModel.isConnecting.collectAsStateWithLifecycle()
-    var showDisconnectDialog by rememberSaveable { mutableStateOf(false) }
+    val errors by viewModel.errors.collectAsStateWithLifecycle()
+    val connecting by viewModel.connecting.collectAsStateWithLifecycle()
+    val backupResult by viewModel.backup.collectAsStateWithLifecycle()
+    val preferences by viewModel.preferences.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val backupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream"),
+    ) { destination ->
+        if (destination != null) {
+            viewModel.exportBackup(context.contentResolver, destination)
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { source ->
+        if (source != null) {
+            viewModel.importBackup(context.contentResolver, source)
+        }
+    }
+    var disconnectAccountId by rememberSaveable { mutableStateOf<Long?>(null) }
     var purgeCache by rememberSaveable { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NexusTheme.colors.background),
-    ) {
+    Column(Modifier.fillMaxSize().background(NexusTheme.colors.background)) {
         NexusTopBar(
             title = stringResource(R.string.settings_title),
             trailing = {
@@ -76,136 +97,131 @@ fun SettingsScreen(onBack: () -> Unit) {
             },
         )
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                 .padding(horizontal = NexusSpacing.screenHorizontal),
         ) {
-            Spacer(modifier = Modifier.height(NexusSpacing.md))
+            Spacer(Modifier.height(NexusSpacing.md))
             NexusSection(label = stringResource(R.string.settings_section_judges)) {
-                val account = state.account
-                val syncState = state.syncState
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(NexusTheme.colors.surface, NexusRadius.md)
-                        .padding(NexusSpacing.md),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_codeforces),
-                            style = NexusTheme.typography.data,
-                            color = NexusTheme.colors.textPrimary,
+                state.connections.forEachIndexed { index, connection ->
+                    if (index > 0) Spacer(Modifier.height(NexusSpacing.sm))
+                    JudgeConnectionPanel(
+                        connection = connection,
+                        error = errors[connection.judge],
+                        connecting = connection.judge in connecting,
+                        onConnect = { handle -> viewModel.connect(connection.judge, handle) },
+                        onSync = { connection.account?.let(viewModel::syncNow) },
+                        onDisconnect = { disconnectAccountId = connection.account?.id },
+                    )
+                }
+            }
+            Spacer(Modifier.height(NexusSpacing.xl))
+            NexusSection(label = stringResource(R.string.settings_section_data)) {
+                Text(
+                    text = stringResource(R.string.settings_backup_hint),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.textTertiary,
+                )
+                Spacer(Modifier.height(NexusSpacing.sm))
+                SettingsAction(
+                    label = stringResource(R.string.settings_export_backup),
+                    onClick = { backupLauncher.launch("oj-nexus-backup.db") },
+                )
+                Spacer(Modifier.height(NexusSpacing.xs))
+                SettingsAction(
+                    label = stringResource(R.string.settings_import_backup),
+                    onClick = {
+                        importLauncher.launch(
+                            arrayOf(
+                                "application/octet-stream",
+                                "application/vnd.sqlite3",
+                                "application/x-sqlite3",
+                            ),
+                        )
+                    },
+                )
+                backupResult?.let { result ->
+                    Spacer(Modifier.height(NexusSpacing.xs))
+                    Text(
+                        text = stringResource(
+                            when {
+                                result.success && result.operation == BackupOperation.EXPORT ->
+                                    R.string.settings_backup_success
+                                result.success -> R.string.settings_backup_import_success
+                                else -> R.string.settings_backup_failed
+                            },
+                        ),
+                        style = NexusTheme.typography.dataSmall,
+                        color = if (result.success) NexusTheme.colors.success else NexusTheme.colors.danger,
+                    )
+                }
+            }
+            Spacer(Modifier.height(NexusSpacing.xl))
+            NexusSection(label = stringResource(R.string.settings_section_interaction)) {
+                SettingsToggle(
+                    label = stringResource(R.string.settings_reduce_motion),
+                    description = stringResource(R.string.settings_reduce_motion_desc),
+                    checked = preferences.reduceMotion,
+                    onCheckedChange = viewModel::setReduceMotion,
+                )
+                Spacer(Modifier.height(NexusSpacing.sm))
+                SettingsToggle(
+                    label = stringResource(R.string.settings_haptics),
+                    description = stringResource(R.string.settings_haptics_desc),
+                    checked = preferences.hapticsEnabled,
+                    onCheckedChange = viewModel::setHapticsEnabled,
+                )
+            }
+            Spacer(Modifier.height(NexusSpacing.xl))
+            NexusSection(label = stringResource(R.string.settings_section_theme)) {
+                Text(
+                    text = stringResource(R.string.settings_theme_hint),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.textTertiary,
+                )
+                Spacer(Modifier.height(NexusSpacing.sm))
+                Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+                    NexusThemeSlot.entries.forEach { slot ->
+                        ThemeSlotAction(
+                            slot = slot,
+                            selected = slot == preferences.themeSlot,
+                            onClick = { viewModel.setThemeSlot(slot) },
                             modifier = Modifier.weight(1f),
                         )
-                        when {
-                            account != null && syncState?.state == SyncPhase.SYNCING.name ->
-                                NexusStatus(stringResource(R.string.settings_state_syncing), NexusTone.Accent)
-                            account != null && syncState?.state == SyncPhase.PARTIAL.name ->
-                                NexusStatus(stringResource(R.string.settings_state_partial), NexusTone.Warning)
-                            account != null && syncState?.state == SyncPhase.ERROR.name ->
-                                NexusStatus(stringResource(R.string.settings_state_failed), NexusTone.Danger)
-                            account != null ->
-                                NexusStatus(stringResource(R.string.settings_state_connected), NexusTone.Success)
-                            else ->
-                                NexusStatus(stringResource(R.string.dash_not_connected), NexusTone.Neutral)
-                        }
-                    }
-
-                    if (account != null) {
-                        Spacer(modifier = Modifier.height(NexusSpacing.sm))
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = account.canonicalHandle,
-                                    style = NexusTheme.typography.dataLarge,
-                                    color = NexusTheme.colors.accent,
-                                )
-                                state.profile?.rating?.let { rating ->
-                                    Text(
-                                        text = "${stringResource(R.string.metric_rating)} $rating · ${stringResource(R.string.rating_rated_contests)}",
-                                        style = NexusTheme.typography.dataSmall,
-                                        color = NexusTheme.colors.textTertiary,
-                                    )
-                                }
-                                lastSyncLabel(syncState)?.let { label ->
-                                    Text(
-                                        text = "${stringResource(R.string.sync_last_sync)} $label",
-                                        style = NexusTheme.typography.dataSmall,
-                                        color = NexusTheme.colors.textTertiary,
-                                    )
-                                }
-                                if (syncState?.state == SyncPhase.SYNCING.name &&
-                                    syncState.currentStage == com.ojnexus.core.data.sync.SyncStage.SUBMISSIONS.name
-                                ) {
-                                    Text(
-                                        text = stringResource(
-                                            R.string.sync_imported_count,
-                                            syncState.submissionsImported ?: 0,
-                                        ),
-                                        style = NexusTheme.typography.dataSmall,
-                                        color = NexusTheme.colors.accent,
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(NexusSpacing.sm))
-                        Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
-                            SettingsAction(stringResource(R.string.settings_sync_now)) {
-                                viewModel.syncNow(account.id)
-                            }
-                            SettingsAction(
-                                stringResource(R.string.settings_disconnect),
-                                danger = true,
-                            ) { showDisconnectDialog = true }
-                        }
-                    } else {
-                        Spacer(modifier = Modifier.height(NexusSpacing.sm))
-                        Text(
-                            text = stringResource(R.string.settings_public_handle_hint),
-                            style = NexusTheme.typography.dataSmall,
-                            color = NexusTheme.colors.textTertiary,
-                        )
-                        Spacer(modifier = Modifier.height(NexusSpacing.xs))
-                        HandleInput(onConnect = viewModel::connect, connecting = connecting)
-                        error?.let { connectError ->
-                            Spacer(modifier = Modifier.height(NexusSpacing.xxs))
-                            Text(
-                                text = errorLabel(connectError),
-                                style = NexusTheme.typography.dataSmall,
-                                color = NexusTheme.colors.danger,
-                            )
-                        }
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(NexusSpacing.xxl))
+            Spacer(Modifier.height(NexusSpacing.xxl))
         }
     }
 
-    if (showDisconnectDialog) {
+    val disconnectAccount = state.connections.mapNotNull { it.account }
+        .firstOrNull { it.id == disconnectAccountId }
+    if (disconnectAccount != null) {
         androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showDisconnectDialog = false },
+            onDismissRequest = { disconnectAccountId = null },
             containerColor = NexusTheme.colors.surface,
             titleContentColor = NexusTheme.colors.textPrimary,
             textContentColor = NexusTheme.colors.textSecondary,
-            title = { Text(stringResource(R.string.settings_disconnect_title), style = NexusTheme.typography.title) },
+            title = {
+                Text(
+                    stringResource(
+                        R.string.settings_disconnect_title,
+                        JudgeId.fromId(disconnectAccount.judge)?.displayName
+                            ?: disconnectAccount.judge.uppercase(),
+                    ),
+                    style = NexusTheme.typography.title,
+                )
+            },
             text = {
                 Column {
                     Text(stringResource(R.string.settings_disconnect_body), style = NexusTheme.typography.label)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(top = NexusSpacing.xs),
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = NexusSpacing.xs)) {
                         androidx.compose.material3.Checkbox(
                             checked = purgeCache,
                             onCheckedChange = { purgeCache = it },
                         )
                         Text(
-                            text = stringResource(R.string.settings_purge_cache),
+                            text = stringResource(R.string.settings_purge_judge_cache),
                             style = NexusTheme.typography.dataSmall,
                             color = NexusTheme.colors.textSecondary,
                         )
@@ -214,13 +230,13 @@ fun SettingsScreen(onBack: () -> Unit) {
             },
             confirmButton = {
                 DialogText(stringResource(R.string.settings_disconnect), NexusTheme.colors.danger) {
-                    showDisconnectDialog = false
-                    state.account?.let { viewModel.disconnect(it.id, purgeCache) }
+                    viewModel.disconnect(disconnectAccount, purgeCache)
+                    disconnectAccountId = null
                 }
             },
             dismissButton = {
                 DialogText(stringResource(R.string.action_cancel), NexusTheme.colors.textSecondary) {
-                    showDisconnectDialog = false
+                    disconnectAccountId = null
                 }
             },
         )
@@ -228,18 +244,116 @@ fun SettingsScreen(onBack: () -> Unit) {
 }
 
 @Composable
+private fun JudgeConnectionPanel(
+    connection: JudgeConnectionUi,
+    error: SettingsViewModel.ConnectError?,
+    connecting: Boolean,
+    onConnect: (String) -> Unit,
+    onSync: () -> Unit,
+    onDisconnect: () -> Unit,
+) {
+    val account = connection.account
+    val sync = connection.syncState
+    Column(
+        Modifier.fillMaxWidth().background(NexusTheme.colors.surface, NexusRadius.md)
+            .padding(NexusSpacing.md),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = connection.judge.displayName,
+                style = NexusTheme.typography.data,
+                color = NexusTheme.colors.textPrimary,
+                modifier = Modifier.weight(1f),
+            )
+            when {
+                account == null -> NexusStatus(stringResource(R.string.dash_not_connected), NexusTone.Neutral)
+                sync?.state == SyncPhase.SYNCING.name -> NexusStatus(stringResource(R.string.settings_state_syncing), NexusTone.Accent)
+                sync?.state == SyncPhase.PARTIAL.name -> NexusStatus(stringResource(R.string.settings_state_partial), NexusTone.Warning)
+                sync?.state == SyncPhase.ERROR.name -> NexusStatus(stringResource(R.string.settings_state_failed), NexusTone.Danger)
+                else -> NexusStatus(stringResource(R.string.settings_state_connected), NexusTone.Success)
+            }
+        }
+        Text(
+            text = stringResource(R.string.settings_source_format, connection.reliability.name),
+            style = NexusTheme.typography.dataSmall,
+            color = NexusTheme.colors.textTertiary,
+        )
+        if (account == null) {
+            Spacer(Modifier.height(NexusSpacing.sm))
+            Text(
+                text = stringResource(R.string.settings_public_handle_hint),
+                style = NexusTheme.typography.dataSmall,
+                color = NexusTheme.colors.textTertiary,
+            )
+            Spacer(Modifier.height(NexusSpacing.xs))
+            HandleInput(connection.judge, onConnect, connecting)
+            error?.let {
+                Spacer(Modifier.height(NexusSpacing.xxs))
+                Text(errorLabel(it), style = NexusTheme.typography.dataSmall, color = NexusTheme.colors.danger)
+            }
+        } else {
+            Spacer(Modifier.height(NexusSpacing.sm))
+            Text(account.canonicalHandle, style = NexusTheme.typography.dataLarge, color = NexusTheme.colors.accent)
+            Text(
+                text = stringResource(R.string.settings_verification_format, account.verificationState),
+                style = NexusTheme.typography.dataSmall,
+                color = if (account.verificationState == "VERIFIED") {
+                    NexusTheme.colors.success
+                } else {
+                    NexusTheme.colors.warning
+                },
+            )
+            connection.profile?.rating?.let { rating ->
+                Text(
+                    text = "${stringResource(R.string.metric_rating)} $rating",
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.textTertiary,
+                )
+            } ?: if (connection.judge == JudgeId.ATCODER) {
+                Text(
+                    text = stringResource(R.string.settings_rating_unavailable),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.textTertiary,
+                )
+            } else {
+                Unit
+            }
+            lastSyncLabel(sync)?.let {
+                Text(
+                    text = "${stringResource(R.string.sync_last_sync)} $it",
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.textTertiary,
+                )
+            }
+            if (sync?.state == SyncPhase.SYNCING.name && sync.currentStage == com.ojnexus.core.data.sync.SyncStage.SUBMISSIONS.name) {
+                Text(
+                    text = stringResource(R.string.sync_imported_count, sync.submissionsImported ?: 0),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.accent,
+                )
+            }
+            Spacer(Modifier.height(NexusSpacing.sm))
+            Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+                SettingsAction(stringResource(R.string.settings_sync_now), onClick = onSync)
+                SettingsAction(stringResource(R.string.settings_disconnect), danger = true, onClick = onDisconnect)
+            }
+        }
+    }
+}
+
+@Composable
 private fun errorLabel(error: SettingsViewModel.ConnectError): String = when (error) {
     SettingsViewModel.ConnectError.HandleEmpty -> stringResource(R.string.settings_handle_empty)
+    SettingsViewModel.ConnectError.InvalidHandle -> stringResource(R.string.settings_handle_invalid)
     SettingsViewModel.ConnectError.UserNotFound -> stringResource(R.string.settings_handle_not_found)
     SettingsViewModel.ConnectError.RateLimited -> stringResource(R.string.settings_rate_limited)
     SettingsViewModel.ConnectError.Network -> stringResource(R.string.settings_network_unavailable)
     SettingsViewModel.ConnectError.ApiFailed -> stringResource(R.string.settings_api_failed)
 }
 
-/** Minute-granularity relative time for LAST SYNC — never refreshed per second. */
 @Composable
-private fun lastSyncLabel(syncState: com.ojnexus.core.database.entity.SyncStateEntity?): String? {
-    val last = syncState?.lastSuccessfulSyncAt ?: return null
+private fun lastSyncLabel(sync: com.ojnexus.core.database.entity.SyncStateEntity?): String? {
+    val last = sync?.lastSuccessfulSyncAt ?: return null
     val minutes = ((System.currentTimeMillis() - last) / 60_000L).coerceAtLeast(0)
     return when {
         minutes < 1 -> stringResource(R.string.last_sync_just_now)
@@ -249,20 +363,14 @@ private fun lastSyncLabel(syncState: com.ojnexus.core.database.entity.SyncStateE
 }
 
 @Composable
-private fun HandleInput(onConnect: (String) -> Unit, connecting: Boolean) {
-    var handle by rememberSaveable { mutableStateOf("") }
+private fun HandleInput(judge: JudgeId, onConnect: (String) -> Unit, connecting: Boolean) {
+    var handle by rememberSaveable(judge.id) { mutableStateOf("") }
     val colors = NexusTheme.colors
     Column {
-        Text(
-            text = stringResource(R.string.settings_handle_hint),
-            style = NexusTheme.typography.sectionLabel,
-            color = colors.textTertiary,
-        )
-        Spacer(modifier = Modifier.height(NexusSpacing.xxxs))
+        Text(stringResource(R.string.settings_handle_hint), style = NexusTheme.typography.sectionLabel, color = colors.textTertiary)
+        Spacer(Modifier.height(NexusSpacing.xxxs))
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(colors.background, NexusRadius.sm)
+            Modifier.fillMaxWidth().background(colors.background, NexusRadius.sm)
                 .border(1.dp, colors.border, NexusRadius.sm)
                 .padding(horizontal = NexusSpacing.xs, vertical = NexusSpacing.xxxs),
         ) {
@@ -275,26 +383,18 @@ private fun HandleInput(onConnect: (String) -> Unit, connecting: Boolean) {
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        Spacer(modifier = Modifier.height(NexusSpacing.sm))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.sm),
+        Spacer(Modifier.height(NexusSpacing.sm))
+        Box(
+            Modifier.background(colors.accentContainer, NexusRadius.sm)
+                .border(1.dp, colors.accent, NexusRadius.sm)
+                .clickable(enabled = !connecting, role = Role.Button) { onConnect(handle) }
+                .padding(horizontal = NexusSpacing.md, vertical = NexusSpacing.xs),
         ) {
-            Box(
-                modifier = Modifier
-                    .background(colors.accentContainer, NexusRadius.sm)
-                    .border(1.dp, colors.accent, NexusRadius.sm)
-                    .clickable(enabled = !connecting, role = Role.Button) { onConnect(handle) }
-                    .padding(horizontal = NexusSpacing.md, vertical = NexusSpacing.xs),
-            ) {
-                Text(
-                    text = stringResource(
-                        if (connecting) R.string.settings_connecting else R.string.settings_connect,
-                    ),
-                    style = NexusTheme.typography.data,
-                    color = colors.accent,
-                )
-            }
+            Text(
+                stringResource(if (connecting) R.string.settings_connecting else R.string.settings_connect),
+                style = NexusTheme.typography.data,
+                color = colors.accent,
+            )
         }
     }
 }
@@ -304,24 +404,79 @@ private fun SettingsAction(label: String, danger: Boolean = false, onClick: () -
     val colors = NexusTheme.colors
     val foreground = if (danger) colors.danger else colors.accent
     Box(
-        modifier = Modifier
-            .background(colors.surface, NexusRadius.sm)
-            .border(1.dp, foreground, NexusRadius.sm)
+        Modifier.background(colors.surface, NexusRadius.sm).border(1.dp, foreground, NexusRadius.sm)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = NexusSpacing.sm, vertical = NexusSpacing.xs),
     ) {
-        Text(text = label, style = NexusTheme.typography.dataSmall, color = foreground)
+        Text(label, style = NexusTheme.typography.dataSmall, color = foreground)
+    }
+}
+
+@Composable
+private fun SettingsToggle(
+    label: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val colors = NexusTheme.colors
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.Switch) { onCheckedChange(!checked) },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = NexusTheme.typography.data, color = colors.textPrimary)
+            Text(description, style = NexusTheme.typography.dataSmall, color = colors.textTertiary)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = null,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = colors.onAccent,
+                checkedTrackColor = colors.accent,
+                uncheckedThumbColor = colors.textTertiary,
+                uncheckedTrackColor = colors.surfaceElevated,
+                uncheckedBorderColor = colors.border,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun ThemeSlotAction(
+    slot: NexusThemeSlot,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = NexusTheme.colors
+    Box(
+        modifier.background(if (selected) colors.accentContainer else colors.surface, NexusRadius.sm)
+            .border(NexusSize.dividerThickness, if (selected) colors.accent else colors.border, NexusRadius.sm)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = NexusSpacing.xxs, vertical = NexusSpacing.xs),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = stringResource(
+                when (slot) {
+                    NexusThemeSlot.NEXUS_BLUE -> R.string.settings_theme_blue
+                    NexusThemeSlot.TERMINAL_GREEN -> R.string.settings_theme_green
+                    NexusThemeSlot.AMBER_SIGNAL -> R.string.settings_theme_amber
+                },
+            ),
+            style = NexusTheme.typography.dataSmall,
+            color = if (selected) colors.accent else colors.textSecondary,
+        )
     }
 }
 
 @Composable
 private fun DialogText(label: String, color: androidx.compose.ui.graphics.Color, onClick: () -> Unit) {
     Text(
-        text = label,
+        label,
         style = NexusTheme.typography.data,
         color = color,
-        modifier = Modifier
-            .clickable(role = Role.Button) { onClick() }
-            .padding(NexusSpacing.xs),
+        modifier = Modifier.clickable(role = Role.Button, onClick = onClick).padding(NexusSpacing.xs),
     )
 }

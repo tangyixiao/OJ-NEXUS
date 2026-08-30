@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -33,12 +34,18 @@ import com.ojnexus.core.designsystem.component.NexusMetric
 import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
+import com.ojnexus.core.domain.AchievementEngine
+import com.ojnexus.core.domain.AchievementEvidence
+import com.ojnexus.core.domain.AchievementState
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.formatCount
 import com.ojnexus.core.ui.formatDays
+import com.ojnexus.core.ui.labelRes
+import com.ojnexus.core.ui.PlayerCardImageData
+import com.ojnexus.core.ui.PlayerCardShare
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -55,31 +62,26 @@ data class ProfileUiState(
     val currentStreak: Int,
     val longestStreak: Int,
     val maxSolvedDifficulty: Int?,
+    val connections: com.ojnexus.core.data.repository.JudgeConnectionSnapshot,
     val cfAccount: com.ojnexus.core.database.entity.JudgeAccountEntity?,
     val cfProfile: com.ojnexus.core.database.entity.JudgeProfileEntity?,
     val ratedContests: Int,
+    val achievements: List<AchievementState>,
 )
 
 class ProfileViewModel(
     analyticsRepository: com.ojnexus.core.data.repository.AnalyticsRepository,
-    problemRepository: com.ojnexus.core.data.repository.ProblemRepository,
-    syncRepository: com.ojnexus.judge.codeforces.CodeforcesSyncRepository,
-    accountRepository: com.ojnexus.core.data.repository.JudgeAccountRepository,
+    judgeDataRepository: com.ojnexus.core.data.repository.JudgeDataRepository,
 ) : ViewModel() {
 
     val state: StateFlow<Loadable<ProfileUiState>> = combine(
         analyticsRepository.observeTotals(),
         analyticsRepository.observeStreaks(days = 365),
         analyticsRepository.observeDifficultyCounts(),
-        syncRepository.observeProfile(com.ojnexus.core.model.JudgeId.CODEFORCES),
-        kotlinx.coroutines.flow.combine(
-            accountRepository.observeActive(com.ojnexus.core.model.JudgeId.CODEFORCES),
-            syncRepository.observeRatingChanges(com.ojnexus.core.model.JudgeId.CODEFORCES),
-        ) { account, ratingChanges ->
-            account to ratingChanges.size
-        },
-    ) { totals, streaks, difficultyCounts, profile, accountAndCount ->
-        val (account, ratedCount) = accountAndCount
+        judgeDataRepository.observeConnections(),
+        analyticsRepository.observeRatingChanges(com.ojnexus.core.model.JudgeId.CODEFORCES.id),
+    ) { totals, streaks, difficultyCounts, connections, ratingChanges ->
+        val account = connections.accounts[JudgeId.CODEFORCES]
         Loadable.Ready(
             ProfileUiState(
                 problems = totals.problems,
@@ -89,9 +91,19 @@ class ProfileViewModel(
                 currentStreak = streaks.current,
                 longestStreak = streaks.longest,
                 maxSolvedDifficulty = difficultyCounts.mapNotNull { it.first }.maxOrNull(),
+                connections = connections,
                 cfAccount = account,
-                cfProfile = profile,
-                ratedContests = ratedCount,
+                cfProfile = connections.profiles[JudgeId.CODEFORCES],
+                ratedContests = ratingChanges.size,
+                achievements = AchievementEngine.evaluate(
+                    AchievementEvidence(
+                        solved = totals.solved,
+                        activeDays = streaks.activeDays,
+                        currentStreak = streaks.current,
+                        maxSolvedDifficulty = difficultyCounts.mapNotNull { it.first }.maxOrNull(),
+                        ratedContests = ratingChanges.size,
+                    ),
+                ),
             ),
         )
     }
@@ -105,9 +117,7 @@ fun ProfileScreen(onOpenSettings: () -> Unit = {}) {    val container = LocalApp
         factory = ContainerViewModelFactory(container) {
             ProfileViewModel(
                 analyticsRepository = it.analyticsRepository,
-                problemRepository = it.problemRepository,
-                syncRepository = it.codeforcesSyncRepository,
-                accountRepository = it.judgeAccountRepository,
+                judgeDataRepository = it.judgeDataRepository,
             )
         },
     )
@@ -134,14 +144,21 @@ fun ProfileScreen(onOpenSettings: () -> Unit = {}) {    val container = LocalApp
             is Loadable.Failed -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(text = s.message, style = NexusTheme.typography.data, color = NexusTheme.colors.danger)
             }
-            is Loadable.Ready -> ProfileContent(s.value)
+            is Loadable.Ready -> {
+                val context = LocalContext.current
+                ProfileContent(s.value) { data -> PlayerCardShare.share(context, data) }
+            }
         }
     }
 }
 
 @Composable
-private fun ProfileContent(state: ProfileUiState) {
+private fun ProfileContent(
+    state: ProfileUiState,
+    onShareCard: (PlayerCardImageData) -> Unit,
+) {
     val colors = NexusTheme.colors
+    val cardImageData = state.toCardImageData()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -167,77 +184,48 @@ private fun ProfileContent(state: ProfileUiState) {
                 style = NexusTheme.typography.sectionLabel,
                 color = colors.textTertiary,
             )
+            Text(
+                text = stringResource(R.string.profile_share_card),
+                style = NexusTheme.typography.sectionLabel,
+                color = colors.accent,
+                modifier = Modifier.align(Alignment.End).clickable { onShareCard(cardImageData) },
+            )
             Spacer(modifier = Modifier.height(NexusSpacing.sm))
             NexusDivider()
             Spacer(modifier = Modifier.height(NexusSpacing.xxs))
-            // CODEFORCES row: real data when connected; NOT LINKED otherwise.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(NexusSize.tableRowHeight),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = JudgeId.CODEFORCES.displayName,
-                        style = NexusTheme.typography.dataSmall,
-                        color = colors.textPrimary,
-                    )
-                    state.cfAccount?.let { account ->
-                        Text(
-                            text = account.canonicalHandle,
-                            style = NexusTheme.typography.dataSmall,
-                            color = colors.accent,
-                        )
-                    }
-                }
-                if (state.cfAccount != null) {
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = state.cfProfile?.rating?.toString()
-                                ?: stringResource(R.string.rating_unrated),
-                            style = NexusTheme.typography.data,
-                            color = colors.textPrimary,
-                        )
-                        state.cfProfile?.rank?.let { rank ->
-                            NexusTag(
-                                text = rank.uppercase(),
-                                tone = NexusTone.Neutral,
-                                modifier = Modifier.padding(top = NexusSpacing.xxxs),
-                            )
-                        }
-                    }
-                } else {
-                    Text(
-                        text = stringResource(R.string.judge_not_linked),
-                        style = NexusTheme.typography.dataSmall,
-                        color = colors.textTertiary,
-                    )
-                }
-            }
-            NexusDivider(insetEnd = NexusSpacing.xxs)
-            JudgeId.entries
-                .filter { it != JudgeId.LOCAL && it != JudgeId.CODEFORCES }
-                .forEachIndexed { index, judge ->
+            listOf(JudgeId.CODEFORCES, JudgeId.ATCODER).forEachIndexed { index, judge ->
+                    val account = state.connections.accounts[judge]
+                    val profile = state.connections.profiles[judge]
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(NexusSize.tableRowHeight),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = judge.displayName,
-                            style = NexusTheme.typography.dataSmall,
-                            color = colors.textPrimary,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            text = stringResource(R.string.judge_not_linked),
-                            style = NexusTheme.typography.dataSmall,
-                            color = colors.textTertiary,
-                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(judge.displayName, style = NexusTheme.typography.dataSmall, color = colors.textPrimary)
+                            account?.let {
+                                Text(it.canonicalHandle, style = NexusTheme.typography.dataSmall, color = colors.accent)
+                            }
+                        }
+                        when {
+                            account == null -> Text(
+                                stringResource(R.string.judge_not_linked),
+                                style = NexusTheme.typography.dataSmall,
+                                color = colors.textTertiary,
+                            )
+                            profile?.rating != null -> Column(horizontalAlignment = Alignment.End) {
+                                Text(profile.rating.toString(), style = NexusTheme.typography.data, color = colors.textPrimary)
+                                profile.rank?.let { NexusTag(text = it.uppercase(), tone = NexusTone.Neutral) }
+                            }
+                            else -> Text(
+                                stringResource(R.string.settings_rating_unavailable),
+                                style = NexusTheme.typography.dataSmall,
+                                color = colors.textTertiary,
+                            )
+                        }
                     }
-                    if (index < JudgeId.entries.size - 3) {
+                    if (index == 0) {
                         NexusDivider(insetEnd = NexusSpacing.xxs)
                     }
                 }
@@ -318,9 +306,52 @@ private fun ProfileContent(state: ProfileUiState) {
             }
         }
 
+        SectionGap()
+
+        NexusSection(label = stringResource(R.string.profile_section_achievements)) {
+            val unlocked = state.achievements.filter { it.unlocked }
+            if (unlocked.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.achievement_none),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textTertiary,
+                )
+            } else {
+                Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(NexusSpacing.xxs)) {
+                    unlocked.forEach { achievement ->
+                        NexusTag(
+                            text = stringResource(achievement.id.labelRes()),
+                            tone = NexusTone.Success,
+                            selected = true,
+                        )
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(NexusSpacing.xxl))
     }
 }
+
+@Composable
+private fun ProfileUiState.toCardImageData(): PlayerCardImageData = PlayerCardImageData(
+    title = stringResource(R.string.app_name),
+    role = stringResource(R.string.profile_role),
+    cardLabel = stringResource(R.string.profile_card_label),
+    achievementsLabel = stringResource(R.string.profile_section_achievements),
+    solvedLabel = stringResource(R.string.profile_stat_solved),
+    solvedValue = solved.toString(),
+    attemptsLabel = stringResource(R.string.profile_stat_submissions),
+    attemptsValue = attempts.toString(),
+    activeDaysLabel = stringResource(R.string.profile_stat_active_days),
+    activeDaysValue = activeDays.toString(),
+    streakLabel = stringResource(R.string.profile_stat_streak),
+    streakValue = currentStreak.toString(),
+    maxDifficultyLabel = stringResource(R.string.profile_stat_max_diff),
+    maxDifficultyValue = maxSolvedDifficulty?.toString() ?: stringResource(R.string.problems_no_value),
+    achievements = achievements.filter { it.unlocked }.map { stringResource(it.id.labelRes()) },
+    themeSlot = NexusTheme.themeSlot,
+)
 
 @Composable
 private fun SectionGap() {

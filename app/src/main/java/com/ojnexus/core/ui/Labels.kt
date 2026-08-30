@@ -4,13 +4,56 @@ import androidx.annotation.StringRes
 import com.ojnexus.R
 import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.model.FailureCategory
+import com.ojnexus.core.model.KnowledgeArea
 import com.ojnexus.core.model.ProblemStatus
 import com.ojnexus.core.model.ReviewResult
 import com.ojnexus.core.model.TaskType
 import com.ojnexus.core.model.TrainingType
 import com.ojnexus.core.model.Verdict
+import com.ojnexus.core.domain.MasteryReason
+import com.ojnexus.core.domain.TrainingReason
+import com.ojnexus.core.domain.AchievementId
 
 /** UI label resources for domain enums — centralized so screens never map inline. */
+
+@StringRes
+fun KnowledgeArea.labelRes(): Int = when (this) {
+    KnowledgeArea.DATA_STRUCTURE -> R.string.area_data_structure
+    KnowledgeArea.GRAPH -> R.string.area_graph
+    KnowledgeArea.DYNAMIC_PROGRAMMING -> R.string.area_dp
+    KnowledgeArea.STRING -> R.string.area_string
+    KnowledgeArea.MATH -> R.string.area_math
+    KnowledgeArea.GEOMETRY -> R.string.area_geometry
+    KnowledgeArea.GREEDY -> R.string.area_greedy
+    KnowledgeArea.SEARCH -> R.string.area_search
+    KnowledgeArea.CONSTRUCTION -> R.string.area_construction
+    KnowledgeArea.GAME_THEORY -> R.string.area_game_theory
+}
+
+@StringRes
+fun MasteryReason.labelRes(): Int = when (this) {
+    MasteryReason.NO_EVIDENCE -> R.string.mastery_reason_no_evidence
+    MasteryReason.LOW_AC_RATE -> R.string.mastery_reason_low_ac
+    MasteryReason.FAILURE_LOG -> R.string.mastery_reason_failures
+}
+
+@StringRes
+fun TrainingReason.labelRes(): Int = when (this) {
+    TrainingReason.UNSOLVED -> R.string.training_reason_unsolved
+    TrainingReason.REVIEW_DUE -> R.string.training_reason_review
+    TrainingReason.FAILURE_HISTORY -> R.string.training_reason_failures
+    TrainingReason.DIFFICULTY_FIT -> R.string.training_reason_difficulty
+    TrainingReason.COVERAGE_VALUE -> R.string.training_reason_coverage
+}
+
+@StringRes
+fun AchievementId.labelRes(): Int = when (this) {
+    AchievementId.FIRST_BLOOD -> R.string.achievement_first_blood
+    AchievementId.TEN_SOLVED -> R.string.achievement_ten_solved
+    AchievementId.IRON_WILL -> R.string.achievement_iron_will
+    AchievementId.RED_LINE -> R.string.achievement_red_line
+    AchievementId.CONTESTANT -> R.string.achievement_contestant
+}
 
 @StringRes
 fun FailureCategory.labelRes(): Int = when (this) {

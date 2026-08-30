@@ -6,6 +6,20 @@ import androidx.room.Upsert
 import com.ojnexus.core.database.entity.RemoteProblemEntity
 import kotlinx.coroutines.flow.Flow
 
+data class ContestProblemProgressRow(
+    val judge: String,
+    val externalId: String,
+    val name: String,
+    val index: String?,
+    val rating: Int?,
+    val difficultySource: String,
+    val points: Double?,
+    val localProblemId: Long?,
+    val solved: Boolean?,
+    val attemptCount: Int?,
+    val latestVerdict: String?,
+)
+
 /**
  * Remote catalog queries are SQL-driven — the catalog can hold tens of thousands of rows,
  * so nothing here ever loads the full table into memory.
@@ -16,6 +30,20 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface RemoteProblemDao {
+
+    @Query(
+        "SELECT r.judge AS judge, r.external_id AS externalId, r.name AS name, " +
+            "r.`index` AS `index`, r.rating AS rating, r.difficulty_source AS difficultySource, " +
+            "r.points AS points, p.id AS localProblemId, p.solved AS solved, " +
+            "p.attempt_count AS attemptCount, " +
+            "(SELECT a.verdict FROM attempts a WHERE a.problem_id = p.id " +
+            "ORDER BY a.timestamp DESC, a.id DESC LIMIT 1) AS latestVerdict " +
+            "FROM remote_problems r LEFT JOIN problems p ON p.judge = r.judge " +
+            "AND p.external_id = r.external_id " +
+            "WHERE r.judge = :judge AND r.contest_id = :contestId " +
+            "ORDER BY r.`index` IS NULL, r.`index`, r.external_id",
+    )
+    fun observeContestProgress(judge: String, contestId: String): Flow<List<ContestProblemProgressRow>>
 
     @Upsert
     suspend fun upsertAll(problems: List<RemoteProblemEntity>)
