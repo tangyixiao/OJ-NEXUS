@@ -162,6 +162,7 @@ class MigrationTest {
             OjNexusDatabase.MIGRATION_2_3,
             OjNexusDatabase.MIGRATION_3_4,
             OjNexusDatabase.MIGRATION_4_5,
+            OjNexusDatabase.MIGRATION_5_6,
         ).build()
 
         try {
@@ -250,6 +251,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_2_3,
                 OjNexusDatabase.MIGRATION_3_4,
                 OjNexusDatabase.MIGRATION_4_5,
+                OjNexusDatabase.MIGRATION_5_6,
             )
             .build()
         db.openHelper.writableDatabase
@@ -319,6 +321,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_2_3,
                 OjNexusDatabase.MIGRATION_3_4,
                 OjNexusDatabase.MIGRATION_4_5,
+                OjNexusDatabase.MIGRATION_5_6,
             )
             .build()
         try {
@@ -326,5 +329,33 @@ class MigrationTest {
         } finally {
             db.close()
         }
+    }
+
+    @Test
+    fun `migrate 5 to 6 adds nullable Luogu profile and rating facts`() {
+        createDatabaseFromSchema(5)
+
+        val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
+            .addMigrations(OjNexusDatabase.MIGRATION_5_6)
+            .build()
+        try {
+            db.openHelper.writableDatabase
+        } finally {
+            db.close()
+        }
+
+        val raw = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        fun columns(table: String): Set<String> = buildSet {
+            raw.rawQuery("PRAGMA table_info(`$table`)", null).use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+            }
+        }
+        assertTrue(columns("judge_profiles").containsAll(setOf("introduction", "ranking", "badge")))
+        assertTrue(columns("rating_changes").containsAll(setOf("old_rating", "rank")))
+        raw.close()
     }
 }

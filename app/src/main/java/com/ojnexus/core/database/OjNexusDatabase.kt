@@ -57,8 +57,10 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
  * v4 (Phase 5): local-only contest problem markers for Arena focus tracking.
  *
  * v5 (Phase 6): explicit problem-to-knowledge relations for local mastery evidence.
+ *
+ * v6 (Phase 1 Luogu): nullable public Luogu profile metadata and nullable rating facts.
  */
-const val OJ_NEXUS_SCHEMA_VERSION = 5
+const val OJ_NEXUS_SCHEMA_VERSION = 6
 
 @Database(
     entities = [
@@ -435,9 +437,48 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `judge_profiles` ADD COLUMN `introduction` TEXT")
+                db.execSQL("ALTER TABLE `judge_profiles` ADD COLUMN `slogan` TEXT")
+                db.execSQL("ALTER TABLE `judge_profiles` ADD COLUMN `badge` TEXT")
+                db.execSQL("ALTER TABLE `judge_profiles` ADD COLUMN `ranking` INTEGER")
+                db.execSQL("ALTER TABLE `judge_profiles` ADD COLUMN `follower_count` INTEGER")
+                db.execSQL("ALTER TABLE `judge_profiles` ADD COLUMN `following_count` INTEGER")
+                db.execSQL("ALTER TABLE `judge_profiles` ADD COLUMN `passed_problem_count` INTEGER")
+                db.execSQL("ALTER TABLE `judge_profiles` ADD COLUMN `submitted_problem_count` INTEGER")
+                db.execSQL("ALTER TABLE `judge_profiles` ADD COLUMN `ccf_level` INTEGER")
+                db.execSQL("ALTER TABLE `judge_profiles` ADD COLUMN `xcpc_level` INTEGER")
+
+                db.execSQL(
+                    "CREATE TABLE `rating_changes_new` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`judge` TEXT NOT NULL, `handle` TEXT NOT NULL, " +
+                        "`contest_id` TEXT NOT NULL, `contest_name` TEXT NOT NULL, " +
+                        "`rank` INTEGER, `old_rating` INTEGER, `new_rating` INTEGER NOT NULL, " +
+                        "`rating_update_time_seconds` INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "INSERT INTO `rating_changes_new` SELECT `id`, `judge`, `handle`, " +
+                        "`contest_id`, `contest_name`, `rank`, `old_rating`, `new_rating`, " +
+                        "`rating_update_time_seconds` FROM `rating_changes`",
+                )
+                db.execSQL("DROP TABLE `rating_changes`")
+                db.execSQL("ALTER TABLE `rating_changes_new` RENAME TO `rating_changes`")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX `index_rating_changes_judge_contest_id` " +
+                        "ON `rating_changes` (`judge`, `contest_id`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX `index_rating_changes_judge_rating_update_time_seconds` " +
+                        "ON `rating_changes` (`judge`, `rating_update_time_seconds`)",
+                )
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
     }
 }

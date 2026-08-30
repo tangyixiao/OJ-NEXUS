@@ -671,7 +671,7 @@ private fun RatingSection(history: List<com.ojnexus.core.database.entity.RatingC
                 .height(RatingChartHeight)
                 .semantics { contentDescription = chartDescription },
         ) {
-            val min = history.minOf { minOf(it.oldRating, it.newRating) }
+            val min = history.minOf { minOf(it.oldRating ?: it.newRating, it.newRating) }
             val max = maxOf(peak, history.maxOf { it.newRating })
             val range = (max - min).coerceAtLeast(1)
             fun yOf(rating: Int): Float = size.height * (1f - (rating - min).toFloat() / range)
@@ -738,12 +738,12 @@ private fun RatingSection(history: List<com.ojnexus.core.database.entity.RatingC
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "${point.oldRating} → ${point.newRating}",
+                        text = "${point.oldRating ?: "—"} → ${point.newRating}",
                         style = NexusTheme.typography.dataSmall,
                         color = colors.textSecondary,
                     )
                     Text(
-                        text = "${stringResource(R.string.rating_rank_label)} ${point.rank}",
+                        text = "${stringResource(R.string.rating_rank_label)} ${point.rank ?: stringResource(R.string.settings_rating_unavailable)}",
                         style = NexusTheme.typography.dataSmall,
                         color = colors.textTertiary,
                     )
