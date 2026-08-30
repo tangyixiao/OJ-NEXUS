@@ -299,7 +299,15 @@
     <string name="analytics_section_verdict">VERDICT DISTRIBUTION</string>
     <string name="analytics_section_judges">JUDGE BREAKDOWN</string>
     <string name="analytics_no_judge_data">NO JUDGE ATTEMPTS RECORDED</string>
+    <string name="analytics_judge_difficulty">DIFFICULTY %1$s</string>
     <string name="analytics_section_difficulty">DIFFICULTY DISTRIBUTION</string>
+    <string name="analytics_section_performance">PERFORMANCE</string>
+    <string name="analytics_first_try_label">FIRST-TRY AC</string>
+    <string name="analytics_first_try_value">%1$d/%2$d</string>
+    <string name="analytics_first_try_rate">%1$.0f%%</string>
+    <string name="analytics_section_weak_tags">WEAK TAGS</string>
+    <string name="analytics_tag_no_data">NO TAG ATTEMPTS RECORDED</string>
+    <string name="analytics_tag_summary">%1$d ATTEMPTS · %2$d AC · %3$.0f%% AC</string>
     <string name="analytics_section_training">TRAINING TIME</string>
     <string name="analytics_section_totals">TOTALS</string>
     <string name="analytics_total_problems">PROBLEMS</string>

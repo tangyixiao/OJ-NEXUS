@@ -20,9 +20,37 @@ data class DailyReviewRow(val dayIndex: Long, val count: Int)
 data class DifficultyCountRow(val difficulty: Int?, val count: Int)
 data class JudgeAttemptCountRow(val judge: String, val count: Int)
 data class JudgeDifficultyCountRow(val judge: String, val difficulty: Int?, val count: Int)
+data class FirstTryAcRow(val attemptedProblems: Int, val firstTryAc: Int)
+data class TagPerformanceRow(
+    val tag: String,
+    val attempts: Int,
+    val acCount: Int,
+    val problemCount: Int,
+)
 
 @Dao
 interface AnalyticsDao {
+
+    @Query(
+        "SELECT COUNT(DISTINCT a.problem_id) AS attemptedProblems, " +
+            "COUNT(DISTINCT CASE WHEN a.verdict = 'AC' AND a.id = (" +
+            "SELECT a2.id FROM attempts a2 WHERE a2.problem_id = a.problem_id " +
+            "ORDER BY a2.timestamp ASC, a2.id ASC LIMIT 1) " +
+            "THEN a.problem_id END) AS firstTryAc FROM attempts a",
+    )
+    fun observeFirstTryAc(): Flow<FirstTryAcRow>
+
+    @Query(
+        "SELECT t.name AS tag, COUNT(a.id) AS attempts, " +
+            "COUNT(CASE WHEN a.verdict = 'AC' THEN 1 END) AS acCount, " +
+            "COUNT(DISTINCT p.id) AS problemCount " +
+            "FROM problem_tags t " +
+            "JOIN problem_tag_cross_ref x ON x.tag_id = t.id " +
+            "JOIN problems p ON p.id = x.problem_id " +
+            "JOIN attempts a ON a.problem_id = p.id " +
+            "GROUP BY t.id, t.name ORDER BY attempts DESC, t.name ASC",
+    )
+    fun observeTagPerformance(): Flow<List<TagPerformanceRow>>
 
     @Query(
         "SELECT p.judge AS judge, COUNT(*) AS count FROM attempts a " +

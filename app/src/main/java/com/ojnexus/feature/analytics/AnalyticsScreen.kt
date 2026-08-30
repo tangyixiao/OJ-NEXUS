@@ -49,6 +49,7 @@ import com.ojnexus.core.designsystem.component.foregroundColor
 import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.domain.ActivityScorer
 import com.ojnexus.core.domain.DayActivity
+import com.ojnexus.core.data.repository.TagPerformance
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
@@ -142,7 +143,9 @@ private fun AnalyticsContent(state: AnalyticsUiState) {
         SectionGap()
         VerdictSection(state.verdictCounts)
         SectionGap()
-        JudgeBreakdownSection(state.judgeAttemptCounts)
+        PerformanceSection(state)
+        SectionGap()
+        JudgeBreakdownSection(state.judgeAttemptCounts, state.difficultyByJudge)
         SectionGap()
         DifficultySection(state.difficultyCounts)
         SectionGap()
@@ -152,7 +155,83 @@ private fun AnalyticsContent(state: AnalyticsUiState) {
 }
 
 @Composable
-private fun JudgeBreakdownSection(counts: List<Pair<com.ojnexus.core.model.JudgeId, Int>>) {
+private fun PerformanceSection(state: AnalyticsUiState) {
+    val colors = NexusTheme.colors
+    NexusSection(label = stringResource(R.string.analytics_section_performance)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.analytics_first_try_label),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textSecondary,
+                )
+                Text(
+                    stringResource(
+                        R.string.analytics_first_try_value,
+                        state.firstTryAc.firstTryAc,
+                        state.firstTryAc.attemptedProblems,
+                    ),
+                    style = NexusTheme.typography.dataLarge,
+                    color = colors.textPrimary,
+                )
+            }
+            Text(
+                stringResource(R.string.analytics_first_try_rate, state.firstTryAc.rate * 100f),
+                style = NexusTheme.typography.dataLarge,
+                color = colors.accent,
+            )
+        }
+        Spacer(Modifier.height(NexusSpacing.sm))
+        NexusDivider(insetEnd = NexusSpacing.xxs)
+        Spacer(Modifier.height(NexusSpacing.xxs))
+        val weakTags = state.tagPerformance
+            .filter { it.attempts > 0 }
+            .sortedWith(compareBy<TagPerformance> { it.acRate }.thenByDescending { it.attempts })
+            .take(8)
+        Text(
+            stringResource(R.string.analytics_section_weak_tags),
+            style = NexusTheme.typography.sectionLabel,
+            color = colors.textTertiary,
+        )
+        if (weakTags.isEmpty()) {
+            Text(
+                stringResource(R.string.analytics_tag_no_data),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textTertiary,
+            )
+        } else {
+            weakTags.forEach { tag ->
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = NexusSpacing.xxxs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        tag.tag,
+                        style = NexusTheme.typography.dataSmall,
+                        color = colors.textPrimary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        stringResource(
+                            R.string.analytics_tag_summary,
+                            tag.attempts,
+                            tag.acCount,
+                            tag.acRate * 100f,
+                        ),
+                        style = NexusTheme.typography.dataSmall,
+                        color = colors.textSecondary,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun JudgeBreakdownSection(
+    counts: List<Pair<com.ojnexus.core.model.JudgeId, Int>>,
+    difficultyByJudge: Map<com.ojnexus.core.model.JudgeId, List<Pair<Int?, Int>>>,
+) {
     NexusSection(label = stringResource(R.string.analytics_section_judges)) {
         if (counts.isEmpty()) {
             Text(
@@ -162,18 +241,34 @@ private fun JudgeBreakdownSection(counts: List<Pair<com.ojnexus.core.model.Judge
             )
         } else {
             counts.sortedBy { it.first.ordinal }.forEach { (judge, count) ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        judge.displayName,
-                        style = NexusTheme.typography.dataSmall,
-                        color = NexusTheme.colors.textPrimary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        formatCount(count),
-                        style = NexusTheme.typography.data,
-                        color = NexusTheme.colors.accent,
-                    )
+                Column(Modifier.fillMaxWidth().padding(vertical = NexusSpacing.xxxs)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            judge.displayName,
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.textPrimary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            formatCount(count),
+                            style = NexusTheme.typography.data,
+                            color = NexusTheme.colors.accent,
+                        )
+                    }
+                    val difficulties = difficultyByJudge[judge].orEmpty()
+                    if (difficulties.isNotEmpty()) {
+                        val unknown = stringResource(R.string.analytics_difficulty_unknown)
+                        Text(
+                            stringResource(
+                                R.string.analytics_judge_difficulty,
+                                difficulties.joinToString(" · ") { (difficulty, number) ->
+                                    "${difficulty ?: unknown}:$number"
+                                },
+                            ),
+                            style = NexusTheme.typography.sectionLabel,
+                            color = NexusTheme.colors.textTertiary,
+                        )
+                    }
                 }
             }
         }

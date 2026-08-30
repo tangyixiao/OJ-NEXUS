@@ -22,11 +22,13 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 3 (Multi-OJ + AtCoder)**: Codeforces and AtCoder now share
+Early development — **Phase 4 (Analytics)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
-profile, problems, contests, and analytics expose judge-labelled local data. No passwords,
+profile, problems, contests, and analytics expose judge-labelled local data. Analytics adds
+heatmap day detail, first-try AC, weak-tag performance, and per-judge difficulty breakdowns.
+No passwords,
 cookies, private API signing, scraping, or auto-submit are used. See
 [docs/MULTI_OJ.md](docs/MULTI_OJ.md), [docs/ATCODER.md](docs/ATCODER.md),
 [docs/SYNC_ENGINE.md](docs/SYNC_ENGINE.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -41,6 +43,7 @@ cookies, private API signing, scraping, or auto-submit are used. See
 - [OJ Adapter Spec](docs/OJ_ADAPTERS.md)
 - [Multi-OJ Architecture](docs/MULTI_OJ.md)
 - [AtCoder Integration](docs/ATCODER.md)
+- [Analytics](docs/ANALYTICS.md)
 - [Roadmap](docs/ROADMAP.md)
 
 ## Build

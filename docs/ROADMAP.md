@@ -26,18 +26,20 @@ submissions, remote problem catalog, contests, local-first UI, and unique WorkMa
 The branch is locally complete; push/PR/CI remain separate release actions requiring explicit
 authorization.
 
-## PHASE 3 — Multi-OJ + AtCoder ✅ (current milestone)
+## PHASE 3 — Multi-OJ + AtCoder ✅
 Judge-independent adapter/registry/sync contracts, Room v3 migration, AtCoder Problems
 transport and mapping, soft public-handle binding, timestamp-cursor submission sync, catalog
 and contest caching, per-judge WorkManager identity, and judge-labelled local-first UI.
 The branch is locally complete; push/PR/CI remain separate release actions requiring explicit
 authorization.
 
-## PHASE 4 — Analytics (next)
-Heatmap tap-through, verdict/difficulty/knowledge distributions, rating chart, trend metrics,
-weak tags, and richer per-judge breakdowns — all computed from local data and drawn with Compose.
+## PHASE 4 — Analytics ✅ (current milestone)
+Heatmap tap-through day detail, verdict/difficulty distributions, Codeforces rating chart,
+solve/training trends, first-try AC rate, weak-tag performance, and per-judge difficulty
+breakdowns — all computed from local data and drawn with Compose. Knowledge distribution waits
+for the problem-knowledge relation in Phase 6 rather than inventing data.
 
-## PHASE 5 — Arena
+## PHASE 5 — Arena (next)
 Contest center polish (reminders, calendar) and the live-contest focus view: countdown,
 problem tracker, local markers, synced submission progress. No scraping, no auto-submit.
 

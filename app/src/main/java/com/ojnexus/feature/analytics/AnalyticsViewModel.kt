@@ -3,7 +3,8 @@ package com.ojnexus.feature.analytics
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ojnexus.core.data.repository.AnalyticsRepository
-import com.ojnexus.core.data.repository.ProblemRepository
+import com.ojnexus.core.data.repository.FirstTryAc
+import com.ojnexus.core.data.repository.TagPerformance
 import com.ojnexus.core.domain.DayActivity
 import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.ui.Loadable
@@ -35,6 +36,8 @@ data class AnalyticsUiState(
     val ratingHistory: List<com.ojnexus.core.database.entity.RatingChangeEntity>,
     val judgeAttemptCounts: List<Pair<com.ojnexus.core.model.JudgeId, Int>>,
     val difficultyByJudge: Map<com.ojnexus.core.model.JudgeId, List<Pair<Int?, Int>>>,
+    val firstTryAc: FirstTryAc,
+    val tagPerformance: List<TagPerformance>,
 ) {
     /** True when there is nothing to show yet — drives the empty state. */
     val isEmpty: Boolean
@@ -49,7 +52,7 @@ class AnalyticsViewModel(
     private val heatmapWindowDays = 365
     private val trendWindowDays = 14
 
-    private val localData = combine(
+    private val baseData = combine(
         analyticsRepository.observeDailyActivity(heatmapWindowDays),
         analyticsRepository.observeVerdictCounts(),
         analyticsRepository.observeDifficultyCounts(),
@@ -65,7 +68,17 @@ class AnalyticsViewModel(
         val difficultyCounts: List<Pair<Int?, Int>>,
         val totals: com.ojnexus.core.data.repository.Totals,
         val streaks: com.ojnexus.core.data.repository.Streaks,
+        val firstTryAc: FirstTryAc = FirstTryAc(0, 0),
+        val tagPerformance: List<TagPerformance> = emptyList(),
     )
+
+    private val localData = combine(
+        baseData,
+        analyticsRepository.observeFirstTryAc(),
+        analyticsRepository.observeTagPerformance(),
+    ) { base, firstTryAc, tagPerformance ->
+        base.copy(firstTryAc = firstTryAc, tagPerformance = tagPerformance)
+    }
 
     private val judgeBreakdown = combine(
         analyticsRepository.observeJudgeAttemptCounts(),
@@ -96,6 +109,8 @@ class AnalyticsViewModel(
                 ratingHistory = ratingHistory,
                 judgeAttemptCounts = breakdown.first,
                 difficultyByJudge = breakdown.second,
+                firstTryAc = local.firstTryAc,
+                tagPerformance = local.tagPerformance,
             ),
         )
     }
