@@ -58,6 +58,8 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
  *
  * v5 (Phase 6): explicit problem-to-knowledge relations for local mastery evidence.
  */
+const val OJ_NEXUS_SCHEMA_VERSION = 5
+
 @Database(
     entities = [
         ProblemEntity::class,
@@ -80,7 +82,7 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
         ProblemKnowledgeEntity::class,
         SyncStateEntity::class,
     ],
-    version = 5,
+    version = OJ_NEXUS_SCHEMA_VERSION,
     exportSchema = true,
 )
 abstract class OjNexusDatabase : RoomDatabase() {
@@ -103,6 +105,8 @@ abstract class OjNexusDatabase : RoomDatabase() {
     abstract fun syncStateDao(): SyncStateDao
 
     companion object {
+        const val DATABASE_NAME = "oj-nexus.db"
+        const val CURRENT_SCHEMA_VERSION = OJ_NEXUS_SCHEMA_VERSION
 
         /**
          * v1 → v2: extend `attempts` with nullable remote-origin columns (no NOT NULL
@@ -432,7 +436,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
         }
 
         fun build(context: Context): OjNexusDatabase =
-            Room.databaseBuilder(context, OjNexusDatabase::class.java, "oj-nexus.db")
+            Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
     }

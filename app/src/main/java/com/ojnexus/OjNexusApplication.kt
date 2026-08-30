@@ -48,6 +48,10 @@ import java.time.Clock
  */
 class AppContainer(context: android.content.Context) {
 
+    init {
+        BackupRepository.restorePending(context)
+    }
+
     val clock: Clock = Clock.systemDefaultZone()
 
     val database: OjNexusDatabase = OjNexusDatabase.build(context)
@@ -58,7 +62,7 @@ class AppContainer(context: android.content.Context) {
     val analyticsRepository: AnalyticsRepository = AnalyticsRepository(database, clock)
     val contestFocusRepository: ContestFocusRepository = ContestFocusRepository(database, clock)
     val knowledgeRepository: KnowledgeRepository = KnowledgeRepository(database)
-    val backupRepository: BackupRepository = BackupRepository(database)
+    val backupRepository: BackupRepository = BackupRepository(database, context)
     val userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepository(context)
     val judgeDataRepository = JudgeDataRepository(database)
 

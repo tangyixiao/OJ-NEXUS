@@ -38,6 +38,10 @@ data class JudgeConnectionUi(
 
 data class SettingsUiState(val connections: List<JudgeConnectionUi>)
 
+enum class BackupOperation { EXPORT, IMPORT }
+
+data class BackupResult(val operation: BackupOperation, val success: Boolean)
+
 class SettingsViewModel(
     private val accountRepository: JudgeAccountRepository,
     dataRepository: JudgeDataRepository,
@@ -80,8 +84,8 @@ class SettingsViewModel(
     val errors: StateFlow<Map<JudgeId, ConnectError>> = connectErrors.asStateFlow()
     private val connectingJudges = MutableStateFlow<Set<JudgeId>>(emptySet())
     val connecting: StateFlow<Set<JudgeId>> = connectingJudges.asStateFlow()
-    private val backupResult = MutableStateFlow<Boolean?>(null)
-    val backup: StateFlow<Boolean?> = backupResult.asStateFlow()
+    private val backupResult = MutableStateFlow<BackupResult?>(null)
+    val backup: StateFlow<BackupResult?> = backupResult.asStateFlow()
     val preferences: StateFlow<UserPreferences> = preferencesRepository.preferences.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -90,7 +94,19 @@ class SettingsViewModel(
 
     fun exportBackup(resolver: ContentResolver, destination: Uri) {
         viewModelScope.launch {
-            backupResult.value = backupRepository.exportTo(resolver, destination)
+            backupResult.value = BackupResult(
+                operation = BackupOperation.EXPORT,
+                success = backupRepository.exportTo(resolver, destination),
+            )
+        }
+    }
+
+    fun importBackup(resolver: ContentResolver, source: Uri) {
+        viewModelScope.launch {
+            backupResult.value = BackupResult(
+                operation = BackupOperation.IMPORT,
+                success = backupRepository.importFrom(resolver, source),
+            )
         }
     }
 

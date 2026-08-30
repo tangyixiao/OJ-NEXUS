@@ -72,6 +72,13 @@ fun SettingsScreen(onBack: () -> Unit) {
             viewModel.exportBackup(context.contentResolver, destination)
         }
     }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { source ->
+        if (source != null) {
+            viewModel.importBackup(context.contentResolver, source)
+        }
+    }
     var disconnectAccountId by rememberSaveable { mutableStateOf<Long?>(null) }
     var purgeCache by rememberSaveable { mutableStateOf(false) }
 
@@ -117,14 +124,32 @@ fun SettingsScreen(onBack: () -> Unit) {
                     label = stringResource(R.string.settings_export_backup),
                     onClick = { backupLauncher.launch("oj-nexus-backup.db") },
                 )
-                backupResult?.let { success ->
+                Spacer(Modifier.height(NexusSpacing.xs))
+                SettingsAction(
+                    label = stringResource(R.string.settings_import_backup),
+                    onClick = {
+                        importLauncher.launch(
+                            arrayOf(
+                                "application/octet-stream",
+                                "application/vnd.sqlite3",
+                                "application/x-sqlite3",
+                            ),
+                        )
+                    },
+                )
+                backupResult?.let { result ->
                     Spacer(Modifier.height(NexusSpacing.xs))
                     Text(
                         text = stringResource(
-                            if (success) R.string.settings_backup_success else R.string.settings_backup_failed,
+                            when {
+                                result.success && result.operation == BackupOperation.EXPORT ->
+                                    R.string.settings_backup_success
+                                result.success -> R.string.settings_backup_import_success
+                                else -> R.string.settings_backup_failed
+                            },
                         ),
                         style = NexusTheme.typography.dataSmall,
-                        color = if (success) NexusTheme.colors.success else NexusTheme.colors.danger,
+                        color = if (result.success) NexusTheme.colors.success else NexusTheme.colors.danger,
                     )
                 }
             }

@@ -402,7 +402,9 @@
     <string name="settings_section_data">LOCAL DATA</string>
     <string name="settings_backup_hint">EXPORT A COPY OF THE LOCAL DATABASE. NO PASSWORDS OR COOKIES ARE INCLUDED.</string>
     <string name="settings_export_backup">EXPORT DATABASE BACKUP</string>
+    <string name="settings_import_backup">IMPORT DATABASE BACKUP</string>
     <string name="settings_backup_success">BACKUP EXPORTED</string>
+    <string name="settings_backup_import_success">BACKUP VERIFIED — RESTART APP TO RESTORE</string>
     <string name="settings_backup_failed">BACKUP EXPORT FAILED</string>
     <string name="settings_section_interaction">INTERACTION</string>
     <string name="settings_reduce_motion">REDUCE MOTION</string>
