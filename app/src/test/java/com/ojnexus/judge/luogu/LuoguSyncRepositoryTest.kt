@@ -120,6 +120,24 @@ class LuoguSyncRepositoryTest {
         assertEquals(0, outcome.itemsProcessed)
     }
 
+    @Test
+    fun `catalog page budget fails instead of silently truncating`() = runBlocking {
+        val account = connect()
+        val limited = LuoguSyncRepository(
+            database = database,
+            adapter = adapter,
+            clock = clock,
+            zone = ZoneId.of("UTC"),
+            maxCatalogPages = 1,
+        )
+
+        val outcome = limited.syncProblems(account, force = true)
+
+        assertFalse(outcome.ok)
+        assertEquals("ParseError", outcome.errorType)
+        assertEquals(1, outcome.itemsProcessed)
+    }
+
     private suspend fun connect(): JudgeAccountEntity =
         accounts.connect(JudgeId.LUOGU, "alice")
 }

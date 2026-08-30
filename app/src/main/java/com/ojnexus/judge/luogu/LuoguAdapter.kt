@@ -24,7 +24,6 @@ interface LuoguAdapter : JudgeAdapter {
             JudgeCapability.PROBLEM_DIFFICULTY,
             JudgeCapability.CONTESTS,
             JudgeCapability.BACKGROUND_SYNC,
-            JudgeCapability.INCREMENTAL_SYNC,
         )
 
     override suspend fun status(): AdapterStatus = AdapterStatus.AVAILABLE

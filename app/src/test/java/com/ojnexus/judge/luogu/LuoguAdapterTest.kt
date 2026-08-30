@@ -56,7 +56,6 @@ class LuoguAdapterTest {
                 JudgeCapability.PROBLEM_DIFFICULTY,
                 JudgeCapability.CONTESTS,
                 JudgeCapability.BACKGROUND_SYNC,
-                JudgeCapability.INCREMENTAL_SYNC,
             ),
             adapter.capabilities,
         )

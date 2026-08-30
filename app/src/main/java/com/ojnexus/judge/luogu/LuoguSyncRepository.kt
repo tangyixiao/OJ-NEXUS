@@ -74,11 +74,11 @@ class LuoguSyncRepository(
                 )
                 loaded += rows.size
                 processed += rows.size
-                if (!hasMore(pageNumber, loaded, rows.size, collection.perPage, collection.count)) break
+                if (!hasMore(loaded, rows.size, collection.perPage, collection.count)) break
+                if (pageNumber == maxCatalogPages) {
+                    throw PartialStageFailure(paginationError("contest"), processed)
+                }
                 pageNumber++
-            }
-            if (pageNumber > maxCatalogPages) {
-                throw PartialStageFailure(paginationError("contest"), processed)
             }
             processed
         }
@@ -102,11 +102,11 @@ class LuoguSyncRepository(
                 )
                 loaded += rows.size
                 processed += rows.size
-                if (!hasMore(pageNumber, loaded, rows.size, collection.perPage, collection.count)) break
+                if (!hasMore(loaded, rows.size, collection.perPage, collection.count)) break
+                if (pageNumber == maxCatalogPages) {
+                    throw PartialStageFailure(paginationError("problem"), processed)
+                }
                 pageNumber++
-            }
-            if (pageNumber > maxCatalogPages) {
-                throw PartialStageFailure(paginationError("problem"), processed)
             }
             processed
         }
@@ -138,7 +138,6 @@ class LuoguSyncRepository(
             ?: throw LuoguApiError.UserNotFound()
 
     private fun hasMore(
-        pageNumber: Int,
         loaded: Int,
         received: Int,
         pageSize: Int,
@@ -147,7 +146,7 @@ class LuoguSyncRepository(
         if (received == 0) return false
         if (reportedCount > 0 && loaded >= reportedCount) return false
         val effectivePageSize = pageSize.takeIf { it > 0 } ?: received
-        return received >= effectivePageSize && pageNumber < maxCatalogPages
+        return received >= effectivePageSize
     }
 
     private suspend fun runStage(
