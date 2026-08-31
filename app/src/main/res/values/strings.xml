@@ -493,6 +493,7 @@
 
     <!-- Rating -->
     <string name="rating_section">CODEFORCES RATING</string>
+    <string name="rating_section_for_judge">%1$s RATING</string>
     <string name="rating_chart_cd">Rating chart across rated contests</string>
     <string name="rating_peak">PEAK</string>
     <string name="rating_no_history">NO RATED CONTESTS</string>

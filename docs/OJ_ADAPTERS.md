@@ -42,7 +42,8 @@ Luogu public user search is currently integrated for account binding through
 public user summary, requires an exact username match, and never stores Luogu credentials.
 Public profile, rating/ELO history, problems, and contests use the first-party structured
 `content-only` JSON transport for `/user/:uid`, `/user/:uid/practice`, `/problem/list`, and
-`/contest/list`. The adapter applies bounded retries and per-source rate spacing.
+`/contest/list`. The adapter applies bounded retries and per-source rate spacing. The cached
+rating history is consumed by the shared Analytics and Profile surfaces alongside other judges.
 
 The anonymous `/record/list` response is an auth/login envelope. It is surfaced as
 `AuthenticationRequired` and leaves submissions empty; password login, Cookie/Session/CSRF

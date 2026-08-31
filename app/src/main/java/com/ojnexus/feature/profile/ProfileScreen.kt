@@ -75,13 +75,25 @@ class ProfileViewModel(
     judgeDataRepository: com.ojnexus.core.data.repository.JudgeDataRepository,
 ) : ViewModel() {
 
+    private val ratingHistories = combine(
+        analyticsRepository.observeRatingChanges(JudgeId.CODEFORCES.id),
+        analyticsRepository.observeRatingChanges(JudgeId.ATCODER.id),
+        analyticsRepository.observeRatingChanges(JudgeId.LUOGU.id),
+    ) { codeforces, atcoder, luogu ->
+        mapOf(
+            JudgeId.CODEFORCES to codeforces,
+            JudgeId.ATCODER to atcoder,
+            JudgeId.LUOGU to luogu,
+        )
+    }
+
     val state: StateFlow<Loadable<ProfileUiState>> = combine(
         analyticsRepository.observeTotals(),
         analyticsRepository.observeStreaks(days = 365),
         analyticsRepository.observeDifficultyCounts(),
         judgeDataRepository.observeConnections(),
-        analyticsRepository.observeRatingChanges(com.ojnexus.core.model.JudgeId.CODEFORCES.id),
-    ) { totals, streaks, difficultyCounts, connections, ratingChanges ->
+        ratingHistories,
+    ) { totals, streaks, difficultyCounts, connections, ratingHistories ->
         val account = connections.accounts[JudgeId.CODEFORCES]
         Loadable.Ready(
             ProfileUiState(
@@ -95,14 +107,14 @@ class ProfileViewModel(
                 connections = connections,
                 cfAccount = account,
                 cfProfile = connections.profiles[JudgeId.CODEFORCES],
-                ratedContests = ratingChanges.size,
+                ratedContests = ratingHistories.values.sumOf { it.size },
                 achievements = AchievementEngine.evaluate(
                     AchievementEvidence(
                         solved = totals.solved,
                         activeDays = streaks.activeDays,
                         currentStreak = streaks.current,
                         maxSolvedDifficulty = difficultyCounts.mapNotNull { it.first }.maxOrNull(),
-                        ratedContests = ratingChanges.size,
+                        ratedContests = ratingHistories.values.sumOf { it.size },
                     ),
                 ),
             ),
@@ -207,7 +219,7 @@ private fun ProfileContent(
             Spacer(modifier = Modifier.height(NexusSpacing.sm))
             NexusDivider()
             Spacer(modifier = Modifier.height(NexusSpacing.xxs))
-            listOf(JudgeId.CODEFORCES, JudgeId.ATCODER).forEachIndexed { index, judge ->
+            listOf(JudgeId.CODEFORCES, JudgeId.ATCODER, JudgeId.LUOGU).forEachIndexed { index, judge ->
                     val account = state.connections.accounts[judge]
                     val profile = state.connections.profiles[judge]
                     Row(
@@ -239,7 +251,7 @@ private fun ProfileContent(
                             )
                         }
                     }
-                    if (index == 0) {
+                    if (index < 2) {
                         NexusDivider(insetEnd = NexusSpacing.xxs)
                     }
                 }

@@ -444,6 +444,7 @@
     <string name="contest_marker_solved">已解决</string>
     <string name="contest_marker_skipped">已跳过</string>
     <string name="rating_section">CODEFORCES 分数</string>
+    <string name="rating_section_for_judge">%1$s 分数</string>
     <string name="rating_chart_cd">已评分竞赛中的分数曲线</string>
     <string name="rating_peak">峰值</string>
     <string name="rating_no_history">暂无已评分竞赛</string>

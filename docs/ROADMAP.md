@@ -99,3 +99,5 @@ quota points; the response is transient UI state only and is not persisted or sy
 The workspace editor also exposes the supported Open Platform language identifiers and forwards
 the selected language in each explicit submit request. The remote problem catalog now exposes
 LUOGU alongside Codeforces and AtCoder and maps saved Luogu problems to their canonical URLs.
+Analytics renders each judge's rating history independently, and Profile includes the Luogu
+connection and current public rating when available.

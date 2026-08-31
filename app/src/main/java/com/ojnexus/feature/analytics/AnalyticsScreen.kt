@@ -133,8 +133,8 @@ private fun AnalyticsContent(state: AnalyticsUiState) {
             Spacer(modifier = Modifier.height(NexusSpacing.md))
             HeatmapSection(state)
             SectionGap()
-            if (state.cfConnected && state.ratingHistory.isNotEmpty()) {
-                RatingSection(state.ratingHistory)
+            state.ratingHistories.forEach { (judge, history) ->
+                RatingSection(judge, history)
                 SectionGap()
             }
             TotalsSection(state)
@@ -650,11 +650,14 @@ private fun TrainingTimeSection(state: AnalyticsUiState) {
 }
 
 @Composable
-private fun RatingSection(history: List<com.ojnexus.core.database.entity.RatingChangeEntity>) {
+private fun RatingSection(
+    judge: com.ojnexus.core.model.JudgeId,
+    history: List<com.ojnexus.core.database.entity.RatingChangeEntity>,
+) {
     val colors = NexusTheme.colors
     var selected by remember { mutableStateOf<Int?>(null) }
     NexusSection(
-        label = stringResource(R.string.rating_section),
+        label = stringResource(R.string.rating_section_for_judge, judge.displayName),
         trailing = {
             Text(
                 text = history.last().newRating.toString(),

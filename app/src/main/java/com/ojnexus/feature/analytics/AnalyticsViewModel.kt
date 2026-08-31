@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.ojnexus.core.data.repository.AnalyticsRepository
 import com.ojnexus.core.data.repository.FirstTryAc
 import com.ojnexus.core.data.repository.TagPerformance
+import com.ojnexus.core.database.entity.RatingChangeEntity
 import com.ojnexus.core.domain.DayActivity
+import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.ui.Loadable
 import java.time.Clock
@@ -34,6 +36,7 @@ data class AnalyticsUiState(
     val longestStreak: Int,
     val cfConnected: Boolean,
     val ratingHistory: List<com.ojnexus.core.database.entity.RatingChangeEntity>,
+    val ratingHistories: Map<JudgeId, List<RatingChangeEntity>> = emptyMap(),
     val judgeAttemptCounts: List<Pair<com.ojnexus.core.model.JudgeId, Int>>,
     val difficultyByJudge: Map<com.ojnexus.core.model.JudgeId, List<Pair<Int?, Int>>>,
     val firstTryAc: FirstTryAc,
@@ -85,12 +88,20 @@ class AnalyticsViewModel(
         analyticsRepository.observeDifficultyCountsByJudge(),
     ) { attempts, difficulties -> attempts to difficulties }
 
+    private val ratingHistories = combine(
+        analyticsRepository.observeRatingChanges(JudgeId.CODEFORCES.id),
+        analyticsRepository.observeRatingChanges(JudgeId.ATCODER.id),
+        analyticsRepository.observeRatingChanges(JudgeId.LUOGU.id),
+    ) { codeforces, atcoder, luogu ->
+        ratingHistoriesByJudge(codeforces, atcoder, luogu)
+    }
+
     val state: StateFlow<Loadable<AnalyticsUiState>> = kotlinx.coroutines.flow.combine(
         localData,
         analyticsRepository.observeJudgeAccounts(),
-        analyticsRepository.observeRatingChanges(com.ojnexus.core.model.JudgeId.CODEFORCES.id),
+        ratingHistories,
         judgeBreakdown,
-    ) { local, accounts, ratingHistory, breakdown ->
+    ) { local, accounts, ratingHistories, breakdown ->
         Loadable.Ready(
             AnalyticsUiState(
                 heatmapDays = local.daily,
@@ -106,7 +117,8 @@ class AnalyticsViewModel(
                 cfConnected = accounts.any {
                     it.judge == com.ojnexus.core.model.JudgeId.CODEFORCES.id && it.enabled
                 },
-                ratingHistory = ratingHistory,
+                ratingHistory = ratingHistories[JudgeId.CODEFORCES].orEmpty(),
+                ratingHistories = ratingHistories,
                 judgeAttemptCounts = breakdown.first,
                 difficultyByJudge = breakdown.second,
                 firstTryAc = local.firstTryAc,
@@ -126,3 +138,13 @@ class AnalyticsViewModel(
         return first - (dayOfWeek - 1)
     }
 }
+
+internal fun ratingHistoriesByJudge(
+    codeforces: List<RatingChangeEntity>,
+    atcoder: List<RatingChangeEntity>,
+    luogu: List<RatingChangeEntity>,
+): Map<JudgeId, List<RatingChangeEntity>> = listOf(
+    JudgeId.CODEFORCES to codeforces,
+    JudgeId.ATCODER to atcoder,
+    JudgeId.LUOGU to luogu,
+).filter { (_, history) -> history.isNotEmpty() }.toMap()
