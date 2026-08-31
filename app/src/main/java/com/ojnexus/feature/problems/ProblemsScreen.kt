@@ -86,6 +86,7 @@ fun ProblemsScreen(
                 repository = it.problemRepository,
                 demoSeeder = it.demoSeeder,
                 judgeDataRepository = it.judgeDataRepository,
+                publicCatalogSync = it.luoguSyncRepository,
             )
         },
     )
@@ -468,6 +469,49 @@ private fun RemoteCatalogContent(
                         selected = state.solvedFilter == 2,
                         onClick = { viewModel.setRemoteSolvedFilter(2) },
                     )
+                }
+                if (state.judge == com.ojnexus.core.model.JudgeId.LUOGU) {
+                    Spacer(modifier = Modifier.height(NexusSpacing.xxs))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.problems_luogu_catalog_hint),
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.textTertiary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        FilterChip(
+                            label = stringResource(
+                                if (state.catalogSyncing) {
+                                    R.string.problems_luogu_syncing_catalog
+                                } else {
+                                    R.string.problems_luogu_sync_catalog
+                                },
+                            ),
+                            selected = state.catalogSyncing,
+                            onClick = viewModel::syncLuoguCatalog,
+                        )
+                    }
+                    state.catalogSyncItems?.let { count ->
+                        if (!state.catalogSyncing && state.catalogSyncError == null) {
+                            Text(
+                                text = stringResource(R.string.problems_luogu_catalog_synced, count),
+                                style = NexusTheme.typography.dataSmall,
+                                color = NexusTheme.colors.success,
+                                modifier = Modifier.padding(top = NexusSpacing.xxxs),
+                            )
+                        }
+                    }
+                    state.catalogSyncError?.let { error ->
+                        Text(
+                            text = error,
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.danger,
+                            modifier = Modifier.padding(top = NexusSpacing.xxxs),
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(NexusSpacing.sm))
                 Row(

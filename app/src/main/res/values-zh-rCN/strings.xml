@@ -487,6 +487,10 @@
     <string name="problems_scope_filter_solved">已解决</string>
     <string name="problems_scope_filter_unsolved">未解决</string>
     <string name="problems_load_more">加载更多</string>
+    <string name="problems_luogu_catalog_hint">公开题库 · 无需账号</string>
+    <string name="problems_luogu_sync_catalog">同步题库</string>
+    <string name="problems_luogu_syncing_catalog">正在同步题库…</string>
+    <string name="problems_luogu_catalog_synced">题库已更新 · %d 项</string>
     <!-- 洛谷原生题目详情 -->
     <string name="luogu_problem_detail_title">洛谷题目</string>
     <string name="luogu_problem_loading">正在加载洛谷题目</string>

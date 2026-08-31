@@ -538,6 +538,10 @@
     <string name="problems_scope_filter_solved">SOLVED</string>
     <string name="problems_scope_filter_unsolved">UNSOLVED</string>
     <string name="problems_load_more">LOAD MORE</string>
+    <string name="problems_luogu_catalog_hint">PUBLIC CATALOG · NO ACCOUNT REQUIRED</string>
+    <string name="problems_luogu_sync_catalog">SYNC CATALOG</string>
+    <string name="problems_luogu_syncing_catalog">SYNCING CATALOG…</string>
+    <string name="problems_luogu_catalog_synced">CATALOG UPDATED · %d ITEMS</string>
     <!-- Luogu native problem detail -->
     <string name="luogu_problem_detail_title">LUOGU PROBLEM</string>
     <string name="luogu_problem_loading">LOADING LUOGU PROBLEM</string>

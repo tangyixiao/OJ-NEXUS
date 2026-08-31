@@ -22,7 +22,7 @@ class LuoguSyncRepository(
     private val clock: Clock,
     private val zone: ZoneId = ZoneId.systemDefault(),
     private val maxCatalogPages: Int = LuoguPolicies.MAX_CATALOG_PAGES,
-) {
+) : LuoguPublicCatalogSync {
     private val syncStateDao = database.syncStateDao()
 
     fun observeSyncState() = syncStateDao.observeByJudge(JudgeId.LUOGU.id)
@@ -30,7 +30,7 @@ class LuoguSyncRepository(
     suspend fun findSyncState(): SyncStateEntity? = syncStateDao.findByJudge(JudgeId.LUOGU.id)
 
     suspend fun syncProfile(account: JudgeAccountEntity, force: Boolean): StageOutcome =
-        runStage(account, SyncStage.PROFILE, force, LuoguPolicies.PROFILE_FRESH_MS) {
+        runStage(account.id, SyncStage.PROFILE, force, LuoguPolicies.PROFILE_FRESH_MS) {
             val uid = resolveUid(account)
             val profilePage = adapter.fetchUserPage(uid)
             val practicePage = adapter.fetchPracticePage(uid)
@@ -46,7 +46,7 @@ class LuoguSyncRepository(
         }
 
     suspend fun syncRating(account: JudgeAccountEntity, force: Boolean): StageOutcome =
-        runStage(account, SyncStage.RATING, force, LuoguPolicies.RATING_FRESH_MS) {
+        runStage(account.id, SyncStage.RATING, force, LuoguPolicies.RATING_FRESH_MS) {
             val uid = resolveUid(account)
             val profilePage = adapter.fetchUserPage(uid)
             val practicePage = adapter.fetchPracticePage(uid)
@@ -58,7 +58,7 @@ class LuoguSyncRepository(
         }
 
     suspend fun syncContests(account: JudgeAccountEntity, force: Boolean): StageOutcome =
-        runStage(account, SyncStage.CONTESTS, force, LuoguPolicies.CONTESTS_FRESH_MS) {
+        runStage(account.id, SyncStage.CONTESTS, force, LuoguPolicies.CONTESTS_FRESH_MS) {
             var pageNumber = 1
             var loaded = 0
             var processed = 0
@@ -87,13 +87,28 @@ class LuoguSyncRepository(
         }
 
     suspend fun syncProblems(account: JudgeAccountEntity, force: Boolean): StageOutcome =
-        runStage(account, SyncStage.PROBLEMS, force, LuoguPolicies.PROBLEMS_FRESH_MS) {
-            if (adapter.supportsProblemsetDump) {
-                syncProblemsetDump()
-            } else {
-                syncProblemPages()
-            }
+        runStage(account.id, SyncStage.PROBLEMS, force, LuoguPolicies.PROBLEMS_FRESH_MS) {
+            syncProblemCatalog()
         }
+
+    override suspend fun syncPublicProblemCatalog(force: Boolean): StageOutcome {
+        val outcome = runStage(
+            accountId = null,
+            stage = SyncStage.PROBLEMS,
+            force = force,
+            freshnessMs = LuoguPolicies.PROBLEMS_FRESH_MS,
+        ) {
+            syncProblemCatalog()
+        }
+        finalizePublicCatalog(outcome)
+        return outcome
+    }
+
+    private suspend fun syncProblemCatalog(): Int = if (adapter.supportsProblemsetDump) {
+        syncProblemsetDump()
+    } else {
+        syncProblemPages()
+    }
 
     private suspend fun syncProblemsetDump(): Int {
         val updatedAt = clock.millis()
@@ -150,7 +165,7 @@ class LuoguSyncRepository(
 
     /** Stage 1 deliberately makes no private-data claim; anonymous records are auth-gated. */
     suspend fun syncSubmissions(account: JudgeAccountEntity, force: Boolean): StageOutcome =
-        runStage(account, SyncStage.SUBMISSIONS, force, Long.MAX_VALUE) {
+        runStage(account.id, SyncStage.SUBMISSIONS, force, Long.MAX_VALUE) {
             val uid = resolveUid(account)
             adapter.fetchRecordPage(uid, 1)
             throw LuoguApiError.AuthenticationRequired()
@@ -187,7 +202,7 @@ class LuoguSyncRepository(
     }
 
     private suspend fun runStage(
-        account: JudgeAccountEntity,
+        accountId: Long?,
         stage: SyncStage,
         force: Boolean,
         freshnessMs: Long,
@@ -205,7 +220,7 @@ class LuoguSyncRepository(
         if (!force && lastSynced != null && clock.millis() - lastSynced < freshnessMs) {
             return StageOutcome(stage, ok = true)
         }
-        markSyncing(account, stage)
+        markSyncing(accountId, stage)
         val outcome = try {
             val count = block()
             stamp(stage)
@@ -229,16 +244,35 @@ class LuoguSyncRepository(
         return outcome
     }
 
-    private suspend fun markSyncing(account: JudgeAccountEntity, stage: SyncStage) {
+    private suspend fun markSyncing(accountId: Long?, stage: SyncStage) {
         val current = syncStateDao.findByJudge(JudgeId.LUOGU.id) ?:
-            SyncStateEntity(judge = JudgeId.LUOGU.id, accountId = account.id)
+            SyncStateEntity(judge = JudgeId.LUOGU.id)
         syncStateDao.upsert(
             current.copy(
-                accountId = account.id,
+                accountId = accountId ?: current.accountId,
                 state = SyncPhase.SYNCING.name,
                 startedAt = clock.millis(),
                 finishedAt = null,
                 currentStage = stage.name,
+            ),
+        )
+    }
+
+    private suspend fun finalizePublicCatalog(outcome: StageOutcome) {
+        val current = syncStateDao.findByJudge(JudgeId.LUOGU.id) ?: return
+        val phase = when {
+            outcome.ok -> SyncPhase.SUCCESS
+            outcome.itemsProcessed > 0 -> SyncPhase.PARTIAL
+            else -> SyncPhase.ERROR
+        }
+        val now = clock.millis()
+        syncStateDao.upsert(
+            current.copy(
+                state = phase.name,
+                finishedAt = now,
+                lastSuccessfulSyncAt = if (outcome.ok) now else current.lastSuccessfulSyncAt,
+                lastErrorType = outcome.errorType,
+                lastErrorMessage = outcome.errorMessage,
             ),
         )
     }

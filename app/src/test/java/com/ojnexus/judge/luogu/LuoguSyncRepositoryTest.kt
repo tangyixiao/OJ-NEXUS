@@ -132,6 +132,57 @@ class LuoguSyncRepositoryTest {
     }
 
     @Test
+    fun `public catalog sync imports without a connected account`() = runBlocking {
+        adapter.useProblemsetDump = true
+        adapter.problemsetDump = gzip(
+            """
+            {"pid":"P2000","type":"P","difficulty":1,"tags":["math"],"title":"Public A+B"}
+            """.trimIndent(),
+        )
+
+        val outcome = repository.syncPublicProblemCatalog(force = true)
+
+        assertTrue(outcome.ok)
+        assertEquals(SyncStage.PROBLEMS, outcome.stage)
+        assertEquals(1, outcome.itemsProcessed)
+        assertEquals("Public A+B", database.remoteProblemDao().findByKey(JudgeId.LUOGU.id, "P2000")?.name)
+        assertEquals("SUCCESS", database.syncStateDao().findByJudge(JudgeId.LUOGU.id)?.state)
+        assertEquals(null, database.syncStateDao().findByJudge(JudgeId.LUOGU.id)?.accountId)
+    }
+
+    @Test
+    fun `public catalog sync respects freshness when not forced`() = runBlocking {
+        adapter.useProblemsetDump = true
+        adapter.problemsetDump = gzip(
+            """{"pid":"P2001","type":"P","difficulty":2,"tags":[],"title":"Fresh"}""",
+        )
+
+        assertTrue(repository.syncPublicProblemCatalog(force = true).ok)
+        adapter.problemsetDump = gzip(
+            """{"pid":"P2002","type":"P","difficulty":3,"tags":[],"title":"Should not load"}""",
+        )
+
+        val outcome = repository.syncPublicProblemCatalog(force = false)
+
+        assertTrue(outcome.ok)
+        assertEquals(0, outcome.itemsProcessed)
+        assertEquals(null, database.remoteProblemDao().findByKey(JudgeId.LUOGU.id, "P2002"))
+    }
+
+    @Test
+    fun `public catalog sync preserves an existing account association`() = runBlocking {
+        val account = connect()
+        adapter.useProblemsetDump = true
+        adapter.problemsetDump = gzip(
+            """{"pid":"P2003","type":"P","difficulty":1,"tags":[],"title":"Shared"}""",
+        )
+
+        assertTrue(repository.syncPublicProblemCatalog(force = true).ok)
+
+        assertEquals(account.id, database.syncStateDao().findByJudge(JudgeId.LUOGU.id)?.accountId)
+    }
+
+    @Test
     fun `anonymous submissions report authentication required without importing attempts`() = runBlocking {
         val account = connect()
 

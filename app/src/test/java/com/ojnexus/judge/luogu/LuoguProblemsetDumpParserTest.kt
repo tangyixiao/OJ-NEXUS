@@ -52,10 +52,24 @@ class LuoguProblemsetDumpParserTest {
     fun `catalog row without identity fails instead of silently truncating catalog`() {
         assertThrows(LuoguApiError.ParseError::class.java) {
             LuoguProblemsetDumpParser.parse(
-                input = ByteArrayInputStream(gzip("{\"pid\":\"P1000\"}")),
+                input = ByteArrayInputStream(gzip("{\"title\":\"Missing PID\"}")),
                 updatedAt = 42L,
             ).toList()
         }
+    }
+
+    @Test
+    fun `catalog row with a blank title keeps its pid as an honest display fallback`() {
+        val rows = LuoguProblemsetDumpParser.parse(
+            input = ByteArrayInputStream(
+                gzip("""{"pid":"P3459","title":"","description":"public content"}"""),
+            ),
+            updatedAt = 42L,
+        ).toList()
+
+        assertEquals(1, rows.size)
+        assertEquals("P3459", rows.single().externalId)
+        assertEquals("P3459", rows.single().name)
     }
 
     private fun gzip(value: String): ByteArray = ByteArrayOutputStream().also { output ->

@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 25 (offline-first Luogu problem details, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 26 (foreground Luogu public catalog action, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -190,6 +190,17 @@ This phase adds no bulk detail import, main-site password, Cookie, Session, CSRF
 account, cross-device sync, background submission, or automatic POST retry. Historical phase notes
 and Releases remain intact. / 本阶段不批量导入全部题面详情，不新增主站密码、Cookie、Session、CSRF
 登录、云端账号、跨设备同步、后台提交或 POST 自动重试；历史阶段说明和 Releases 保持不变。
+
+Phase 26 / 第 26 阶段: The Luogu remote catalog now exposes an explicit foreground SYNC CATALOG
+action. It imports the public catalog without requiring a connected account, keeps Room as the
+read source, shows progress and imported-item results, suppresses duplicate starts, and preserves
+already-written rows when a bounded sync fails. / 第 26 阶段：洛谷远端题库现在提供显式前台“同步题库”
+操作。它无需连接账号即可导入公开题库，仍以 Room 为读取源，显示同步中和导入数量结果，禁止重复
+启动；有界同步失败时保留已经写入的题目。
+This phase does not add main-site password, Cookie, Session, CSRF login, cloud account,
+cross-device sync, background work from the button, or automatic POST retry. Historical phase notes
+and Releases remain intact. / 本阶段不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备
+同步，不会由该按钮创建后台任务，也不增加 POST 自动重试；历史阶段说明和 Releases 保持不变。
 
 ## Documentation
 

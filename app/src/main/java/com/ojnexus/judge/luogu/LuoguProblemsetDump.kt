@@ -35,17 +35,18 @@ internal object LuoguProblemsetDumpParser {
                     } catch (error: IllegalArgumentException) {
                         throw LuoguApiError.ParseError(error)
                     }
-                    if (dto.pid.isBlank() || dto.title.isBlank()) {
+                    if (dto.pid.isBlank()) {
                         throw LuoguApiError.ParseError(
-                            IllegalStateException("Luogu problemset row has no pid or title"),
+                            IllegalStateException("Luogu problemset row has no pid"),
                         )
                     }
+                    val displayName = dto.title.ifBlank { dto.pid }
                     yield(
                         LuoguMappers.toRemoteProblemEntity(
                             LuoguProblemDto(
                                 pid = dto.pid,
                                 type = dto.type,
-                                name = dto.title,
+                                name = displayName,
                                 difficulty = dto.difficulty,
                                 tags = dto.tags,
                             ),

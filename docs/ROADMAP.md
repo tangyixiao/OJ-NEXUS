@@ -327,3 +327,20 @@ or automatic POST retry. Earlier phase notes and published Releases remain uncha
 现有安全原生 Markdown 渲染器仍是展示边界。本阶段不从官方题库导出批量导入全部题面详情，不新增
 洛谷主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、后台提交或 POST 自动重试；此前
 阶段说明和已发布 Releases 保持不变。
+
+## PHASE 26 — Foreground Luogu public catalog action / 前台洛谷公开题库操作
+
+The remote Problems scope now exposes an explicit Luogu `SYNC CATALOG` action. It can import the
+public catalog without a connected account, reuses the official-dump/paged-fallback writer, keeps
+Room as the read source, reports syncing and imported-item results, suppresses duplicate starts,
+and preserves rows already written by bounded batches when a run fails. / 远端题库范围现在提供显式
+洛谷“同步题库”操作。它无需连接账号即可导入公开题库，复用官方导出/分页回退写入逻辑，仍以 Room
+为读取源，显示同步中和导入数量结果，禁止重复启动；同步失败时保留有界批次已经写入的题目。
+
+The standalone public run preserves an existing account association in `sync_states`, but does not
+start background work. It remains public-data-only, local-first, and OpenApp-only; no main-site
+password, cookies, sessions, CSRF login, cloud account, cross-device sync, or automatic POST retry
+is added. Earlier phase notes and published Releases remain unchanged. / 独立公开同步会保留
+`sync_states` 中已有的账号关联，但不会创建后台任务；本阶段仍只使用公开数据、本地优先且仅
+OpenApp，不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步或 POST 自动重试；此前
+阶段说明和已发布 Releases 保持不变。

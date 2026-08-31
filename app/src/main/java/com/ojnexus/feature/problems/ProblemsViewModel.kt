@@ -14,6 +14,7 @@ import com.ojnexus.core.data.repository.JudgeDataRepository
 import com.ojnexus.judge.codeforces.CodeforcesUrls
 import com.ojnexus.judge.atcoder.AtCoderUrls
 import com.ojnexus.judge.luogu.LuoguUrls
+import com.ojnexus.judge.luogu.LuoguPublicCatalogSync
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -44,12 +45,16 @@ data class RemoteProblemsUiState(
     val hasMore: Boolean = false,
     val loading: Boolean = false,
     val error: String? = null,
+    val catalogSyncing: Boolean = false,
+    val catalogSyncItems: Int? = null,
+    val catalogSyncError: String? = null,
 )
 
 class ProblemsViewModel(
     private val repository: ProblemRepository,
     private val demoSeeder: com.ojnexus.core.data.repository.DemoDataSeeder? = null,
     private val judgeDataRepository: JudgeDataRepository? = null,
+    private val publicCatalogSync: LuoguPublicCatalogSync? = null,
 ) : ViewModel() {
 
     private val filter = MutableStateFlow(ProblemFilter())
@@ -80,6 +85,7 @@ class ProblemsViewModel(
     private val remoteCatalog = kotlinx.coroutines.flow.MutableStateFlow(RemoteProblemsUiState())
     val remoteState: StateFlow<RemoteProblemsUiState> = remoteCatalog
     private var remoteLoadJob: Job? = null
+    private var catalogSyncJob: Job? = null
 
     fun enterRemoteCatalog() {
         if (remoteCatalog.value.problems.isEmpty() && !remoteCatalog.value.loading) reloadRemote()
@@ -97,8 +103,54 @@ class ProblemsViewModel(
 
     fun setRemoteJudge(judge: JudgeId) {
         if (remoteCatalog.value.judge == judge) return
+        catalogSyncJob?.cancel()
         remoteCatalog.update { it.copy(judge = judge, addedProblemIds = emptyMap()) }
         reloadRemote()
+    }
+
+    /** Explicit foreground import of Luogu's public catalog; no account is required. */
+    fun syncLuoguCatalog() {
+        val current = remoteCatalog.value
+        if (current.judge != JudgeId.LUOGU || current.catalogSyncing || publicCatalogSync == null) return
+        remoteCatalog.update {
+            it.copy(
+                catalogSyncing = true,
+                catalogSyncItems = null,
+                catalogSyncError = null,
+            )
+        }
+        catalogSyncJob?.cancel()
+        catalogSyncJob = viewModelScope.launch {
+            try {
+                val outcome = publicCatalogSync.syncPublicProblemCatalog(force = true)
+                remoteCatalog.update {
+                    it.copy(
+                        catalogSyncing = false,
+                        catalogSyncItems = outcome.itemsProcessed,
+                        catalogSyncError = if (outcome.ok) {
+                            null
+                        } else {
+                            outcome.errorMessage
+                                ?: com.ojnexus.core.ui.localizedString(
+                                    com.ojnexus.R.string.error_remote_catalog_unavailable,
+                                )
+                        },
+                    )
+                }
+                if (outcome.ok) reloadRemote()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                remoteCatalog.update {
+                    it.copy(
+                        catalogSyncing = false,
+                        catalogSyncItems = null,
+                        catalogSyncError = e.message
+                            ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_remote_catalog_unavailable),
+                    )
+                }
+            }
+        }
     }
 
     fun loadMoreRemote() {
