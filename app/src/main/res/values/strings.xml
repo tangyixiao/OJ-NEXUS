@@ -581,6 +581,9 @@
     <string name="workspace_time">TIME %d MS</string>
     <string name="workspace_memory">MEMORY %d KIB</string>
     <string name="workspace_exit_code">EXIT CODE %d</string>
+    <string name="workspace_compile">COMPILE %s</string>
+    <string name="workspace_compile_success">SUCCESS</string>
+    <string name="workspace_compile_failed">FAILED</string>
     <string name="workspace_compile_message">COMPILE MESSAGE</string>
     <string name="workspace_output">OUTPUT</string>
     <string name="workspace_error_credential">OPENAPP CREDENTIAL IS NOT CONFIGURED</string>

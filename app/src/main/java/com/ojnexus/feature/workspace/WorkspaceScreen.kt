@@ -261,6 +261,18 @@ private fun WorkspaceAction(
 private fun EvaluationContent(evaluation: LuoguOpenEvaluation) {
     val colors = NexusTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+        evaluation.compileSuccess?.let { success ->
+            Text(
+                text = stringResource(
+                    R.string.workspace_compile,
+                    stringResource(
+                        if (success) R.string.workspace_compile_success else R.string.workspace_compile_failed,
+                    ),
+                ),
+                style = NexusTheme.typography.data,
+                color = if (success) colors.success else colors.danger,
+            )
+        }
         evaluation.status?.let { status ->
             Text(
                 text = stringResource(R.string.workspace_status, status),
