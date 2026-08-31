@@ -22,6 +22,15 @@ class LocalizationResourceTest {
         }
     }
 
+    @Test
+    fun `remote catalog empty state invites keyword search without requiring an account`() {
+        val english = readStrings("values")
+        val chinese = readStrings("values-zh-rCN")
+
+        assertEquals("NO CACHED RESULTS — ENTER A KEYWORD", english.getValue("problems_remote_empty"))
+        assertEquals("暂无缓存结果——请输入关键词", chinese.getValue("problems_remote_empty"))
+    }
+
     private fun readStrings(directory: String): Map<String, String> {
         val file = listOf(
             File("src/main/res/$directory/strings.xml"),

@@ -13,4 +13,7 @@ The current UI keeps potentially long collections bounded or lazy:
 
 The Room test suite includes a 40-row candidate query assertion to prevent an unbounded training
 feed regression. This is a static and deterministic audit; device-specific frame timing still
-requires an emulator or physical device. No Android device is connected in the current workspace.
+requires an emulator or physical device. A Pixel_9 emulator has been used for startup and
+navigation smoke checks; full frame-timing profiling remains a separate task. / 这是静态且确定性
+的审计；设备帧耗时仍需通过模拟器或真机测量。本工作区已使用 Pixel_9 模拟器完成启动和导航
+冒烟检查；完整帧耗时分析仍是单独任务。

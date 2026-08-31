@@ -160,3 +160,11 @@ The provider is public-data-only and does not add Luogu main-site passwords, coo
 CSRF state, cloud accounts, or cross-device synchronization. / 空关键词和后续分页目前仍只读
 本地缓存，未来如需扩展会单独定义分页策略；本阶段仍只使用公开数据，不新增洛谷主站密码、
 Cookie、Session、CSRF、云端账号或跨设备同步。
+
+## PHASE 15 — First-use catalog guidance / 首次使用题库提示
+
+When the remote catalog has no cached rows, the empty state now tells the user to enter a keyword.
+It no longer claims that an OJ account is required, which matches the public Luogu keyword path;
+other judges still remain local-cache-only until their own provider is registered. / 远端题库没有
+缓存条目时，空状态现在提示用户输入关键词，不再声称必须连接 OJ 账号，这与公开洛谷关键词
+路径一致；其他 OJ 在注册各自提供者前仍只读取本地缓存。

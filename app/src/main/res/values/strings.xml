@@ -516,7 +516,7 @@
     <string name="problems_scope_codeforces">CODEFORCES</string>
     <string name="problems_scope_remote">REMOTE CATALOG</string>
     <string name="problems_remote_search_hint">SEARCH REMOTE PROBLEM CATALOG</string>
-    <string name="problems_remote_empty">SYNC A JUDGE ACCOUNT TO SEARCH ITS PROBLEM CATALOG</string>
+    <string name="problems_remote_empty">NO CACHED RESULTS — ENTER A KEYWORD</string>
     <string name="problems_open_source">OPEN</string>
     <string name="problems_open_detail">DETAIL</string>
     <string name="problems_open_workspace">WORKSPACE</string>

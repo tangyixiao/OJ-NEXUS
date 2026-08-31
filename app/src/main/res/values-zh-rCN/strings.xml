@@ -465,7 +465,7 @@
     <string name="problems_scope_codeforces">CODEFORCES</string>
     <string name="problems_scope_remote">远端题库</string>
     <string name="problems_remote_search_hint">搜索远端题库</string>
-    <string name="problems_remote_empty">连接 OJ 账号后搜索题库</string>
+    <string name="problems_remote_empty">暂无缓存结果——请输入关键词</string>
     <string name="problems_open_source">打开原题</string>
     <string name="problems_open_detail">题目详情</string>
     <string name="problems_open_workspace">工作区</string>
