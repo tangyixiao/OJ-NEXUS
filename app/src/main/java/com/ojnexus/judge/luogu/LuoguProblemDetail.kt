@@ -1,8 +1,11 @@
 package com.ojnexus.judge.luogu
 
+import com.ojnexus.core.database.entity.RemoteProblemDetailEntity
+import com.ojnexus.core.model.JudgeId
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemContentDto
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemDetailData
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemDetailDto
+import kotlinx.serialization.json.Json
 
 data class LuoguProblemDetail(
     val pid: String,
@@ -22,6 +25,8 @@ data class LuoguProblemDetail(
 )
 
 object LuoguProblemDetailMapper {
+    private val cacheJson = Json { ignoreUnknownKeys = true }
+
     fun toDomain(data: LuoguProblemDetailData): LuoguProblemDetail {
         val problem = requireNotNull(data.problem) { "Luogu problem payload is missing" }
         val content = problem.contenu ?: problem.content ?: LuoguProblemContentDto()
@@ -42,6 +47,44 @@ object LuoguProblemDetailMapper {
             memoryLimitMb = problem.limits?.memory?.firstOrNull()?.div(1024),
         )
     }
+
+    fun toCache(detail: LuoguProblemDetail, updatedAt: Long): RemoteProblemDetailEntity =
+        RemoteProblemDetailEntity(
+            judge = JudgeId.LUOGU.id,
+            externalId = detail.pid,
+            title = detail.title,
+            difficulty = detail.difficulty,
+            tagsJson = cacheJson.encodeToString(detail.tags),
+            totalSubmit = detail.totalSubmit,
+            totalAccepted = detail.totalAccepted,
+            background = detail.background,
+            description = detail.description,
+            inputFormat = detail.inputFormat,
+            outputFormat = detail.outputFormat,
+            hint = detail.hint,
+            samplesJson = cacheJson.encodeToString(detail.samples),
+            timeLimitMs = detail.timeLimitMs,
+            memoryLimitMb = detail.memoryLimitMb,
+            updatedAt = updatedAt,
+        )
+
+    fun fromCache(entity: RemoteProblemDetailEntity): LuoguProblemDetail =
+        LuoguProblemDetail(
+            pid = entity.externalId,
+            title = entity.title,
+            difficulty = entity.difficulty,
+            tags = cacheJson.decodeFromString(entity.tagsJson),
+            totalSubmit = entity.totalSubmit,
+            totalAccepted = entity.totalAccepted,
+            background = entity.background,
+            description = entity.description,
+            inputFormat = entity.inputFormat,
+            outputFormat = entity.outputFormat,
+            hint = entity.hint,
+            samples = cacheJson.decodeFromString(entity.samplesJson),
+            timeLimitMs = entity.timeLimitMs,
+            memoryLimitMb = entity.memoryLimitMb,
+        )
 }
 
 class LuoguProblemDetailRepository(private val client: LuoguClient) {
