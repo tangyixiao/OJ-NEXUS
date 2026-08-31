@@ -490,6 +490,11 @@
     <!-- 洛谷原生题目详情 -->
     <string name="luogu_problem_detail_title">洛谷题目</string>
     <string name="luogu_problem_loading">正在加载洛谷题目</string>
+    <string name="luogu_problem_refresh">刷新</string>
+    <string name="luogu_problem_refreshing">刷新中…</string>
+    <string name="luogu_problem_source_cached">本地缓存快照</string>
+    <string name="luogu_problem_source_network">网络快照</string>
+    <string name="luogu_problem_source_cache_fallback">网络不可用，正在显示本地缓存；可再次刷新重试</string>
     <string name="luogu_problem_open_source">打开原题</string>
     <string name="luogu_problem_workspace">代码工作区</string>
     <string name="luogu_problem_difficulty">难度 %d</string>

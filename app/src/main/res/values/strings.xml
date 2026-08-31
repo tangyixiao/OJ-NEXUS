@@ -541,6 +541,11 @@
     <!-- Luogu native problem detail -->
     <string name="luogu_problem_detail_title">LUOGU PROBLEM</string>
     <string name="luogu_problem_loading">LOADING LUOGU PROBLEM</string>
+    <string name="luogu_problem_refresh">REFRESH</string>
+    <string name="luogu_problem_refreshing">REFRESHING…</string>
+    <string name="luogu_problem_source_cached">CACHED SNAPSHOT</string>
+    <string name="luogu_problem_source_network">NETWORK SNAPSHOT</string>
+    <string name="luogu_problem_source_cache_fallback">NETWORK UNAVAILABLE — SHOWING CACHED DETAIL; REFRESH TO RETRY</string>
     <string name="luogu_problem_open_source">OPEN SOURCE</string>
     <string name="luogu_problem_workspace">WORKSPACE</string>
     <string name="luogu_problem_difficulty">DIFFICULTY %d</string>

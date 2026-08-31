@@ -38,6 +38,7 @@ import com.ojnexus.core.ui.UrlOpener
 import com.ojnexus.judge.luogu.LuoguMarkdownBlock
 import com.ojnexus.judge.luogu.LuoguMarkdownParser
 import com.ojnexus.judge.luogu.LuoguProblemDetail
+import com.ojnexus.judge.luogu.LuoguProblemDetailSource
 import com.ojnexus.judge.luogu.LuoguUrls
 
 @Composable
@@ -64,19 +65,39 @@ fun LuoguProblemDetailScreen(
         NexusTopBar(
             title = stringResource(R.string.luogu_problem_detail_title),
             trailing = {
-                Text(
-                    text = stringResource(R.string.action_back),
-                    style = NexusTheme.typography.sectionLabel,
-                    color = NexusTheme.colors.accent,
-                    modifier = Modifier.clickable(onClick = onBack),
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs)) {
+                    Text(
+                        text = stringResource(
+                            if (state.refreshing) {
+                                R.string.luogu_problem_refreshing
+                            } else {
+                                R.string.luogu_problem_refresh
+                            },
+                        ),
+                        style = NexusTheme.typography.sectionLabel,
+                        color = if (state.refreshing) {
+                            NexusTheme.colors.textTertiary
+                        } else {
+                            NexusTheme.colors.accent
+                        },
+                        modifier = Modifier.clickable(enabled = !state.refreshing, onClick = viewModel::refresh),
+                    )
+                    Text(
+                        text = stringResource(R.string.action_back),
+                        style = NexusTheme.typography.sectionLabel,
+                        color = NexusTheme.colors.accent,
+                        modifier = Modifier.clickable(onClick = onBack),
+                    )
+                }
             },
         )
-        when (state) {
+        when (val content = state.content) {
             Loadable.Loading -> DetailLoading()
-            is Loadable.Failed -> DetailError(state.message)
+            is Loadable.Failed -> DetailError(content.message)
             is Loadable.Ready -> LuoguDetailContent(
-                detail = state.value,
+                detail = content.value,
+                source = state.source,
+                refreshError = state.refreshError,
                 onOpenSource = { UrlOpener.open(context, LuoguUrls.problem(pid)) },
                 onOpenWorkspace = { onOpenWorkspace(pid) },
             )
@@ -110,6 +131,8 @@ private fun DetailError(message: String) {
 @Composable
 private fun LuoguDetailContent(
     detail: LuoguProblemDetail,
+    source: LuoguProblemDetailSource?,
+    refreshError: Boolean,
     onOpenSource: () -> Unit,
     onOpenWorkspace: () -> Unit,
 ) {
@@ -123,6 +146,13 @@ private fun LuoguDetailContent(
         Spacer(Modifier.height(NexusSpacing.xs))
         Text(detail.pid, style = NexusTheme.typography.dataLarge, color = NexusTheme.colors.accent)
         Text(detail.title, style = NexusTheme.typography.title, color = NexusTheme.colors.textPrimary)
+        source?.let {
+            Text(
+                text = sourceLabel(it),
+                style = NexusTheme.typography.dataSmall,
+                color = if (refreshError) NexusTheme.colors.warning else NexusTheme.colors.textTertiary,
+            )
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
             detail.difficulty?.let { NexusTag(text = stringResource(R.string.luogu_problem_difficulty, it), tone = NexusTone.Neutral) }
             detail.totalAccepted?.let { NexusTag(text = stringResource(R.string.luogu_problem_accepted, it), tone = NexusTone.Success) }
@@ -165,6 +195,13 @@ private fun LuoguDetailContent(
         }
         Spacer(Modifier.height(NexusSpacing.xxl))
     }
+}
+
+@Composable
+private fun sourceLabel(source: LuoguProblemDetailSource): String = when (source) {
+    LuoguProblemDetailSource.CACHE -> stringResource(R.string.luogu_problem_source_cached)
+    LuoguProblemDetailSource.NETWORK -> stringResource(R.string.luogu_problem_source_network)
+    LuoguProblemDetailSource.CACHE_FALLBACK -> stringResource(R.string.luogu_problem_source_cache_fallback)
 }
 
 @Composable
