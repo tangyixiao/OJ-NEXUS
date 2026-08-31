@@ -50,7 +50,8 @@ official Luogu Open Platform credential only; problem judging is an explicit for
 and the editor forwards a selected official language identifier with each request. There is no
 automatic POST retry or cloud code storage. The local submission center lists recent
 Open Platform request metadata, supports foreground result checks, and reopens related problem
-workspaces without storing source code or standard input. See
+workspaces without storing source code or standard input. The remote problem catalog can switch
+to LUOGU and adds canonical Luogu problem links when a problem is saved locally. See
 [docs/MULTI_OJ.md](docs/MULTI_OJ.md), [docs/ATCODER.md](docs/ATCODER.md),
 [docs/ARENA.md](docs/ARENA.md),
 [docs/KNOWLEDGE.md](docs/KNOWLEDGE.md),

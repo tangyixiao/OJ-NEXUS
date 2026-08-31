@@ -17,6 +17,9 @@
 Go、Rust、Pascal、Haskell、Node.js、PHP、Ruby、Perl 和 Scala；提交请求会原样使用用户
 选择的 `lang` 标识。语言列表以官方文档为依据，平台新增语言时再单独更新列表。
 
+洛谷公开题库同步结果可在 Problems 的远端题库筛选器中选择 `LUOGU`，再将条目加入本地
+题库；加入时会生成标准洛谷题目链接，不会把远端缓存自动复制成个人题目。
+
 题库评测产生终态结果后，任务仓库会将一次真实的用户发起评测幂等写入本地 `attempts`，
 并用 `(source_judge, external_submission_id)` 防止重复计数。历史主站提交记录仍不能由此
 推断或补造。

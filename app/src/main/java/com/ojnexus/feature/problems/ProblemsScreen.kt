@@ -410,6 +410,11 @@ private fun RemoteCatalogContent(
                         selected = state.judge == com.ojnexus.core.model.JudgeId.ATCODER,
                         onClick = { viewModel.setRemoteJudge(com.ojnexus.core.model.JudgeId.ATCODER) },
                     )
+                    FilterChip(
+                        label = com.ojnexus.core.model.JudgeId.LUOGU.displayName,
+                        selected = state.judge == com.ojnexus.core.model.JudgeId.LUOGU,
+                        onClick = { viewModel.setRemoteJudge(com.ojnexus.core.model.JudgeId.LUOGU) },
+                    )
                 }
                 Spacer(modifier = Modifier.height(NexusSpacing.xs))
                 SearchField(

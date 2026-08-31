@@ -13,6 +13,7 @@ import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.data.repository.JudgeDataRepository
 import com.ojnexus.judge.codeforces.CodeforcesUrls
 import com.ojnexus.judge.atcoder.AtCoderUrls
+import com.ojnexus.judge.luogu.LuoguUrls
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -116,12 +117,7 @@ class ProblemsViewModel(
                     title = remote.name,
                     difficulty = remote.rating,
                     tags = remote.tags.split('\u001F').filter { it.isNotBlank() },
-                    sourceUrl = when (JudgeId.fromId(remote.judge)) {
-                        JudgeId.CODEFORCES -> remote.contestId?.toLongOrNull()
-                            ?.let { CodeforcesUrls.problem(it, remote.index ?: "") }
-                        JudgeId.ATCODER -> remote.contestId?.let { AtCoderUrls.problem(it, remote.externalId) }
-                        else -> null
-                    },
+                    sourceUrl = remoteProblemUrl(remote),
                 ),
             )
             val problemId = when (result) {
@@ -222,4 +218,12 @@ class ProblemsViewModel(
     private companion object {
         const val REMOTE_PAGE_SIZE = 50
     }
+}
+
+internal fun remoteProblemUrl(remote: RemoteProblemEntity): String? = when (JudgeId.fromId(remote.judge)) {
+    JudgeId.CODEFORCES -> remote.contestId?.toLongOrNull()
+        ?.let { CodeforcesUrls.problem(it, remote.index ?: "") }
+    JudgeId.ATCODER -> remote.contestId?.let { AtCoderUrls.problem(it, remote.externalId) }
+    JudgeId.LUOGU -> LuoguUrls.problem(remote.externalId)
+    else -> null
 }
