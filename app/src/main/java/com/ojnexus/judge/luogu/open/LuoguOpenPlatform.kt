@@ -3,6 +3,7 @@ package com.ojnexus.judge.luogu.open
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -230,6 +231,35 @@ data class LuoguOpenQuota(
 data class LuoguOpenQuotaSnapshot(val quotas: List<LuoguOpenQuota>) {
     val totalAvailablePoints: Long
         get() = quotas.sumOf { it.availablePoints }
+}
+
+private const val FOREGROUND_RESULT_POLL_ATTEMPTS = 8
+private const val FOREGROUND_RESULT_POLL_DELAY_MS = 1_000L
+
+/**
+ * Bounded foreground-only result polling shared by the workspace and submission center.
+ * Submission POSTs remain outside this helper and are never retried here.
+ */
+internal suspend fun pollLuoguOpenResult(
+    requestId: String,
+    fetch: suspend (String) -> LuoguOpenResult,
+    delayForResult: (suspend (Long) -> Unit)? = null,
+): LuoguOpenResult {
+    repeat(FOREGROUND_RESULT_POLL_ATTEMPTS) { attempt ->
+        when (val result = fetch(requestId)) {
+            is LuoguOpenResult.Ready -> return result
+            LuoguOpenResult.Pending -> {
+                if (attempt < FOREGROUND_RESULT_POLL_ATTEMPTS - 1) {
+                    if (delayForResult == null) {
+                        delay(FOREGROUND_RESULT_POLL_DELAY_MS)
+                    } else {
+                        delayForResult(FOREGROUND_RESULT_POLL_DELAY_MS)
+                    }
+                }
+            }
+        }
+    }
+    return LuoguOpenResult.Pending
 }
 
 interface LuoguOpenQuotaReader {

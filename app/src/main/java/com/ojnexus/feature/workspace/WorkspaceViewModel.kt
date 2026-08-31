@@ -6,6 +6,7 @@ import com.ojnexus.judge.luogu.open.LuoguOpenApiError
 import com.ojnexus.judge.luogu.open.LuoguOpenEvaluation
 import com.ojnexus.judge.luogu.open.LuoguOpenGateway
 import com.ojnexus.judge.luogu.open.LuoguOpenResult
+import com.ojnexus.judge.luogu.open.pollLuoguOpenResult
 import com.ojnexus.judge.luogu.open.LuoguLanguages
 import com.ojnexus.judge.luogu.open.LuoguProblemJudgeRequest
 import com.ojnexus.judge.luogu.open.LuoguRunRequest
@@ -23,9 +24,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
-
-private const val RESULT_POLL_ATTEMPTS = 8
-private const val RESULT_POLL_DELAY_MS = 1_000L
 
 enum class WorkspaceMode { RUN, SUBMIT }
 
@@ -216,17 +214,11 @@ class WorkspaceViewModel(
     }
 
     private suspend fun pollResult(requestId: String): LuoguOpenResult {
-        repeat(RESULT_POLL_ATTEMPTS) { attempt ->
-            when (val result = gateway.fetchResult(requestId)) {
-                is LuoguOpenResult.Ready -> return result
-                LuoguOpenResult.Pending -> {
-                    if (attempt < RESULT_POLL_ATTEMPTS - 1) {
-                        delayForResult(RESULT_POLL_DELAY_MS)
-                    }
-                }
-            }
-        }
-        return LuoguOpenResult.Pending
+        return pollLuoguOpenResult(
+            requestId = requestId,
+            fetch = gateway::fetchResult,
+            delayForResult = delayForResult,
+        )
     }
 
     private fun Exception.toWorkspaceError(): WorkspaceError = when (this) {

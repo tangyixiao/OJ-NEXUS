@@ -209,3 +209,15 @@ The feature remains local-first and uses the existing Keystore-backed OpenApp cr
 it does not add main-site passwords, cookies, sessions, CSRF state, cloud accounts, or
 cross-device synchronization. / 本功能仍为本地优先，沿用现有 Keystore 保护的 OpenApp 凭据边界，
 不新增主站密码、Cookie、Session、CSRF 状态、云端账号或跨设备同步。
+
+## PHASE 19 — Submission center result polling / 提交中心结果轮询
+
+The local submission center now shares the bounded foreground result polling helper with the problem
+workspace. A user can query a pending OpenApp request from either the workspace or the submission center
+and receive the same terminal-result or bounded-Pending behavior. / 本地提交中心现在与题目工作区共享前台
+有限结果轮询工具，用户可从任一入口查询 Pending 的 OpenApp 请求，并获得一致的终态结果或有限 Pending 行为。
+
+The helper only performs foreground GET result checks; POST submissions remain explicit and are never
+automatically retried. No main-site passwords, cookies, sessions, CSRF state, cloud accounts, or
+cross-device sync are added. / 该工具只在前台执行 GET 结果查询；POST 提交仍需明确触发且不会自动重试。
+不新增主站密码、Cookie、Session、CSRF 状态、云端账号或跨设备同步。

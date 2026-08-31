@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 18 (foreground result polling, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 19 (submission-center result polling, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -109,6 +109,12 @@ bounded foreground-only result wait and stops cleanly if the judge remains pendi
 用户明确提交洛谷 OpenApp 请求后，工作区现在会在前台有限等待结果；如果评测仍在等待，会干净地
 停止轮询。POST 提交仍不会自动重试，也不会创建后台提交任务。
 This keeps the workflow local-first and credential-safe. / 本阶段仍保持本地优先和凭据安全。
+
+Phase 19 / 第 19 阶段: The local submission center now uses the same bounded foreground-only result wait as
+the workspace, so pending OpenApp requests converge consistently from either entry. / 第 19 阶段：本地提交中心
+现在与工作区使用相同的前台有限结果等待，Pending 的 OpenApp 请求从任一入口都能一致收敛。
+POST submissions remain explicit and are never retried automatically; historical notes and Releases remain intact. /
+POST 提交仍需用户明确触发且不会自动重试；历史说明和 Releases 保持不变。
 
 ## Documentation
 

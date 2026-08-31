@@ -78,6 +78,31 @@ class SubmissionCenterViewModelTest {
     }
 
     @Test
+    fun `checkResult polls a pending request until it is ready`() = runBlocking {
+        val jobs = MutableStateFlow(listOf(readyJob(requestId = "req-poll")))
+        val center = FakeSubmissionCenter(
+            jobs = jobs,
+            refreshResults = ArrayDeque(
+                listOf(
+                    RefreshOutcome.Return(LuoguOpenResult.Pending),
+                    RefreshOutcome.Return(LuoguOpenResult.Pending),
+                    RefreshOutcome.Return(readyResult("req-poll")),
+                ),
+            ),
+        )
+        val viewModel = SubmissionCenterViewModel(center, delayForResult = {})
+        val collector = collectState(viewModel)
+        awaitReady(viewModel)
+
+        viewModel.checkResult("req-poll")
+        awaitNotBusyRequest(viewModel, "req-poll")
+
+        assertEquals(listOf("req-poll", "req-poll", "req-poll"), center.refreshCalls)
+        assertNull(awaitReady(viewModel).actionError)
+        collector.cancel()
+    }
+
+    @Test
     fun `action errors clear on retry while cached rows remain available`() = runBlocking {
         val jobs = MutableStateFlow(listOf(readyJob(requestId = "req-retry")))
         val retryGate = BlockingRefresh()
@@ -287,6 +312,22 @@ class SubmissionCenterViewModelTest {
         score = 100,
         createdAt = 1,
         updatedAt = 2,
+    )
+
+    private fun readyResult(requestId: String) = LuoguOpenResult.Ready(
+        LuoguOpenEvaluation(
+            requestId = requestId,
+            trackId = null,
+            type = "judge",
+            compileSuccess = true,
+            compileMessage = null,
+            status = 12,
+            score = 100,
+            timeMs = 1,
+            memoryKiB = 1,
+            output = null,
+            exitCode = null,
+        ),
     )
 }
 

@@ -8,7 +8,9 @@ import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.localizedString
 import com.ojnexus.judge.luogu.open.LuoguOpenApiError
 import com.ojnexus.judge.luogu.open.LuoguSubmissionCenter
+import com.ojnexus.judge.luogu.open.pollLuoguOpenResult
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,6 +39,7 @@ data class SubmissionCenterUiState(
 
 class SubmissionCenterViewModel(
     private val submissionCenter: LuoguSubmissionCenter,
+    private val delayForResult: suspend (Long) -> Unit = { delay(it) },
 ) : ViewModel() {
     private val busyRequestIds = MutableStateFlow<Set<String>>(emptySet())
     private val actionError = MutableStateFlow<SubmissionCenterActionError?>(null)
@@ -72,7 +75,11 @@ class SubmissionCenterViewModel(
         if (!shouldLaunch) return
         viewModelScope.launch {
             try {
-                submissionCenter.refreshResult(requestId)
+                pollLuoguOpenResult(
+                    requestId = requestId,
+                    fetch = submissionCenter::refreshResult,
+                    delayForResult = delayForResult,
+                )
                 actionError.update { current ->
                     if (current?.requestId == requestId) {
                         null
