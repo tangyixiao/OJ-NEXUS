@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 26 (foreground Luogu public catalog action, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 27 (local Luogu workspace drafts, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -201,6 +201,18 @@ This phase does not add main-site password, Cookie, Session, CSRF login, cloud a
 cross-device sync, background work from the button, or automatic POST retry. Historical phase notes
 and Releases remain intact. / 本阶段不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备
 同步，不会由该按钮创建后台任务，也不增加 POST 自动重试；历史阶段说明和 Releases 保持不变。
+
+Phase 27 / 第 27 阶段: The native Luogu workspace now restores one local Room draft per judge and
+problem, including source code, optional input, language, and O2 selection. Draft writes are
+debounced, their local persistence state is visible, and page/system back flushes the latest edit
+before leaving. / 第 27 阶段：原生洛谷工作区现在按评测平台和题号恢复一份本地 Room 草稿，包括源代码、
+可选输入、语言和 O2 选择。草稿写入带防抖并显示本地保存状态，页面返回和系统返回会在离开前保存最新编辑。
+The database migration is non-destructive; submission request metadata still never stores source
+code or input. Drafts are local backup data only. No main-site password, Cookie, Session, CSRF login,
+cloud account, cross-device sync, local compiler, custom-input runner, or automatic POST retry is
+added. Earlier phase notes and Releases remain intact. / 数据库迁移不破坏旧数据；提交请求元数据仍不会
+保存源代码或输入，草稿只属于本地备份数据。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、
+跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和 Releases 保持不变。
 
 ## Documentation
 

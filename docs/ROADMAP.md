@@ -344,3 +344,20 @@ is added. Earlier phase notes and published Releases remain unchanged. / 独立�
 `sync_states` 中已有的账号关联，但不会创建后台任务；本阶段仍只使用公开数据、本地优先且仅
 OpenApp，不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步或 POST 自动重试；此前
 阶段说明和已发布 Releases 保持不变。
+
+## PHASE 27 — Local Luogu workspace drafts / 本地洛谷工作区草稿
+
+The native Luogu workspace now persists one Room draft per `(judge, pid)` with source code, optional
+input, selected language, and O2 state. It restores on open, uses a 300 ms latest-state debounce,
+shows loading/saving/saved/error state, and flushes the latest edit before page or system back.
+草稿按 `(评测平台、题号)` 保存在 Room 中，打开工作区时恢复，编辑采用 300 毫秒最新状态防抖，并显示
+加载中、保存中、已保存或错误；页面返回和系统返回前会先保存最新编辑。
+
+Schema 10 adds only the `workspace_drafts` table, so existing data and historical migrations remain
+intact. Drafts are included in the local Room backup, while `submission_jobs` still excludes source
+code and standard input. This remains local-first and OpenApp-only: no Luogu main-site password,
+Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, custom-input runner,
+or automatic POST retry is added. / Schema 10 只新增 `workspace_drafts` 表，既有数据和历史迁移保持不变；
+草稿随本地 Room 备份处理，而 `submission_jobs` 仍不保存源代码和标准输入。本阶段继续本地优先、仅
+OpenApp，不新增洛谷主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义
+输入运行器或自动提交重试。

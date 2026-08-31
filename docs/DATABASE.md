@@ -1,17 +1,20 @@
-# OJ NEXUS — Database (Room, v7 implemented)
+# OJ NEXUS — Database (Room, v10 implemented / Room 数据库 v10 已实现)
 
-Status: **implemented** (Phase 6 foundation). Schema JSON is exported to `app/schemas/` and
-committed; version 7 supports multiple judge identities, Arena markers, explicit knowledge
-relations, and local Open Platform submission-job metadata. `MIGRATION_1_2` through
-`MIGRATION_6_7` are registered and tested; destructive
-migration is not configured.
+Status: **implemented** (Phase 6 foundation, extended through Phase 27). / 状态：**已实现**（第 6 阶段基础，
+已扩展至第 27 阶段）。Schema JSON is exported to `app/schemas/` and committed; version 10 supports
+multiple judge identities, Arena markers, explicit knowledge relations, local Open Platform
+submission-job metadata, and local Luogu workspace drafts. / Schema JSON 已导出并提交到
+`app/schemas/`；版本 10 支持多评测平台身份、Arena 标记、显式知识关联、本地开放平台提交任务元数据和
+本地洛谷工作区草稿。 `MIGRATION_1_2` through `MIGRATION_9_10` are registered and tested;
+destructive migration is not configured. / `MIGRATION_1_2` 至 `MIGRATION_9_10` 均已注册并测试，未配置
+破坏性迁移。
 
 Deviation from the original plan: there is **no `ActivityEntity` daily-aggregate table**.
 Activity is computed by `AnalyticsDao` with SQL `GROUP BY` over precomputed `day_index` columns
 (local epoch day, written at record time). At current scale this is simpler, cannot drift, and
 already reads only aggregates — revisit if volumes grow.
 
-## Entities (app/schemas/com.ojnexus.core.database.OjNexusDatabase/7.json)
+## Entities / 数据表 (app/schemas/com.ojnexus.core.database.OjNexusDatabase/10.json)
 
 | Table | Purpose | Keys / Notes |
 | --- | --- | --- |
@@ -35,6 +38,7 @@ already reads only aggregates — revisit if volumes grow.
 | `sync_state` | per-judge sync cursor/status | account ID, stage timestamps, ID cursor, timestamp cursor, and partial progress |
 | `contest_problem_markers` | Arena local markers | PK(`judge`,`contest_id`,`problem_external_id`); never overwritten by sync |
 | `problem_knowledge` | explicit problem↔knowledge relation | PK(`problem_id`,`knowledge_area`); FK to problems with cascade |
+| `workspace_drafts` | local Luogu workspace draft | PK(`judge`,`pid`); source code/input/language/O2; local-only backup |
 
 ## Conventions & Rules
 
