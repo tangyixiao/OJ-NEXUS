@@ -99,12 +99,18 @@ data class LuoguProblemDetailResult(
     val source: LuoguProblemDetailSource,
 )
 
+interface LuoguProblemDetailReader {
+    suspend fun fetch(pid: String): LuoguProblemDetailResult
+
+    suspend fun refresh(pid: String): LuoguProblemDetailResult
+}
+
 class LuoguProblemDetailRepository(
     private val client: LuoguClient,
     private val detailDao: RemoteProblemDetailDao,
     private val clock: java.time.Clock = java.time.Clock.systemUTC(),
-) {
-    suspend fun fetch(pid: String): LuoguProblemDetailResult {
+) : LuoguProblemDetailReader {
+    override suspend fun fetch(pid: String): LuoguProblemDetailResult {
         val cached = detailDao.findByKey(JudgeId.LUOGU.id, pid)
         return cached?.let {
             LuoguProblemDetailResult(
@@ -114,7 +120,7 @@ class LuoguProblemDetailRepository(
         } ?: fetchFromNetwork(pid)
     }
 
-    suspend fun refresh(pid: String): LuoguProblemDetailResult {
+    override suspend fun refresh(pid: String): LuoguProblemDetailResult {
         val cached = detailDao.findByKey(JudgeId.LUOGU.id, pid)
         return try {
             fetchFromNetwork(pid)
