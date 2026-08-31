@@ -227,3 +227,6 @@ internal fun remoteProblemUrl(remote: RemoteProblemEntity): String? = when (Judg
     JudgeId.LUOGU -> LuoguUrls.problem(remote.externalId)
     else -> null
 }
+
+internal fun remoteWorkspaceAvailable(remote: RemoteProblemEntity): Boolean =
+    JudgeId.fromId(remote.judge) == JudgeId.LUOGU

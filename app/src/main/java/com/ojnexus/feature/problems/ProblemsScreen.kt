@@ -73,6 +73,7 @@ private enum class ProblemScope { LIBRARY, REMOTE }
 fun ProblemsScreen(
     onOpenProblem: (Long) -> Unit,
     onAddProblem: () -> Unit,
+    onOpenWorkspace: (String) -> Unit = {},
 ) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<ProblemsViewModel>(
@@ -130,6 +131,7 @@ fun ProblemsScreen(
                     onBackToLibrary = { scope = ProblemScope.LIBRARY },
                     onOpenProblem = onOpenProblem,
                     onOpenExternal = { remote -> UrlOpener.open(context, remoteProblemUrl(remote)) },
+                    onOpenWorkspace = onOpenWorkspace,
                 )
             }
         }
@@ -395,6 +397,7 @@ private fun RemoteCatalogContent(
     onBackToLibrary: () -> Unit,
     onOpenProblem: (Long) -> Unit,
     onOpenExternal: (RemoteProblemEntity) -> Unit,
+    onOpenWorkspace: (String) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item(key = "remote-controls") {
@@ -495,6 +498,7 @@ private fun RemoteCatalogContent(
                     onAdd = { viewModel.addRemoteToLibrary(problem) },
                     onOpen = { id -> onOpenProblem(id) },
                     onOpenExternal = { onOpenExternal(problem) },
+                    onOpenWorkspace = { onOpenWorkspace(problem.externalId) },
                 )
                 NexusDivider(insetEnd = NexusSpacing.xxs)
             }
@@ -533,6 +537,7 @@ private fun RemoteProblemRow(
     onAdd: () -> Unit,
     onOpen: (Long) -> Unit,
     onOpenExternal: () -> Unit,
+    onOpenWorkspace: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -580,6 +585,14 @@ private fun RemoteProblemRow(
                 tone = NexusTone.Neutral,
                 modifier = Modifier.clickable(role = Role.Button, onClick = onOpenExternal),
             )
+            if (remoteWorkspaceAvailable(problem)) {
+                NexusTag(
+                    text = stringResource(R.string.problems_open_workspace),
+                    tone = NexusTone.Accent,
+                    selected = true,
+                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenWorkspace),
+                )
+            }
             NexusTag(
                 text = if (addedProblemId == null) {
                     stringResource(R.string.problems_add_to_training)

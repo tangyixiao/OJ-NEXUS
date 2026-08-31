@@ -116,6 +116,9 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         ProblemsScreen(
                             onOpenProblem = { id -> navController.navigate("problem/$id") },
                             onAddProblem = { navController.navigate(NexusRoutes.PROBLEM_ADD) },
+                            onOpenWorkspace = { pid ->
+                                navController.navigate("workspace/${android.net.Uri.encode(pid)}")
+                            },
                         )
                     }
                     composable(NexusDestination.TRAINING.route) {

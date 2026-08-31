@@ -48,6 +48,8 @@ Contest Center also exposes the cached Luogu contests and opens canonical Luogu 
 pages from Arena. Remote catalog rows also open canonical source pages directly. The public
 contest-list payload currently supplies contest metadata but no problem membership, so Arena does
 not fabricate a Luogu contest problem list.
+Luogu remote problem rows additionally enter the local Open Platform workspace directly; other
+judges do not expose that action because their submission gateways are not wired here.
 
 The anonymous `/record/list` response is an auth/login envelope. It is surfaced as
 `AuthenticationRequired` and leaves submissions empty; password login, Cookie/Session/CSRF

@@ -100,7 +100,7 @@ The workspace editor also exposes the supported Open Platform language identifie
 the selected language in each explicit submit request. The remote problem catalog now exposes
 LUOGU alongside Codeforces and AtCoder and maps saved Luogu problems to their canonical URLs.
 Remote catalog rows also provide a direct canonical source-page action before a problem is added
-to the local library.
+to the local library; Luogu rows also open the Open Platform workspace directly.
 Analytics renders each judge's rating history independently, and Profile includes the Luogu
 connection and current public rating when available. Contest Center now exposes a Luogu filter,
 and the Luogu Arena header/problem actions open canonical Luogu contest and problem pages. Luogu
