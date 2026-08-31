@@ -437,6 +437,9 @@
     <string name="contest_focus_problem_count">%d 道题目</string>
     <string name="contest_focus_attempts">%d 次提交</string>
     <string name="contest_focus_open_problem">打开</string>
+    <string name="luogu_contest_description">竞赛说明</string>
+    <string name="luogu_contest_participants">参赛人数 %d</string>
+    <string name="luogu_contest_score">分值 %d</string>
     <string name="contest_focus_empty">本地缓存中未找到竞赛</string>
     <string name="contest_focus_no_problems">没有缓存题目——请先同步该 OJ</string>
     <string name="contest_focus_error">Arena 数据不可用</string>

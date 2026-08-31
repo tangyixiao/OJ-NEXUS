@@ -121,3 +121,15 @@ and first-level time/memory limits. / 洛谷远端题库条目现在可以打开
 The source-page and local Open Platform workspace actions remain explicit foreground actions;
 the detail screen does not embed a WebView or store remote content in the cloud. / 原题页面和本地
 Open Platform 工作区仍必须由用户前台主动点击；详情页不嵌入 WebView，也不把远端内容存入云端。
+
+## PHASE 12 — Luogu Arena contest details / 洛谷 Arena 竞赛详情
+
+Luogu Arena now reads the public `contest/{id}` content-only response when the selected judge is
+Luogu. It displays the official contest description, participant count, and the server-provided
+`contestProblems` membership with score, index, PID, and title. / 选择洛谷时，Arena 现在读取公开的
+`contest/{id}` content-only 响应，展示官方竞赛说明、参赛人数，以及服务器返回的
+`contestProblems` 题目成员关系、分值、编号、PID 和题名。
+
+The app does not infer membership from unrelated catalog rows; each listed problem comes from the
+contest detail payload and can be opened explicitly on the canonical Luogu page. / 应用不会从无关
+题库行推断竞赛归属；列表中的每道题都来自竞赛详情响应，并可由用户主动打开标准洛谷页面。

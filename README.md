@@ -71,6 +71,10 @@ to the official source page or local workspace. / 洛谷远端题库条目现在
 This remains public-data-only: no main-site login, cookies, CSRF state, or cloud service. /
 本阶段仍只使用公开数据，不实现主站登录、Cookie、CSRF 状态或云端服务。
 
+Phase 12 / 第 12 阶段: Luogu Arena can read the public contest detail response and show the
+official contest description and contest problem membership when available. / 洛谷 Arena 现在可以
+读取公开竞赛详情响应，在数据可用时展示官方竞赛说明和竞赛题目成员关系。
+
 ## Documentation
 
 - [Product Spec](docs/PRODUCT_SPEC.md)

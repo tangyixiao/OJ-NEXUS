@@ -28,6 +28,7 @@ import com.ojnexus.R
 import com.ojnexus.core.data.repository.ContestFocusProblem
 import com.ojnexus.core.data.repository.ContestFocusSnapshot
 import com.ojnexus.core.designsystem.NexusSpacing
+import com.ojnexus.core.designsystem.NexusRadius
 import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.designsystem.component.NexusDivider
@@ -49,6 +50,9 @@ import com.ojnexus.core.ui.formatDuration
 import com.ojnexus.judge.atcoder.AtCoderUrls
 import com.ojnexus.judge.codeforces.CodeforcesUrls
 import com.ojnexus.judge.luogu.LuoguUrls
+import com.ojnexus.judge.luogu.LuoguContestDetail
+import com.ojnexus.judge.luogu.LuoguMarkdownBlock
+import com.ojnexus.judge.luogu.LuoguMarkdownParser
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -71,6 +75,17 @@ fun ContestFocusScreen(
         },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val luoguDetailState = if (JudgeId.fromId(judge) == JudgeId.LUOGU) {
+        val detailViewModel = androidx.lifecycle.viewmodel.compose.viewModel<LuoguContestDetailViewModel>(
+            key = "luogu-contest-detail-$contestId",
+            factory = ContainerViewModelFactory(container) {
+                LuoguContestDetailViewModel(contestId, it.luoguContestDetailRepository)
+            },
+        )
+        detailViewModel.state.collectAsStateWithLifecycle().value
+    } else {
+        null
+    }
     val nowSeconds by produceState(viewModel.currentEpochSecond(), viewModel) {
         while (isActive) {
             delay(1_000)
@@ -94,7 +109,13 @@ fun ContestFocusScreen(
                 )
             },
         )
-        when (val content = state) {
+        if (JudgeId.fromId(judge) == JudgeId.LUOGU && luoguDetailState != null) {
+            when (val content = luoguDetailState ?: Loadable.Loading) {
+                Loadable.Loading -> Box(Modifier.fillMaxSize())
+                is Loadable.Failed -> FocusMessage(stringResource(R.string.contest_focus_error))
+                is Loadable.Ready -> LuoguContestDetailContent(content.value)
+            }
+        } else when (val content = state) {
             Loadable.Loading -> Box(Modifier.fillMaxSize())
             is Loadable.Failed -> FocusMessage(stringResource(R.string.contest_focus_error))
             is Loadable.Ready -> ContestFocusContent(
@@ -103,6 +124,80 @@ fun ContestFocusScreen(
                 onCycleMarker = viewModel::cycleMarker,
             )
         }
+    }
+}
+
+@Composable
+private fun LuoguContestDetailContent(detail: LuoguContestDetail) {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = NexusSpacing.screenHorizontal),
+    ) {
+        Spacer(modifier = Modifier.height(NexusSpacing.md))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(detail.id.toString(), style = NexusTheme.typography.dataLarge, color = NexusTheme.colors.accent, modifier = Modifier.weight(1f))
+            NexusTag(
+                text = stringResource(R.string.contest_action_open),
+                tone = NexusTone.Accent,
+                selected = true,
+                modifier = Modifier.clickable(role = Role.Button) {
+                    UrlOpener.open(context, LuoguUrls.contest(detail.id.toString()))
+                },
+            )
+        }
+        Text(detail.name, style = NexusTheme.typography.title, color = NexusTheme.colors.textPrimary, modifier = Modifier.padding(top = NexusSpacing.xxs))
+        detail.totalParticipants?.let {
+            Text(stringResource(R.string.luogu_contest_participants, it), style = NexusTheme.typography.dataSmall, color = NexusTheme.colors.textTertiary, modifier = Modifier.padding(top = NexusSpacing.xs))
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.xl))
+        if (detail.description.isNotBlank()) {
+            NexusSection(label = stringResource(R.string.luogu_contest_description)) {
+                LuoguMarkdownParser.parse(detail.description).forEach { block ->
+                    when (block) {
+                        is LuoguMarkdownBlock.Heading -> Text(block.text, style = NexusTheme.typography.label, color = NexusTheme.colors.textPrimary, modifier = Modifier.padding(vertical = NexusSpacing.xxs))
+                        is LuoguMarkdownBlock.Paragraph -> Text(block.text, style = NexusTheme.typography.body, color = NexusTheme.colors.textSecondary, modifier = Modifier.padding(vertical = NexusSpacing.xxs))
+                        is LuoguMarkdownBlock.Bullet -> Text("• ${block.text}", style = NexusTheme.typography.body, color = NexusTheme.colors.textSecondary, modifier = Modifier.padding(start = NexusSpacing.xs, top = NexusSpacing.xxxs, bottom = NexusSpacing.xxxs))
+                        is LuoguMarkdownBlock.Quote -> Text(block.text, style = NexusTheme.typography.body, color = NexusTheme.colors.textTertiary, modifier = Modifier.padding(vertical = NexusSpacing.xxs))
+                        is LuoguMarkdownBlock.Code -> Text(block.text, style = NexusTheme.typography.dataSmall, color = NexusTheme.colors.textPrimary, modifier = Modifier.background(NexusTheme.colors.surface, NexusRadius.xs).padding(NexusSpacing.sm))
+                        LuoguMarkdownBlock.Divider -> NexusDivider(modifier = Modifier.padding(vertical = NexusSpacing.xs))
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.xl))
+        NexusSection(label = stringResource(R.string.contest_focus_problems), trailing = {
+            Text(stringResource(R.string.contest_focus_problem_count, detail.problems.size), style = NexusTheme.typography.sectionLabel, color = NexusTheme.colors.textTertiary)
+        }) {
+            if (detail.problems.isEmpty()) {
+                Text(stringResource(R.string.contest_focus_no_problems), style = NexusTheme.typography.dataSmall, color = NexusTheme.colors.textTertiary)
+            } else {
+                detail.problems.forEachIndexed { index, problem ->
+                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = NexusSpacing.xs)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(problem.index ?: "—", style = NexusTheme.typography.dataLarge, color = NexusTheme.colors.accent, modifier = Modifier.padding(end = NexusSpacing.sm))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(problem.name, style = NexusTheme.typography.data, color = NexusTheme.colors.textPrimary)
+                                Text(problem.pid, style = NexusTheme.typography.dataSmall, color = NexusTheme.colors.textTertiary)
+                            }
+                            problem.score?.let { Text(stringResource(R.string.luogu_contest_score, it), style = NexusTheme.typography.dataSmall, color = NexusTheme.colors.textSecondary) }
+                        }
+                        Text(
+                            text = stringResource(R.string.contest_focus_open_problem),
+                            style = NexusTheme.typography.sectionLabel,
+                            color = NexusTheme.colors.accent,
+                            modifier = Modifier.padding(start = NexusSpacing.xl, top = NexusSpacing.xxs).clickable(role = Role.Button) {
+                                UrlOpener.open(context, LuoguUrls.problem(problem.pid))
+                            },
+                        )
+                    }
+                    if (index != detail.problems.lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.xxl))
     }
 }
 

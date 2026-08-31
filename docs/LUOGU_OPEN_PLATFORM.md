@@ -63,3 +63,11 @@ The user can still open the canonical source page or the local Open Platform wor
 No main-site password, cookie, session, CSRF state, or cloud synchronization is involved. /
 用户仍可主动打开标准原题页面或本地 Open Platform 工作区；不涉及主站密码、Cookie、Session、
 CSRF 状态或云端同步。
+
+## Arena contest details / Arena 竞赛详情
+
+For Luogu contests, Arena reads the public `contest/{id}` content-only response and shows the
+official description and server-provided contest problem membership. Scores, indexes, PIDs, and
+titles are taken from that response; no membership is inferred from a separate catalog. / 对于洛谷
+竞赛，Arena 读取公开的 `contest/{id}` content-only 响应，展示官方说明和服务器返回的竞赛题目
+成员关系；分值、编号、PID 和题名均取自该响应，不从独立题库推断成员关系。

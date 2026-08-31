@@ -484,6 +484,9 @@
     <string name="contest_focus_problem_count">%d PROBLEMS</string>
     <string name="contest_focus_attempts">%d ATTEMPTS</string>
     <string name="contest_focus_open_problem">OPEN</string>
+    <string name="luogu_contest_description">CONTEST DESCRIPTION</string>
+    <string name="luogu_contest_participants">PARTICIPANTS %d</string>
+    <string name="luogu_contest_score">SCORE %d</string>
     <string name="contest_focus_empty">CONTEST NOT FOUND IN LOCAL CACHE</string>
     <string name="contest_focus_no_problems">NO CACHED PROBLEMS — SYNC THIS JUDGE FIRST</string>
     <string name="contest_focus_error">ARENA DATA UNAVAILABLE</string>

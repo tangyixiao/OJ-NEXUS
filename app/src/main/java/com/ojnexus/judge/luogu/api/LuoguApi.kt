@@ -2,6 +2,7 @@ package com.ojnexus.judge.luogu.api
 
 import com.ojnexus.judge.luogu.api.dto.LuoguUserSearchResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguContestListResponse
+import com.ojnexus.judge.luogu.api.dto.LuoguContestDetailResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemListResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemDetailResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguRecordPageResponse
@@ -56,6 +57,14 @@ interface LuoguApi {
     )
     @GET("contest/list")
     suspend fun contestPage(@Query("page") page: Int): LuoguContestListResponse
+
+    @Headers(
+        "Accept: application/json",
+        "X-Requested-With: XMLHttpRequest",
+        "x-lentille-request: content-only",
+    )
+    @GET("contest/{contestId}")
+    suspend fun contest(@Path("contestId") contestId: String): LuoguContestDetailResponse
 
     @Headers(
         "Accept: application/json",
