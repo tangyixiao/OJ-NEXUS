@@ -526,6 +526,11 @@
     <string name="workspace_language">语言</string>
     <string name="workspace_code">源代码</string>
     <string name="workspace_code_hint">输入源代码</string>
+    <string name="workspace_draft_loading">正在加载本地草稿…</string>
+    <string name="workspace_draft_clean">暂无本地草稿</string>
+    <string name="workspace_draft_saving">正在保存草稿…</string>
+    <string name="workspace_draft_saved">草稿已保存到本地</string>
+    <string name="workspace_draft_error">草稿未保存——仍可继续编辑</string>
     <string name="workspace_input">标准输入</string>
     <string name="workspace_input_hint">运行模式下可选的输入</string>
     <string name="workspace_execute">执行</string>

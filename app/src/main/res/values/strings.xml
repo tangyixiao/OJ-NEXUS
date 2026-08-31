@@ -577,6 +577,11 @@
     <string name="workspace_language">LANGUAGE</string>
     <string name="workspace_code">SOURCE CODE</string>
     <string name="workspace_code_hint">ENTER SOURCE CODE</string>
+    <string name="workspace_draft_loading">DRAFT LOADING…</string>
+    <string name="workspace_draft_clean">NO LOCAL DRAFT</string>
+    <string name="workspace_draft_saving">DRAFT SAVING…</string>
+    <string name="workspace_draft_saved">DRAFT SAVED LOCALLY</string>
+    <string name="workspace_draft_error">DRAFT NOT SAVED — EDITING REMAINS AVAILABLE</string>
     <string name="workspace_input">STANDARD INPUT</string>
     <string name="workspace_input_hint">OPTIONAL INPUT FOR RUN MODE</string>
     <string name="workspace_execute">EXECUTE</string>

@@ -2,6 +2,9 @@ package com.ojnexus.feature.workspace
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ojnexus.core.data.repository.WorkspaceDraft
+import com.ojnexus.core.data.repository.WorkspaceDraftRepository
+import com.ojnexus.core.model.JudgeId
 import com.ojnexus.judge.luogu.open.LuoguOpenApiError
 import com.ojnexus.judge.luogu.open.LuoguOpenEvaluation
 import com.ojnexus.judge.luogu.open.LuoguOpenGateway
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -28,6 +32,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 enum class WorkspaceMode { RUN, SUBMIT }
 
 enum class WorkspaceResultState { IDLE, PENDING, READY }
+
+enum class WorkspaceDraftState { DISABLED, LOADING, CLEAN, SAVING, SAVED, ERROR }
 
 data class WorkspaceState(
     val pid: String,
@@ -42,6 +48,7 @@ data class WorkspaceState(
     val busy: Boolean = false,
     val requestId: String? = null,
     val resultState: WorkspaceResultState = WorkspaceResultState.IDLE,
+    val draftState: WorkspaceDraftState = WorkspaceDraftState.DISABLED,
     val evaluation: com.ojnexus.judge.luogu.open.LuoguOpenEvaluation? = null,
     val error: WorkspaceError? = null,
 )
@@ -67,6 +74,8 @@ class WorkspaceViewModel(
     testScope: CoroutineScope? = null,
     private val history: LuoguSubmissionHistory? = null,
     private val delayForResult: suspend (Long) -> Unit = { delay(it) },
+    private val drafts: WorkspaceDraftRepository? = null,
+    private val delayForDraft: suspend (Long) -> Unit = { delay(it) },
 ) : ViewModel() {
     private val workScope = testScope ?: viewModelScope
     private val mutableState = MutableStateFlow(
@@ -75,9 +84,15 @@ class WorkspaceViewModel(
             title = title,
             mode = if (gateway.supportsCustomInputRun) WorkspaceMode.RUN else WorkspaceMode.SUBMIT,
             customRunAvailable = gateway.supportsCustomInputRun,
+            draftState = if (drafts == null) WorkspaceDraftState.DISABLED else WorkspaceDraftState.LOADING,
         ),
     )
     private val submissionStarted = AtomicBoolean(false)
+    private val draftEdited = AtomicBoolean(false)
+    private var draftLoaded = drafts == null
+    private var draftLoadJob: Job? = null
+    private var draftSaveJob: Job? = null
+    private var flushRequested = false
     val state: StateFlow<WorkspaceState> = mutableState.asStateFlow()
 
     init {
@@ -130,19 +145,90 @@ class WorkspaceViewModel(
                 }
             }
         }
+        drafts?.let { repository ->
+            draftLoadJob = workScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                try {
+                    val draft = repository.find(JudgeId.LUOGU, pid)
+                    if (!draftEdited.get() && draft != null) {
+                        mutableState.update {
+                            it.copy(
+                                code = draft.code,
+                                input = draft.input,
+                                language = draft.language,
+                                o2 = draft.o2,
+                            )
+                        }
+                    }
+                    if (!draftEdited.get()) {
+                        mutableState.update {
+                            it.copy(
+                                draftState = if (draft == null) {
+                                    WorkspaceDraftState.CLEAN
+                                } else {
+                                    WorkspaceDraftState.SAVED
+                                },
+                            )
+                        }
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    mutableState.update { it.copy(draftState = WorkspaceDraftState.ERROR) }
+                } finally {
+                    draftLoaded = true
+                    if (draftEdited.get() && !flushRequested) scheduleDraftSave()
+                }
+            }
+        }
     }
 
-    fun setCode(value: String) = mutableState.update { it.copy(code = value, error = null) }
+    fun setCode(value: String) {
+        mutableState.update { it.copy(code = value, error = null) }
+        markDraftEdited()
+    }
 
-    fun setInput(value: String) = mutableState.update { it.copy(input = value, error = null) }
+    fun setInput(value: String) {
+        mutableState.update { it.copy(input = value, error = null) }
+        markDraftEdited()
+    }
 
-    fun setLanguage(value: String) = mutableState.update { it.copy(language = value, error = null) }
+    fun setLanguage(value: String) {
+        mutableState.update { it.copy(language = value, error = null) }
+        markDraftEdited()
+    }
 
     fun setMode(value: WorkspaceMode) = mutableState.update {
         it.copy(mode = value, resultState = WorkspaceResultState.IDLE, evaluation = null, error = null)
     }
 
-    fun setO2(value: Boolean) = mutableState.update { it.copy(o2 = value) }
+    fun setO2(value: Boolean) {
+        mutableState.update { it.copy(o2 = value) }
+        markDraftEdited()
+    }
+
+    fun flushDraft(onFlushed: () -> Unit) {
+        val repository = drafts
+        if (repository == null || !draftEdited.get()) {
+            onFlushed()
+            return
+        }
+        if (flushRequested) return
+        flushRequested = true
+        draftSaveJob?.cancel()
+        workScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                draftLoadJob?.join()
+                saveDraft(repository, mutableState.value)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                mutableState.update { it.copy(draftState = WorkspaceDraftState.ERROR) }
+            } finally {
+                flushRequested = false
+                onFlushed()
+            }
+        }
+    }
 
     fun submit() {
         if (mutableState.value.busy) return
@@ -228,6 +314,46 @@ class WorkspaceViewModel(
         )
     }
 
+    private fun markDraftEdited() {
+        if (drafts == null) return
+        draftEdited.set(true)
+        mutableState.update { it.copy(draftState = WorkspaceDraftState.SAVING) }
+        scheduleDraftSave()
+    }
+
+    private fun scheduleDraftSave() {
+        val repository = drafts ?: return
+        if (!draftLoaded) return
+        draftSaveJob?.cancel()
+        draftSaveJob = workScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            delayForDraft(DRAFT_SAVE_DEBOUNCE_MS)
+            try {
+                saveDraft(repository, mutableState.value)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                mutableState.update { it.copy(draftState = WorkspaceDraftState.ERROR) }
+            }
+        }
+    }
+
+    private suspend fun saveDraft(
+        repository: WorkspaceDraftRepository,
+        snapshot: WorkspaceState,
+    ) {
+        repository.save(
+            judge = JudgeId.LUOGU,
+            pid = snapshot.pid,
+            draft = WorkspaceDraft(
+                code = snapshot.code,
+                input = snapshot.input,
+                language = snapshot.language,
+                o2 = snapshot.o2,
+            ),
+        )
+        mutableState.update { it.copy(draftState = WorkspaceDraftState.SAVED) }
+    }
+
     private fun Exception.toWorkspaceError(): WorkspaceError = when (this) {
         LuoguOpenApiError.CredentialMissing -> WorkspaceError.CREDENTIAL_MISSING
         is LuoguOpenApiError.InvalidRequest -> WorkspaceError.INVALID_REQUEST
@@ -242,3 +368,5 @@ class WorkspaceViewModel(
     }
 
 }
+
+private const val DRAFT_SAVE_DEBOUNCE_MS = 300L

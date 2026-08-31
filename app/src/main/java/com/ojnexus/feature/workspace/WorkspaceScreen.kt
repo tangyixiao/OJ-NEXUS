@@ -1,5 +1,6 @@
 package com.ojnexus.feature.workspace
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -58,10 +59,12 @@ fun WorkspaceScreen(
                 gateway = it.luoguSubmissionRepository,
                 credentialStore = it.luoguOpenCredentialStore,
                 history = it.luoguSubmissionRepository,
+                drafts = it.workspaceDraftRepository,
             )
         },
     )
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    BackHandler { viewModel.flushDraft(onBack) }
 
     Column(Modifier.fillMaxSize().background(NexusTheme.colors.background)) {
         NexusTopBar(
@@ -71,7 +74,10 @@ fun WorkspaceScreen(
                     text = stringResource(R.string.action_back),
                     style = NexusTheme.typography.sectionLabel,
                     color = NexusTheme.colors.accent,
-                    modifier = Modifier.clickable(role = Role.Button, onClick = onBack),
+                    modifier = Modifier.clickable(
+                        role = Role.Button,
+                        onClick = { viewModel.flushDraft(onBack) },
+                    ),
                 )
             },
         )
@@ -135,6 +141,29 @@ fun WorkspaceScreen(
                     value = state.code,
                     onValueChange = viewModel::setCode,
                     placeholder = stringResource(R.string.workspace_code_hint),
+                )
+            }
+            when (state.draftState) {
+                WorkspaceDraftState.DISABLED -> Unit
+                WorkspaceDraftState.LOADING -> DraftStatus(
+                    text = stringResource(R.string.workspace_draft_loading),
+                    color = NexusTheme.colors.textTertiary,
+                )
+                WorkspaceDraftState.CLEAN -> DraftStatus(
+                    text = stringResource(R.string.workspace_draft_clean),
+                    color = NexusTheme.colors.textTertiary,
+                )
+                WorkspaceDraftState.SAVING -> DraftStatus(
+                    text = stringResource(R.string.workspace_draft_saving),
+                    color = NexusTheme.colors.warning,
+                )
+                WorkspaceDraftState.SAVED -> DraftStatus(
+                    text = stringResource(R.string.workspace_draft_saved),
+                    color = NexusTheme.colors.accent,
+                )
+                WorkspaceDraftState.ERROR -> DraftStatus(
+                    text = stringResource(R.string.workspace_draft_error),
+                    color = NexusTheme.colors.danger,
                 )
             }
             if (state.customRunAvailable && state.mode == WorkspaceMode.RUN) {
@@ -255,6 +284,15 @@ private fun WorkspaceAction(
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = NexusSpacing.sm, vertical = NexusSpacing.xs),
     )
+}
+
+@Composable
+private fun DraftStatus(
+    text: String,
+    color: androidx.compose.ui.graphics.Color,
+) {
+    Spacer(Modifier.height(NexusSpacing.xs))
+    Text(text, style = NexusTheme.typography.dataSmall, color = color)
 }
 
 @Composable

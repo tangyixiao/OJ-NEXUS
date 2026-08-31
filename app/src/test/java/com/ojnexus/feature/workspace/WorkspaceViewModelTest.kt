@@ -12,6 +12,9 @@ import com.ojnexus.judge.luogu.open.OpenAppCredentialStore
 import com.ojnexus.core.database.entity.SubmissionJobEntity
 import com.ojnexus.judge.luogu.open.SubmissionJobKind
 import com.ojnexus.judge.luogu.open.SubmissionJobStatus
+import com.ojnexus.core.data.repository.WorkspaceDraft
+import com.ojnexus.core.data.repository.WorkspaceDraftRepository
+import com.ojnexus.core.model.JudgeId
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CompletableDeferred
@@ -303,6 +306,124 @@ class WorkspaceViewModelTest {
         assertEquals(WorkspaceMode.SUBMIT, viewModel.state.value.mode)
         scope.cancel()
     }
+
+    @Test
+    fun `workspace restores the local draft fields for the same Luogu problem`() = runBlocking {
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = null,
+            gateway = FakeGateway(customRunAvailable = false),
+            credentialStore = FakeStore(),
+            drafts = FakeDraftRepository(
+                WorkspaceDraft(
+                    code = "int main() { return 0; }",
+                    input = "42",
+                    language = "cxx/17/gcc",
+                    o2 = true,
+                ),
+            ),
+            testScope = CoroutineScope(coroutineContext),
+            delayForDraft = {},
+        )
+
+        assertEquals("int main() { return 0; }", viewModel.state.value.code)
+        assertEquals("42", viewModel.state.value.input)
+        assertEquals("cxx/17/gcc", viewModel.state.value.language)
+        assertEquals(true, viewModel.state.value.o2)
+        assertEquals(WorkspaceDraftState.SAVED, viewModel.state.value.draftState)
+    }
+
+    @Test
+    fun `user edit wins over a late local draft read`() = runBlocking {
+        val scope = CoroutineScope(Dispatchers.Default)
+        val drafts = BlockingDraftRepository(
+            WorkspaceDraft("old code", "old input", "cxx/14/gcc", false),
+        )
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = null,
+            gateway = FakeGateway(customRunAvailable = false),
+            credentialStore = FakeStore(),
+            drafts = drafts,
+            testScope = scope,
+            delayForDraft = {},
+        )
+        drafts.started.await()
+
+        viewModel.setCode("new code")
+        drafts.release.complete(Unit)
+        withTimeout(1_000) {
+            while (viewModel.state.value.draftState == WorkspaceDraftState.LOADING) delay(1)
+        }
+
+        assertEquals("new code", viewModel.state.value.code)
+        scope.cancel()
+    }
+
+    @Test
+    fun `editor mutation saves the latest draft after the debounce`() = runBlocking {
+        val drafts = FakeDraftRepository()
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = null,
+            gateway = FakeGateway(customRunAvailable = false),
+            credentialStore = FakeStore(),
+            drafts = drafts,
+            testScope = CoroutineScope(coroutineContext),
+            delayForDraft = {},
+        )
+        viewModel.setCode("saved code")
+        viewModel.setInput("saved input")
+        viewModel.setLanguage("cxx/17/gcc")
+        viewModel.setO2(true)
+
+        withTimeout(1_000) {
+            while (drafts.lastSaved == null) delay(1)
+        }
+        assertEquals(WorkspaceDraft("saved code", "saved input", "cxx/17/gcc", true), drafts.lastSaved)
+        assertEquals(WorkspaceDraftState.SAVED, viewModel.state.value.draftState)
+    }
+
+    @Test
+    fun `flushDraft persists before the workspace leaves`() = runBlocking {
+        val drafts = FakeDraftRepository()
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = null,
+            gateway = FakeGateway(customRunAvailable = false),
+            credentialStore = FakeStore(),
+            drafts = drafts,
+            testScope = CoroutineScope(coroutineContext),
+            delayForDraft = { delay(10_000) },
+        )
+        viewModel.setCode("flush before leave")
+        val flushed = CompletableDeferred<Unit>()
+
+        viewModel.flushDraft { flushed.complete(Unit) }
+        withTimeout(1_000) { flushed.await() }
+
+        assertEquals("flush before leave", drafts.lastSaved?.code)
+        assertEquals(WorkspaceDraftState.SAVED, viewModel.state.value.draftState)
+    }
+
+    @Test
+    fun `draft write errors keep editor usable and expose error state`() = runBlocking {
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = null,
+            gateway = FakeGateway(customRunAvailable = false),
+            credentialStore = FakeStore(),
+            drafts = FailingDraftRepository,
+            testScope = CoroutineScope(coroutineContext),
+            delayForDraft = {},
+        )
+        viewModel.setCode("still editable")
+
+        withTimeout(1_000) {
+            while (viewModel.state.value.draftState != WorkspaceDraftState.ERROR) delay(1)
+        }
+        assertEquals("still editable", viewModel.state.value.code)
+    }
 }
 
 private class FakeGateway(
@@ -449,5 +570,38 @@ private class BlockingHistory : LuoguSubmissionHistory {
             createdAt = 1,
             updatedAt = 1,
         )
+    }
+}
+
+private open class FakeDraftRepository(
+    private val existing: WorkspaceDraft? = null,
+) : WorkspaceDraftRepository {
+    var lastSaved: WorkspaceDraft? = null
+
+    override suspend fun find(judge: JudgeId, pid: String): WorkspaceDraft? = existing
+
+    override suspend fun save(judge: JudgeId, pid: String, draft: WorkspaceDraft) {
+        lastSaved = draft
+    }
+}
+
+private class BlockingDraftRepository(
+    private val existing: WorkspaceDraft,
+) : FakeDraftRepository() {
+    val started = CompletableDeferred<Unit>()
+    val release = CompletableDeferred<Unit>()
+
+    override suspend fun find(judge: JudgeId, pid: String): WorkspaceDraft {
+        started.complete(Unit)
+        release.await()
+        return existing
+    }
+}
+
+private object FailingDraftRepository : WorkspaceDraftRepository {
+    override suspend fun find(judge: JudgeId, pid: String): WorkspaceDraft? = null
+
+    override suspend fun save(judge: JudgeId, pid: String, draft: WorkspaceDraft) {
+        error("draft write failed")
     }
 }
