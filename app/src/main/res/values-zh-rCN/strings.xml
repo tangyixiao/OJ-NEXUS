@@ -407,6 +407,7 @@
     <string name="settings_api_failed">API 错误</string>
     <string name="settings_state_connected">已连接</string>
     <string name="settings_state_syncing">同步中</string>
+    <string name="settings_sync_stage">当前阶段：%1$s</string>
     <string name="settings_state_partial">部分完成</string>
     <string name="settings_state_failed">失败</string>
     <string name="settings_initial_sync">首次同步</string>

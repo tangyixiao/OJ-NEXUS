@@ -458,6 +458,13 @@ private fun JudgeConnectionPanel(
                 else -> NexusStatus(stringResource(R.string.settings_state_connected), NexusTone.Success)
             }
         }
+        syncStageName(sync)?.let { stage ->
+            Text(
+                text = stringResource(R.string.settings_sync_stage, stage),
+                style = NexusTheme.typography.dataSmall,
+                color = NexusTheme.colors.accent,
+            )
+        }
         Text(
             text = stringResource(R.string.settings_source_format, connection.reliability.name),
             style = NexusTheme.typography.dataSmall,

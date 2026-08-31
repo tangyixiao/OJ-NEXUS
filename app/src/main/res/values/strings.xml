@@ -452,6 +452,7 @@
     <string name="settings_api_failed">API ERROR</string>
     <string name="settings_state_connected">CONNECTED</string>
     <string name="settings_state_syncing">SYNCING</string>
+    <string name="settings_sync_stage">STAGE: %1$s</string>
     <string name="settings_state_partial">PARTIAL</string>
     <string name="settings_state_failed">FAILED</string>
     <string name="settings_initial_sync">INITIAL SYNC</string>

@@ -80,6 +80,32 @@ class JudgeDataRepositoryTest {
         assertEquals(0, calls)
     }
 
+    @Test
+    fun `a missing later page is fetched and appended to the same query cache`() = runBlocking {
+        var requestedOffset = -1
+        database.remoteProblemDao().upsertAll(
+            (0 until 50).map { index ->
+                remoteProblem("P${index.toString().padStart(4, '0')}").copy(name = "Graph Problem $index")
+            },
+        )
+        val repository = JudgeDataRepository(
+            database,
+            remoteProblemProviders = mapOf(
+                JudgeId.LUOGU to RemoteProblemSearchProvider { _, query, limit, offset ->
+                    requestedOffset = offset
+                    assertEquals("graph", query)
+                    assertEquals(50, limit)
+                    listOf(remoteProblem("P9999").copy(name = "Graph Problem 9999"))
+                },
+            ),
+        )
+
+        val result = repository.searchRemoteProblems(JudgeId.LUOGU, "graph", 0, 50, 50)
+
+        assertEquals(50, requestedOffset)
+        assertEquals("P9999", result.single().externalId)
+    }
+
     private fun remoteProblem(externalId: String) = RemoteProblemEntity(
         judge = JudgeId.LUOGU.id,
         externalId = externalId,

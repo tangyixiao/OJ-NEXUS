@@ -143,7 +143,19 @@ entire public catalog before the first search. / 远端题库仍然坚持 Room �
 本地没有命中时，应用才请求公开的 `problem/list?keyword=...` 页面，经 OJ 边界映射后写入本地
 题库，从而不要求用户等待完整公开题库同步结束后才能首次搜索。
 
-Blank queries and later pages remain local-only until a future explicit paging policy is added.
+Blank queries remain local-only; later pages use the same public keyword endpoint on demand and are
+cached page by page. The Settings panel also exposes the current background sync stage so a long
+bounded catalog refresh is observable. / 空关键词仍只读本地缓存；后续分页会按需使用同一公开
+关键词接口并逐页写入缓存。设置页同时显示后台同步当前阶段，使较长的有界题库刷新过程可见。
+
+## PHASE 14 — Observable sync and paged Luogu search / 可见同步与洛谷分页搜索
+
+The page provider now receives the requested offset, so a cached first page can be followed by
+on-demand retrieval of page two and beyond. Room remains the source returned to the UI after each
+upsert, preserving offline reads and solved-state joins. Settings renders the persisted sync stage
+alongside SYNCING. / 分页提供者现在接收用户请求的 offset，因此首屏缓存后可以继续按需获取第二页
+及更多页面；每次写入后仍由 Room 返回 UI，保留离线读取和已解决状态关联。设置页在 SYNCING
+状态旁显示已持久化的同步阶段。
 The provider is public-data-only and does not add Luogu main-site passwords, cookies, sessions,
 CSRF state, cloud accounts, or cross-device synchronization. / 空关键词和后续分页目前仍只读
 本地缓存，未来如需扩展会单独定义分页策略；本阶段仍只使用公开数据，不新增洛谷主站密码、

@@ -62,7 +62,7 @@ class JudgeDataRepository(
         val normalizedQuery = query.trim()
         val local = searchLocal(judge, normalizedQuery, solvedFilter, limit, offset)
         val provider = remoteProblemProviders[judge]
-        if (local.isNotEmpty() || normalizedQuery.isBlank() || offset != 0 || provider == null) {
+        if (local.isNotEmpty() || normalizedQuery.isBlank() || provider == null) {
             return local
         }
 

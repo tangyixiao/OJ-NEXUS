@@ -292,3 +292,8 @@ class SettingsViewModel(
 
 internal fun shouldScheduleJudgeSync(capabilities: Set<JudgeCapability>): Boolean =
     JudgeCapability.BACKGROUND_SYNC in capabilities
+
+internal fun syncStageName(syncState: SyncStateEntity?): String? =
+    syncState
+        ?.takeIf { it.state == SyncPhase.SYNCING.name }
+        ?.currentStage

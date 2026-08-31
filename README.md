@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 13 (Luogu on-demand catalog search, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 14 (Luogu paged on-demand catalog search, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -80,6 +80,11 @@ public keyword page only when the local cache has no hit, then stores the result
 makes first-use search practical while the bounded background catalog sync continues. / 洛谷远端
 题库搜索现在先读 Room；本地没有命中时，才按关键词请求公开题库页并写入本地缓存，使后台
 同步尚未完成时也能实际搜索。该阶段仍不使用主站密码、Cookie、Session、CSRF 或云端服务。
+
+Phase 14 / 第 14 阶段: Luogu keyword results now fetch and cache later pages on demand as the user
+loads more, while Settings exposes the active background sync stage. / 第 14 阶段：用户加载更多
+洛谷关键词结果时，应用现在会按需请求并缓存后续分页；设置页同时显示后台同步当前阶段，
+让较长的公开题库刷新过程可见。
 
 ## Documentation
 
