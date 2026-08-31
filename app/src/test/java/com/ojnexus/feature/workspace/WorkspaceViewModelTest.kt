@@ -201,6 +201,12 @@ class WorkspaceViewModelTest {
                     status = SubmissionJobStatus.READY.name,
                     judgeStatus = 12,
                     score = 100,
+                    compileSuccess = false,
+                    compileMessage = "compiler output",
+                    output = "program output",
+                    exitCode = 2,
+                    executionTimeMs = 17,
+                    memoryKiB = 64,
                     createdAt = 1,
                     updatedAt = 2,
                 ),
@@ -212,6 +218,12 @@ class WorkspaceViewModelTest {
         assertEquals("cxx/17/gcc", viewModel.state.value.language)
         assertEquals(WorkspaceResultState.READY, viewModel.state.value.resultState)
         assertEquals(100, viewModel.state.value.evaluation?.score)
+        assertEquals(false, viewModel.state.value.evaluation?.compileSuccess)
+        assertEquals("compiler output", viewModel.state.value.evaluation?.compileMessage)
+        assertEquals("program output", viewModel.state.value.evaluation?.output)
+        assertEquals(2, viewModel.state.value.evaluation?.exitCode)
+        assertEquals(17L, viewModel.state.value.evaluation?.timeMs)
+        assertEquals(64L, viewModel.state.value.evaluation?.memoryKiB)
     }
 
     @Test

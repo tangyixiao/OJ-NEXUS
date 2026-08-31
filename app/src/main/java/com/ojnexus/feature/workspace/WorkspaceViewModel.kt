@@ -109,14 +109,14 @@ class WorkspaceViewModel(
                                 requestId = job.requestId,
                                 trackId = job.trackId,
                                 type = "judge",
-                                compileSuccess = null,
-                                compileMessage = null,
+                                compileSuccess = job.compileSuccess,
+                                compileMessage = job.compileMessage,
                                 status = job.judgeStatus,
                                 score = job.score,
-                                timeMs = null,
-                                memoryKiB = null,
-                                output = null,
-                                exitCode = null,
+                                timeMs = job.executionTimeMs?.toLong(),
+                                memoryKiB = job.memoryKiB?.toLong(),
+                                output = job.output,
+                                exitCode = job.exitCode,
                             )
                         } else {
                             null
