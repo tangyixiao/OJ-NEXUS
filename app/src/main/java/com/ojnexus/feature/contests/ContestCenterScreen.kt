@@ -91,11 +91,10 @@ fun ContestCenterScreen(
                 JudgeFilterTag(stringResource(R.string.problems_scope_filter_all), envelope.selectedJudge == null) {
                     viewModel.setJudgeFilter(null)
                 }
-                JudgeFilterTag(JudgeId.CODEFORCES.displayName, envelope.selectedJudge == JudgeId.CODEFORCES) {
-                    viewModel.setJudgeFilter(JudgeId.CODEFORCES)
-                }
-                JudgeFilterTag(JudgeId.ATCODER.displayName, envelope.selectedJudge == JudgeId.ATCODER) {
-                    viewModel.setJudgeFilter(JudgeId.ATCODER)
+                contestJudgeFilters().forEach { judge ->
+                    JudgeFilterTag(judge.displayName, envelope.selectedJudge == judge) {
+                        viewModel.setJudgeFilter(judge)
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(NexusSpacing.sm))

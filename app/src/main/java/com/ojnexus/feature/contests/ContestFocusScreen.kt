@@ -48,6 +48,7 @@ import com.ojnexus.core.ui.formatDateTime
 import com.ojnexus.core.ui.formatDuration
 import com.ojnexus.judge.atcoder.AtCoderUrls
 import com.ojnexus.judge.codeforces.CodeforcesUrls
+import com.ojnexus.judge.luogu.LuoguUrls
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -317,6 +318,7 @@ private fun FocusMessage(text: String) {
 private fun contestUrl(judge: JudgeId, contestId: String): String? = when (judge) {
     JudgeId.CODEFORCES -> contestId.toLongOrNull()?.let(CodeforcesUrls::contest)
     JudgeId.ATCODER -> AtCoderUrls.contest(contestId)
+    JudgeId.LUOGU -> LuoguUrls.contest(contestId)
     else -> null
 }
 
@@ -327,6 +329,7 @@ private fun problemUrl(judge: JudgeId, contestId: String, externalId: String, in
         if (contest == null || problemIndex.isBlank()) null else CodeforcesUrls.problem(contest, problemIndex)
     }
     JudgeId.ATCODER -> AtCoderUrls.problem(contestId, externalId)
+    JudgeId.LUOGU -> LuoguUrls.problem(externalId)
     else -> null
 }
 

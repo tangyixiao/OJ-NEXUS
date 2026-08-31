@@ -52,7 +52,9 @@ automatic POST retry or cloud code storage. The local submission center lists re
 Open Platform request metadata, supports foreground result checks, and reopens related problem
 workspaces without storing source code or standard input. The remote problem catalog can switch
 to LUOGU and adds canonical Luogu problem links when a problem is saved locally. Analytics and
-Profile now consume rating history for Codeforces, AtCoder, and Luogu independently. See
+Profile now consume rating history for Codeforces, AtCoder, and Luogu independently. Contest
+Center also exposes Luogu as a judge filter, and Arena opens canonical Luogu contest and problem
+pages when the public cache has no contest-problem membership data. See
 [docs/MULTI_OJ.md](docs/MULTI_OJ.md), [docs/ATCODER.md](docs/ATCODER.md),
 [docs/ARENA.md](docs/ARENA.md),
 [docs/KNOWLEDGE.md](docs/KNOWLEDGE.md),

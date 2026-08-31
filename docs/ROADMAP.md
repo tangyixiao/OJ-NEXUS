@@ -100,4 +100,7 @@ The workspace editor also exposes the supported Open Platform language identifie
 the selected language in each explicit submit request. The remote problem catalog now exposes
 LUOGU alongside Codeforces and AtCoder and maps saved Luogu problems to their canonical URLs.
 Analytics renders each judge's rating history independently, and Profile includes the Luogu
-connection and current public rating when available.
+connection and current public rating when available. Contest Center now exposes a Luogu filter,
+and the Luogu Arena header/problem actions open canonical Luogu contest and problem pages. Luogu
+contest listings remain metadata-only until a supported public contest-problem endpoint is verified;
+the app does not invent contest membership from unrelated problem catalog rows.

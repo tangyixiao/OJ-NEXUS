@@ -8,6 +8,8 @@ object LuoguUrls {
 
     fun user(uid: Long): String = "https://www.luogu.com.cn/user/${segment(uid.toString())}"
 
+    fun contest(contestId: String): String = "https://www.luogu.com.cn/contest/${segment(contestId)}"
+
     fun problem(pid: String): String = "https://www.luogu.com.cn/problem/${segment(pid)}"
 
     private fun segment(value: String): String =

@@ -44,6 +44,9 @@ Public profile, rating/ELO history, problems, and contests use the first-party s
 `content-only` JSON transport for `/user/:uid`, `/user/:uid/practice`, `/problem/list`, and
 `/contest/list`. The adapter applies bounded retries and per-source rate spacing. The cached
 rating history is consumed by the shared Analytics and Profile surfaces alongside other judges.
+Contest Center also exposes the cached Luogu contests and opens canonical Luogu contest/problem
+pages from Arena. The public contest-list payload currently supplies contest metadata but no
+problem membership, so Arena does not fabricate a Luogu contest problem list.
 
 The anonymous `/record/list` response is an auth/login envelope. It is surfaced as
 `AuthenticationRequired` and leaves submissions empty; password login, Cookie/Session/CSRF

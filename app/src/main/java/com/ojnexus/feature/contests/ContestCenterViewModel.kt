@@ -98,3 +98,9 @@ class ContestCenterViewModel(
         )
     }
 }
+
+internal fun contestJudgeFilters(): List<JudgeId> = listOf(
+    JudgeId.CODEFORCES,
+    JudgeId.ATCODER,
+    JudgeId.LUOGU,
+)
