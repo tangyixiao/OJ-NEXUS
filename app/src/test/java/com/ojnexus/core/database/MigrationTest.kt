@@ -166,6 +166,7 @@ class MigrationTest {
             OjNexusDatabase.MIGRATION_6_7,
             OjNexusDatabase.MIGRATION_7_8,
             OjNexusDatabase.MIGRATION_8_9,
+            OjNexusDatabase.MIGRATION_9_10,
         ).build()
 
         try {
@@ -258,6 +259,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_6_7,
                 OjNexusDatabase.MIGRATION_7_8,
                 OjNexusDatabase.MIGRATION_8_9,
+                OjNexusDatabase.MIGRATION_9_10,
             )
             .build()
         db.openHelper.writableDatabase
@@ -331,6 +333,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_6_7,
                 OjNexusDatabase.MIGRATION_7_8,
                 OjNexusDatabase.MIGRATION_8_9,
+                OjNexusDatabase.MIGRATION_9_10,
             )
             .build()
         try {
@@ -358,7 +361,7 @@ class MigrationTest {
         v8.close()
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_8_9)
+            .addMigrations(OjNexusDatabase.MIGRATION_8_9, OjNexusDatabase.MIGRATION_9_10)
             .build()
         try {
             val detail = com.ojnexus.core.database.entity.RemoteProblemDetailEntity(
@@ -410,7 +413,7 @@ class MigrationTest {
         createDatabaseFromSchema(5)
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_5_6, OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9)
+            .addMigrations(OjNexusDatabase.MIGRATION_5_6, OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9, OjNexusDatabase.MIGRATION_9_10)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -438,7 +441,7 @@ class MigrationTest {
         createDatabaseFromSchema(6)
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9)
+            .addMigrations(OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9, OjNexusDatabase.MIGRATION_9_10)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -477,7 +480,7 @@ class MigrationTest {
         v7.close()
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9)
+            .addMigrations(OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9, OjNexusDatabase.MIGRATION_9_10)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -510,6 +513,51 @@ class MigrationTest {
             assertEquals(10L, cursor.getLong(2))
             assertTrue(cursor.isNull(3))
             assertTrue(cursor.isNull(4))
+        }
+        raw.close()
+    }
+
+    @Test
+    fun `migrate 9 to 10 adds workspace drafts without losing submission jobs`() {
+        createDatabaseFromSchema(9)
+        val v9 = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        v9.execSQL(
+            "INSERT INTO submission_jobs (judge, request_id, track_id, kind, pid, language, status, " +
+                "judge_status, score, created_at, updated_at, last_error_type, compile_success, " +
+                "compile_message, output, exit_code, execution_time_ms, memory_kib) VALUES " +
+                "('luogu', 'req-v9', NULL, 'PROBLEM', 'P1001', 'cxx/14/gcc', 'PENDING', NULL, " +
+                "NULL, 10, 20, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
+        )
+        v9.close()
+
+        val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
+            .addMigrations(OjNexusDatabase.MIGRATION_9_10)
+            .build()
+        try {
+            db.openHelper.writableDatabase
+        } finally {
+            db.close()
+        }
+
+        val raw = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        val columns = buildSet {
+            raw.rawQuery("PRAGMA table_info(`workspace_drafts`)", null).use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+            }
+        }
+        assertTrue(
+            columns.containsAll(setOf("judge", "pid", "code", "input", "language", "o2", "updated_at")),
+        )
+        raw.rawQuery("SELECT request_id FROM submission_jobs", null).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("req-v9", cursor.getString(0))
         }
         raw.close()
     }

@@ -11,6 +11,7 @@ import com.ojnexus.core.data.repository.KnowledgeRepository
 import com.ojnexus.core.data.repository.ProblemRepository
 import com.ojnexus.core.data.repository.ReviewRepository
 import com.ojnexus.core.data.repository.TrainingRepository
+import com.ojnexus.core.data.repository.RoomWorkspaceDraftRepository
 import com.ojnexus.core.data.preferences.UserPreferencesRepository
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.network.CoroutineDelayProvider
@@ -80,6 +81,7 @@ class AppContainer(context: android.content.Context) {
     val knowledgeRepository: KnowledgeRepository = KnowledgeRepository(database)
     val backupRepository: BackupRepository = BackupRepository(database, context)
     val userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepository(context)
+    val workspaceDraftRepository = RoomWorkspaceDraftRepository(database.workspaceDraftDao(), clock)
     // --- Codeforces adapter stack (single request gate for the whole process) ---
 
     private val json: Json = Json { ignoreUnknownKeys = true; coerceInputValues = true }

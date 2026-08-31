@@ -44,6 +44,7 @@ import com.ojnexus.core.database.entity.SubmissionJobEntity
 import com.ojnexus.core.database.entity.TrainingSessionEntity
 import com.ojnexus.core.database.entity.TrainingSessionProblemEntity
 import com.ojnexus.core.database.entity.TrainingTaskEntity
+import com.ojnexus.core.database.entity.WorkspaceDraftEntity
 
 /**
  * OJ NEXUS local database. Schema history is exported to app/schemas and committed;
@@ -69,8 +70,10 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
  * v8 (Phase 20 Luogu): nullable Open Platform evaluation details for local result inspection.
  *
  * v9 (Phase 25 Luogu): cached public problem detail snapshots for offline-first reading.
+ *
+ * v10 (Phase 27 Luogu): local workspace drafts keyed by judge and problem.
  */
-const val OJ_NEXUS_SCHEMA_VERSION = 9
+const val OJ_NEXUS_SCHEMA_VERSION = 10
 
 @Database(
     entities = [
@@ -95,6 +98,7 @@ const val OJ_NEXUS_SCHEMA_VERSION = 9
         ProblemKnowledgeEntity::class,
         SyncStateEntity::class,
         SubmissionJobEntity::class,
+        WorkspaceDraftEntity::class,
     ],
     version = OJ_NEXUS_SCHEMA_VERSION,
     exportSchema = true,
@@ -119,6 +123,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
     abstract fun knowledgeDao(): KnowledgeDao
     abstract fun syncStateDao(): SyncStateDao
     abstract fun submissionJobDao(): com.ojnexus.core.database.dao.SubmissionJobDao
+    abstract fun workspaceDraftDao(): com.ojnexus.core.database.dao.WorkspaceDraftDao
 
     companion object {
         const val DATABASE_NAME = "oj-nexus.db"
@@ -543,6 +548,22 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_9_10: Migration = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `workspace_drafts` (" +
+                        "`judge` TEXT NOT NULL, " +
+                        "`pid` TEXT NOT NULL, " +
+                        "`code` TEXT NOT NULL, " +
+                        "`input` TEXT NOT NULL, " +
+                        "`language` TEXT NOT NULL, " +
+                        "`o2` INTEGER NOT NULL, " +
+                        "`updated_at` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`judge`, `pid`))",
+                )
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
                 .addMigrations(
@@ -554,6 +575,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
                     MIGRATION_6_7,
                     MIGRATION_7_8,
                     MIGRATION_8_9,
+                    MIGRATION_9_10,
                 )
                 .build()
     }
