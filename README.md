@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 10 (Luogu authorized submission, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 13 (Luogu on-demand catalog search, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -74,6 +74,12 @@ This remains public-data-only: no main-site login, cookies, CSRF state, or cloud
 Phase 12 / 第 12 阶段: Luogu Arena can read the public contest detail response and show the
 official contest description and contest problem membership when available. / 洛谷 Arena 现在可以
 读取公开竞赛详情响应，在数据可用时展示官方竞赛说明和竞赛题目成员关系。
+
+Phase 13 / 第 13 阶段: Luogu remote problem search now reads Room first and fetches a matching
+public keyword page only when the local cache has no hit, then stores the result locally. This
+makes first-use search practical while the bounded background catalog sync continues. / 洛谷远端
+题库搜索现在先读 Room；本地没有命中时，才按关键词请求公开题库页并写入本地缓存，使后台
+同步尚未完成时也能实际搜索。该阶段仍不使用主站密码、Cookie、Session、CSRF 或云端服务。
 
 ## Documentation
 

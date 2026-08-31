@@ -53,8 +53,8 @@ class LuoguClient(
     suspend fun fetchPracticePage(uid: Long): LuoguUserPageResponse =
         call { api.practicePage(uid) }.also(::requireSuccessful)
 
-    suspend fun fetchProblemPage(page: Int): LuoguProblemListResponse =
-        call { api.problemPage(page) }.also(::requireSuccessful)
+    suspend fun fetchProblemPage(page: Int, keyword: String? = null): LuoguProblemListResponse =
+        call { api.problemPage(page = page, keyword = keyword) }.also(::requireSuccessful)
 
     suspend fun fetchProblem(pid: String): LuoguProblemDetailResponse =
         call { api.problem(pid) }.also(::requireSuccessful)

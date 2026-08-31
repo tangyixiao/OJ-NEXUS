@@ -40,7 +40,10 @@ interface LuoguApi {
         "x-lentille-request: content-only",
     )
     @GET("problem/list")
-    suspend fun problemPage(@Query("page") page: Int): LuoguProblemListResponse
+    suspend fun problemPage(
+        @Query("page") page: Int,
+        @Query("keyword") keyword: String? = null,
+    ): LuoguProblemListResponse
 
     @Headers(
         "Accept: application/json",

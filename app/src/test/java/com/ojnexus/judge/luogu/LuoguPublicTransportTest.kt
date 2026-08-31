@@ -3,6 +3,7 @@ package com.ojnexus.judge.luogu
 import com.ojnexus.core.network.DelayProvider
 import com.ojnexus.core.network.MonotonicClock
 import com.ojnexus.core.network.RateLimitedRequestGate
+import com.ojnexus.core.model.JudgeId
 import com.ojnexus.judge.luogu.api.LuoguApi
 import com.ojnexus.judge.luogu.api.dto.LuoguContestListResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemListResponse
@@ -23,6 +24,9 @@ import org.junit.Test
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 class LuoguPublicTransportTest {
     private lateinit var server: MockWebServer
@@ -127,6 +131,25 @@ class LuoguPublicTransportTest {
             runBlocking { client(maxAttempts = 3).fetchUserPage(7) }
         }
         assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `keyword search requests the matching page and maps rows for the local cache`() {
+        server.enqueue(jsonResponse(
+            """{"status":200,"data":{"problems":{"perPage":50,"count":1,"result":[{"pid":"P1001","name":"A+B Problem","difficulty":1,"tags":["math"],"totalAccepted":3}]}}}""",
+        ))
+
+        val repository = LuoguProblemSearchRepository(
+            client(),
+            Clock.fixed(Instant.ofEpochMilli(42L), ZoneOffset.UTC),
+        )
+        val rows = runBlocking {
+            repository.fetch(JudgeId.LUOGU, " P1001 ", limit = 50, offset = 50)
+        }
+
+        assertEquals("P1001", rows.single().externalId)
+        assertEquals(3, rows.single().solvedCount)
+        assertEquals("/problem/list?page=2&keyword=P1001", server.takeRequest().path)
     }
 
     private fun client(maxAttempts: Int = 1): LuoguClient {

@@ -133,3 +133,18 @@ Luogu. It displays the official contest description, participant count, and the 
 The app does not infer membership from unrelated catalog rows; each listed problem comes from the
 contest detail payload and can be opened explicitly on the canonical Luogu page. / 应用不会从无关
 题库行推断竞赛归属；列表中的每道题都来自竞赛详情响应，并可由用户主动打开标准洛谷页面。
+
+## PHASE 13 — Luogu on-demand problem search / 洛谷按需题库搜索
+
+The remote problem catalog remains Room-first. When a non-blank Luogu keyword has no local hit,
+the app requests the matching public `problem/list?keyword=...` page, maps the response through the
+judge boundary, and upserts it into the local catalog. This avoids requiring a user to wait for the
+entire public catalog before the first search. / 远端题库仍然坚持 Room 优先；当非空洛谷关键词在
+本地没有命中时，应用才请求公开的 `problem/list?keyword=...` 页面，经 OJ 边界映射后写入本地
+题库，从而不要求用户等待完整公开题库同步结束后才能首次搜索。
+
+Blank queries and later pages remain local-only until a future explicit paging policy is added.
+The provider is public-data-only and does not add Luogu main-site passwords, cookies, sessions,
+CSRF state, cloud accounts, or cross-device synchronization. / 空关键词和后续分页目前仍只读
+本地缓存，未来如需扩展会单独定义分页策略；本阶段仍只使用公开数据，不新增洛谷主站密码、
+Cookie、Session、CSRF、云端账号或跨设备同步。

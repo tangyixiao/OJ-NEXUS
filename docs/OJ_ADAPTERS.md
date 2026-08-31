@@ -51,6 +51,11 @@ not fabricate a Luogu contest problem list.
 Luogu remote problem rows additionally enter the local Open Platform workspace directly; other
 judges do not expose that action because their submission gateways are not wired here.
 
+For remote problem search, Room is queried first. A non-blank Luogu keyword with no local hit may
+invoke the public `problem/list?keyword=...` endpoint once for the requested first page, then cache
+the returned rows. / 远端题库搜索先查询 Room；非空洛谷关键词在本地没有命中时，才可请求公开的
+`problem/list?keyword=...` 首页，并把返回条目写入缓存。
+
 The anonymous `/record/list` response is an auth/login envelope. It is surfaced as
 `AuthenticationRequired` and leaves submissions empty; password login, Cookie/Session/CSRF
 handling, and auto-submit are not part of this phase. Cloud account and cross-device sync are

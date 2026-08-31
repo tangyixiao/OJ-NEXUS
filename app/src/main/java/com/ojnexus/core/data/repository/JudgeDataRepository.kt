@@ -9,15 +9,28 @@ import com.ojnexus.core.model.JudgeId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
+fun interface RemoteProblemSearchProvider {
+    suspend fun fetch(
+        judge: JudgeId,
+        query: String,
+        limit: Int,
+        offset: Int,
+    ): List<RemoteProblemEntity>
+}
+
 data class JudgeConnectionSnapshot(
     val accounts: Map<JudgeId, JudgeAccountEntity>,
     val profiles: Map<JudgeId, JudgeProfileEntity>,
     val syncStates: Map<JudgeId, SyncStateEntity>,
 )
 
-/** Judge-agnostic Room read facade used by features; it never initiates network work. */
+/**
+ * Judge-agnostic remote-data facade used by features. Room remains the first read path;
+ * an optional provider is consulted only for an explicit non-blank query with no local hit.
+ */
 class JudgeDataRepository(
     private val database: OjNexusDatabase,
+    private val remoteProblemProviders: Map<JudgeId, RemoteProblemSearchProvider> = emptyMap(),
 ) {
     fun observeConnections(): Flow<JudgeConnectionSnapshot> = combine(
         database.judgeAccountDao().observeAll(),
@@ -45,9 +58,28 @@ class JudgeDataRepository(
         solvedFilter: Int,
         limit: Int,
         offset: Int,
+    ): List<RemoteProblemEntity> {
+        val normalizedQuery = query.trim()
+        val local = searchLocal(judge, normalizedQuery, solvedFilter, limit, offset)
+        val provider = remoteProblemProviders[judge]
+        if (local.isNotEmpty() || normalizedQuery.isBlank() || offset != 0 || provider == null) {
+            return local
+        }
+
+        val fetched = provider.fetch(judge, normalizedQuery, limit, offset)
+        if (fetched.isNotEmpty()) database.remoteProblemDao().upsertAll(fetched)
+        return searchLocal(judge, normalizedQuery, solvedFilter, limit, offset)
+    }
+
+    private suspend fun searchLocal(
+        judge: JudgeId,
+        query: String,
+        solvedFilter: Int,
+        limit: Int,
+        offset: Int,
     ): List<RemoteProblemEntity> = database.remoteProblemDao().search(
         judge = judge.id,
-        query = query.trim(),
+        query = query,
         minRating = null,
         maxRating = null,
         solvedFilter = solvedFilter,

@@ -39,11 +39,13 @@ import com.ojnexus.judge.luogu.LuoguClient
 import com.ojnexus.judge.luogu.LuoguPolicies
 import com.ojnexus.judge.luogu.LuoguProblemDetailRepository
 import com.ojnexus.judge.luogu.LuoguContestDetailRepository
+import com.ojnexus.judge.luogu.LuoguProblemSearchRepository
 import com.ojnexus.judge.luogu.LuoguUrls
 import com.ojnexus.judge.luogu.RetrofitLuoguAdapter
 import com.ojnexus.judge.luogu.LuoguSyncCoordinator
 import com.ojnexus.judge.luogu.LuoguSyncRepository
 import com.ojnexus.judge.luogu.api.LuoguApi
+import com.ojnexus.core.model.JudgeId
 import com.ojnexus.judge.luogu.open.AndroidOpenAppCredentialStore
 import com.ojnexus.judge.luogu.open.LuoguOpenPlatformApi
 import com.ojnexus.judge.luogu.open.LuoguOpenPlatformClient
@@ -78,8 +80,6 @@ class AppContainer(context: android.content.Context) {
     val knowledgeRepository: KnowledgeRepository = KnowledgeRepository(database)
     val backupRepository: BackupRepository = BackupRepository(database, context)
     val userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepository(context)
-    val judgeDataRepository = JudgeDataRepository(database)
-
     // --- Codeforces adapter stack (single request gate for the whole process) ---
 
     private val json: Json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
@@ -131,6 +131,10 @@ class AppContainer(context: android.content.Context) {
         delayProvider = CoroutineDelayProvider(),
     )
     private val luoguClient = LuoguClient(luoguApi, luoguGate)
+    val judgeDataRepository = JudgeDataRepository(
+        database,
+        remoteProblemProviders = mapOf(JudgeId.LUOGU to LuoguProblemSearchRepository(luoguClient)),
+    )
     val luoguProblemDetailRepository = LuoguProblemDetailRepository(luoguClient)
     val luoguContestDetailRepository = LuoguContestDetailRepository(luoguClient)
     private val luoguAdapter = RetrofitLuoguAdapter(luoguClient)
