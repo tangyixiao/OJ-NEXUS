@@ -4,6 +4,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -14,6 +16,8 @@ import org.junit.Before
 import org.junit.Test
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class LuoguOpenPlatformValidationTest {
 
@@ -88,7 +92,11 @@ class LuoguOpenPlatformClientTest {
             )
             .build()
             .create(LuoguOpenPlatformApi::class.java)
-        client = LuoguOpenPlatformClient(api, FakeOpenAppCredentialStore(OpenAppCredential("u", "s")))
+        client = LuoguOpenPlatformClient(
+            api,
+            FakeOpenAppCredentialStore(OpenAppCredential("u", "s")),
+            webSocketUrl = server.url("/ws").toString(),
+        )
     }
 
     @After
@@ -122,6 +130,57 @@ class LuoguOpenPlatformClientTest {
 
         assertEquals(LuoguOpenResult.Pending, client.fetchResult("req-1"))
         assertEquals("/judge/result/req-1", server.takeRequest().path)
+    }
+
+    @Test
+    fun `result signal filters request id and channel payload`() = runBlocking {
+        val closed = CountDownLatch(1)
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(
+                object : WebSocketListener() {
+                    override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
+                        webSocket.send("judge.result\u0000{\"requestId\":\"other\"}")
+                        webSocket.send("judge.result\u0000{\"requestId\":\"req-1\"}")
+                    }
+
+                    override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                        closed.countDown()
+                    }
+
+                    override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
+                        closed.countDown()
+                    }
+                },
+            ),
+        )
+
+        assertTrue(client.awaitResultSignal("req-1", 1_000L))
+        assertTrue(closed.await(1, TimeUnit.SECONDS))
+        val request = server.takeRequest()
+        assertEquals("/ws", request.requestUrl?.encodedPath)
+        assertEquals("u:s", request.requestUrl?.queryParameter("token"))
+        assertEquals("judge.result", request.requestUrl?.queryParameter("channel"))
+    }
+
+    @Test
+    fun `result signal timeout returns false and closes socket`() = runBlocking {
+        val closed = CountDownLatch(1)
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(
+                object : WebSocketListener() {
+                    override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                        closed.countDown()
+                    }
+
+                    override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
+                        closed.countDown()
+                    }
+                },
+            ),
+        )
+
+        assertFalse(client.awaitResultSignal("req-timeout", 100L))
+        assertTrue(closed.await(1, TimeUnit.SECONDS))
     }
 
     @Test

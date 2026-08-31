@@ -3,16 +3,30 @@ package com.ojnexus.judge.luogu.open
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import com.ojnexus.judge.luogu.LuoguUrls
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Path
+import kotlin.coroutines.resume
+import kotlinx.coroutines.selects.select
 
 /** The Open Platform credential pair; this is never the user's Luogu main-site password. */
 data class OpenAppCredential(
@@ -235,6 +249,7 @@ data class LuoguOpenQuotaSnapshot(val quotas: List<LuoguOpenQuota>) {
 
 private const val FOREGROUND_RESULT_POLL_ATTEMPTS = 8
 private const val FOREGROUND_RESULT_POLL_DELAY_MS = 1_000L
+private const val FOREGROUND_RESULT_SIGNAL_TIMEOUT_MS = 5_000L
 
 /**
  * Bounded foreground-only result polling shared by the workspace and submission center.
@@ -244,29 +259,72 @@ internal suspend fun pollLuoguOpenResult(
     requestId: String,
     fetch: suspend (String) -> LuoguOpenResult,
     delayForResult: (suspend (Long) -> Unit)? = null,
-): LuoguOpenResult {
-    repeat(FOREGROUND_RESULT_POLL_ATTEMPTS) { attempt ->
-        when (val result = fetch(requestId)) {
-            is LuoguOpenResult.Ready -> return result
-            LuoguOpenResult.Pending -> {
-                if (attempt < FOREGROUND_RESULT_POLL_ATTEMPTS - 1) {
-                    if (delayForResult == null) {
-                        delay(FOREGROUND_RESULT_POLL_DELAY_MS)
-                    } else {
-                        delayForResult(FOREGROUND_RESULT_POLL_DELAY_MS)
+    awaitResultSignal: (suspend (String, Long) -> Boolean)? = null,
+): LuoguOpenResult = coroutineScope {
+    val signal = awaitResultSignal?.let { awaiter ->
+        async(start = CoroutineStart.UNDISPATCHED) {
+            runCatching { awaiter(requestId, FOREGROUND_RESULT_SIGNAL_TIMEOUT_MS) }
+                .getOrDefault(false)
+        }
+    }
+    var signalHandled = signal == null
+    var signalTriggered = false
+    try {
+        repeat(FOREGROUND_RESULT_POLL_ATTEMPTS) { attempt ->
+            when (val result = fetch(requestId)) {
+                is LuoguOpenResult.Ready -> return@coroutineScope result
+                LuoguOpenResult.Pending -> {
+                    if (attempt < FOREGROUND_RESULT_POLL_ATTEMPTS - 1) {
+                        var waitedForNextFetch = false
+                        if (signal != null && !signalHandled) {
+                            if (signal.isCompleted) {
+                                signalHandled = true
+                                signalTriggered = signal.await()
+                            } else {
+                                val tick = async(start = CoroutineStart.UNDISPATCHED) {
+                                    if (delayForResult == null) {
+                                        delay(FOREGROUND_RESULT_POLL_DELAY_MS)
+                                    } else {
+                                        delayForResult(FOREGROUND_RESULT_POLL_DELAY_MS)
+                                    }
+                                }
+                                select<Unit> {
+                                    signal.onAwait {
+                                        signalHandled = true
+                                        signalTriggered = it
+                                    }
+                                    tick.onAwait { waitedForNextFetch = true }
+                                }
+                                tick.cancel()
+                            }
+                            if (signalTriggered) {
+                                signalTriggered = false
+                                return@repeat
+                            }
+                        }
+                        if (!waitedForNextFetch) {
+                            delayForResult?.invoke(FOREGROUND_RESULT_POLL_DELAY_MS)
+                                ?: delay(FOREGROUND_RESULT_POLL_DELAY_MS)
+                        }
                     }
                 }
             }
         }
+        LuoguOpenResult.Pending
+    } finally {
+        signal?.cancel()
     }
-    return LuoguOpenResult.Pending
 }
 
 interface LuoguOpenQuotaReader {
     suspend fun fetchQuota(): LuoguOpenQuotaSnapshot
 }
 
-interface LuoguOpenGateway {
+interface LuoguOpenResultSignal {
+    suspend fun awaitResultSignal(requestId: String, timeoutMillis: Long): Boolean = false
+}
+
+interface LuoguOpenGateway : LuoguOpenResultSignal {
     /** True only when the concrete provider documents custom-input execution. */
     val supportsCustomInputRun: Boolean
         get() = true
@@ -298,8 +356,59 @@ sealed class LuoguOpenApiError(message: String) : Exception(message) {
 class LuoguOpenPlatformClient internal constructor(
     private val api: LuoguOpenPlatformApi,
     private val credentialStore: OpenAppCredentialStore,
+    private val webSocketClient: OkHttpClient = OkHttpClient(),
+    private val webSocketUrl: String = LuoguUrls.OPEN_PLATFORM_WEBSOCKET_URL,
 ) : LuoguOpenGateway, LuoguOpenQuotaReader {
+    private val callbackJson = Json { ignoreUnknownKeys = true; coerceInputValues = true }
     override val supportsCustomInputRun: Boolean = false
+
+    override suspend fun awaitResultSignal(requestId: String, timeoutMillis: Long): Boolean {
+        if (requestId.isBlank() || timeoutMillis <= 0L) return false
+        val credential = credentialStore.read() ?: return false
+        val url = webSocketUrl.toHttpUrl().newBuilder()
+            .addQueryParameter("token", "${credential.user}:${credential.secret}")
+            .addQueryParameter("channel", "judge.result")
+            .build()
+        return withTimeoutOrNull(timeoutMillis) {
+            suspendCancellableCoroutine { continuation ->
+                lateinit var socket: WebSocket
+                var completed = false
+
+                fun finish(value: Boolean) {
+                    if (completed) return
+                    completed = true
+                    socket.cancel()
+                    continuation.resume(value)
+                }
+
+                socket = webSocketClient.newWebSocket(
+                    Request.Builder().url(url).build(),
+                    object : WebSocketListener() {
+                        override fun onMessage(webSocket: WebSocket, text: String) {
+                            val payload = text.substringAfter('\u0000', text)
+                            val callback = runCatching {
+                                callbackJson.decodeFromString<LuoguJudgeCallbackDto>(payload)
+                            }.getOrNull()
+                            if (callback?.requestId == requestId) finish(true)
+                        }
+
+                        override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                            finish(false)
+                        }
+
+                        override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
+                            finish(false)
+                        }
+                    },
+                )
+                continuation.invokeOnCancellation {
+                    socket.cancel()
+                }
+            }
+        } ?: run {
+            false
+        }
+    }
 
     override suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission =
         executeSubmission(

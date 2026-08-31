@@ -19,7 +19,7 @@ interface LuoguSubmissionHistory {
     suspend fun latestForProblem(pid: String): SubmissionJobEntity?
 }
 
-interface LuoguSubmissionCenter : LuoguSubmissionHistory {
+interface LuoguSubmissionCenter : LuoguSubmissionHistory, LuoguOpenResultSignal {
     fun observeRecentJobs(limit: Int): Flow<List<SubmissionJobEntity>>
     suspend fun refreshResult(requestId: String): LuoguOpenResult
 }
@@ -37,6 +37,9 @@ class LuoguSubmissionRepository(
 
     override suspend fun latestForProblem(pid: String): SubmissionJobEntity? =
         dao.findLatestByProblem(JudgeId.LUOGU.id, pid)
+
+    override suspend fun awaitResultSignal(requestId: String, timeoutMillis: Long): Boolean =
+        gateway.awaitResultSignal(requestId, timeoutMillis)
 
     override fun observeRecentJobs(limit: Int): Flow<List<SubmissionJobEntity>> =
         dao.observeRecent(limit)
@@ -88,6 +91,16 @@ class LuoguSubmissionRepository(
                             status = if (finished) SubmissionJobStatus.READY.name else SubmissionJobStatus.PENDING.name,
                             judgeStatus = result.evaluation.status,
                             score = result.evaluation.score,
+                            compileSuccess = result.evaluation.compileSuccess,
+                            compileMessage = result.evaluation.compileMessage,
+                            output = result.evaluation.output,
+                            exitCode = result.evaluation.exitCode,
+                            executionTimeMs = result.evaluation.timeMs
+                                ?.coerceIn(0, Int.MAX_VALUE.toLong())
+                                ?.toInt(),
+                            memoryKiB = result.evaluation.memoryKiB
+                                ?.coerceIn(0, Int.MAX_VALUE.toLong())
+                                ?.toInt(),
                             updatedAt = clock.millis(),
                             lastErrorType = null,
                         ),

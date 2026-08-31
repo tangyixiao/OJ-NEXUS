@@ -164,6 +164,7 @@ class MigrationTest {
             OjNexusDatabase.MIGRATION_4_5,
             OjNexusDatabase.MIGRATION_5_6,
             OjNexusDatabase.MIGRATION_6_7,
+            OjNexusDatabase.MIGRATION_7_8,
         ).build()
 
         try {
@@ -254,6 +255,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_4_5,
                 OjNexusDatabase.MIGRATION_5_6,
                 OjNexusDatabase.MIGRATION_6_7,
+                OjNexusDatabase.MIGRATION_7_8,
             )
             .build()
         db.openHelper.writableDatabase
@@ -325,6 +327,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_4_5,
                 OjNexusDatabase.MIGRATION_5_6,
                 OjNexusDatabase.MIGRATION_6_7,
+                OjNexusDatabase.MIGRATION_7_8,
             )
             .build()
         try {
@@ -339,7 +342,7 @@ class MigrationTest {
         createDatabaseFromSchema(5)
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_5_6, OjNexusDatabase.MIGRATION_6_7)
+            .addMigrations(OjNexusDatabase.MIGRATION_5_6, OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -367,7 +370,7 @@ class MigrationTest {
         createDatabaseFromSchema(6)
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_6_7)
+            .addMigrations(OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -388,6 +391,58 @@ class MigrationTest {
         assertTrue(columns.containsAll(setOf("request_id", "kind", "status", "created_at", "updated_at")))
         assertTrue("code" !in columns)
         assertTrue("input" !in columns)
+        raw.close()
+    }
+
+    @Test
+    fun `migrate 7 to 8 preserves submission jobs and adds evaluation details`() {
+        createDatabaseFromSchema(7)
+        val v7 = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        v7.execSQL(
+            "INSERT INTO submission_jobs (judge, request_id, track_id, kind, pid, language, status, " +
+                "judge_status, score, created_at, updated_at, last_error_type) " +
+                "VALUES ('luogu', 'req-7', NULL, 'PROBLEM', 'P1001', 'cpp', 'PENDING', NULL, NULL, 10, 20, NULL)",
+        )
+        v7.close()
+
+        val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
+            .addMigrations(OjNexusDatabase.MIGRATION_7_8)
+            .build()
+        try {
+            db.openHelper.writableDatabase
+        } finally {
+            db.close()
+        }
+
+        val raw = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        val columns = buildSet {
+            raw.rawQuery("PRAGMA table_info(`submission_jobs`)", null).use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+            }
+        }
+        assertTrue(
+            columns.containsAll(
+                setOf("compile_success", "compile_message", "output", "exit_code", "execution_time_ms", "memory_kib"),
+            ),
+        )
+        raw.rawQuery(
+            "SELECT request_id, status, created_at, compile_success, output FROM submission_jobs",
+            null,
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("req-7", cursor.getString(0))
+            assertEquals("PENDING", cursor.getString(1))
+            assertEquals(10L, cursor.getLong(2))
+            assertTrue(cursor.isNull(3))
+            assertTrue(cursor.isNull(4))
+        }
         raw.close()
     }
 }

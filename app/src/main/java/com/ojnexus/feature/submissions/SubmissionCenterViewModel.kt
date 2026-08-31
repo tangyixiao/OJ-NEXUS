@@ -79,6 +79,7 @@ class SubmissionCenterViewModel(
                     requestId = requestId,
                     fetch = submissionCenter::refreshResult,
                     delayForResult = delayForResult,
+                    awaitResultSignal = submissionCenter::awaitResultSignal,
                 )
                 actionError.update { current ->
                     if (current?.requestId == requestId) {

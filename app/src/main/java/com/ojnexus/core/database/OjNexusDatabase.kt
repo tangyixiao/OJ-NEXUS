@@ -63,8 +63,10 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
  *
  * v7 (Phase 2 Luogu): local Open Platform request lifecycle metadata. Source code, input,
  * and credentials are intentionally not database columns.
+ *
+ * v8 (Phase 20 Luogu): nullable Open Platform evaluation details for local result inspection.
  */
-const val OJ_NEXUS_SCHEMA_VERSION = 7
+const val OJ_NEXUS_SCHEMA_VERSION = 8
 
 @Database(
     entities = [
@@ -499,9 +501,20 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_7_8: Migration = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `submission_jobs` ADD COLUMN `compile_success` INTEGER")
+                db.execSQL("ALTER TABLE `submission_jobs` ADD COLUMN `compile_message` TEXT")
+                db.execSQL("ALTER TABLE `submission_jobs` ADD COLUMN `output` TEXT")
+                db.execSQL("ALTER TABLE `submission_jobs` ADD COLUMN `exit_code` INTEGER")
+                db.execSQL("ALTER TABLE `submission_jobs` ADD COLUMN `execution_time_ms` INTEGER")
+                db.execSQL("ALTER TABLE `submission_jobs` ADD COLUMN `memory_kib` INTEGER")
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .build()
     }
 }

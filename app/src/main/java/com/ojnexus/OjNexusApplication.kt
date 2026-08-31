@@ -148,7 +148,11 @@ class AppContainer(context: android.content.Context) {
         .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
         .build()
         .create(LuoguOpenPlatformApi::class.java)
-    val luoguOpenClient = LuoguOpenPlatformClient(luoguOpenApi, luoguOpenCredentialStore)
+    val luoguOpenClient = LuoguOpenPlatformClient(
+        luoguOpenApi,
+        luoguOpenCredentialStore,
+        webSocketClient = okHttpClient,
+    )
     val luoguSubmissionRepository = LuoguSubmissionRepository(database, luoguOpenClient, clock)
 
     val judgeRegistry = JudgeRegistry(

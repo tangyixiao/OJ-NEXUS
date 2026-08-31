@@ -224,6 +224,38 @@ private fun SubmissionJobCard(
                 stringResource(R.string.submissions_judge_status_value, it),
             )
         }
+        job.compileSuccess?.let {
+            SubmissionMetadataLine(
+                stringResource(R.string.submissions_compile),
+                stringResource(
+                    if (it) R.string.submissions_compile_success else R.string.submissions_compile_failed,
+                ),
+            )
+        }
+        job.compileMessage?.takeIf { it.isNotBlank() }?.let {
+            SubmissionMetadataLine(stringResource(R.string.submissions_compile_message), it)
+        }
+        job.output?.takeIf { it.isNotBlank() }?.let {
+            SubmissionMetadataLine(stringResource(R.string.submissions_output), it)
+        }
+        job.exitCode?.let {
+            SubmissionMetadataLine(
+                stringResource(R.string.submissions_exit_code),
+                stringResource(R.string.submissions_exit_code_value, it),
+            )
+        }
+        job.executionTimeMs?.let {
+            SubmissionMetadataLine(
+                stringResource(R.string.submissions_execution_time),
+                stringResource(R.string.submissions_execution_time_value, it),
+            )
+        }
+        job.memoryKiB?.let {
+            SubmissionMetadataLine(
+                stringResource(R.string.submissions_memory),
+                stringResource(R.string.submissions_memory_value, it),
+            )
+        }
         job.lastErrorType?.takeIf { it.isNotBlank() }?.let {
             SubmissionMetadataLine(stringResource(R.string.submissions_error), it)
         }

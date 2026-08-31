@@ -218,6 +218,7 @@ class WorkspaceViewModel(
             requestId = requestId,
             fetch = gateway::fetchResult,
             delayForResult = delayForResult,
+            awaitResultSignal = gateway::awaitResultSignal,
         )
     }
 

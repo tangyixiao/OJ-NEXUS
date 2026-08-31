@@ -210,6 +210,27 @@ it does not add main-site passwords, cookies, sessions, CSRF state, cloud accoun
 cross-device synchronization. / 本功能仍为本地优先，沿用现有 Keystore 保护的 OpenApp 凭据边界，
 不新增主站密码、Cookie、Session、CSRF 状态、云端账号或跨设备同步。
 
+## PHASE 20 — OpenApp evaluation usability / OpenApp 评测可用性
+
+Foreground OpenApp result checks can now wait for the official WebSocket `judge.result` notification
+as an optional wake-up signal. The notification never becomes a second authority: the existing
+authenticated HTTP result response still determines persistence and status, and bounded HTTP polling
+continues when the socket is unavailable or silent. / 前台 OpenApp 结果查询现在可以等待官方
+WebSocket 的 `judge.result` 通知作为可选唤醒信号。通知不会成为第二个权威来源：仍由原有鉴权
+HTTP 结果响应决定持久化和状态；Socket 不可用或没有通知时继续有限 HTTP 轮询。
+
+Room v8 adds nullable compile success/message, output, exit code, execution time, and memory fields
+to local submission jobs. The submission center renders available values and leaves missing upstream
+fields absent, so a user can inspect the same evaluation snapshot after navigation or process restart.
+/ Room v8 为本地提交任务增加可空的编译成功/信息、输出、退出码、运行时间和内存字段。提交
+中心展示上游实际返回的值，缺失字段保持为空，使用户在跳转或进程重启后仍能查看相同评测快照。
+
+This phase remains foreground-only and local-first. It does not add Luogu main-site login, passwords,
+cookies, sessions, CSRF state, cloud accounts, cross-device sync, automatic POST retry, a local
+compiler, or custom-input execution. Previous phase notes and published Releases remain unchanged.
+/ 本阶段仍仅限前台和本地优先，不新增洛谷主站登录、密码、Cookie、Session、CSRF 状态、云端账号、
+跨设备同步、POST 自动重试、本地编译器或自定义输入运行。此前阶段说明和已发布 Releases 保持不变。
+
 ## PHASE 19 — Submission center result polling / 提交中心结果轮询
 
 The local submission center now shares the bounded foreground result polling helper with the problem

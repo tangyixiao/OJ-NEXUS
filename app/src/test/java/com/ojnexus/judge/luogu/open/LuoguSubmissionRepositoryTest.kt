@@ -68,13 +68,13 @@ class LuoguSubmissionRepositoryTest {
                 trackId = null,
                 type = "judge",
                 compileSuccess = true,
-                compileMessage = null,
+                compileMessage = "compiled",
                 status = 12,
                 score = 100,
                 timeMs = 2,
                 memoryKiB = 3,
-                output = null,
-                exitCode = null,
+                output = "accepted output",
+                exitCode = 0,
             ),
         )
 
@@ -84,6 +84,12 @@ class LuoguSubmissionRepositoryTest {
         assertEquals(SubmissionJobStatus.READY.name, job?.status)
         assertEquals(12, job?.judgeStatus)
         assertEquals(100, job?.score)
+        assertEquals(true, job?.compileSuccess)
+        assertEquals("compiled", job?.compileMessage)
+        assertEquals("accepted output", job?.output)
+        assertEquals(0, job?.exitCode)
+        assertEquals(2, job?.executionTimeMs)
+        assertEquals(3, job?.memoryKiB)
         assertEquals(1_000L, job?.updatedAt)
     }
 

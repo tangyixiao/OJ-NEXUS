@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 19 (submission-center result polling, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 20 (OpenApp evaluation usability, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -115,6 +115,20 @@ the workspace, so pending OpenApp requests converge consistently from either ent
 现在与工作区使用相同的前台有限结果等待，Pending 的 OpenApp 请求从任一入口都能一致收敛。
 POST submissions remain explicit and are never retried automatically; historical notes and Releases remain intact. /
 POST 提交仍需用户明确触发且不会自动重试；历史说明和 Releases 保持不变。
+
+Phase 20 / 第 20 阶段: Foreground OpenApp result checks can use the official WebSocket notification
+as an optional wake-up signal, while the authenticated HTTP result response remains authoritative.
+The local submission job now preserves nullable compile status/message, output, exit code, execution
+time, and memory, and the submission center renders them after navigation or restart. / 第 20 阶段：
+前台 OpenApp 结果查询可以使用官方 WebSocket 通知作为可选唤醒信号，但鉴权 HTTP 结果响应仍是
+唯一权威来源。本地提交任务现在保存可空的编译状态/信息、输出、退出码、运行时间和内存，
+提交中心在跳转或重启后仍会展示这些详情。
+The phase remains local-first and foreground-only: no Luogu main-site password, cookie, session,
+CSRF state, cloud account, cross-device sync, automatic POST retry, local compiler, or custom-input
+runner is added. / 本阶段仍坚持本地优先和仅前台执行，不新增洛谷主站密码、Cookie、Session、
+CSRF 状态、云端账号、跨设备同步、POST 自动重试、本地编译器或自定义输入运行器。历史版本、
+历史 Release 和既有说明继续保留。 / Historical versions, Releases, and existing explanations
+remain intact.
 
 ## Documentation
 
