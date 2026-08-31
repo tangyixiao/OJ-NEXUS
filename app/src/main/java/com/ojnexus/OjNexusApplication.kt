@@ -135,7 +135,11 @@ class AppContainer(context: android.content.Context) {
         database,
         remoteProblemProviders = mapOf(JudgeId.LUOGU to LuoguProblemSearchRepository(luoguClient)),
     )
-    val luoguProblemDetailRepository = LuoguProblemDetailRepository(luoguClient)
+    val luoguProblemDetailRepository = LuoguProblemDetailRepository(
+        client = luoguClient,
+        detailDao = database.remoteProblemDetailDao(),
+        clock = clock,
+    )
     val luoguContestDetailRepository = LuoguContestDetailRepository(luoguClient)
     private val luoguAdapter = RetrofitLuoguAdapter(luoguClient)
 

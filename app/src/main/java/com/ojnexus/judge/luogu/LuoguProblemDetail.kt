@@ -2,6 +2,7 @@ package com.ojnexus.judge.luogu
 
 import com.ojnexus.core.database.entity.RemoteProblemDetailEntity
 import com.ojnexus.core.model.JudgeId
+import com.ojnexus.core.database.dao.RemoteProblemDetailDao
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemContentDto
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemDetailData
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemDetailDto
@@ -87,9 +88,61 @@ object LuoguProblemDetailMapper {
         )
 }
 
-class LuoguProblemDetailRepository(private val client: LuoguClient) {
-    suspend fun fetch(pid: String): LuoguProblemDetail =
-        LuoguProblemDetailMapper.toDomain(client.fetchProblem(pid).data ?: error("Luogu problem data is missing"))
+enum class LuoguProblemDetailSource {
+    CACHE,
+    NETWORK,
+    CACHE_FALLBACK,
+}
+
+data class LuoguProblemDetailResult(
+    val detail: LuoguProblemDetail,
+    val source: LuoguProblemDetailSource,
+)
+
+class LuoguProblemDetailRepository(
+    private val client: LuoguClient,
+    private val detailDao: RemoteProblemDetailDao,
+    private val clock: java.time.Clock = java.time.Clock.systemUTC(),
+) {
+    suspend fun fetch(pid: String): LuoguProblemDetailResult {
+        val cached = detailDao.findByKey(JudgeId.LUOGU.id, pid)
+        return cached?.let {
+            LuoguProblemDetailResult(
+                detail = LuoguProblemDetailMapper.fromCache(it),
+                source = LuoguProblemDetailSource.CACHE,
+            )
+        } ?: fetchFromNetwork(pid)
+    }
+
+    suspend fun refresh(pid: String): LuoguProblemDetailResult {
+        val cached = detailDao.findByKey(JudgeId.LUOGU.id, pid)
+        return try {
+            fetchFromNetwork(pid)
+        } catch (error: LuoguApiError) {
+            if (cached != null && error.isCacheFallbackEligible) {
+                LuoguProblemDetailResult(
+                    detail = LuoguProblemDetailMapper.fromCache(cached),
+                    source = LuoguProblemDetailSource.CACHE_FALLBACK,
+                )
+            } else {
+                throw error
+            }
+        }
+    }
+
+    private suspend fun fetchFromNetwork(pid: String): LuoguProblemDetailResult {
+        val response = client.fetchProblem(pid)
+        val detail = LuoguProblemDetailMapper.toDomain(
+            response.data ?: throw LuoguApiError.ParseError(
+                IllegalStateException("Luogu problem data is missing"),
+            ),
+        )
+        detailDao.upsert(LuoguProblemDetailMapper.toCache(detail, clock.millis()))
+        return LuoguProblemDetailResult(detail, LuoguProblemDetailSource.NETWORK)
+    }
+
+    private val LuoguApiError.isCacheFallbackEligible: Boolean
+        get() = this is LuoguApiError.Network || this is LuoguApiError.Timeout
 }
 
 sealed interface LuoguMarkdownBlock {

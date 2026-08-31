@@ -15,6 +15,6 @@ class LuoguProblemDetailViewModel(
 ) : ViewModel() {
     val state = flow<Loadable<LuoguProblemDetail>> {
         emit(Loadable.Loading)
-        emit(Loadable.Ready(repository.fetch(pid)))
+        emit(Loadable.Ready(repository.fetch(pid).detail))
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
 }
