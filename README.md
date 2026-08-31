@@ -64,6 +64,13 @@ documentation before credential configuration. See
 [docs/ACHIEVEMENTS.md](docs/ACHIEVEMENTS.md),
 [docs/SYNC_ENGINE.md](docs/SYNC_ENGINE.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 
+Phase 11 / 第 11 阶段: Luogu remote rows can open a native problem-detail screen that reads
+public content-only problem data, renders safe Markdown blocks, samples, and limits, and links
+to the official source page or local workspace. / 洛谷远端题库条目现在可以打开原生题目详情页，
+读取公开 content-only 题面，安全展示 Markdown 区块、样例和限制，并可跳转官方原题或本地工作区。
+This remains public-data-only: no main-site login, cookies, CSRF state, or cloud service. /
+本阶段仍只使用公开数据，不实现主站登录、Cookie、CSRF 状态或云端服务。
+
 ## Documentation
 
 - [Product Spec](docs/PRODUCT_SPEC.md)

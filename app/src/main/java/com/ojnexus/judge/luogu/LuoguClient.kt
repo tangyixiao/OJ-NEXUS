@@ -6,6 +6,7 @@ import com.ojnexus.core.network.RateLimitedRequestGate
 import com.ojnexus.judge.luogu.api.LuoguApi
 import com.ojnexus.judge.luogu.api.dto.LuoguContestListResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemListResponse
+import com.ojnexus.judge.luogu.api.dto.LuoguProblemDetailResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguRecordPageResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguUserPageResponse
 import java.io.IOException
@@ -54,6 +55,9 @@ class LuoguClient(
     suspend fun fetchProblemPage(page: Int): LuoguProblemListResponse =
         call { api.problemPage(page) }.also(::requireSuccessful)
 
+    suspend fun fetchProblem(pid: String): LuoguProblemDetailResponse =
+        call { api.problem(pid) }.also(::requireSuccessful)
+
     suspend fun fetchContestPage(page: Int): LuoguContestListResponse =
         call { api.contestPage(page) }.also(::requireSuccessful)
 
@@ -69,6 +73,7 @@ class LuoguClient(
         val status = when (response) {
             is LuoguUserPageResponse -> response.status
             is LuoguProblemListResponse -> response.status
+            is LuoguProblemDetailResponse -> response.status
             is LuoguContestListResponse -> response.status
             is LuoguRecordPageResponse -> response.status
             else -> 200

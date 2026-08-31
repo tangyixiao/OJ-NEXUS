@@ -38,6 +38,7 @@ import com.ojnexus.feature.dashboard.DashboardScreen
 import com.ojnexus.feature.profile.ProfileScreen
 import com.ojnexus.feature.problems.ProblemDetailScreen
 import com.ojnexus.feature.problems.ProblemFormScreen
+import com.ojnexus.feature.problems.LuoguProblemDetailScreen
 import com.ojnexus.feature.problems.ProblemsScreen
 import com.ojnexus.feature.settings.SettingsScreen
 import com.ojnexus.feature.submissions.SubmissionCenterScreen
@@ -57,6 +58,7 @@ object NexusRoutes {
     const val SETTINGS = "settings"
     const val SUBMISSIONS = "submissions"
     const val WORKSPACE = "workspace/{pid}"
+    const val LUOGU_PROBLEM_DETAIL = "luogu-problem/{pid}"
 }
 
 /**
@@ -118,6 +120,9 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             onAddProblem = { navController.navigate(NexusRoutes.PROBLEM_ADD) },
                             onOpenWorkspace = { pid ->
                                 navController.navigate("workspace/${android.net.Uri.encode(pid)}")
+                            },
+                            onOpenLuoguDetail = { pid ->
+                                navController.navigate("luogu-problem/${android.net.Uri.encode(pid)}")
                             },
                         )
                     }
@@ -182,6 +187,19 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         WorkspaceScreen(
                             pid = pid,
                             onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable(
+                        route = NexusRoutes.LUOGU_PROBLEM_DETAIL,
+                        arguments = listOf(navArgument("pid") { type = NavType.StringType }),
+                    ) { entry ->
+                        val pid = entry.arguments?.getString("pid") ?: return@composable
+                        LuoguProblemDetailScreen(
+                            pid = pid,
+                            onBack = { navController.popBackStack() },
+                            onOpenWorkspace = { problemPid ->
+                                navController.navigate("workspace/${android.net.Uri.encode(problemPid)}")
+                            },
                         )
                     }
 

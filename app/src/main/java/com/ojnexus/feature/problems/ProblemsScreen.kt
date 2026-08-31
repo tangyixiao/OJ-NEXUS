@@ -74,6 +74,7 @@ fun ProblemsScreen(
     onOpenProblem: (Long) -> Unit,
     onAddProblem: () -> Unit,
     onOpenWorkspace: (String) -> Unit = {},
+    onOpenLuoguDetail: (String) -> Unit = {},
 ) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<ProblemsViewModel>(
@@ -132,6 +133,7 @@ fun ProblemsScreen(
                     onOpenProblem = onOpenProblem,
                     onOpenExternal = { remote -> UrlOpener.open(context, remoteProblemUrl(remote)) },
                     onOpenWorkspace = onOpenWorkspace,
+                    onOpenLuoguDetail = onOpenLuoguDetail,
                 )
             }
         }
@@ -398,6 +400,7 @@ private fun RemoteCatalogContent(
     onOpenProblem: (Long) -> Unit,
     onOpenExternal: (RemoteProblemEntity) -> Unit,
     onOpenWorkspace: (String) -> Unit,
+    onOpenLuoguDetail: (String) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item(key = "remote-controls") {
@@ -499,6 +502,7 @@ private fun RemoteCatalogContent(
                     onOpen = { id -> onOpenProblem(id) },
                     onOpenExternal = { onOpenExternal(problem) },
                     onOpenWorkspace = { onOpenWorkspace(problem.externalId) },
+                    onOpenLuoguDetail = { onOpenLuoguDetail(problem.externalId) },
                 )
                 NexusDivider(insetEnd = NexusSpacing.xxs)
             }
@@ -538,6 +542,7 @@ private fun RemoteProblemRow(
     onOpen: (Long) -> Unit,
     onOpenExternal: () -> Unit,
     onOpenWorkspace: () -> Unit,
+    onOpenLuoguDetail: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -580,6 +585,14 @@ private fun RemoteProblemRow(
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+            if (com.ojnexus.core.model.JudgeId.fromId(problem.judge) == com.ojnexus.core.model.JudgeId.LUOGU) {
+                NexusTag(
+                    text = stringResource(R.string.problems_open_detail),
+                    tone = NexusTone.Accent,
+                    selected = true,
+                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenLuoguDetail),
+                )
+            }
             NexusTag(
                 text = stringResource(R.string.problems_open_source),
                 tone = NexusTone.Neutral,

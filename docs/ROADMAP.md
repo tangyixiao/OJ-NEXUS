@@ -108,3 +108,16 @@ connection and current public rating when available. Contest Center now exposes 
 and the Luogu Arena header/problem actions open canonical Luogu contest and problem pages. Luogu
 contest listings remain metadata-only until a supported public contest-problem endpoint is verified;
 the app does not invent contest membership from unrelated problem catalog rows.
+
+## PHASE 11 — Luogu native problem details / 洛谷原生题目详情
+
+Remote Luogu rows can now open a native Compose detail screen backed by the public
+`problem/{pid}` content-only response. The screen handles loading and failure states, renders
+safe native blocks for headings, paragraphs, lists, quotes, code, and dividers, and shows samples
+and first-level time/memory limits. / 洛谷远端题库条目现在可以打开由公开
+`problem/{pid}` content-only 响应驱动的原生 Compose 详情页。页面处理加载和失败状态，使用原生
+组件安全展示标题、段落、列表、引用、代码和分隔线，并展示样例以及首组时间/内存限制。
+
+The source-page and local Open Platform workspace actions remain explicit foreground actions;
+the detail screen does not embed a WebView or store remote content in the cloud. / 原题页面和本地
+Open Platform 工作区仍必须由用户前台主动点击；详情页不嵌入 WebView，也不把远端内容存入云端。

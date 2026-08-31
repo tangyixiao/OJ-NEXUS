@@ -3,6 +3,7 @@ package com.ojnexus.judge.luogu.api
 import com.ojnexus.judge.luogu.api.dto.LuoguUserSearchResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguContestListResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemListResponse
+import com.ojnexus.judge.luogu.api.dto.LuoguProblemDetailResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguRecordPageResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguUserPageResponse
 import retrofit2.http.GET
@@ -39,6 +40,14 @@ interface LuoguApi {
     )
     @GET("problem/list")
     suspend fun problemPage(@Query("page") page: Int): LuoguProblemListResponse
+
+    @Headers(
+        "Accept: application/json",
+        "X-Requested-With: XMLHttpRequest",
+        "x-lentille-request: content-only",
+    )
+    @GET("problem/{pid}")
+    suspend fun problem(@Path("pid") pid: String): LuoguProblemDetailResponse
 
     @Headers(
         "Accept: application/json",

@@ -514,6 +514,7 @@
     <string name="problems_remote_search_hint">SEARCH REMOTE PROBLEM CATALOG</string>
     <string name="problems_remote_empty">SYNC A JUDGE ACCOUNT TO SEARCH ITS PROBLEM CATALOG</string>
     <string name="problems_open_source">OPEN</string>
+    <string name="problems_open_detail">DETAIL</string>
     <string name="problems_open_workspace">WORKSPACE</string>
     <string name="problems_add_to_training">ADD TO TRAINING</string>
     <string name="problems_in_library">IN LIBRARY</string>
@@ -522,6 +523,24 @@
     <string name="problems_scope_filter_solved">SOLVED</string>
     <string name="problems_scope_filter_unsolved">UNSOLVED</string>
     <string name="problems_load_more">LOAD MORE</string>
+    <!-- Luogu native problem detail -->
+    <string name="luogu_problem_detail_title">LUOGU PROBLEM</string>
+    <string name="luogu_problem_loading">LOADING LUOGU PROBLEM</string>
+    <string name="luogu_problem_open_source">OPEN SOURCE</string>
+    <string name="luogu_problem_workspace">WORKSPACE</string>
+    <string name="luogu_problem_difficulty">DIFFICULTY %d</string>
+    <string name="luogu_problem_accepted">AC %d</string>
+    <string name="luogu_problem_background">BACKGROUND</string>
+    <string name="luogu_problem_description">DESCRIPTION</string>
+    <string name="luogu_problem_input">INPUT</string>
+    <string name="luogu_problem_output">OUTPUT</string>
+    <string name="luogu_problem_samples">SAMPLES</string>
+    <string name="luogu_problem_sample_input">SAMPLE INPUT</string>
+    <string name="luogu_problem_sample_output">SAMPLE OUTPUT</string>
+    <string name="luogu_problem_hint">HINT</string>
+    <string name="luogu_problem_limits">LIMITS</string>
+    <string name="luogu_problem_time_limit">TIME %d MS</string>
+    <string name="luogu_problem_memory_limit">MEMORY %d MB</string>
     <!-- Local Luogu Open Platform workspace -->
     <string name="workspace_title">CODE WORKSPACE</string>
     <string name="workspace_open">OPEN WORKSPACE</string>

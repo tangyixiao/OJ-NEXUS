@@ -37,6 +37,7 @@ import com.ojnexus.judge.codeforces.CodeforcesAccountConnector
 import com.ojnexus.judge.luogu.LuoguAccountConnector
 import com.ojnexus.judge.luogu.LuoguClient
 import com.ojnexus.judge.luogu.LuoguPolicies
+import com.ojnexus.judge.luogu.LuoguProblemDetailRepository
 import com.ojnexus.judge.luogu.LuoguUrls
 import com.ojnexus.judge.luogu.RetrofitLuoguAdapter
 import com.ojnexus.judge.luogu.LuoguSyncCoordinator
@@ -129,6 +130,7 @@ class AppContainer(context: android.content.Context) {
         delayProvider = CoroutineDelayProvider(),
     )
     private val luoguClient = LuoguClient(luoguApi, luoguGate)
+    val luoguProblemDetailRepository = LuoguProblemDetailRepository(luoguClient)
     private val luoguAdapter = RetrofitLuoguAdapter(luoguClient)
 
     // --- Luogu Open Platform (separate from the public main-site client) ---

@@ -50,3 +50,16 @@ Go、Rust、Pascal、Haskell、Node.js、PHP、Ruby、Perl 和 Scala；提交请
 Markdown*Palettes 是 Vue 网页组件，本项目保持原生 Android Compose，不复制网页组件或引入
 WebView。帮助中心内容受 CC BY-NC-ND 4.0 许可约束，应用只使用链接和结构作为参考，不打包
 其题面或帮助正文。
+
+## Native problem details / 原生题目详情
+
+The remote Luogu catalog now opens a native Compose detail screen through the public
+`problem/{pid}` content-only page. It shows the problem description, input/output format, samples,
+limits, and a safe subset of Markdown without executing HTML or embedding a WebView. / 远端洛谷题库
+现在可以通过公开的 `problem/{pid}` content-only 页面打开原生 Compose 详情页，展示题目描述、
+输入输出格式、样例和限制，并以安全子集展示 Markdown，不执行 HTML，也不嵌入 WebView。
+
+The user can still open the canonical source page or the local Open Platform workspace explicitly.
+No main-site password, cookie, session, CSRF state, or cloud synchronization is involved. /
+用户仍可主动打开标准原题页面或本地 Open Platform 工作区；不涉及主站密码、Cookie、Session、
+CSRF 状态或云端同步。

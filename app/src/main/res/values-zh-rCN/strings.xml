@@ -463,6 +463,7 @@
     <string name="problems_remote_search_hint">搜索远端题库</string>
     <string name="problems_remote_empty">连接 OJ 账号后搜索题库</string>
     <string name="problems_open_source">打开原题</string>
+    <string name="problems_open_detail">题目详情</string>
     <string name="problems_open_workspace">工作区</string>
     <string name="problems_add_to_training">加入训练</string>
     <string name="problems_in_library">已在题库</string>
@@ -471,6 +472,24 @@
     <string name="problems_scope_filter_solved">已解决</string>
     <string name="problems_scope_filter_unsolved">未解决</string>
     <string name="problems_load_more">加载更多</string>
+    <!-- 洛谷原生题目详情 -->
+    <string name="luogu_problem_detail_title">洛谷题目</string>
+    <string name="luogu_problem_loading">正在加载洛谷题目</string>
+    <string name="luogu_problem_open_source">打开原题</string>
+    <string name="luogu_problem_workspace">代码工作区</string>
+    <string name="luogu_problem_difficulty">难度 %d</string>
+    <string name="luogu_problem_accepted">通过 %d</string>
+    <string name="luogu_problem_background">背景</string>
+    <string name="luogu_problem_description">题目描述</string>
+    <string name="luogu_problem_input">输入格式</string>
+    <string name="luogu_problem_output">输出格式</string>
+    <string name="luogu_problem_samples">样例</string>
+    <string name="luogu_problem_sample_input">样例输入</string>
+    <string name="luogu_problem_sample_output">样例输出</string>
+    <string name="luogu_problem_hint">说明 / 提示</string>
+    <string name="luogu_problem_limits">限制</string>
+    <string name="luogu_problem_time_limit">时间 %d 毫秒</string>
+    <string name="luogu_problem_memory_limit">内存 %d MB</string>
     <!-- 本地洛谷 Open Platform 工作区 -->
     <string name="workspace_title">代码工作区</string>
     <string name="workspace_open">打开工作区</string>
