@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 17 (Luogu public profile surface, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 18 (foreground result polling, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -103,6 +103,12 @@ introduction, with an explicit empty state when no public snapshot is available.
 Only the public Room snapshot is rendered; no main-site credentials, cookies, sessions, CSRF state,
 cloud account, or cross-device sync is introduced. / 本阶段只展示 Room 中的公开资料快照，不新增
 主站凭据、Cookie、Session、CSRF 状态、云端账号或跨设备同步。
+
+Phase 18 / 第 18 阶段: After an explicit Luogu OpenApp submission, the workspace now performs a
+bounded foreground-only result wait and stops cleanly if the judge remains pending. / 第 18 阶段：
+用户明确提交洛谷 OpenApp 请求后，工作区现在会在前台有限等待结果；如果评测仍在等待，会干净地
+停止轮询。POST 提交仍不会自动重试，也不会创建后台提交任务。
+This keeps the workflow local-first and credential-safe. / 本阶段仍保持本地优先和凭据安全。
 
 ## Documentation
 

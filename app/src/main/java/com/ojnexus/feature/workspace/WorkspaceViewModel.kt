@@ -20,8 +20,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
+
+private const val RESULT_POLL_ATTEMPTS = 8
+private const val RESULT_POLL_DELAY_MS = 1_000L
 
 enum class WorkspaceMode { RUN, SUBMIT }
 
@@ -64,6 +68,7 @@ class WorkspaceViewModel(
     private val credentialStore: OpenAppCredentialStore,
     testScope: CoroutineScope? = null,
     private val history: LuoguSubmissionHistory? = null,
+    private val delayForResult: suspend (Long) -> Unit = { delay(it) },
 ) : ViewModel() {
     private val workScope = testScope ?: viewModelScope
     private val mutableState = MutableStateFlow(
@@ -189,7 +194,7 @@ class WorkspaceViewModel(
         mutableState.update { it.copy(busy = true, error = null) }
         workScope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
-                when (val result = gateway.fetchResult(requestId)) {
+                when (val result = pollResult(requestId)) {
                     LuoguOpenResult.Pending -> mutableState.update {
                         it.copy(resultState = WorkspaceResultState.PENDING)
                     }
@@ -208,6 +213,20 @@ class WorkspaceViewModel(
                 mutableState.update { it.copy(busy = false) }
             }
         }
+    }
+
+    private suspend fun pollResult(requestId: String): LuoguOpenResult {
+        repeat(RESULT_POLL_ATTEMPTS) { attempt ->
+            when (val result = gateway.fetchResult(requestId)) {
+                is LuoguOpenResult.Ready -> return result
+                LuoguOpenResult.Pending -> {
+                    if (attempt < RESULT_POLL_ATTEMPTS - 1) {
+                        delayForResult(RESULT_POLL_DELAY_MS)
+                    }
+                }
+            }
+        }
+        return LuoguOpenResult.Pending
     }
 
     private fun Exception.toWorkspaceError(): WorkspaceError = when (this) {

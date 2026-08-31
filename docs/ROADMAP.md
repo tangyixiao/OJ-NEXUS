@@ -194,3 +194,18 @@ The phase is presentation-only over the existing local Room data. It does not ad
 passwords, cookies, sessions, CSRF state, cloud accounts, or cross-device synchronization. /
 本阶段只在现有本地 Room 数据之上增加展示，不新增洛谷主站密码、Cookie、Session、CSRF 状态、
 云端账号或跨设备同步。
+
+## PHASE 18 — Foreground OpenApp result polling / 前台 OpenApp 结果轮询
+
+After the user explicitly submits a Luogu problem through the Open Platform, the workspace now
+polls the result in the foreground for a bounded window. It stops after a terminal result or a
+fixed number of Pending responses, leaving the request visibly pending for a later manual check.
+POST submission is still never retried automatically, and no background submit worker is added. /
+用户通过 Open Platform 明确提交洛谷题目后，工作区现在会在前台有限轮询结果；遇到终态结果或达到
+固定次数的 Pending 响应后停止，并将仍在等待的请求明确保留，用户之后可以再次手动查询。POST 提交
+仍不会自动重试，也不会新增后台提交 Worker。
+
+The feature remains local-first and uses the existing Keystore-backed OpenApp credential boundary;
+it does not add main-site passwords, cookies, sessions, CSRF state, cloud accounts, or
+cross-device synchronization. / 本功能仍为本地优先，沿用现有 Keystore 保护的 OpenApp 凭据边界，
+不新增主站密码、Cookie、Session、CSRF 状态、云端账号或跨设备同步。

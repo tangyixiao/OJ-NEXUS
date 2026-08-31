@@ -85,6 +85,49 @@ class WorkspaceViewModelTest {
     }
 
     @Test
+    fun `result check polls in the foreground until the judge is ready`() = runBlocking {
+        val gateway = PollingGateway()
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = "A+B",
+            gateway = gateway,
+            credentialStore = FakeStore(),
+            testScope = CoroutineScope(coroutineContext),
+            delayForResult = {},
+        )
+
+        viewModel.setCode("int main() {}")
+        viewModel.setMode(WorkspaceMode.SUBMIT)
+        viewModel.submit()
+        viewModel.checkResult()
+
+        assertEquals(3, gateway.resultCalls)
+        assertEquals(WorkspaceResultState.READY, viewModel.state.value.resultState)
+        assertEquals(12, viewModel.state.value.evaluation?.status)
+    }
+
+    @Test
+    fun `result check stops after the bounded foreground poll window`() = runBlocking {
+        val gateway = PollingGateway(readyAfter = Int.MAX_VALUE)
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = "A+B",
+            gateway = gateway,
+            credentialStore = FakeStore(),
+            testScope = CoroutineScope(coroutineContext),
+            delayForResult = {},
+        )
+
+        viewModel.setCode("int main() {}")
+        viewModel.setMode(WorkspaceMode.SUBMIT)
+        viewModel.submit()
+        viewModel.checkResult()
+
+        assertEquals(8, gateway.resultCalls)
+        assertEquals(WorkspaceResultState.PENDING, viewModel.state.value.resultState)
+    }
+
+    @Test
     fun `submit forwards the language selected in the editor`() = runBlocking {
         val gateway = FakeGateway()
         val viewModel = WorkspaceViewModel("P1001", "A+B", gateway, FakeStore(), CoroutineScope(coroutineContext))
@@ -274,6 +317,41 @@ private class BusyGateway : LuoguOpenGateway {
     override suspend fun run(request: LuoguRunRequest): LuoguOpenSubmission = LuoguOpenSubmission("run-1")
 
     override suspend fun fetchResult(requestId: String): LuoguOpenResult = LuoguOpenResult.Pending
+}
+
+private class PollingGateway(
+    private val readyAfter: Int = 3,
+) : LuoguOpenGateway {
+    var resultCalls = 0
+
+    override suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission =
+        LuoguOpenSubmission("req-poll")
+
+    override suspend fun run(request: LuoguRunRequest): LuoguOpenSubmission =
+        LuoguOpenSubmission("run-poll")
+
+    override suspend fun fetchResult(requestId: String): LuoguOpenResult {
+        resultCalls++
+        return if (resultCalls < readyAfter) {
+            LuoguOpenResult.Pending
+        } else {
+            LuoguOpenResult.Ready(
+                LuoguOpenEvaluation(
+                    requestId = requestId,
+                    trackId = null,
+                    type = "judge",
+                    compileSuccess = true,
+                    compileMessage = null,
+                    status = 12,
+                    score = 100,
+                    timeMs = 1,
+                    memoryKiB = 2,
+                    output = null,
+                    exitCode = null,
+                ),
+            )
+        }
+    }
 }
 
 private class FakeStore : OpenAppCredentialStore {
