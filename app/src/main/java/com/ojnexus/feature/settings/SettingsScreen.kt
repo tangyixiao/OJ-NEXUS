@@ -52,7 +52,9 @@ import com.ojnexus.core.designsystem.component.NexusTopBar
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
+import com.ojnexus.core.ui.UrlOpener
 import com.ojnexus.judge.JudgeCapability
+import com.ojnexus.judge.luogu.LuoguUrls
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -188,6 +190,11 @@ fun SettingsScreen(onBack: () -> Unit) {
                     text = stringResource(R.string.settings_openapp_hint),
                     style = NexusTheme.typography.dataSmall,
                     color = NexusTheme.colors.textTertiary,
+                )
+                Spacer(Modifier.height(NexusSpacing.xs))
+                SettingsAction(
+                    label = stringResource(R.string.settings_openapp_docs),
+                    onClick = { UrlOpener.open(context, LuoguUrls.openPlatformDocs()) },
                 )
                 Spacer(Modifier.height(NexusSpacing.sm))
                 if (openAppState.configured) {

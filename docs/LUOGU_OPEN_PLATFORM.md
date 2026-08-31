@@ -35,6 +35,7 @@ Go、Rust、Pascal、Haskell、Node.js、PHP、Ruby、Perl 和 Scala；提交请
 
 设置页的“查询可用计费点”是用户主动触发的前台查询。额度响应只保留在当前 ViewModel
 状态中，不写入 Room、备份或同步数据；应用展示官方返回的可用点数总和和活动额度批次数。
+设置页同时提供官方 OpenApp 文档入口，用户可在录入凭据前核对凭据来源和评测能力边界。
 
 本阶段不实现洛谷主站密码、Cookie、Session、CSRF，不实现云端服务/跨设备同步，也不捆绑
 本地 C++ 编译器。官方 Open Platform 当前只提供题库评测接口；题库评测本身包含远程编译

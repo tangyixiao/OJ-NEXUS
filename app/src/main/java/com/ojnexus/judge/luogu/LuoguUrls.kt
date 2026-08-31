@@ -6,6 +6,8 @@ object LuoguUrls {
     const val API_BASE_URL = "https://www.luogu.com.cn/"
     const val OPEN_PLATFORM_BASE_URL = "https://open-v1.lgapi.cn/"
 
+    fun openPlatformDocs(): String = "https://docs.lgapi.cn/open/"
+
     fun user(uid: Long): String = "https://www.luogu.com.cn/user/${segment(uid.toString())}"
 
     fun contest(contestId: String): String = "https://www.luogu.com.cn/contest/${segment(contestId)}"

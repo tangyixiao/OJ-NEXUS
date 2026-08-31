@@ -96,6 +96,8 @@ reachable from Profile and the command palette; the five primary bottom-bar dest
 unchanged. The center is local-only and does not turn anonymous Luogu history into fabricated
 submissions. Settings also provides a user-triggered foreground query of Open Platform available
 quota points; the response is transient UI state only and is not persisted or synchronized.
+Settings also links to the official OpenApp documentation next to the credential form so users can
+verify the credential source before configuring it.
 The workspace editor also exposes the supported Open Platform language identifiers and forwards
 the selected language in each explicit submit request. The remote problem catalog now exposes
 LUOGU alongside Codeforces and AtCoder and maps saved Luogu problems to their canonical URLs.

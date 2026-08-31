@@ -360,6 +360,7 @@
     <string name="settings_sync_auth_required">公开数据已同步；提交记录需要授权</string>
     <string name="settings_section_luogu_open">洛谷 Open Platform</string>
     <string name="settings_openapp_hint">使用官方 OpenApp 凭据。不使用主站密码或 Cookie。</string>
+    <string name="settings_openapp_docs">打开 OpenApp 文档</string>
     <string name="settings_openapp_user">OpenApp 用户</string>
     <string name="settings_openapp_secret">OpenApp 密钥</string>
     <string name="settings_openapp_save">保存凭据</string>

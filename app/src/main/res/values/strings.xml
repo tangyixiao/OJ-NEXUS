@@ -405,6 +405,7 @@
     <string name="settings_sync_auth_required">PUBLIC DATA SYNCED; SUBMISSIONS REQUIRE AUTHORIZATION</string>
     <string name="settings_section_luogu_open">LUOGU OPEN PLATFORM</string>
     <string name="settings_openapp_hint">USE THE OFFICIAL OPENAPP CREDENTIAL. MAIN-SITE PASSWORDS AND COOKIES ARE NOT USED.</string>
+    <string name="settings_openapp_docs">OPEN OPENAPP DOCUMENTATION</string>
     <string name="settings_openapp_user">OPENAPP USER</string>
     <string name="settings_openapp_secret">OPENAPP SECRET</string>
     <string name="settings_openapp_save">SAVE CREDENTIAL</string>

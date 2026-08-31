@@ -9,4 +9,9 @@ class LuoguUrlsTest {
         assertEquals("https://www.luogu.com.cn/contest/123", LuoguUrls.contest("123"))
         assertEquals("https://www.luogu.com.cn/problem/P1001", LuoguUrls.problem("P1001"))
     }
+
+    @Test
+    fun `OpenApp documentation URL stays on the official docs host`() {
+        assertEquals("https://docs.lgapi.cn/open/", LuoguUrls.openPlatformDocs())
+    }
 }
