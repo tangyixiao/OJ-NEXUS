@@ -39,3 +39,13 @@ Go、Rust、Pascal、Haskell、Node.js、PHP、Ruby、Perl 和 Scala；提交请
 本阶段不实现洛谷主站密码、Cookie、Session、CSRF，不实现云端服务/跨设备同步，也不捆绑
 本地 C++ 编译器。官方 Open Platform 当前只提供题库评测接口；题库评测本身包含远程编译
 和运行。自定义输入运行没有在官方 API 规范中提供，因此工作区不会把它当作可用能力。
+
+## 外部参考
+
+- [洛谷开放平台文档](https://docs.lgapi.cn/open/)：评测能力、题库导出和 API 边界。
+- [洛谷帮助中心源码](https://github.com/luogu-dev/docs)：题目、竞赛和 Markdown 规则参考。
+- [Markdown*Palettes](https://github.com/luogu-dev/markdown-palettes)：网页端 Markdown 编辑交互参考。
+
+Markdown*Palettes 是 Vue 网页组件，本项目保持原生 Android Compose，不复制网页组件或引入
+WebView。帮助中心内容受 CC BY-NC-ND 4.0 许可约束，应用只使用链接和结构作为参考，不打包
+其题面或帮助正文。
