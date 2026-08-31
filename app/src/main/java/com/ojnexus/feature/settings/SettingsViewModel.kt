@@ -51,6 +51,7 @@ data class BackupResult(val operation: BackupOperation, val success: Boolean)
 data class OpenAppUiState(
     val configured: Boolean = false,
     val saving: Boolean = false,
+    val verifying: Boolean = false,
     val error: Boolean = false,
     val checkingQuota: Boolean = false,
     val quota: LuoguOpenQuotaSnapshot? = null,
@@ -131,16 +132,42 @@ class SettingsViewModel(
     fun saveOpenAppCredential(user: String, secret: String) {
         val store = openAppCredentialStore ?: return
         if (user.isBlank() || secret.isBlank()) {
-            openAppState.update { it.copy(error = true) }
+            openAppState.update { it.copy(error = true, quotaError = null) }
             return
         }
-        openAppState.update { it.copy(saving = true, error = false) }
+        openAppState.update {
+            it.copy(
+                saving = true,
+                verifying = openAppQuotaReader != null,
+                error = false,
+                quotaError = null,
+            )
+        }
         viewModelScope.launch {
             try {
-                store.write(OpenAppCredential(user.trim(), secret.trim()))
-                openAppState.value = OpenAppUiState(configured = true)
+                when (val verification = verifyAndStoreOpenAppCredential(
+                    store = store,
+                    quotaReader = openAppQuotaReader,
+                    credential = OpenAppCredential(user.trim(), secret.trim()),
+                )) {
+                    is OpenAppCredentialVerification.Verified -> {
+                        openAppState.value = OpenAppUiState(
+                            configured = true,
+                            quota = verification.quota,
+                        )
+                    }
+                    is OpenAppCredentialVerification.Rejected -> {
+                        openAppState.value = OpenAppUiState(quotaError = verification.error)
+                    }
+                    is OpenAppCredentialVerification.Unverified -> {
+                        openAppState.value = OpenAppUiState(
+                            configured = true,
+                            quotaError = verification.error,
+                        )
+                    }
+                }
             } catch (_: Exception) {
-                openAppState.update { it.copy(saving = false, error = true) }
+                openAppState.update { it.copy(saving = false, verifying = false, error = true) }
             }
         }
     }
@@ -168,7 +195,7 @@ class SettingsViewModel(
                 }
             } catch (error: LuoguOpenApiError) {
                 openAppState.update {
-                    it.copy(checkingQuota = false, quotaError = error.toQuotaError())
+                    it.copy(checkingQuota = false, quotaError = error.toOpenAppQuotaError())
                 }
             } catch (_: Exception) {
                 openAppState.update {
@@ -279,15 +306,6 @@ class SettingsViewModel(
             }
     }
 
-    private fun LuoguOpenApiError.toQuotaError(): OpenAppQuotaError = when (this) {
-        LuoguOpenApiError.CredentialMissing -> OpenAppQuotaError.CREDENTIAL_MISSING
-        LuoguOpenApiError.Unauthorized -> OpenAppQuotaError.UNAUTHORIZED
-        LuoguOpenApiError.Forbidden -> OpenAppQuotaError.FORBIDDEN
-        LuoguOpenApiError.QuotaExceeded -> OpenAppQuotaError.QUOTA_EXCEEDED
-        LuoguOpenApiError.NotFound -> OpenAppQuotaError.NOT_FOUND
-        is LuoguOpenApiError.Network -> OpenAppQuotaError.NETWORK
-        else -> OpenAppQuotaError.API
-    }
 }
 
 internal fun shouldScheduleJudgeSync(capabilities: Set<JudgeCapability>): Boolean =

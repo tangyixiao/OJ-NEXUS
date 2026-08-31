@@ -420,6 +420,7 @@
     <string name="settings_openapp_secret">OPENAPP SECRET</string>
     <string name="settings_openapp_save">SAVE CREDENTIAL</string>
     <string name="settings_openapp_saving">SAVING…</string>
+    <string name="settings_openapp_verifying">VERIFYING CREDENTIAL…</string>
     <string name="settings_openapp_configured">OPENAPP CREDENTIAL CONFIGURED</string>
     <string name="settings_openapp_clear">CLEAR OPENAPP CREDENTIAL</string>
     <string name="settings_openapp_error">CREDENTIAL COULD NOT BE SAVED</string>

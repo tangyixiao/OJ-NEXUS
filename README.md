@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 22 (partial Luogu result convergence, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 23 (OpenApp credential verification, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -154,6 +154,18 @@ cloud account, cross-device sync, background submission, automatic POST retry, l
 custom-input runner is added. / 本阶段遵循官方结果契约，继续保持本地优先和仅使用 OpenApp 的边界；
 历史说明和 Releases 保持不变，不新增主站密码、Cookie、Session、CSRF 状态、云端账号、跨设备同步、
 后台提交、POST 自动重试、本地编译器或自定义输入运行器。
+
+Phase 23 / 第 23 阶段: Saving a Luogu OpenApp credential now performs an immediate read-only
+`quotaAvailable` verification. Successful credentials show the available points immediately;
+authorization failures clear the rejected value, while network/API failures keep the Keystore value
+and show a retryable verification error. / 第 23 阶段：保存洛谷 OpenApp 凭据后，现在会立即调用只读
+`quotaAvailable` 接口验证。验证成功后立即显示可用计费点；鉴权失败会清除被拒绝的凭据，网络/API
+失败则保留 Keystore 中的值并提示可重试的验证错误。
+The setup remains OpenApp-only and local-first. Historical notes and Releases remain intact; no
+Luogu main-site password, Cookie, Session, CSRF login, cloud account, cross-device sync, background
+submission, or automatic POST retry is added. / 配置流程仍仅使用 OpenApp、本地优先；历史说明和
+Releases 保持不变，不新增洛谷主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、后台
+提交或 POST 自动重试。
 
 ## Documentation
 

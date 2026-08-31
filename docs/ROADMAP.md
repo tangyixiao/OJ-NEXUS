@@ -275,3 +275,18 @@ The helper only performs foreground GET result checks; POST submissions remain e
 automatically retried. No main-site passwords, cookies, sessions, CSRF state, cloud accounts, or
 cross-device sync are added. / 该工具只在前台执行 GET 结果查询；POST 提交仍需明确触发且不会自动重试。
 不新增主站密码、Cookie、Session、CSRF 状态、云端账号或跨设备同步。
+
+## PHASE 23 — OpenApp credential verification / OpenApp 凭据连接测试
+
+Saving a Luogu OpenApp credential now performs an immediate read-only `quotaAvailable` verification.
+Success moves the Settings panel to the configured state and shows available points. Authorization
+rejection clears the rejected credential; network or other API failures preserve the Keystore value
+and expose a retryable error. / 保存洛谷 OpenApp 凭据后，现在会立即进行只读 `quotaAvailable` 验证。
+成功后设置页进入已配置状态并展示可用计费点；鉴权拒绝会清除被拒绝的凭据，网络或其他 API 失败则
+保留 Keystore 中的值并显示可重试错误。
+
+This phase keeps the existing OpenApp-only, Keystore-backed, local-first boundary. It adds no Luogu
+main-site password, Cookie, Session, CSRF login, cloud account, cross-device sync, background
+submission, or automatic POST retry. Previous phase notes and published Releases remain unchanged. /
+本阶段继续保持仅使用 OpenApp、Keystore 保护和本地优先的边界。不新增洛谷主站密码、Cookie、Session、
+CSRF 登录、云端账号、跨设备同步、后台提交或 POST 自动重试；此前阶段说明和已发布 Releases 保持不变。

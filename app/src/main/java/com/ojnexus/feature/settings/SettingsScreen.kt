@@ -239,19 +239,20 @@ fun SettingsScreen(onBack: () -> Unit) {
                             color = NexusTheme.colors.textTertiary,
                         )
                     }
-                    openAppState.quotaError?.let { error ->
-                        Spacer(Modifier.height(NexusSpacing.xxs))
-                        Text(
-                            text = quotaErrorLabel(error),
-                            style = NexusTheme.typography.dataSmall,
-                            color = NexusTheme.colors.danger,
-                        )
-                    }
                 } else {
                     OpenAppCredentialEditor(
                         saving = openAppState.saving,
+                        verifying = openAppState.verifying,
                         error = openAppState.error,
                         onSave = viewModel::saveOpenAppCredential,
+                    )
+                }
+                openAppState.quotaError?.let { error ->
+                    Spacer(Modifier.height(NexusSpacing.xxs))
+                    Text(
+                        text = quotaErrorLabel(error),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.danger,
                     )
                 }
             }
@@ -364,6 +365,7 @@ private fun quotaErrorLabel(error: OpenAppQuotaError): String = when (error) {
 @Composable
 private fun OpenAppCredentialEditor(
     saving: Boolean,
+    verifying: Boolean,
     error: Boolean,
     onSave: (String, String) -> Unit,
 ) {
@@ -383,7 +385,14 @@ private fun OpenAppCredentialEditor(
             password = true,
         )
         SettingsAction(
-            label = stringResource(if (saving) R.string.settings_openapp_saving else R.string.settings_openapp_save),
+            label = stringResource(
+                when {
+                    verifying -> R.string.settings_openapp_verifying
+                    saving -> R.string.settings_openapp_saving
+                    else -> R.string.settings_openapp_save
+                },
+            ),
+            enabled = !saving,
             onClick = { onSave(user, secret) },
         )
         if (error) {
@@ -603,12 +612,17 @@ private fun HandleInput(judge: JudgeId, onConnect: (String) -> Unit, connecting:
 }
 
 @Composable
-private fun SettingsAction(label: String, danger: Boolean = false, onClick: () -> Unit) {
+private fun SettingsAction(
+    label: String,
+    danger: Boolean = false,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
     val colors = NexusTheme.colors
     val foreground = if (danger) colors.danger else colors.accent
     Box(
         Modifier.background(colors.surface, NexusRadius.sm).border(1.dp, foreground, NexusRadius.sm)
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = NexusSpacing.sm, vertical = NexusSpacing.xs),
     ) {
         Text(label, style = NexusTheme.typography.dataSmall, color = foreground)
