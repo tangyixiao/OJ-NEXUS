@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 20 (OpenApp evaluation usability, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 21 (workspace result continuity, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -129,6 +129,18 @@ runner is added. / 本阶段仍坚持本地优先和仅前台执行，不新增�
 CSRF 状态、云端账号、跨设备同步、POST 自动重试、本地编译器或自定义输入运行器。历史版本、
 历史 Release 和既有说明继续保留。 / Historical versions, Releases, and existing explanations
 remain intact.
+
+Phase 21 / 第 21 阶段: Reopening a Luogu workspace now restores the locally persisted OpenApp
+evaluation details, including compile status/message, output, exit code, execution time, and memory.
+The workspace also shows an explicit localized compile success/failure label, even when the upstream
+compiler message is empty. / 第 21 阶段：重新打开洛谷工作区时，现在会恢复本地保存的 OpenApp
+评测详情，包括编译状态/信息、输出、退出码、运行时间和内存；即使上游没有编译文字信息，
+工作区也会明确显示本地化的编译成功/失败状态。
+This is a local-first presentation and restoration improvement. Historical notes and Releases remain
+intact, and no main-site password, cookie, session, CSRF state, cloud account, cross-device sync,
+background submission, automatic POST retry, local compiler, or custom-input runner is added. /
+本阶段是本地优先的展示与恢复改进；历史说明和 Releases 保持不变，不新增主站密码、Cookie、
+Session、CSRF 状态、云端账号、跨设备同步、后台提交、POST 自动重试、本地编译器或自定义输入运行器。
 
 ## Documentation
 

@@ -210,6 +210,22 @@ it does not add main-site passwords, cookies, sessions, CSRF state, cloud accoun
 cross-device synchronization. / 本功能仍为本地优先，沿用现有 Keystore 保护的 OpenApp 凭据边界，
 不新增主站密码、Cookie、Session、CSRF 状态、云端账号或跨设备同步。
 
+## PHASE 21 — Workspace result continuity / 工作区结果连续性
+
+Reopening a Luogu workspace now restores all locally persisted OpenApp evaluation details: compile
+success/message, output, exit code, execution time, and memory. The workspace renders an explicit
+localized compile outcome even when the upstream compiler message is empty. / 重新打开洛谷工作区
+现在会恢复本地保存的 OpenApp 评测详情：编译成功/信息、输出、退出码、运行时间和内存；即使
+上游编译信息为空，工作区也会明确展示本地化的编译结果。
+
+This phase changes only local state restoration and foreground presentation. It keeps the existing
+local-first boundary and does not add main-site passwords, cookies, sessions, CSRF state, cloud
+accounts, cross-device sync, background submission, automatic POST retry, a local compiler, or
+custom-input execution. Previous phase notes and published Releases remain unchanged. /
+本阶段只改进本地状态恢复和前台展示，继续保持本地优先边界，不新增主站密码、Cookie、Session、
+CSRF 状态、云端账号、跨设备同步、后台提交、POST 自动重试、本地编译器或自定义输入运行；此前
+阶段说明和已发布 Releases 保持不变。
+
 ## PHASE 20 — OpenApp evaluation usability / OpenApp 评测可用性
 
 Foreground OpenApp result checks can now wait for the official WebSocket `judge.result` notification
