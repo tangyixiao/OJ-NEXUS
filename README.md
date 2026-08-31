@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 24 (official Luogu problemset dump import, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 25 (offline-first Luogu problem details, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -178,6 +178,18 @@ OpenApp-only. Historical notes and Releases remain intact; no main-site password
 CSRF login, cloud account, cross-device sync, background submission, or automatic POST retry is added.
 / 本阶段不批量导入题面详情，仍保持公开数据、本地优先和仅 OpenApp；历史说明和 Releases 保持不变，
 不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、后台提交或 POST 自动重试。
+
+Phase 25 / 第 25 阶段: Native Luogu problem details now use a local-first cache. The first online
+view persists the public content-only snapshot in Room; later opens can render it offline, and an
+explicit REFRESH action updates it. Network/timeout failures with an existing snapshot show the
+cached detail with a retryable warning, while HTTP and parse errors remain visible. / 第 25 阶段：
+原生洛谷题目详情现在采用本地优先缓存。首次在线查看会把公开 content-only 快照保存到 Room，之后
+断网仍可打开；用户可通过显式“刷新”更新快照。已有快照遇到网络/超时失败时显示缓存并提示可重试，
+HTTP 和解析错误则继续明确展示。
+This phase adds no bulk detail import, main-site password, Cookie, Session, CSRF login, cloud
+account, cross-device sync, background submission, or automatic POST retry. Historical phase notes
+and Releases remain intact. / 本阶段不批量导入全部题面详情，不新增主站密码、Cookie、Session、CSRF
+登录、云端账号、跨设备同步、后台提交或 POST 自动重试；历史阶段说明和 Releases 保持不变。
 
 ## Documentation
 

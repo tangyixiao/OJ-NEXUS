@@ -309,3 +309,21 @@ published Releases remain unchanged. / 非空行格式错误和解压失败会�
 完整同步。题面详情仍按需获取；本阶段继续保持公开数据、本地优先和仅 OpenApp，不新增主站密码、
 Cookie、Session、CSRF 登录、云端账号、跨设备同步、后台提交或 POST 自动重试；此前阶段说明和已发布
 Releases 保持不变。
+
+## PHASE 25 — Offline-first Luogu problem details / 本地优先的洛谷题目详情
+
+Native Luogu problem details now use a new Room v9 cache keyed by judge and problem id. Opening a
+problem reads the cached public content-only snapshot first; a cache miss fetches and persists the
+network detail. An explicit refresh replaces the snapshot, and network/timeout failures can return
+the cached detail with a visible retryable warning. HTTP, authentication, and parse errors are not
+hidden by stale data. / 原生洛谷题目详情现在使用 Room v9 缓存，按评测平台和题号隔离。打开题目时
+优先读取已缓存的公开 content-only 快照；没有缓存时请求网络并持久化。显式刷新会替换快照，网络/超时
+失败时可以返回缓存并明确提示可重试；HTTP、鉴权和解析错误不会被旧数据掩盖。
+
+The existing safe native Markdown renderer remains the presentation boundary. This phase does not
+bulk-import all detail fields from the official problemset dump and adds no Luogu main-site
+password, cookies, sessions, CSRF login, cloud account, cross-device sync, background submission,
+or automatic POST retry. Earlier phase notes and published Releases remain unchanged. /
+现有安全原生 Markdown 渲染器仍是展示边界。本阶段不从官方题库导出批量导入全部题面详情，不新增
+洛谷主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、后台提交或 POST 自动重试；此前
+阶段说明和已发布 Releases 保持不变。
