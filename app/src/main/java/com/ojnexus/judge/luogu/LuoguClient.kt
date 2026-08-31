@@ -10,6 +10,7 @@ import com.ojnexus.judge.luogu.api.dto.LuoguProblemListResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemDetailResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguRecordPageResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguUserPageResponse
+import okhttp3.ResponseBody
 import java.io.IOException
 import java.net.SocketTimeoutException
 import kotlinx.coroutines.CancellationException
@@ -44,6 +45,7 @@ class LuoguClient(
     private val gate: RateLimitedRequestGate,
     private val retryPolicy: LuoguRetryPolicy = LuoguRetryPolicy(),
     private val delayProvider: DelayProvider = CoroutineDelayProvider(),
+    private val problemsetDumpUrl: String = LuoguUrls.PROBLEMSET_DUMP_URL,
 ) {
     suspend fun searchUsers(keyword: String) = call { api.searchUsers(keyword) }
 
@@ -72,6 +74,14 @@ class LuoguClient(
                 throw LuoguApiError.AuthenticationRequired()
             }
         }
+
+    suspend fun openProblemsetDump(): ResponseBody {
+        val response = call { api.problemsetDump(problemsetDumpUrl) }
+        if (!response.isSuccessful) throw LuoguApiError.HttpError(response.code())
+        return response.body() ?: throw LuoguApiError.ParseError(
+            IllegalStateException("Luogu problemset dump has no response body"),
+        )
+    }
 
     private fun requireSuccessful(response: Any) {
         val status = when (response) {

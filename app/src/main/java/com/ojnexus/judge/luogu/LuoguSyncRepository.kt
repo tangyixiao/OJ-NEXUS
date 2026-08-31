@@ -6,10 +6,13 @@ import com.ojnexus.core.data.sync.SyncReport
 import com.ojnexus.core.data.sync.SyncStage
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.database.entity.JudgeAccountEntity
+import com.ojnexus.core.database.entity.RemoteProblemEntity
 import com.ojnexus.core.database.entity.SyncStateEntity
 import com.ojnexus.core.model.JudgeId
 import java.time.Clock
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 
 /** Local-first cache writer for Luogu's public content-only endpoints. */
@@ -85,31 +88,65 @@ class LuoguSyncRepository(
 
     suspend fun syncProblems(account: JudgeAccountEntity, force: Boolean): StageOutcome =
         runStage(account, SyncStage.PROBLEMS, force, LuoguPolicies.PROBLEMS_FRESH_MS) {
-            var pageNumber = 1
-            var loaded = 0
-            var processed = 0
-            while (pageNumber <= maxCatalogPages) {
-                val page = try {
-                    adapter.fetchProblemPage(pageNumber)
-                } catch (e: LuoguApiError) {
-                    throw PartialStageFailure(e, processed)
-                }
-                val collection = page.data?.problems
-                    ?: throw parseError("Luogu problem payload has no problem collection")
-                val rows = collection.result.filter { it.pid.isNotBlank() }
-                database.remoteProblemDao().upsertAll(
-                    rows.map { LuoguMappers.toRemoteProblemEntity(it, JudgeId.LUOGU, clock.millis()) },
-                )
-                loaded += rows.size
-                processed += rows.size
-                if (!hasMore(loaded, rows.size, collection.perPage, collection.count)) break
-                if (pageNumber == maxCatalogPages) {
-                    throw PartialStageFailure(paginationError("problem"), processed)
-                }
-                pageNumber++
+            if (adapter.supportsProblemsetDump) {
+                syncProblemsetDump()
+            } else {
+                syncProblemPages()
             }
-            processed
         }
+
+    private suspend fun syncProblemsetDump(): Int {
+        val updatedAt = clock.millis()
+        val input = adapter.openProblemsetDump()
+        return try {
+            withContext(Dispatchers.IO) {
+                var processed = 0
+                val batch = ArrayList<RemoteProblemEntity>(PROBLEMSET_DUMP_BATCH_SIZE)
+                for (problem in LuoguProblemsetDumpParser.parse(input, updatedAt)) {
+                    batch += problem
+                    if (batch.size == PROBLEMSET_DUMP_BATCH_SIZE) {
+                        database.remoteProblemDao().upsertAll(batch)
+                        processed += batch.size
+                        batch.clear()
+                    }
+                }
+                if (batch.isNotEmpty()) {
+                    database.remoteProblemDao().upsertAll(batch)
+                    processed += batch.size
+                }
+                processed
+            }
+        } finally {
+            input.close()
+        }
+    }
+
+    private suspend fun syncProblemPages(): Int {
+        var pageNumber = 1
+        var loaded = 0
+        var processed = 0
+        while (pageNumber <= maxCatalogPages) {
+            val page = try {
+                adapter.fetchProblemPage(pageNumber)
+            } catch (e: LuoguApiError) {
+                throw PartialStageFailure(e, processed)
+            }
+            val collection = page.data?.problems
+                ?: throw parseError("Luogu problem payload has no problem collection")
+            val rows = collection.result.filter { it.pid.isNotBlank() }
+            database.remoteProblemDao().upsertAll(
+                rows.map { LuoguMappers.toRemoteProblemEntity(it, JudgeId.LUOGU, clock.millis()) },
+            )
+            loaded += rows.size
+            processed += rows.size
+            if (!hasMore(loaded, rows.size, collection.perPage, collection.count)) break
+            if (pageNumber == maxCatalogPages) {
+                throw PartialStageFailure(paginationError("problem"), processed)
+            }
+            pageNumber++
+        }
+        return processed
+    }
 
     /** Stage 1 deliberately makes no private-data claim; anonymous records are auth-gated. */
     suspend fun syncSubmissions(account: JudgeAccountEntity, force: Boolean): StageOutcome =
@@ -246,4 +283,8 @@ class LuoguSyncRepository(
         val error: LuoguApiError,
         val itemsProcessed: Int,
     ) : Exception(error)
+
+    private companion object {
+        const val PROBLEMSET_DUMP_BATCH_SIZE = 200
+    }
 }

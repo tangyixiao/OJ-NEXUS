@@ -25,6 +25,9 @@ import com.ojnexus.judge.luogu.api.dto.LuoguUserPageResponse
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.util.zip.GZIPOutputStream
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -109,6 +112,26 @@ class LuoguSyncRepositoryTest {
     }
 
     @Test
+    fun `official problemset dump imports in place of paged catalog`() = runBlocking {
+        val account = connect()
+        adapter.useProblemsetDump = true
+        adapter.problemsetDump = gzip(
+            """
+            {"pid":"P1000","type":"P","difficulty":1,"tags":["math"],"title":"A+B"}
+            {"pid":"P1001","type":"P","difficulty":2,"tags":["dp"],"title":"A-B"}
+            """.trimIndent(),
+        )
+
+        val outcome = repository.syncProblems(account, force = true)
+
+        assertTrue(outcome.ok)
+        assertEquals(2, outcome.itemsProcessed)
+        assertEquals(0, adapter.problemPageCalls)
+        assertEquals(2, database.remoteProblemDao().countByJudge(JudgeId.LUOGU.id))
+        assertEquals("A+B", database.remoteProblemDao().findByKey(JudgeId.LUOGU.id, "P1000")?.name)
+    }
+
+    @Test
     fun `anonymous submissions report authentication required without importing attempts`() = runBlocking {
         val account = connect()
 
@@ -140,11 +163,22 @@ class LuoguSyncRepositoryTest {
 
     private suspend fun connect(): JudgeAccountEntity =
         accounts.connect(JudgeId.LUOGU, "alice")
+
+    private fun gzip(value: String): ByteArray = ByteArrayOutputStream().also { output ->
+        GZIPOutputStream(output).bufferedWriter().use { writer -> writer.write(value) }
+    }.toByteArray()
 }
 
 private class FakeLuoguSyncAdapter : LuoguAdapter {
+    var useProblemsetDump = false
+    var problemsetDump = ByteArray(0)
     var problemFailurePage: Int? = null
     var problemPageCalls = 0
+
+    override val supportsProblemsetDump: Boolean
+        get() = useProblemsetDump
+
+    override suspend fun openProblemsetDump() = ByteArrayInputStream(problemsetDump)
 
     override suspend fun searchUser(handle: String) =
         com.ojnexus.judge.luogu.api.dto.LuoguUserSummary(uid = 7, name = handle)
@@ -215,4 +249,5 @@ private class FakeLuoguSyncAdapter : LuoguAdapter {
 
     override suspend fun fetchRecordPage(uid: Long, page: Int): LuoguRecordPageResponse =
         throw LuoguApiError.AuthenticationRequired()
+
 }

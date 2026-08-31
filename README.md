@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 23 (OpenApp credential verification, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 24 (official Luogu problemset dump import, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -166,6 +166,18 @@ Luogu main-site password, Cookie, Session, CSRF login, cloud account, cross-devi
 submission, or automatic POST retry is added. / 配置流程仍仅使用 OpenApp、本地优先；历史说明和
 Releases 保持不变，不新增洛谷主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、后台
 提交或 POST 自动重试。
+
+Phase 24 / 第 24 阶段: Luogu's full local problem catalog now prefers the official streamed
+`https://cdn.luogu.com.cn/problemset-open/latest.ndjson.gz` export. The client decompresses gzip
+line by line, maps catalog fields, and writes Room rows in bounded batches; adapters without this
+capability keep the historical paged fallback. / 第 24 阶段：洛谷本地完整题库现在优先使用官方流式
+`https://cdn.luogu.com.cn/problemset-open/latest.ndjson.gz` 导出。客户端逐行解压 gzip、映射题库字段，
+并以有界批次写入 Room；不支持该能力的适配器继续使用历史分页回退。
+The catalog phase does not bulk-import problem details and remains public, local-first, and
+OpenApp-only. Historical notes and Releases remain intact; no main-site password, cookie, session,
+CSRF login, cloud account, cross-device sync, background submission, or automatic POST retry is added.
+/ 本阶段不批量导入题面详情，仍保持公开数据、本地优先和仅 OpenApp；历史说明和 Releases 保持不变，
+不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、后台提交或 POST 自动重试。
 
 ## Documentation
 

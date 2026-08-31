@@ -10,6 +10,7 @@ import com.ojnexus.judge.luogu.api.dto.LuoguContestListResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemListResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguRecordPageResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguUserPageResponse
+import java.io.InputStream
 
 interface LuoguAdapter : JudgeAdapter {
     override val id: JudgeId get() = JudgeId.LUOGU
@@ -25,6 +26,10 @@ interface LuoguAdapter : JudgeAdapter {
             JudgeCapability.CONTESTS,
             JudgeCapability.BACKGROUND_SYNC,
         )
+
+    /** True when the adapter can stream Luogu's official problemset export. */
+    val supportsProblemsetDump: Boolean
+        get() = false
 
     override suspend fun status(): AdapterStatus = AdapterStatus.AVAILABLE
 
@@ -44,11 +49,15 @@ interface LuoguAdapter : JudgeAdapter {
 
     suspend fun fetchRecordPage(uid: Long, page: Int): LuoguRecordPageResponse =
         error("Luogu submission sync is not implemented by this adapter")
+
+    suspend fun openProblemsetDump(): InputStream =
+        error("Luogu problemset dump is not implemented by this adapter")
 }
 
 class RetrofitLuoguAdapter(
     private val client: LuoguClient,
 ) : LuoguAdapter {
+    override val supportsProblemsetDump: Boolean = true
     override suspend fun searchUser(handle: String): LuoguUserSummary? =
         client.searchUsers(handle).users.asSequence()
             .filterNotNull()
@@ -63,4 +72,6 @@ class RetrofitLuoguAdapter(
     override suspend fun fetchContestPage(page: Int) = client.fetchContestPage(page)
 
     override suspend fun fetchRecordPage(uid: Long, page: Int) = client.fetchRecordPage(uid, page)
+
+    override suspend fun openProblemsetDump() = client.openProblemsetDump().byteStream()
 }

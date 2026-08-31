@@ -290,3 +290,22 @@ main-site password, Cookie, Session, CSRF login, cloud account, cross-device syn
 submission, or automatic POST retry. Previous phase notes and published Releases remain unchanged. /
 本阶段继续保持仅使用 OpenApp、Keystore 保护和本地优先的边界。不新增洛谷主站密码、Cookie、Session、
 CSRF 登录、云端账号、跨设备同步、后台提交或 POST 自动重试；此前阶段说明和已发布 Releases 保持不变。
+
+## PHASE 24 — Official problemset dump import / 官方题库导入
+
+Full local Luogu problem synchronization now prefers the official streamed gzip NDJSON export at
+`https://cdn.luogu.com.cn/problemset-open/latest.ndjson.gz`. The parser reads one JSON problem per
+line, maps the catalog fields needed by local search, and writes Room rows in bounded batches.
+Adapters that do not support this export retain the previous paginated endpoint as a fallback. /
+洛谷完整本地题库同步现在优先使用官方流式 gzip NDJSON 导出
+`https://cdn.luogu.com.cn/problemset-open/latest.ndjson.gz`。解析器逐行读取 JSON 题目，映射本地搜索
+所需的题库字段，并以有界批次写入 Room。不支持该导出的适配器继续保留此前的分页接口作为回退。
+
+Malformed nonblank lines and decompression failures surface as parse errors instead of claiming a
+complete catalog. Problem details remain on-demand; the phase stays public, local-first, and
+OpenApp-only, with no main-site password, cookies, sessions, CSRF login, cloud account,
+cross-device sync, background submission, or automatic POST retry. Previous phase notes and
+published Releases remain unchanged. / 非空行格式错误和解压失败会作为解析错误报告，不会误报题库已
+完整同步。题面详情仍按需获取；本阶段继续保持公开数据、本地优先和仅 OpenApp，不新增主站密码、
+Cookie、Session、CSRF 登录、云端账号、跨设备同步、后台提交或 POST 自动重试；此前阶段说明和已发布
+Releases 保持不变。

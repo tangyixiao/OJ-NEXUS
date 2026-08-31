@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okio.Buffer
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -27,6 +28,8 @@ import java.util.concurrent.TimeUnit
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import java.io.ByteArrayOutputStream
+import java.util.zip.GZIPOutputStream
 
 class LuoguPublicTransportTest {
     private lateinit var server: MockWebServer
@@ -99,6 +102,30 @@ class LuoguPublicTransportTest {
     }
 
     @Test
+    fun `problemset dump uses the official gzip endpoint`() {
+        val body = ByteArrayOutputStream().also { output ->
+            GZIPOutputStream(output).bufferedWriter().use { writer ->
+                writer.write("{\"pid\":\"P1001\",\"title\":\"A+B\"}\n")
+            }
+        }.toByteArray()
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/gzip")
+                .setBody(Buffer().write(body)),
+        )
+
+        val dump = runBlocking {
+            client(problemsetDumpUrl = server.url("/problemset-open/latest.ndjson.gz").toString())
+                .openProblemsetDump()
+        }
+        dump.use { body -> body.byteStream().use { assertTrue(it.readBytes().isNotEmpty()) } }
+
+        assertTrue(LuoguUrls.PROBLEMSET_DUMP_URL.endsWith("/problemset-open/latest.ndjson.gz"))
+        assertEquals("/problemset-open/latest.ndjson.gz", server.takeRequest().path)
+    }
+
+    @Test
     fun `public requests carry Luogu content-only transport headers`() {
         server.enqueue(jsonResponse("""{"status":200,"template":"user.show","data":{}}"""))
 
@@ -152,7 +179,10 @@ class LuoguPublicTransportTest {
         assertEquals("/problem/list?page=2&keyword=P1001", server.takeRequest().path)
     }
 
-    private fun client(maxAttempts: Int = 1): LuoguClient {
+    private fun client(
+        maxAttempts: Int = 1,
+        problemsetDumpUrl: String = LuoguUrls.PROBLEMSET_DUMP_URL,
+    ): LuoguClient {
         val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
         val api = Retrofit.Builder()
             .baseUrl(server.url("/"))
@@ -171,6 +201,7 @@ class LuoguPublicTransportTest {
             delayProvider = object : DelayProvider {
                 override suspend fun delayMs(ms: Long) = Unit
             },
+            problemsetDumpUrl = problemsetDumpUrl,
         )
     }
 
