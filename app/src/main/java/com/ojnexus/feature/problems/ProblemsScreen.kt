@@ -67,7 +67,10 @@ private val StatusColumnWidth = 92.dp
 private val IconTouchSize = 32.dp
 private val RemoteProblemRowHeight = 82.dp
 
-private enum class ProblemScope { LIBRARY, REMOTE }
+internal enum class ProblemScope { LIBRARY, REMOTE }
+
+internal fun shouldSwitchProblemScope(selected: ProblemScope, target: ProblemScope): Boolean =
+    selected != target
 
 @Composable
 fun ProblemsScreen(
@@ -187,6 +190,7 @@ private fun LibraryContent(
                 Spacer(modifier = Modifier.height(NexusSpacing.sm))
                 ScopeSwitcher(
                     selected = ProblemScope.LIBRARY,
+                    onSelectLibrary = {},
                     onSelectRemote = onOpenRemote,
                 )
                 Spacer(modifier = Modifier.height(NexusSpacing.xs))
@@ -322,7 +326,11 @@ private fun EmptyHint(title: String, hint: String) {
 }
 
 @Composable
-private fun ScopeSwitcher(selected: ProblemScope, onSelectRemote: () -> Unit) {
+private fun ScopeSwitcher(
+    selected: ProblemScope,
+    onSelectLibrary: () -> Unit,
+    onSelectRemote: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
@@ -330,12 +338,20 @@ private fun ScopeSwitcher(selected: ProblemScope, onSelectRemote: () -> Unit) {
         FilterChip(
             label = stringResource(R.string.problems_scope_library),
             selected = selected == ProblemScope.LIBRARY,
-            onClick = {},
+            onClick = {
+                if (shouldSwitchProblemScope(selected, ProblemScope.LIBRARY)) {
+                    onSelectLibrary()
+                }
+            },
         )
         FilterChip(
             label = stringResource(R.string.problems_scope_remote),
             selected = selected == ProblemScope.REMOTE,
-            onClick = onSelectRemote,
+            onClick = {
+                if (shouldSwitchProblemScope(selected, ProblemScope.REMOTE)) {
+                    onSelectRemote()
+                }
+            },
         )
     }
 }
@@ -408,6 +424,7 @@ private fun RemoteCatalogContent(
                 Spacer(modifier = Modifier.height(NexusSpacing.sm))
                 ScopeSwitcher(
                     selected = ProblemScope.REMOTE,
+                    onSelectLibrary = onBackToLibrary,
                     onSelectRemote = {},
                 )
                 Spacer(modifier = Modifier.height(NexusSpacing.xs))

@@ -168,3 +168,15 @@ It no longer claims that an OJ account is required, which matches the public Luo
 other judges still remain local-cache-only until their own provider is registered. / 远端题库没有
 缓存条目时，空状态现在提示用户输入关键词，不再声称必须连接 OJ 账号，这与公开洛谷关键词
 路径一致；其他 OJ 在注册各自提供者前仍只读取本地缓存。
+
+## PHASE 16 — Bidirectional problem scope navigation / 题库范围双向导航
+
+The problem scope switcher now wires both local-library and remote-catalog transitions, so the
+remote view can return directly to the local library without leaving the Problems screen. The
+navigation boundary is covered by a focused unit test. / 题库范围切换器现在同时接通本地题库和远端
+题库的切换回调，用户无需离开题库页面即可从远端视图直接返回本地题库，并由聚焦单元测试覆盖
+该导航边界。
+
+This is a UI/navigation correction only; it does not add main-site passwords, cookies, sessions,
+CSRF state, cloud accounts, or cross-device synchronization. / 本阶段仅修正 UI 导航，不新增洛谷主站
+密码、Cookie、Session、CSRF 状态、云端账号或跨设备同步。

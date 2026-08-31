@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 15 (first-use catalog guidance, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 16 (bidirectional problem-scope navigation, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -89,6 +89,11 @@ loads more, while Settings exposes the active background sync stage. / 第 14 �
 Phase 15 / 第 15 阶段: An empty remote catalog now directs the user to enter a keyword instead of
 implying that an OJ account is required for public Luogu search. / 第 15 阶段：远端题库为空时，
 现在提示用户输入关键词，不再误导用户认为公开洛谷搜索必须先连接 OJ 账号。
+
+Phase 16 / 第 16 阶段: The problem scope switcher now navigates in both directions between the
+local library and the remote catalog, including a direct return from the remote view. / 第 16 阶段：
+题库范围切换器现在支持本地题库与远端题库双向导航，进入远端视图后可以直接返回本地题库。
+The change remains local-first and public-data-only. / 本阶段仍保持本地优先和仅使用公开数据。
 
 ## Documentation
 
