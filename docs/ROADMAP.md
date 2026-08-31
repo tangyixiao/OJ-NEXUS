@@ -180,3 +180,17 @@ navigation boundary is covered by a focused unit test. / 题库范围切换器�
 This is a UI/navigation correction only; it does not add main-site passwords, cookies, sessions,
 CSRF state, cloud accounts, or cross-device synchronization. / 本阶段仅修正 UI 导航，不新增洛谷主站
 密码、Cookie、Session、CSRF 状态、云端账号或跨设备同步。
+
+## PHASE 17 — Luogu public profile surface / 洛谷公开资料展示
+
+The Profile screen now reads the synchronized Luogu `JudgeProfileEntity` snapshot and exposes its
+public ranking, passed/submitted problem counts, follower/following counts, slogan, and
+introduction. A clear empty state is used when no Luogu public snapshot is available, and the
+mapping rejects profiles from other judges. / Profile 页面现在读取已同步的洛谷
+`JudgeProfileEntity` 快照，展示公开排名、通过题数、提交题数、粉丝、关注、签名和简介；没有洛谷
+公开快照时显示明确空状态，映射也会拒绝其他 OJ 的资料。
+
+The phase is presentation-only over the existing local Room data. It does not add main-site
+passwords, cookies, sessions, CSRF state, cloud accounts, or cross-device synchronization. /
+本阶段只在现有本地 Room 数据之上增加展示，不新增洛谷主站密码、Cookie、Session、CSRF 状态、
+云端账号或跨设备同步。

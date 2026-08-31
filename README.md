@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 16 (bidirectional problem-scope navigation, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 17 (Luogu public profile surface, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -94,6 +94,15 @@ Phase 16 / 第 16 阶段: The problem scope switcher now navigates in both direc
 local library and the remote catalog, including a direct return from the remote view. / 第 16 阶段：
 题库范围切换器现在支持本地题库与远端题库双向导航，进入远端视图后可以直接返回本地题库。
 The change remains local-first and public-data-only. / 本阶段仍保持本地优先和仅使用公开数据。
+
+Phase 17 / 第 17 阶段: Profile now renders the synchronized Luogu public profile snapshot,
+including ranking, passed/submitted problem counts, follower/following counts, slogan, and
+introduction, with an explicit empty state when no public snapshot is available. / 第 17 阶段：
+个人档案现在展示已同步的洛谷公开资料快照，包括排名、通过题数、提交题数、粉丝、关注、签名
+和简介；没有公开资料快照时显示明确的空状态。
+Only the public Room snapshot is rendered; no main-site credentials, cookies, sessions, CSRF state,
+cloud account, or cross-device sync is introduced. / 本阶段只展示 Room 中的公开资料快照，不新增
+主站凭据、Cookie、Session、CSRF 状态、云端账号或跨设备同步。
 
 ## Documentation
 

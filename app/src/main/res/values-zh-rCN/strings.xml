@@ -321,6 +321,16 @@
     <string name="profile_role">竞赛程序员</string>
     <string name="profile_section_judges">OJ</string>
     <string name="profile_section_global">全局</string>
+    <string name="profile_section_luogu_public">洛谷公开资料</string>
+    <string name="profile_luogu_ranking">排名</string>
+    <string name="profile_luogu_passed">通过题数</string>
+    <string name="profile_luogu_submitted">提交题数</string>
+    <string name="profile_luogu_followers">粉丝</string>
+    <string name="profile_luogu_following">关注</string>
+    <string name="profile_luogu_slogan">签名</string>
+    <string name="profile_luogu_introduction">简介</string>
+    <string name="profile_luogu_no_details">暂无同步的公开资料</string>
+    <string name="profile_luogu_no_value">—</string>
     <string name="judge_not_linked">未关联</string>
     <string name="profile_stat_solved">已解决</string>
     <string name="profile_stat_submissions">提交次数</string>

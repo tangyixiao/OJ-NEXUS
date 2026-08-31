@@ -70,6 +70,34 @@ data class ProfileUiState(
     val achievements: List<AchievementState>,
 )
 
+internal data class LuoguProfileSummary(
+    val handle: String,
+    val ranking: Int?,
+    val passedProblemCount: Int?,
+    val submittedProblemCount: Int?,
+    val followerCount: Int?,
+    val followingCount: Int?,
+    val slogan: String?,
+    val introduction: String?,
+)
+
+internal fun luoguProfileSummary(
+    profile: com.ojnexus.core.database.entity.JudgeProfileEntity?,
+): LuoguProfileSummary? = profile
+    ?.takeIf { it.judge == JudgeId.LUOGU.id }
+    ?.let {
+        LuoguProfileSummary(
+            handle = it.handle,
+            ranking = it.ranking,
+            passedProblemCount = it.passedProblemCount,
+            submittedProblemCount = it.submittedProblemCount,
+            followerCount = it.followerCount,
+            followingCount = it.followingCount,
+            slogan = it.slogan?.takeIf(String::isNotBlank),
+            introduction = it.introduction?.takeIf(String::isNotBlank),
+        )
+    }
+
 class ProfileViewModel(
     analyticsRepository: com.ojnexus.core.data.repository.AnalyticsRepository,
     judgeDataRepository: com.ojnexus.core.data.repository.JudgeDataRepository,
@@ -185,6 +213,7 @@ private fun ProfileContent(
 ) {
     val colors = NexusTheme.colors
     val cardImageData = state.toCardImageData()
+    val luoguProfile = luoguProfileSummary(state.connections.profiles[JudgeId.LUOGU])
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -288,6 +317,77 @@ private fun ProfileContent(
 
         SectionGap()
 
+        NexusSection(label = stringResource(R.string.profile_section_luogu_public)) {
+            if (luoguProfile == null) {
+                Text(
+                    text = stringResource(R.string.profile_luogu_no_details),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textTertiary,
+                )
+            } else {
+                Text(
+                    text = luoguProfile.handle,
+                    style = NexusTheme.typography.data,
+                    color = colors.accent,
+                )
+                Spacer(modifier = Modifier.height(NexusSpacing.xs))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    NexusMetric(
+                        label = stringResource(R.string.profile_luogu_ranking),
+                        value = luoguProfile.ranking?.toString()
+                            ?: stringResource(R.string.profile_luogu_no_value),
+                        modifier = Modifier.weight(1f),
+                    )
+                    MetricSeparator()
+                    NexusMetric(
+                        label = stringResource(R.string.profile_luogu_passed),
+                        value = luoguProfile.passedProblemCount?.toString()
+                            ?: stringResource(R.string.profile_luogu_no_value),
+                        modifier = Modifier.weight(1f),
+                    )
+                    MetricSeparator()
+                    NexusMetric(
+                        label = stringResource(R.string.profile_luogu_submitted),
+                        value = luoguProfile.submittedProblemCount?.toString()
+                            ?: stringResource(R.string.profile_luogu_no_value),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Spacer(modifier = Modifier.height(NexusSpacing.sm))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    NexusMetric(
+                        label = stringResource(R.string.profile_luogu_followers),
+                        value = luoguProfile.followerCount?.toString()
+                            ?: stringResource(R.string.profile_luogu_no_value),
+                        modifier = Modifier.weight(1f),
+                    )
+                    MetricSeparator()
+                    NexusMetric(
+                        label = stringResource(R.string.profile_luogu_following),
+                        value = luoguProfile.followingCount?.toString()
+                            ?: stringResource(R.string.profile_luogu_no_value),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                luoguProfile.slogan?.let { slogan ->
+                    Spacer(modifier = Modifier.height(NexusSpacing.sm))
+                    ProfilePublicText(
+                        label = stringResource(R.string.profile_luogu_slogan),
+                        value = slogan,
+                    )
+                }
+                luoguProfile.introduction?.let { introduction ->
+                    Spacer(modifier = Modifier.height(NexusSpacing.xs))
+                    ProfilePublicText(
+                        label = stringResource(R.string.profile_luogu_introduction),
+                        value = introduction,
+                    )
+                }
+            }
+        }
+
+        SectionGap()
+
         // GLOBAL
         NexusSection(label = stringResource(R.string.profile_section_global)) {
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -356,6 +456,15 @@ private fun ProfileContent(
         }
 
         Spacer(modifier = Modifier.height(NexusSpacing.xxl))
+    }
+}
+
+@Composable
+private fun ProfilePublicText(label: String, value: String) {
+    Column {
+        Text(label, style = NexusTheme.typography.sectionLabel, color = NexusTheme.colors.textTertiary)
+        Spacer(modifier = Modifier.height(NexusSpacing.xxxs))
+        Text(value, style = NexusTheme.typography.dataSmall, color = NexusTheme.colors.textSecondary)
     }
 }
 

@@ -364,6 +364,16 @@
     <string name="profile_role">COMPETITIVE PROGRAMMER</string>
     <string name="profile_section_judges">JUDGES</string>
     <string name="profile_section_global">GLOBAL</string>
+    <string name="profile_section_luogu_public">LUOGU PUBLIC PROFILE</string>
+    <string name="profile_luogu_ranking">RANKING</string>
+    <string name="profile_luogu_passed">PASSED</string>
+    <string name="profile_luogu_submitted">SUBMITTED</string>
+    <string name="profile_luogu_followers">FOLLOWERS</string>
+    <string name="profile_luogu_following">FOLLOWING</string>
+    <string name="profile_luogu_slogan">SLOGAN</string>
+    <string name="profile_luogu_introduction">INTRODUCTION</string>
+    <string name="profile_luogu_no_details">NO PUBLIC PROFILE DETAILS SYNCED</string>
+    <string name="profile_luogu_no_value">—</string>
     <string name="judge_not_linked">NOT LINKED</string>
     <string name="profile_stat_solved">SOLVED</string>
     <string name="profile_stat_submissions">SUBMISSIONS</string>
