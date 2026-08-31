@@ -18,6 +18,7 @@ import com.ojnexus.core.database.dao.NoteDao
 import com.ojnexus.core.database.dao.ProblemDao
 import com.ojnexus.core.database.dao.RatingChangeDao
 import com.ojnexus.core.database.dao.RemoteProblemDao
+import com.ojnexus.core.database.dao.RemoteProblemDetailDao
 import com.ojnexus.core.database.dao.ReviewDao
 import com.ojnexus.core.database.dao.SessionDao
 import com.ojnexus.core.database.dao.SyncStateDao
@@ -35,6 +36,7 @@ import com.ojnexus.core.database.entity.ProblemTagCrossRef
 import com.ojnexus.core.database.entity.ProblemTagEntity
 import com.ojnexus.core.database.entity.RatingChangeEntity
 import com.ojnexus.core.database.entity.RemoteProblemEntity
+import com.ojnexus.core.database.entity.RemoteProblemDetailEntity
 import com.ojnexus.core.database.entity.ReviewEntity
 import com.ojnexus.core.database.entity.ReviewLogEntity
 import com.ojnexus.core.database.entity.SyncStateEntity
@@ -65,8 +67,10 @@ import com.ojnexus.core.database.entity.TrainingTaskEntity
  * and credentials are intentionally not database columns.
  *
  * v8 (Phase 20 Luogu): nullable Open Platform evaluation details for local result inspection.
+ *
+ * v9 (Phase 25 Luogu): cached public problem detail snapshots for offline-first reading.
  */
-const val OJ_NEXUS_SCHEMA_VERSION = 8
+const val OJ_NEXUS_SCHEMA_VERSION = 9
 
 @Database(
     entities = [
@@ -85,6 +89,7 @@ const val OJ_NEXUS_SCHEMA_VERSION = 8
         JudgeProfileEntity::class,
         RatingChangeEntity::class,
         RemoteProblemEntity::class,
+        RemoteProblemDetailEntity::class,
         ContestEntity::class,
         ContestProblemMarkerEntity::class,
         ProblemKnowledgeEntity::class,
@@ -108,6 +113,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
     abstract fun judgeProfileDao(): JudgeProfileDao
     abstract fun ratingChangeDao(): RatingChangeDao
     abstract fun remoteProblemDao(): RemoteProblemDao
+    abstract fun remoteProblemDetailDao(): RemoteProblemDetailDao
     abstract fun contestDao(): ContestDao
     abstract fun contestProblemMarkerDao(): ContestProblemMarkerDao
     abstract fun knowledgeDao(): KnowledgeDao
@@ -512,9 +518,43 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_8_9: Migration = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `remote_problem_details` (" +
+                        "`judge` TEXT NOT NULL, " +
+                        "`external_id` TEXT NOT NULL, " +
+                        "`title` TEXT NOT NULL, " +
+                        "`difficulty` INTEGER, " +
+                        "`tags_json` TEXT NOT NULL, " +
+                        "`total_submit` INTEGER, " +
+                        "`total_accepted` INTEGER, " +
+                        "`background` TEXT NOT NULL, " +
+                        "`description` TEXT NOT NULL, " +
+                        "`input_format` TEXT NOT NULL, " +
+                        "`output_format` TEXT NOT NULL, " +
+                        "`hint` TEXT NOT NULL, " +
+                        "`samples_json` TEXT NOT NULL, " +
+                        "`time_limit_ms` INTEGER, " +
+                        "`memory_limit_mb` INTEGER, " +
+                        "`updated_at` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`judge`, `external_id`))",
+                )
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                    MIGRATION_7_8,
+                    MIGRATION_8_9,
+                )
                 .build()
     }
 }

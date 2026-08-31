@@ -165,6 +165,7 @@ class MigrationTest {
             OjNexusDatabase.MIGRATION_5_6,
             OjNexusDatabase.MIGRATION_6_7,
             OjNexusDatabase.MIGRATION_7_8,
+            OjNexusDatabase.MIGRATION_8_9,
         ).build()
 
         try {
@@ -256,6 +257,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_5_6,
                 OjNexusDatabase.MIGRATION_6_7,
                 OjNexusDatabase.MIGRATION_7_8,
+                OjNexusDatabase.MIGRATION_8_9,
             )
             .build()
         db.openHelper.writableDatabase
@@ -328,6 +330,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_5_6,
                 OjNexusDatabase.MIGRATION_6_7,
                 OjNexusDatabase.MIGRATION_7_8,
+                OjNexusDatabase.MIGRATION_8_9,
             )
             .build()
         try {
@@ -338,11 +341,76 @@ class MigrationTest {
     }
 
     @Test
+    fun `migrate 8 to 9 preserves existing rows and adds remote detail cache`() {
+        createDatabaseFromSchema(8)
+        val v8 = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        v8.execSQL(
+            "INSERT INTO problems (id, judge, external_id, title, created_at, updated_at, " +
+                "attempt_count, solved, favorite) VALUES (1, 'local', 'keep', 'Keep', 1, 1, 0, 0, 1)",
+        )
+        v8.execSQL(
+            "INSERT INTO submission_jobs (judge, request_id, kind, language, status, created_at, updated_at) " +
+                "VALUES ('luogu', 'request-keep', 'PROBLEM', 'cxx/14/gcc', 'PENDING', 2, 2)",
+        )
+        v8.close()
+
+        val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
+            .addMigrations(OjNexusDatabase.MIGRATION_8_9)
+            .build()
+        try {
+            val detail = com.ojnexus.core.database.entity.RemoteProblemDetailEntity(
+                judge = "luogu",
+                externalId = "P1001",
+                title = "A+B",
+                difficulty = 1,
+                tagsJson = "[1]",
+                totalSubmit = 2,
+                totalAccepted = 1,
+                background = "",
+                description = "desc",
+                inputFormat = "in",
+                outputFormat = "out",
+                hint = "",
+                samplesJson = "[]",
+                timeLimitMs = 1000,
+                memoryLimitMb = 128,
+                updatedAt = 42,
+            )
+            kotlinx.coroutines.runBlocking { db.remoteProblemDetailDao().upsert(detail) }
+            assertEquals(
+                "A+B",
+                kotlinx.coroutines.runBlocking {
+                    db.remoteProblemDetailDao().findByKey("luogu", "P1001")?.title
+                },
+            )
+        } finally {
+            db.close()
+        }
+
+        val raw = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        raw.rawQuery("SELECT title FROM problems WHERE id = 1", null).use {
+            assertTrue(it.moveToFirst())
+            assertEquals("Keep", it.getString(0))
+        }
+        raw.rawQuery("SELECT request_id FROM submission_jobs", null).use {
+            assertTrue(it.moveToFirst())
+            assertEquals("request-keep", it.getString(0))
+        }
+        raw.close()
+    }
+
+    @Test
     fun `migrate 5 to 6 adds nullable Luogu profile and rating facts`() {
         createDatabaseFromSchema(5)
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_5_6, OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8)
+            .addMigrations(OjNexusDatabase.MIGRATION_5_6, OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -370,7 +438,7 @@ class MigrationTest {
         createDatabaseFromSchema(6)
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8)
+            .addMigrations(OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -409,7 +477,7 @@ class MigrationTest {
         v7.close()
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_7_8)
+            .addMigrations(OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9)
             .build()
         try {
             db.openHelper.writableDatabase
