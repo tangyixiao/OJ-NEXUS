@@ -3,6 +3,7 @@ package com.ojnexus.judge.luogu.open
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import com.ojnexus.core.model.Verdict
 import com.ojnexus.judge.luogu.LuoguUrls
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -269,48 +270,49 @@ internal suspend fun pollLuoguOpenResult(
     }
     var signalHandled = signal == null
     var signalTriggered = false
+    var latestResult: LuoguOpenResult = LuoguOpenResult.Pending
     try {
         repeat(FOREGROUND_RESULT_POLL_ATTEMPTS) { attempt ->
             when (val result = fetch(requestId)) {
                 is LuoguOpenResult.Ready -> return@coroutineScope result
-                LuoguOpenResult.Pending -> {
-                    if (attempt < FOREGROUND_RESULT_POLL_ATTEMPTS - 1) {
-                        var waitedForNextFetch = false
-                        if (signal != null && !signalHandled) {
-                            if (signal.isCompleted) {
-                                signalHandled = true
-                                signalTriggered = signal.await()
+                is LuoguOpenResult.InProgress -> latestResult = result
+                LuoguOpenResult.Pending -> latestResult = result
+            }
+            if (attempt < FOREGROUND_RESULT_POLL_ATTEMPTS - 1) {
+                var waitedForNextFetch = false
+                if (signal != null && !signalHandled) {
+                    if (signal.isCompleted) {
+                        signalHandled = true
+                        signalTriggered = signal.await()
+                    } else {
+                        val tick = async(start = CoroutineStart.UNDISPATCHED) {
+                            if (delayForResult == null) {
+                                delay(FOREGROUND_RESULT_POLL_DELAY_MS)
                             } else {
-                                val tick = async(start = CoroutineStart.UNDISPATCHED) {
-                                    if (delayForResult == null) {
-                                        delay(FOREGROUND_RESULT_POLL_DELAY_MS)
-                                    } else {
-                                        delayForResult(FOREGROUND_RESULT_POLL_DELAY_MS)
-                                    }
-                                }
-                                select<Unit> {
-                                    signal.onAwait {
-                                        signalHandled = true
-                                        signalTriggered = it
-                                    }
-                                    tick.onAwait { waitedForNextFetch = true }
-                                }
-                                tick.cancel()
-                            }
-                            if (signalTriggered) {
-                                signalTriggered = false
-                                return@repeat
+                                delayForResult(FOREGROUND_RESULT_POLL_DELAY_MS)
                             }
                         }
-                        if (!waitedForNextFetch) {
-                            delayForResult?.invoke(FOREGROUND_RESULT_POLL_DELAY_MS)
-                                ?: delay(FOREGROUND_RESULT_POLL_DELAY_MS)
+                        select<Unit> {
+                            signal.onAwait {
+                                signalHandled = true
+                                signalTriggered = it
+                            }
+                            tick.onAwait { waitedForNextFetch = true }
                         }
+                        tick.cancel()
                     }
+                    if (signalTriggered) {
+                        signalTriggered = false
+                        return@repeat
+                    }
+                }
+                if (!waitedForNextFetch) {
+                    delayForResult?.invoke(FOREGROUND_RESULT_POLL_DELAY_MS)
+                        ?: delay(FOREGROUND_RESULT_POLL_DELAY_MS)
                 }
             }
         }
-        LuoguOpenResult.Pending
+        latestResult
     } finally {
         signal?.cancel()
     }
@@ -336,7 +338,26 @@ interface LuoguOpenGateway : LuoguOpenResultSignal {
 
 sealed interface LuoguOpenResult {
     data object Pending : LuoguOpenResult
+    data class InProgress(val evaluation: LuoguOpenEvaluation) : LuoguOpenResult
     data class Ready(val evaluation: LuoguOpenEvaluation) : LuoguOpenResult
+}
+
+internal fun LuoguOpenEvaluation.isFinished(): Boolean =
+    status?.let(LuoguJudgeStatus::isTerminal) ?: (compileSuccess == false || exitCode != null)
+
+internal object LuoguJudgeStatus {
+    fun isTerminal(status: Int): Boolean = status !in setOf(0, 1)
+
+    fun verdict(status: Int): Verdict = when (status) {
+        2 -> Verdict.CE
+        3 -> Verdict.OTHER
+        4 -> Verdict.MLE
+        5 -> Verdict.TLE
+        6, 14 -> Verdict.WA
+        7 -> Verdict.RE
+        12 -> Verdict.AC
+        else -> Verdict.OTHER
+    }
 }
 
 sealed class LuoguOpenApiError(message: String) : Exception(message) {
@@ -440,21 +461,24 @@ class LuoguOpenPlatformClient internal constructor(
         if (response.code() == 204) return LuoguOpenResult.Pending
         val callback = bodyOrThrow(response)
         val data = callback.data ?: throw LuoguOpenApiError.MalformedResponse
-        return LuoguOpenResult.Ready(
-            LuoguOpenEvaluation(
-                requestId = callback.requestId ?: requestId,
-                trackId = callback.trackId,
-                type = callback.type,
-                compileSuccess = data.compile?.success,
-                compileMessage = data.compile?.message,
-                status = data.judge?.status,
-                score = data.judge?.score,
-                timeMs = data.judge?.time ?: data.run?.result?.cpuTime,
-                memoryKiB = data.judge?.memory ?: data.run?.result?.memory,
-                output = data.run?.output,
-                exitCode = data.run?.result?.exitCode,
-            ),
+        val evaluation = LuoguOpenEvaluation(
+            requestId = callback.requestId ?: requestId,
+            trackId = callback.trackId,
+            type = callback.type,
+            compileSuccess = data.compile?.success,
+            compileMessage = data.compile?.message,
+            status = data.judge?.status,
+            score = data.judge?.score,
+            timeMs = data.judge?.time ?: data.run?.result?.cpuTime,
+            memoryKiB = data.judge?.memory ?: data.run?.result?.memory,
+            output = data.run?.output,
+            exitCode = data.run?.result?.exitCode,
         )
+        return if (evaluation.isFinished()) {
+            LuoguOpenResult.Ready(evaluation)
+        } else {
+            LuoguOpenResult.InProgress(evaluation)
+        }
     }
 
     override suspend fun fetchQuota(): LuoguOpenQuotaSnapshot {

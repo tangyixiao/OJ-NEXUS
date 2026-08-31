@@ -60,6 +60,66 @@ class LuoguOpenResultPollingTest {
         assertEquals(listOf(1_000L, 1_000L), delays)
     }
 
+    @Test
+    fun `partial result continues polling until a terminal result arrives`() = runBlocking {
+        val responses = ArrayDeque<LuoguOpenResult>(
+            listOf(
+                LuoguOpenResult.Pending,
+                inProgressResult(status = 0),
+                readyResult(),
+            ),
+        )
+        var fetchCount = 0
+
+        val result = pollLuoguOpenResult(
+            requestId = "req-partial",
+            fetch = {
+                fetchCount += 1
+                responses.removeFirst()
+            },
+            delayForResult = {},
+            awaitResultSignal = { _, _ -> false },
+        )
+
+        assertTrue(result is LuoguOpenResult.Ready)
+        assertEquals(3, fetchCount)
+    }
+
+    @Test
+    fun `bounded polling returns latest partial result when still in progress`() = runBlocking {
+        var fetchCount = 0
+
+        val result = pollLuoguOpenResult(
+            requestId = "req-partial",
+            fetch = {
+                fetchCount += 1
+                inProgressResult(status = fetchCount)
+            },
+            delayForResult = {},
+            awaitResultSignal = { _, _ -> false },
+        )
+
+        assertTrue(result is LuoguOpenResult.InProgress)
+        assertEquals(8, fetchCount)
+        assertEquals(8, (result as LuoguOpenResult.InProgress).evaluation.status)
+    }
+
+    private fun inProgressResult(status: Int) = LuoguOpenResult.InProgress(
+        LuoguOpenEvaluation(
+            requestId = "req-partial",
+            trackId = null,
+            type = "judge",
+            compileSuccess = true,
+            compileMessage = "compiled",
+            status = status,
+            score = null,
+            timeMs = null,
+            memoryKiB = null,
+            output = null,
+            exitCode = null,
+        ),
+    )
+
     private fun readyResult() = LuoguOpenResult.Ready(
         LuoguOpenEvaluation(
             requestId = "req-ready",

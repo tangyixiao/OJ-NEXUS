@@ -196,6 +196,12 @@ class WorkspaceViewModel(
                     LuoguOpenResult.Pending -> mutableState.update {
                         it.copy(resultState = WorkspaceResultState.PENDING)
                     }
+                    is LuoguOpenResult.InProgress -> mutableState.update {
+                        it.copy(
+                            resultState = WorkspaceResultState.PENDING,
+                            evaluation = result.evaluation,
+                        )
+                    }
                     is LuoguOpenResult.Ready -> mutableState.update {
                         it.copy(
                             resultState = WorkspaceResultState.READY,

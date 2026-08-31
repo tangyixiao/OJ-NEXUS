@@ -128,6 +128,29 @@ class WorkspaceViewModelTest {
     }
 
     @Test
+    fun `partial result remains pending while exposing the latest evaluation`() = runBlocking {
+        val gateway = PartialGateway()
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = "A+B",
+            gateway = gateway,
+            credentialStore = FakeStore(),
+            testScope = CoroutineScope(coroutineContext),
+            delayForResult = {},
+        )
+
+        viewModel.setCode("int main() {}")
+        viewModel.setMode(WorkspaceMode.SUBMIT)
+        viewModel.submit()
+        viewModel.checkResult()
+
+        assertEquals(8, gateway.resultCalls)
+        assertEquals(WorkspaceResultState.PENDING, viewModel.state.value.resultState)
+        assertEquals(8, viewModel.state.value.evaluation?.status)
+        assertEquals("compiled", viewModel.state.value.evaluation?.compileMessage)
+    }
+
+    @Test
     fun `submit forwards the language selected in the editor`() = runBlocking {
         val gateway = FakeGateway()
         val viewModel = WorkspaceViewModel("P1001", "A+B", gateway, FakeStore(), CoroutineScope(coroutineContext))
@@ -363,6 +386,35 @@ private class PollingGateway(
                 ),
             )
         }
+    }
+}
+
+private class PartialGateway : LuoguOpenGateway {
+    var resultCalls = 0
+
+    override suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission =
+        LuoguOpenSubmission("req-partial")
+
+    override suspend fun run(request: LuoguRunRequest): LuoguOpenSubmission =
+        LuoguOpenSubmission("run-partial")
+
+    override suspend fun fetchResult(requestId: String): LuoguOpenResult {
+        resultCalls++
+        return LuoguOpenResult.InProgress(
+            LuoguOpenEvaluation(
+                requestId = requestId,
+                trackId = null,
+                type = "judge",
+                compileSuccess = true,
+                compileMessage = "compiled",
+                status = resultCalls,
+                score = null,
+                timeMs = null,
+                memoryKiB = null,
+                output = null,
+                exitCode = null,
+            ),
+        )
     }
 }
 

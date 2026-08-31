@@ -83,33 +83,48 @@ class LuoguSubmissionRepository(
             LuoguOpenResult.Pending -> job?.let {
                 dao.update(it.copy(status = SubmissionJobStatus.PENDING.name, updatedAt = clock.millis()))
             }
+            is LuoguOpenResult.InProgress -> job?.let {
+                persistEvaluation(it, result.evaluation, SubmissionJobStatus.PENDING)
+            }
             is LuoguOpenResult.Ready -> job?.let {
                 val finished = result.evaluation.isFinished()
-                database.withTransaction {
-                    dao.update(
-                        it.copy(
-                            status = if (finished) SubmissionJobStatus.READY.name else SubmissionJobStatus.PENDING.name,
-                            judgeStatus = result.evaluation.status,
-                            score = result.evaluation.score,
-                            compileSuccess = result.evaluation.compileSuccess,
-                            compileMessage = result.evaluation.compileMessage,
-                            output = result.evaluation.output,
-                            exitCode = result.evaluation.exitCode,
-                            executionTimeMs = result.evaluation.timeMs
-                                ?.coerceIn(0, Int.MAX_VALUE.toLong())
-                                ?.toInt(),
-                            memoryKiB = result.evaluation.memoryKiB
-                                ?.coerceIn(0, Int.MAX_VALUE.toLong())
-                                ?.toInt(),
-                            updatedAt = clock.millis(),
-                            lastErrorType = null,
-                        ),
-                    )
-                    if (finished) materializeAttempt(it, result.evaluation)
-                }
+                persistEvaluation(
+                    it,
+                    result.evaluation,
+                    if (finished) SubmissionJobStatus.READY else SubmissionJobStatus.PENDING,
+                )
             }
         }
         return result
+    }
+
+    private suspend fun persistEvaluation(
+        job: SubmissionJobEntity,
+        evaluation: LuoguOpenEvaluation,
+        status: SubmissionJobStatus,
+    ) {
+        database.withTransaction {
+            dao.update(
+                job.copy(
+                    status = status.name,
+                    judgeStatus = evaluation.status,
+                    score = evaluation.score,
+                    compileSuccess = evaluation.compileSuccess,
+                    compileMessage = evaluation.compileMessage,
+                    output = evaluation.output,
+                    exitCode = evaluation.exitCode,
+                    executionTimeMs = evaluation.timeMs
+                        ?.coerceIn(0, Int.MAX_VALUE.toLong())
+                        ?.toInt(),
+                    memoryKiB = evaluation.memoryKiB
+                        ?.coerceIn(0, Int.MAX_VALUE.toLong())
+                        ?.toInt(),
+                    updatedAt = clock.millis(),
+                    lastErrorType = null,
+                ),
+            )
+            if (status == SubmissionJobStatus.READY) materializeAttempt(job, evaluation)
+        }
     }
 
     private suspend fun materializeAttempt(
@@ -172,9 +187,6 @@ class LuoguSubmissionRepository(
         }
     }
 
-    private fun LuoguOpenEvaluation.isFinished(): Boolean =
-        status?.let(LuoguJudgeStatus::isTerminal) ?: (exitCode != null || compileSuccess != null)
-
     private suspend fun persist(
         requestId: String,
         kind: SubmissionJobKind,
@@ -194,20 +206,5 @@ class LuoguSubmissionRepository(
                 updatedAt = now,
             ),
         )
-    }
-}
-
-private object LuoguJudgeStatus {
-    fun isTerminal(status: Int): Boolean = status !in setOf(0, 1)
-
-    fun verdict(status: Int): Verdict = when (status) {
-        2 -> Verdict.CE
-        3 -> Verdict.OTHER
-        4 -> Verdict.MLE
-        5 -> Verdict.TLE
-        6, 14 -> Verdict.WA
-        7 -> Verdict.RE
-        12 -> Verdict.AC
-        else -> Verdict.OTHER
     }
 }

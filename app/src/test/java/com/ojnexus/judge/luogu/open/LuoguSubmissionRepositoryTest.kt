@@ -131,7 +131,7 @@ class LuoguSubmissionRepositoryTest {
         repository.submitProblem(
             LuoguProblemJudgeRequest("P1001", "cxx/14/gcc", false, "int main() {}"),
         )
-        gateway.result = LuoguOpenResult.Ready(
+        gateway.result = LuoguOpenResult.InProgress(
             LuoguOpenEvaluation(
                 requestId = "req-1",
                 trackId = null,

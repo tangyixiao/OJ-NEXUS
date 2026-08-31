@@ -133,6 +133,32 @@ class LuoguOpenPlatformClientTest {
     }
 
     @Test
+    fun `result endpoint maps non terminal 200 to in progress`() = runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(
+                    """
+                    {
+                      "requestId": "req-partial",
+                      "type": "judge",
+                      "data": {
+                        "compile": {"success": true, "message": "compiled"},
+                        "judge": {"status": 0, "score": 0}
+                      }
+                    }
+                    """.trimIndent(),
+                ),
+        )
+
+        val result = client.fetchResult("req-partial")
+
+        assertTrue(result is LuoguOpenResult.InProgress)
+        assertEquals(0, (result as LuoguOpenResult.InProgress).evaluation.status)
+        assertEquals(true, result.evaluation.compileSuccess)
+    }
+
+    @Test
     fun `result signal filters request id and channel payload`() = runBlocking {
         val closed = CountDownLatch(1)
         server.enqueue(

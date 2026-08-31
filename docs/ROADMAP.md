@@ -210,6 +210,23 @@ it does not add main-site passwords, cookies, sessions, CSRF state, cloud accoun
 cross-device synchronization. / 本功能仍为本地优先，沿用现有 Keystore 保护的 OpenApp 凭据边界，
 不新增主站密码、Cookie、Session、CSRF 状态、云端账号或跨设备同步。
 
+## PHASE 22 — Partial Luogu result convergence / 洛谷部分评测结果收敛
+
+Luogu Open Platform results now distinguish HTTP 204 Pending, HTTP 200 InProgress, and terminal
+Ready results. A non-terminal 200 response remains local `PENDING`, keeps its latest compile/judge/run
+details, and continues through the bounded foreground poll window; only a terminal result creates or
+updates a finished local attempt. / 洛谷 Open Platform 结果现在区分 HTTP 204 Pending、HTTP 200
+InProgress 和终态 Ready。非终态 200 响应保持本地 `PENDING`，保存最新的编译/评测/运行详情，并继续
+进入前台有界轮询；只有终态结果才会创建或更新完成的本地提交记录。
+
+The HTTP result remains authoritative after an optional official WebSocket wake-up signal. This phase
+continues the local-first, OpenApp-only boundary: no Luogu main-site password, cookies, sessions, CSRF
+state, cloud account, cross-device sync, background submission, automatic POST retry, local compiler,
+or custom-input execution is added. Previous phase notes and published Releases remain unchanged. /
+可选的官方 WebSocket 唤醒信号之后，HTTP 结果仍是唯一权威来源。本阶段继续保持本地优先和仅使用
+OpenApp 的边界：不新增洛谷主站密码、Cookie、Session、CSRF 状态、云端账号、跨设备同步、后台提交、
+POST 自动重试、本地编译器或自定义输入运行；此前阶段说明和已发布 Releases 保持不变。
+
 ## PHASE 21 — Workspace result continuity / 工作区结果连续性
 
 Reopening a Luogu workspace now restores all locally persisted OpenApp evaluation details: compile

@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 21 (workspace result continuity, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 22 (partial Luogu result convergence, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -141,6 +141,19 @@ intact, and no main-site password, cookie, session, CSRF state, cloud account, c
 background submission, automatic POST retry, local compiler, or custom-input runner is added. /
 本阶段是本地优先的展示与恢复改进；历史说明和 Releases 保持不变，不新增主站密码、Cookie、
 Session、CSRF 状态、云端账号、跨设备同步、后台提交、POST 自动重试、本地编译器或自定义输入运行器。
+
+Phase 22 / 第 22 阶段: Luogu Open Platform result handling now distinguishes HTTP 204 Pending,
+HTTP 200 InProgress, and terminal Ready results. Non-terminal 200 responses continue through the
+bounded foreground poll window, while the latest compile/judge/run details remain visible locally.
+Only a terminal result materializes a finished local attempt. / 第 22 阶段：洛谷 Open Platform
+结果处理现在区分 HTTP 204 Pending、HTTP 200 InProgress 和终态 Ready。非终态 200 响应会继续进入
+前台有界轮询，最新的编译/评测/运行详情会保留并在本地展示；只有终态结果才生成完成的本地提交记录。
+This follows the official result contract and preserves the existing local-first, OpenApp-only boundary;
+historical notes and Releases remain intact. No main-site password, cookie, session, CSRF state,
+cloud account, cross-device sync, background submission, automatic POST retry, local compiler, or
+custom-input runner is added. / 本阶段遵循官方结果契约，继续保持本地优先和仅使用 OpenApp 的边界；
+历史说明和 Releases 保持不变，不新增主站密码、Cookie、Session、CSRF 状态、云端账号、跨设备同步、
+后台提交、POST 自动重试、本地编译器或自定义输入运行器。
 
 ## Documentation
 
