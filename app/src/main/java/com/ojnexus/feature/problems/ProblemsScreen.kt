@@ -37,6 +37,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
 import com.ojnexus.BuildConfig
 import com.ojnexus.R
 import com.ojnexus.core.model.JudgeId
@@ -45,6 +46,7 @@ import com.ojnexus.core.model.ProblemStatus
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
+import com.ojnexus.core.ui.UrlOpener
 import com.ojnexus.core.ui.labelRes
 import com.ojnexus.core.ui.tone
 import com.ojnexus.core.designsystem.NexusRadius
@@ -56,6 +58,7 @@ import com.ojnexus.core.designsystem.component.NexusDivider
 import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
+import com.ojnexus.core.database.entity.RemoteProblemEntity
 
 // Library layout metrics.
 private val ProblemRowHeight = 56.dp
@@ -83,6 +86,7 @@ fun ProblemsScreen(
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
     val remoteState by viewModel.remoteState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var scope by rememberSaveable { mutableStateOf(ProblemScope.LIBRARY) }
 
     Column(
@@ -125,6 +129,7 @@ fun ProblemsScreen(
                     viewModel = viewModel,
                     onBackToLibrary = { scope = ProblemScope.LIBRARY },
                     onOpenProblem = onOpenProblem,
+                    onOpenExternal = { remote -> UrlOpener.open(context, remoteProblemUrl(remote)) },
                 )
             }
         }
@@ -389,6 +394,7 @@ private fun RemoteCatalogContent(
     viewModel: ProblemsViewModel,
     onBackToLibrary: () -> Unit,
     onOpenProblem: (Long) -> Unit,
+    onOpenExternal: (RemoteProblemEntity) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item(key = "remote-controls") {
@@ -488,6 +494,7 @@ private fun RemoteCatalogContent(
                     addedProblemId = state.addedProblemIds["${problem.judge}:${problem.externalId}"],
                     onAdd = { viewModel.addRemoteToLibrary(problem) },
                     onOpen = { id -> onOpenProblem(id) },
+                    onOpenExternal = { onOpenExternal(problem) },
                 )
                 NexusDivider(insetEnd = NexusSpacing.xxs)
             }
@@ -525,6 +532,7 @@ private fun RemoteProblemRow(
     addedProblemId: Long?,
     onAdd: () -> Unit,
     onOpen: (Long) -> Unit,
+    onOpenExternal: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -566,19 +574,26 @@ private fun RemoteProblemRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        NexusTag(
-            text = if (addedProblemId == null) {
-                stringResource(R.string.problems_add_to_training)
-            } else {
-                stringResource(R.string.problems_in_library)
-            },
-            tone = if (addedProblemId == null) NexusTone.Accent else NexusTone.Success,
-            selected = addedProblemId == null,
-            modifier = Modifier.clickable(
-                role = Role.Button,
-                onClick = { if (addedProblemId == null) onAdd() else onOpen(addedProblemId) },
-            ),
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+            NexusTag(
+                text = stringResource(R.string.problems_open_source),
+                tone = NexusTone.Neutral,
+                modifier = Modifier.clickable(role = Role.Button, onClick = onOpenExternal),
+            )
+            NexusTag(
+                text = if (addedProblemId == null) {
+                    stringResource(R.string.problems_add_to_training)
+                } else {
+                    stringResource(R.string.problems_in_library)
+                },
+                tone = if (addedProblemId == null) NexusTone.Accent else NexusTone.Success,
+                selected = addedProblemId == null,
+                modifier = Modifier.clickable(
+                    role = Role.Button,
+                    onClick = { if (addedProblemId == null) onAdd() else onOpen(addedProblemId) },
+                ),
+            )
+        }
     }
 }
 

@@ -512,6 +512,7 @@
     <string name="problems_scope_remote">REMOTE CATALOG</string>
     <string name="problems_remote_search_hint">SEARCH REMOTE PROBLEM CATALOG</string>
     <string name="problems_remote_empty">SYNC A JUDGE ACCOUNT TO SEARCH ITS PROBLEM CATALOG</string>
+    <string name="problems_open_source">OPEN</string>
     <string name="problems_add_to_training">ADD TO TRAINING</string>
     <string name="problems_in_library">IN LIBRARY</string>
     <string name="problems_rating_range">RATING</string>

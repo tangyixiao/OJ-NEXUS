@@ -54,7 +54,8 @@ workspaces without storing source code or standard input. The remote problem cat
 to LUOGU and adds canonical Luogu problem links when a problem is saved locally. Analytics and
 Profile now consume rating history for Codeforces, AtCoder, and Luogu independently. Contest
 Center also exposes Luogu as a judge filter, and Arena opens canonical Luogu contest and problem
-pages when the public cache has no contest-problem membership data. See
+pages when the public cache has no contest-problem membership data. Remote catalog rows can also
+open the canonical problem page before adding a problem to the local library. See
 [docs/MULTI_OJ.md](docs/MULTI_OJ.md), [docs/ATCODER.md](docs/ATCODER.md),
 [docs/ARENA.md](docs/ARENA.md),
 [docs/KNOWLEDGE.md](docs/KNOWLEDGE.md),
