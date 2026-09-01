@@ -480,3 +480,18 @@ automatic submission retry is added. Earlier phase notes and published Releases 
 设置页会显示排队状态、当前阶段，以及请求受限、账号、网络、超时、服务器和通用 API 错误的稳定本地化分类，
 不直接渲染服务器原始消息。本阶段继续本地优先和仅公开数据：不新增主站密码、Cookie、Session、CSRF 登录、
 云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布 Releases 保持不变。
+
+## PHASE 35 — Luogu Rating history fallback / 洛谷 Rating 历史回退
+
+The Luogu public sync now selects a non-empty practice `elo` list and otherwise falls back to
+the public user-page `elo` list. This handles real accounts whose practice page returns an empty
+array while the profile page still exposes Rating history, preserving the existing idempotent
+Room import. / 洛谷公开同步现在优先选择非空的 practice `elo` 列表，否则回退到公开用户主页的 `elo` 列表。
+这样可以兼容 practice 页面返回空数组、而资料页仍提供 Rating 历史的真实账号，并继续使用已有的 Room
+幂等导入。
+
+The phase adds no endpoint or credential flow and remains public-data-only. No main-site password,
+Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, custom-input runner,
+or automatic submission retry is added. Earlier phase notes and published Releases remain intact. /
+本阶段不新增接口或凭据流程，继续只使用公开数据。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、
+跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布 Releases 保持不变。

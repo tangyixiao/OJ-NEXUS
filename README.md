@@ -310,6 +310,18 @@ is added. Earlier phase notes and Releases remain intact. / 本阶段继续本�
 Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段
 说明和 Releases 保持不变。
 
+Phase 35 / 第 35 阶段: Luogu Rating synchronization now prefers a non-empty practice `elo`
+history and falls back to the public user-page `elo` history when practice returns an empty
+array. This keeps public Rating history for accounts whose two public pages expose different
+payload shapes. / 第 35 阶段：洛谷 Rating 同步现在优先使用非空的 practice `elo` 历史；当 practice
+返回空数组时，回退到公开用户主页的 `elo` 历史，从而兼容两个公开页面返回结构不同的账号，保留公开 Rating 历史。
+
+The fix changes no authentication or storage boundary: Luogu remains public-data-only, and no
+main-site password, Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler,
+custom-input runner, or automatic submission retry is added. Earlier phase notes and Releases
+remain intact. / 本修复不改变登录或存储边界：洛谷仍只同步公开数据，不新增主站密码、Cookie、Session、CSRF 登录、
+云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和 Releases 保持不变。
+
 ## Documentation
 
 - [Product Spec](docs/PRODUCT_SPEC.md)
