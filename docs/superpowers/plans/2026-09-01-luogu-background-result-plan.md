@@ -90,7 +90,7 @@ git commit -m "test: define Luogu result work policy / 定义洛谷结果任务�
 - Modify: `app/src/main/java/com/ojnexus/judge/luogu/open/LuoguResultWorkPolicy.kt`
 
 **Interfaces:**
-- Produces `LuoguResultWorkScheduler` with `fun enqueue(requestId: String)` and `fun enqueuePending(limit: Int = MAX_PENDING_BOOTSTRAP)`, both no-op for blank IDs.
+- Produces `LuoguResultWorkScheduler` with `fun enqueue(requestId: String)`, a no-op for blank IDs.
 - Produces `WorkManagerLuoguResultScheduler(context: Context)` using `ExistingWorkPolicy.KEEP`.
 - Produces `LuoguOpenResultWorker(context: Context, params: WorkerParameters)` that reads only `request_id`.
 
@@ -185,7 +185,7 @@ git commit -m "feat: schedule persisted Luogu results / 调度已保存的洛谷
 - Test: `app/src/test/java/com/ojnexus/judge/luogu/open/LuoguResultWorkBootstrapTest.kt`
 
 **Interfaces:**
-- `LuoguResultWorkBootstrap.reconcilePending()` reads at most `MAX_PENDING_BOOTSTRAP = 50` rows and calls the scheduler for each request ID.
+- `LuoguResultWorkBootstrap.reconcilePending()` reads at most `MAX_PENDING_BOOTSTRAP = 50` rows and calls `scheduler.enqueue(requestId)` for each request ID.
 - It runs in an application-lifetime `SupervisorJob + Dispatchers.IO`; startup reconciliation failures are isolated and do not crash the app.
 
 - [ ] **Step 1: Write the failing bootstrap test**

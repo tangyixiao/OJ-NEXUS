@@ -22,6 +22,9 @@ interface SubmissionJobDao {
     @Query("SELECT * FROM submission_jobs WHERE judge = :judge AND pid = :pid ORDER BY updated_at DESC LIMIT 1")
     suspend fun findLatestByProblem(judge: String, pid: String): SubmissionJobEntity?
 
+    @Query("SELECT * FROM submission_jobs WHERE judge = 'luogu' AND status = 'PENDING' ORDER BY updated_at ASC, id ASC LIMIT :limit")
+    suspend fun findPendingForBackground(limit: Int): List<SubmissionJobEntity>
+
     @Query("SELECT * FROM submission_jobs ORDER BY updated_at DESC, id DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<SubmissionJobEntity>>
 }
