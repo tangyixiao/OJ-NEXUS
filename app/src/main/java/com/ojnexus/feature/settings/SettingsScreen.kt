@@ -108,7 +108,12 @@ fun SettingsScreen(
     var openAppContentOffset by remember { mutableStateOf<Int?>(null) }
     var openAppReady by remember { mutableStateOf(false) }
 
-    LaunchedEffect(focusOpenApp, openAppReady, openAppContentOffset) {
+    LaunchedEffect(
+        focusOpenApp,
+        openAppReady,
+        openAppContentOffset,
+        settingsScrollState.maxValue,
+    ) {
         val contentOffset = openAppContentOffset
         if (focusOpenApp && openAppReady && contentOffset != null) {
             withFrameNanos { }
