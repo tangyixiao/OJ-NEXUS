@@ -22,7 +22,15 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 43 (Luogu settings focus correction, safe local slice)**: the Dashboard
+Early development — **Phase 44 (OpenApp credential input validation, safe local slice)**: blank or
+whitespace-only OpenApp user/secret input is rejected locally with field-specific feedback before
+Keystore storage or quota verification. The settings-focus correction from Phase 43 remains
+included. The APK identity is aligned to `versionName=0.3.40`, `versionCode=40`.
+/ 早期开发——**第 44 阶段（OpenApp 凭据输入校验，安全的本地切片）**：空白或仅空格的 OpenApp 用户/密钥会在
+写入 Keystore 或额度验证前被本地拒绝，并显示对应字段提示。第 43 阶段的设置定位修正继续保留。APK 版本身份同步为
+`versionName=0.3.40`、`versionCode=40`。
+
+Phase 43 remains preserved below: the Dashboard
 `CONNECT LUOGU` route now scrolls Settings to the Luogu public-account panel; the OpenApp action
 intent correction from Phase 42 remains included. The APK identity is aligned to
 `versionName=0.3.39`, `versionCode=39`.

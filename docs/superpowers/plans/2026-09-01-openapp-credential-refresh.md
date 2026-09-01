@@ -16,6 +16,6 @@
 
 ### Task 3: Verify and release
 
-- [ ] Run `git diff --check` and `clean test assembleDebug lintDebug assembleRelease`.
-- [ ] Install the signed Release APK over the existing emulator app without clearing data; verify field-specific setup errors and online device state.
+- [x] Run `git diff --check` and `clean test assembleDebug lintDebug assembleRelease`.
+- [x] Install the signed Release APK over the existing emulator app without clearing data; verify field-specific setup errors and online device state.
 - [ ] Update bilingual README/Roadmap/Release notes, commit, push branch, tag, publish GitHub Release, and audit remote assets and SHA-256.

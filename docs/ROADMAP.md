@@ -3,6 +3,19 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 44 — OpenApp credential input validation / OpenApp 凭据输入校验
+
+OpenApp user and secret input is trimmed and validated locally before any Keystore write or
+read-only quota verification. Missing fields receive specific localized feedback; valid input
+continues through the existing secure store and verification flow. / OpenApp 用户和密钥输入现在会在任何
+Keystore 写入或只读额度验证前去除首尾空白并本地校验；缺失字段显示对应的本地化提示，合法输入继续复用已有的安全存储和验证流程。
+
+This phase does not expose stored secrets and does not add in-place replacement, main-site
+password, Cookie, Session, CSRF state, cloud service, cross-device sync, local compiler,
+custom-input runner, or automatic POST retry. Earlier Release, tag, and notes remain preserved.
+/ 本阶段不显示已保存密钥，不新增原地更换、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、
+本地编译器、自定义输入运行器或自动 POST 重试；此前 Release、标签和说明继续保留。
+
 ## PHASE 43 — Luogu settings focus correction / 洛谷设置定位修正
 
 The Dashboard `CONNECT LUOGU` route now scrolls the existing Settings screen to the Luogu
