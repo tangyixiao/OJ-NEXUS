@@ -22,7 +22,13 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 37 (sync receipt, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 38 (release identity, safe local slice)**: The APK metadata now
+matches the published release identity (`versionName=0.3.34`, `versionCode=34`) so Android users
+can identify the installed build and future upgrades consistently. / 早期开发——**第 38 阶段（发布版本身份，
+安全的本地切片）**：APK 元数据现在与发布身份一致（`versionName=0.3.34`、`versionCode=34`），
+Android 用户可以准确识别已安装版本并保持后续升级判断一致。
+
+Phase 37 remains preserved below: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -349,6 +355,12 @@ cloud account, cross-device sync, local compiler, custom-input runner, or automa
 retry is added. Earlier phase notes and Releases remain intact. / 同步回执继续保持本地优先边界，不会把洛谷不支持的
 私有提交历史误显示为缺失模块。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、
 自定义输入运行器或自动提交重试；此前阶段说明和 Releases 保持不变。
+
+Phase 38 changes release metadata and documentation only. It adds no endpoint, database migration,
+credential flow, cloud service, cross-device sync, local compiler, custom-input runner, or automatic
+submission retry. Earlier phase notes and Releases remain intact. / 第 38 阶段仅修改发布元数据和文档，
+不新增接口、数据库迁移、凭据流程、云端服务、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；
+此前阶段说明和 Releases 保持不变。
 
 ## Documentation
 

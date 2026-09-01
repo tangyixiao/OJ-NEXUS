@@ -3,6 +3,19 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 38 — Release identity / 发布版本身份
+
+The Android APK now carries `versionName=0.3.34` and `versionCode=34`, matching the `v0.3.34`
+GitHub Release identity. This makes the installed package, release page, and upgrade metadata
+describe the same build while preserving all earlier tags, releases, and notes. / Android APK
+现在携带 `versionName=0.3.34` 和 `versionCode=34`，与 `v0.3.34` GitHub Release 身份一致。
+这样已安装包、发布页面和升级元数据描述同一个构建，同时保留此前所有标签、Release 和说明。
+
+This is a release-metadata and documentation change only. No Luogu endpoint, credential flow,
+database migration, cloud service, cross-device sync, local compiler, custom-input runner, or
+automatic submission retry is added. / 本阶段仅修改发布元数据和文档，不新增洛谷接口、凭据流程、数据库迁移、
+云端服务、跨设备同步、本地编译器、自定义输入运行器或自动提交重试。
+
 ## PHASE 0 — Foundation ✅ (this milestone)
 Gradle/AGP 9 toolchain, design system (tokens + core components), app shell (edge-to-edge,
 navigation, bottom bar), five skeleton screens (Dashboard / Problems / Training / Analytics /
