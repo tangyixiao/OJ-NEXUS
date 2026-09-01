@@ -504,6 +504,13 @@ private fun JudgeConnectionPanel(
                     NexusTheme.colors.warning
                 },
             )
+            if (JudgeCapability.BACKGROUND_SYNC in connection.capabilities) {
+                Text(
+                    text = stringResource(R.string.settings_background_sync_enabled),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.accent,
+                )
+            }
             connection.profile?.rating?.let { rating ->
                 Text(
                     text = "${stringResource(R.string.metric_rating)} $rating",

@@ -26,6 +26,9 @@ import com.ojnexus.judge.codeforces.api.CodeforcesApi
 import com.ojnexus.core.network.RateLimitedRequestGate
 import com.ojnexus.judge.JudgeRegistry
 import com.ojnexus.judge.JudgeSyncDispatcher
+import com.ojnexus.judge.JudgeCapability
+import com.ojnexus.judge.sync.JudgeSyncBootstrap
+import com.ojnexus.judge.sync.JudgeSyncWorker
 import com.ojnexus.judge.atcoder.AtCoderAccountConnector
 import com.ojnexus.judge.atcoder.AtCoderProblemsClient
 import com.ojnexus.judge.atcoder.AtCoderSyncCoordinator
@@ -228,6 +231,15 @@ class OjNexusApplication : Application() {
         container = AppContainer(this)
         com.ojnexus.core.ui.GlobalContext.init(this)
         applicationScope.launch {
+            JudgeSyncBootstrap(
+                activeAccount = container.judgeAccountRepository::findActive,
+                backgroundJudges = container.judgeRegistry.supportedJudges().filter { judge ->
+                    JudgeCapability.BACKGROUND_SYNC in container.judgeRegistry.adapter(judge).capabilities
+                }.toSet(),
+                enqueuePeriodic = { judge, accountId ->
+                    JudgeSyncWorker.enqueuePeriodic(this@OjNexusApplication, judge, accountId)
+                },
+            ).reconcile()
             LuoguResultWorkBootstrap(
                 submissionJobDao = container.database.submissionJobDao(),
                 scheduler = container.luoguResultWorkScheduler,

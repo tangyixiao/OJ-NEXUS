@@ -404,6 +404,7 @@
     <string name="settings_connect">CONNECT</string>
     <string name="settings_connecting">VERIFYING…</string>
     <string name="settings_sync_now">SYNC NOW</string>
+    <string name="settings_background_sync_enabled">BACKGROUND SYNC ENABLED — EVERY 6 HOURS</string>
     <string name="settings_disconnect">DISCONNECT</string>
     <string name="settings_disconnect_title">DISCONNECT %1$s</string>
     <string name="settings_disconnect_body">UNBIND THE ACCOUNT? YOUR LOCAL TRAINING HISTORY, NOTES AND REVIEWS ARE KEPT.</string>

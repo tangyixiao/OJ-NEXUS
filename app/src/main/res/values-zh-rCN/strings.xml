@@ -359,6 +359,7 @@
     <string name="settings_connect">连接</string>
     <string name="settings_connecting">验证中…</string>
     <string name="settings_sync_now">立即同步</string>
+    <string name="settings_background_sync_enabled">后台同步已启用 — 每 6 小时</string>
     <string name="settings_disconnect">断开连接</string>
     <string name="settings_disconnect_title">断开 %1$s</string>
     <string name="settings_disconnect_body">解除账号关联？本地训练历史、笔记和复习记录会保留。</string>
