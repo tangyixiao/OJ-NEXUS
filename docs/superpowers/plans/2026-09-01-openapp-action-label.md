@@ -125,6 +125,6 @@ Expected: `BUILD SUCCESSFUL`, zero test failures, and no new lint errors.
 
 Sign the Release APK with the existing local standard debug keystore without tracking it; install over the existing app using `adb -s emulator-5554 install -r`; open a Luogu workspace; verify package version `0.3.38`, visible primary label `SUBMIT`, no fatal exception, and emulator state `device`. Do not clear data or stop the emulator.
 
-- [ ] **Step 4: Commit, push, tag, and publish**
+- [x] **Step 4: Commit, push, tag, and publish**
 
 Use commit message `release: prepare OpenApp action clarity v0.3.38 / 准备 OpenApp 操作明确版本`, push `codex/phase-5-arena`, create annotated tag `v0.3.38`, upload APK and checksum with `gh release create`, then compare local/remote branch and peeled-tag SHAs, Release asset digest, Release status, clean worktree, and emulator state.
