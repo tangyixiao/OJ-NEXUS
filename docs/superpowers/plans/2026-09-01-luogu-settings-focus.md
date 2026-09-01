@@ -20,4 +20,4 @@ network, credential, and release boundaries.
 
 - [x] Run `git diff --check` and `clean test assembleDebug lintDebug assembleRelease`.
 - [x] Install the signed Release APK over the existing emulator app without clearing data; verify version, Luogu focus route, and online device state.
-- [ ] Update bilingual README/Roadmap/Release notes, commit, push branch, tag, publish GitHub Release, and audit remote assets and SHA-256.
+- [x] Update bilingual README/Roadmap/Release notes, commit, push branch, tag, publish GitHub Release, and audit remote assets and SHA-256.
