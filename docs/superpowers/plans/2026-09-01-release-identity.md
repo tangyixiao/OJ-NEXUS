@@ -7,14 +7,14 @@
 
 ## Step 2 — Implementation / 实现
 
-- [ ] Set Android `versionCode` and `versionName`.
-- [ ] Update bilingual README and roadmap status while preserving old entries.
-- [ ] Add bilingual `docs/releases/v0.3.34.md`.
+- [x] Set Android `versionCode` and `versionName`.
+- [x] Update bilingual README and roadmap status while preserving old entries.
+- [x] Add bilingual `docs/releases/v0.3.34.md`.
 
 ## Step 3 — Verification / 验证
 
-- [ ] Run `git diff --check` and the full Gradle gate.
-- [ ] Install the APK and verify package version metadata on `emulator-5554`.
+- [x] Run `git diff --check` and the full Gradle gate.
+- [x] Install the APK and verify package version metadata on `emulator-5554`.
 
 ## Step 4 — Publish / 发布
 
