@@ -3,6 +3,21 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 42 — OpenApp action intent clarity / OpenApp 操作意图明确化
+
+The Luogu workspace primary action now displays `SUBMIT` when the actual OpenApp gateway submits
+code, and `RUN` only for a gateway whose capability explicitly supports custom-input execution.
+Busy work continues to display `WORKING`; submission callbacks, language forwarding, result
+polling, and persistence are unchanged. / 洛谷工作区主操作现在在真实 OpenApp 网关提交代码时显示
+`SUBMIT`，只有明确支持自定义输入运行的网关才显示 `RUN`。忙碌时仍显示 `WORKING`；提交回调、语言传递、
+结果查询和持久化保持不变。
+
+This is an intent-clarity correction only. It adds no local compiler, custom-input runner,
+main-site password, Cookie, Session, CSRF state, cloud service, cross-device sync, or automatic
+POST retry. Earlier Release, tag, and notes remain preserved. / 本阶段仅明确操作意图，不新增本地编译器、自定义
+输入运行器、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步或自动 POST 重试；此前 Release、
+标签和说明继续保留。
+
 ## PHASE 41 — Luogu first-use public sync loop / 洛谷首次使用公开同步闭环
 
 Dashboard now shows a localized `CONNECT LUOGU` action whenever no enabled Luogu account is

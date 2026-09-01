@@ -22,12 +22,17 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 41 (Luogu first-use public sync loop, safe local slice)**: users
-without a Luogu connection can open the focused public-account setup panel directly from
-Dashboard. The APK identity is aligned to `versionName=0.3.37`, `versionCode=37`.
-/ 早期开发——**第 41 阶段（洛谷首次使用公开同步闭环，安全的本地切片）**：尚未连接洛谷的用户现在可以
-从 Dashboard 直接打开聚焦的公开账号配置面板；APK 版本身份同步为 `versionName=0.3.37`、
-`versionCode=37`。
+Early development — **Phase 42 (OpenApp action intent clarity, safe local slice)**: the Luogu
+workspace now labels the real OpenApp problem action `SUBMIT`, while `RUN` remains reserved for
+gateways that explicitly support custom-input execution. The APK identity is aligned to
+`versionName=0.3.38`, `versionCode=38`.
+/ 早期开发——**第 42 阶段（OpenApp 操作意图明确化，安全的本地切片）**：洛谷工作区现在将真实 OpenApp
+题目操作明确显示为“提交”；“运行”仍只保留给明确支持自定义输入运行的网关。APK 版本身份同步为
+`versionName=0.3.38`、`versionCode=38`。
+
+Phase 41 remains preserved below: users without a Luogu connection can open the focused
+public-account setup panel directly from Dashboard. / 第 41 阶段保留如下：尚未连接洛谷的用户可以从
+Dashboard 直接打开聚焦的公开账号配置面板。
 
 Phase 40 remains preserved below: the GitHub artifact is an installable Release variant with
 `BuildConfig.DEBUG=false`, so development-only Demo controls stay hidden. / 第 40 阶段保留如下：GitHub

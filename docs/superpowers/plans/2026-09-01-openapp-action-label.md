@@ -28,11 +28,11 @@
 
 **Interfaces:** Produce `internal fun workspaceActionLabelRes(state: WorkspaceState): Int`; return `R.string.workspace_working` when `busy`, `R.string.workspace_mode_submit` in submit mode, and `R.string.workspace_mode_run` in run mode.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add three tests using `WorkspaceState(pid = "P1001", ...)`: busy expects `R.string.workspace_working`; non-busy submit expects `R.string.workspace_mode_submit`; non-busy run with `customRunAvailable = true` expects `R.string.workspace_mode_run`.
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run:
 
@@ -42,7 +42,7 @@ Run:
 
 Expected: compilation fails because `workspaceActionLabelRes` does not exist.
 
-- [ ] **Step 3: Implement the minimal mapping**
+- [x] **Step 3: Implement the minimal mapping**
 
 Create the function with this exact precedence:
 
@@ -54,11 +54,11 @@ internal fun workspaceActionLabelRes(state: WorkspaceState): Int = when {
 }
 ```
 
-- [ ] **Step 4: Run the focused test and verify it passes**
+- [x] **Step 4: Run the focused test and verify it passes**
 
 Run the same Gradle command; expected all three tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add app/src/main/java/com/ojnexus/feature/workspace/WorkspaceActionLabel.kt app/src/test/java/com/ojnexus/feature/workspace/WorkspaceActionLabelTest.kt
@@ -73,11 +73,11 @@ git commit -m "test: define workspace action labels / 定义工作区操作标�
 
 **Interfaces:** Replace the primary action's `stringResource(if (state.busy) ... else ...)` call with `stringResource(workspaceActionLabelRes(state))`; no other callback or state logic changes.
 
-- [ ] **Step 1: Make the minimal UI substitution**
+- [x] **Step 1: Make the minimal UI substitution**
 
 At the primary `WorkspaceAction`, pass `label = stringResource(workspaceActionLabelRes(state))`. Keep `enabled`, `selected`, and `onClick = viewModel::submit` exactly as they are.
 
-- [ ] **Step 2: Run focused workspace regression tests**
+- [x] **Step 2: Run focused workspace regression tests**
 
 Run:
 
@@ -87,7 +87,7 @@ Run:
 
 Expected: all action-label and existing workspace ViewModel tests pass.
 
-- [ ] **Step 3: Commit the UI substitution**
+- [x] **Step 3: Commit the UI substitution**
 
 ```powershell
 git add app/src/main/java/com/ojnexus/feature/workspace/WorkspaceScreen.kt
@@ -106,11 +106,11 @@ git commit -m "fix: label Luogu workspace submit action / 明确洛谷工作区�
 
 **Interfaces:** Publish `versionName=0.3.38`, `versionCode=38`, `OJ-NEXUS-v0.3.38.apk`, and its SHA-256 manifest.
 
-- [ ] **Step 1: Update bilingual documentation**
+- [x] **Step 1: Update bilingual documentation**
 
 Add Phase 42 at the top of README/Roadmap while preserving all prior text. Release notes must state that the real Luogu OpenApp workspace now labels its action `SUBMIT / 提交`, while custom `RUN / 运行` remains capability-gated; do not claim a local compiler or custom runner.
 
-- [ ] **Step 2: Run the complete gate**
+- [x] **Step 2: Run the complete gate**
 
 Run:
 
@@ -121,7 +121,7 @@ git diff --check
 
 Expected: `BUILD SUCCESSFUL`, zero test failures, and no new lint errors.
 
-- [ ] **Step 3: Sign, install, and verify runtime intent**
+- [x] **Step 3: Sign, install, and verify runtime intent**
 
 Sign the Release APK with the existing local standard debug keystore without tracking it; install over the existing app using `adb -s emulator-5554 install -r`; open a Luogu workspace; verify package version `0.3.38`, visible primary label `SUBMIT`, no fatal exception, and emulator state `device`. Do not clear data or stop the emulator.
 
