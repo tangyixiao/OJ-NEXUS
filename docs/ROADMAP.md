@@ -431,3 +431,17 @@ custom-input runner is added. Earlier phase notes and Releases remain intact. / 
 公开适配器，不会创建伪造提交记录；本地洛谷 OpenApp 提交任务仍是独立的明确操作流程。不新增主站
 密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器或自定义输入运行器；此前阶段
 说明和 Releases 保持不变。
+
+## PHASE 32 — Luogu workspace first-use setup / 洛谷工作区首次配置入口
+
+When a Luogu workspace has no OpenApp credential, it now keeps the existing warning and renders a
+localized, accessible `OPEN SETTINGS / 打开设置` action. The action is routed by `NexusApp` to the
+existing Settings destination, while the workspace execution action remains disabled until a
+credential is configured. / 未配置洛谷 OpenApp 凭据时，工作区现在保留原有警告，并显示本地化、可访问的
+“打开设置”操作。该操作由 `NexusApp` 导航到已有设置页；完成凭据配置前，工作区执行操作仍保持禁用。
+
+This is a local navigation improvement only. It makes no network request and adds no main-site
+password, Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, custom-input
+runner, or automatic submission retry. Earlier phase notes and published Releases remain intact. /
+本阶段仅改善本地导航，不发起网络请求，不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备
+同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布 Releases 保持不变。
