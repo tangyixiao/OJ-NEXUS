@@ -16,6 +16,7 @@ enum class SyncStage {
 /** Persisted per-judge sync run state; survives process death. */
 enum class SyncPhase {
     IDLE,
+    QUEUED,
     SYNCING,
     SUCCESS,
     PARTIAL,

@@ -418,6 +418,7 @@
     <string name="settings_network_unavailable">网络不可用</string>
     <string name="settings_api_failed">API 错误</string>
     <string name="settings_state_connected">已连接</string>
+    <string name="settings_state_queued">已排队——等待网络</string>
     <string name="settings_state_syncing">同步中</string>
     <string name="settings_sync_stage">当前阶段：%1$s</string>
     <string name="settings_state_partial">部分完成</string>

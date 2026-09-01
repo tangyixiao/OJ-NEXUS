@@ -501,6 +501,7 @@ private fun JudgeConnectionPanel(
             )
             when {
                 account == null -> NexusStatus(stringResource(R.string.dash_not_connected), NexusTone.Neutral)
+                sync?.state == SyncPhase.QUEUED.name -> NexusStatus(stringResource(R.string.settings_state_queued), NexusTone.Accent)
                 sync?.state == SyncPhase.SYNCING.name -> NexusStatus(stringResource(R.string.settings_state_syncing), NexusTone.Accent)
                 sync?.state == SyncPhase.PARTIAL.name -> NexusStatus(stringResource(R.string.settings_state_partial), NexusTone.Warning)
                 sync?.state == SyncPhase.ERROR.name -> NexusStatus(stringResource(R.string.settings_state_failed), NexusTone.Danger)
@@ -582,6 +583,15 @@ private fun JudgeConnectionPanel(
                     color = NexusTheme.colors.warning,
                 )
             }
+            if (sync?.state == SyncPhase.PARTIAL.name || sync?.state == SyncPhase.ERROR.name) {
+                sync.lastErrorType?.let { errorType ->
+                    Text(
+                        text = syncErrorLabel(errorType),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.danger,
+                    )
+                }
+            }
             if (sync?.state == SyncPhase.SYNCING.name && sync.currentStage == com.ojnexus.core.data.sync.SyncStage.SUBMISSIONS.name) {
                 Text(
                     text = stringResource(R.string.sync_imported_count, sync.submissionsImported ?: 0),
@@ -598,6 +608,14 @@ private fun JudgeConnectionPanel(
             }
         }
     }
+}
+
+@Composable
+private fun syncErrorLabel(errorType: String): String = when (syncErrorLabelKey(errorType)) {
+    "sync_error_rate_limited" -> stringResource(R.string.sync_error_rate_limited)
+    "sync_error_user_not_found" -> stringResource(R.string.sync_error_user_not_found)
+    "sync_error_network" -> stringResource(R.string.sync_error_network)
+    else -> stringResource(R.string.sync_error_api)
 }
 
 @Composable

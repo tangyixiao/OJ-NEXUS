@@ -70,7 +70,7 @@ enum class OpenAppQuotaError {
 
 class SettingsViewModel(
     private val accountRepository: JudgeAccountRepository,
-    dataRepository: JudgeDataRepository,
+    private val dataRepository: JudgeDataRepository,
     private val registry: JudgeRegistry,
     private val backupRepository: BackupRepository,
     private val preferencesRepository: UserPreferencesRepository,
@@ -247,6 +247,7 @@ class SettingsViewModel(
             try {
                 val account = accountRepository.connect(judge, handle)
                 if (!shouldScheduleJudgeSync(registry.adapter(judge).capabilities)) return@launch
+                dataRepository.markSyncQueued(judge, account.id)
                 JudgeSyncWorker.enqueueManual(
                     com.ojnexus.core.ui.GlobalContext.application,
                     judge,
@@ -282,12 +283,15 @@ class SettingsViewModel(
     fun syncNow(account: JudgeAccountEntity) {
         val judge = JudgeId.fromId(account.judge) ?: return
         if (!shouldScheduleJudgeSync(registry.adapter(judge).capabilities)) return
-        JudgeSyncWorker.enqueueManual(
-            com.ojnexus.core.ui.GlobalContext.application,
-            judge,
-            account.id,
-            true,
-        )
+        viewModelScope.launch {
+            dataRepository.markSyncQueued(judge, account.id)
+            JudgeSyncWorker.enqueueManual(
+                com.ojnexus.core.ui.GlobalContext.application,
+                judge,
+                account.id,
+                true,
+            )
+        }
     }
 
     fun syncPhaseLabel(syncState: SyncStateEntity?): SyncPhase? =
@@ -311,7 +315,19 @@ class SettingsViewModel(
 internal fun shouldScheduleJudgeSync(capabilities: Set<JudgeCapability>): Boolean =
     JudgeCapability.BACKGROUND_SYNC in capabilities
 
+internal fun syncPhaseLabel(syncState: SyncStateEntity?): String? =
+    syncState?.state?.let { phase -> SyncPhase.entries.firstOrNull { it.name == phase }?.name }
+
 internal fun syncStageName(syncState: SyncStateEntity?): String? =
     syncState
         ?.takeIf { it.state == SyncPhase.SYNCING.name }
         ?.currentStage
+
+internal fun syncErrorLabelKey(errorType: String?): String = when {
+    errorType?.contains("RateLimited", ignoreCase = true) == true -> "sync_error_rate_limited"
+    errorType?.contains("UserNotFound", ignoreCase = true) == true -> "sync_error_user_not_found"
+    errorType?.let { value ->
+        listOf("Network", "Timeout", "ServerError").any(value::contains)
+    } == true -> "sync_error_network"
+    else -> "sync_error_api"
+}

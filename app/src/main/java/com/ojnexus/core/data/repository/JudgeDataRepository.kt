@@ -5,6 +5,7 @@ import com.ojnexus.core.database.entity.JudgeAccountEntity
 import com.ojnexus.core.database.entity.JudgeProfileEntity
 import com.ojnexus.core.database.entity.RemoteProblemEntity
 import com.ojnexus.core.database.entity.SyncStateEntity
+import com.ojnexus.core.data.sync.SyncPhase
 import com.ojnexus.core.model.JudgeId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -32,6 +33,21 @@ class JudgeDataRepository(
     private val database: OjNexusDatabase,
     private val remoteProblemProviders: Map<JudgeId, RemoteProblemSearchProvider> = emptyMap(),
 ) {
+    /** Records a user-requested sync before WorkManager may be delayed by network constraints. */
+    suspend fun markSyncQueued(judge: JudgeId, accountId: Long) {
+        val current = database.syncStateDao().findByJudge(judge.id)
+            ?: SyncStateEntity(judge = judge.id)
+        database.syncStateDao().upsert(
+            current.copy(
+                accountId = accountId,
+                state = SyncPhase.QUEUED.name,
+                startedAt = null,
+                finishedAt = null,
+                currentStage = null,
+            ),
+        )
+    }
+
     fun observeConnections(): Flow<JudgeConnectionSnapshot> = combine(
         database.judgeAccountDao().observeAll(),
         database.judgeProfileDao().observeAll(),

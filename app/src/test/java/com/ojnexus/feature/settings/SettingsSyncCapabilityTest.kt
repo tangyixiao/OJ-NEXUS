@@ -29,4 +29,21 @@ class SettingsSyncCapabilityTest {
         )
         assertNull(syncStageName(SyncStateEntity(judge = "luogu", state = SyncPhase.PARTIAL.name, currentStage = SyncStage.PROBLEMS.name)))
     }
+
+    @Test
+    fun `sync phase label exposes queued and terminal phases`() {
+        assertEquals("QUEUED", syncPhaseLabel(SyncStateEntity(judge = "luogu", state = SyncPhase.QUEUED.name)))
+        assertEquals("SYNCING", syncPhaseLabel(SyncStateEntity(judge = "luogu", state = SyncPhase.SYNCING.name)))
+        assertEquals("SUCCESS", syncPhaseLabel(SyncStateEntity(judge = "luogu", state = SyncPhase.SUCCESS.name)))
+    }
+
+    @Test
+    fun `sync error mapping keeps technical messages out of the UI`() {
+        assertEquals("sync_error_rate_limited", syncErrorLabelKey("RateLimited"))
+        assertEquals("sync_error_network", syncErrorLabelKey("Timeout"))
+        assertEquals("sync_error_network", syncErrorLabelKey("NetworkUnavailable"))
+        assertEquals("sync_error_user_not_found", syncErrorLabelKey("UserNotFound"))
+        assertEquals("sync_error_api", syncErrorLabelKey("UnexpectedPayload"))
+        assertEquals("sync_error_api", syncErrorLabelKey(null))
+    }
 }

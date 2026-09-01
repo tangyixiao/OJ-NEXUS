@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.database.entity.RemoteProblemEntity
+import com.ojnexus.core.database.entity.SyncStateEntity
 import com.ojnexus.core.model.JudgeId
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -78,6 +79,32 @@ class JudgeDataRepositoryTest {
 
         assertTrue(result.isEmpty())
         assertEquals(0, calls)
+    }
+
+    @Test
+    fun `queueing a sync preserves the last successful timestamp`() = runBlocking {
+        database.syncStateDao().upsert(
+            SyncStateEntity(
+                judge = JudgeId.LUOGU.id,
+                accountId = 3,
+                state = "SUCCESS",
+                startedAt = 10L,
+                finishedAt = 20L,
+                lastSuccessfulSyncAt = 30L,
+                currentStage = "PROBLEMS",
+            ),
+        )
+        val repository = JudgeDataRepository(database)
+
+        repository.markSyncQueued(JudgeId.LUOGU, accountId = 7)
+
+        val state = database.syncStateDao().findByJudge(JudgeId.LUOGU.id)!!
+        assertEquals("QUEUED", state.state)
+        assertEquals(7L, state.accountId)
+        assertEquals(null, state.startedAt)
+        assertEquals(null, state.finishedAt)
+        assertEquals(null, state.currentStage)
+        assertEquals(30L, state.lastSuccessfulSyncAt)
     }
 
     @Test

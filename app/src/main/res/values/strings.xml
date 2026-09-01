@@ -463,6 +463,7 @@
     <string name="settings_network_unavailable">NETWORK UNAVAILABLE</string>
     <string name="settings_api_failed">API ERROR</string>
     <string name="settings_state_connected">CONNECTED</string>
+    <string name="settings_state_queued">QUEUED — WAITING FOR NETWORK</string>
     <string name="settings_state_syncing">SYNCING</string>
     <string name="settings_sync_stage">STAGE: %1$s</string>
     <string name="settings_state_partial">PARTIAL</string>
