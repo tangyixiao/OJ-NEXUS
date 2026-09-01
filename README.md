@@ -22,13 +22,17 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 39 (Luogu result query alignment, safe local slice)**: Luogu Open
-Platform result polling now uses the documented `GET /judge/result?id=<RequestId>` query form,
-so an accepted submission can be followed by a compatible result request; the APK identity is
-aligned to `versionName=0.3.35`, `versionCode=35`. / 早期开发——**第 39 阶段（洛谷结果查询对齐，
-安全的本地切片）**：洛谷 Open Platform 结果轮询现在使用文档规定的
-`GET /judge/result?id=<RequestId>` query 形式，提交被接受后可以继续查询兼容的结果；APK 版本身份同步为
-`versionName=0.3.35`、`versionCode=35`。
+Early development — **Phase 40 (installable Release build, safe local slice)**: The GitHub
+artifact is now an installable Release variant with `BuildConfig.DEBUG=false`, so development-only
+Demo controls stay hidden. The APK identity is aligned to `versionName=0.3.36`, `versionCode=36`.
+/ 早期开发——**第 40 阶段（可安装 Release 构建，安全的本地切片）**：GitHub 产物现在是可安装的 Release
+变体，`BuildConfig.DEBUG=false`，开发专用 Demo 控件保持隐藏；APK 版本身份同步为
+`versionName=0.3.36`、`versionCode=36`。
+
+Phase 39 remains preserved below: Luogu Open Platform result polling now uses the documented
+`GET /judge/result?id=<RequestId>` query form, so an accepted submission can be followed by a
+compatible result request. / 第 39 阶段保留如下：洛谷 Open Platform 结果轮询现在使用文档规定的
+`GET /judge/result?id=<RequestId>` query 形式，提交被接受后可以继续查询兼容的结果。
 
 Phase 38 remains preserved below: The APK metadata now
 matches the published release identity (`versionName=0.3.34`, `versionCode=34`) so Android users

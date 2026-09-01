@@ -3,6 +3,20 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 40 — Installable Release build / 可安装 Release 构建
+
+The GitHub distribution is now built from the Android `release` variant rather than the Debug
+variant. It is signed locally for direct installation with the machine's standard Android debug
+keystore, while `BuildConfig.DEBUG=false` keeps development-only Demo controls out of the APK.
+The keystore is never committed. / GitHub 分发现在使用 Android `release` 变体，而不是 Debug 变体构建。
+产物使用本机标准 Android debug keystore 进行本地签名以支持直接安装，同时 `BuildConfig.DEBUG=false`
+确保开发专用 Demo 控件不会进入 APK。密钥库不会提交到仓库。
+
+The release identity is `v0.3.36`, `versionName=0.3.36`, and `versionCode=36`. A SHA-256 checksum
+asset accompanies the APK; earlier Debug releases, tags, and notes remain preserved. / 本次发布身份为
+`v0.3.36`、`versionName=0.3.36`、`versionCode=36`。APK 同时附带 SHA-256 校验文件；此前 Debug
+Release、标签和说明继续保留。
+
 ## PHASE 39 — Luogu result query alignment / 洛谷结果查询对齐
 
 Luogu Open Platform result polling now uses the documented `GET /judge/result?id=<RequestId>`
