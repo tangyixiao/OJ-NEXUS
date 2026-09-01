@@ -414,3 +414,20 @@ compiler, or custom-input runner is added. Earlier phase notes and Releases rema
 设置页会为已连接且具备能力的评测平台显示“后台同步已启用 — 每 6 小时”。启动校准只恢复调度，不会
 立即执行同步，也不会创建提交任务。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、
 本地编译器或自定义输入运行器；此前阶段说明和 Releases 保持不变。
+
+## PHASE 31 — Luogu public sync boundary / 洛谷公开同步边界
+
+Luogu account synchronization now runs only the public stages advertised by its adapter:
+profile, rating, contests, and problems. The coordinator no longer calls the unsupported
+submission-record endpoint, so a successful public run is recorded as `SUCCESS` instead of
+being made `PARTIAL` by a known authorization failure. / 洛谷账号同步现在只执行适配器声明的公开
+资料、Rating、竞赛和题库阶段。协调器不再调用未支持的提交记录接口，因此公开同步成功时会记录为
+`SUCCESS`，不再因已知鉴权失败被人为标记为 `PARTIAL`。
+
+Private submission history remains unsupported by the public adapter and no fabricated attempts are
+created. Local Luogu OpenApp submission jobs remain a separate explicit workflow. No main-site
+password, Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, or
+custom-input runner is added. Earlier phase notes and Releases remain intact. / 私有提交历史仍不属于
+公开适配器，不会创建伪造提交记录；本地洛谷 OpenApp 提交任务仍是独立的明确操作流程。不新增主站
+密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器或自定义输入运行器；此前阶段
+说明和 Releases 保持不变。

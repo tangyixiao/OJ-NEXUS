@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 30 (background sync startup reconciliation, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 31 (Luogu public sync boundary, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -254,6 +254,21 @@ sync, local compiler, or custom-input runner is added. Previous phase notes and 
 intact. / 本阶段只恢复已有账号的同步调度，不立即执行同步，也不创建提交任务。不新增主站密码、
 Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器或自定义输入运行器；此前阶段说明和
 Releases 保持不变。
+
+Phase 31 / 第 31 阶段: Luogu account synchronization now executes only the four capabilities its
+adapter actually advertises: public profile, rating, contests, and problem catalog. It no longer
+calls the unsupported submission-record endpoint, so a successful public sync finishes as `SUCCESS`
+instead of a known `PARTIAL/AUTH_REQUIRED`. / 第 31 阶段：洛谷账号同步现在只执行适配器真实声明的四项
+能力：公开资料、Rating、竞赛和题库。不再调用未支持的提交记录接口，因此公开同步成功时会返回
+`SUCCESS`，不再被已知的 `PARTIAL/AUTH_REQUIRED` 人为污染。
+
+Private submission history remains outside the public adapter and no fabricated attempts are imported.
+Local OpenApp submission requests and their result workers remain available in the submission center.
+No main-site password, Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler,
+or custom-input runner is added. Earlier phase notes and Releases remain intact. / 私有提交历史仍不属于
+公开适配器，不会伪造导入提交记录；本地 OpenApp 提交请求及结果 Worker 继续由提交中心提供。不新增
+主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器或自定义输入运行器；此前
+阶段说明和 Releases 保持不变。
 
 ## Documentation
 
