@@ -461,3 +461,22 @@ custom-input runner, or automatic submission retry is added. Earlier phase notes
 Releases remain intact. / 本阶段仅涉及本地导航，不发起网络请求，不新增洛谷主站密码、Cookie、Session、
 CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布
 Releases 保持不变。
+
+## PHASE 34 — Public sync queue visibility / 公开同步队列可见性
+
+Public judge sync now writes `QUEUED` to the existing local `sync_states` row before manual
+WorkManager scheduling. This makes the first sync after binding a Luogu public handle and every
+manual `SYNC NOW` request visible even while the connected-network constraint delays execution.
+The existing worker still owns the transition to `SYNCING` and terminal `SUCCESS`, `PARTIAL`, or
+`ERROR` states. / 公开评测平台同步现在会在手动 WorkManager 调度前，将 `QUEUED` 写入已有的本地
+`sync_states` 记录。绑定洛谷公开用户名后的首次同步，以及每次手动“立即同步”，即使因联网约束暂缓执行，
+也会立即可见。现有 Worker 仍负责转换到 `SYNCING` 以及最终的 `SUCCESS`、`PARTIAL` 或 `ERROR` 状态。
+
+Settings displays the queued state, active stage, and stable localized error categories for known
+rate-limit, account, network, timeout, server, and generic API failures. Raw server messages are
+not rendered. This phase remains local-first and public-data-only: no main-site password, Cookie,
+Session, CSRF login, cloud account, cross-device sync, local compiler, custom-input runner, or
+automatic submission retry is added. Earlier phase notes and published Releases remain intact. /
+设置页会显示排队状态、当前阶段，以及请求受限、账号、网络、超时、服务器和通用 API 错误的稳定本地化分类，
+不直接渲染服务器原始消息。本阶段继续本地优先和仅公开数据：不新增主站密码、Cookie、Session、CSRF 登录、
+云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布 Releases 保持不变。

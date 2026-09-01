@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 33 (Luogu OpenApp setup focus, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 34 (public sync queue visibility, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -295,6 +295,20 @@ Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, c
 or automatic submission retry. Earlier phase notes and Releases remain intact. / 本阶段只改变本地导航和
 滚动定位，不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入
 运行器或自动提交重试；此前阶段说明和 Releases 保持不变。
+
+Phase 34 / 第 34 阶段: Public judge sync now persists `QUEUED` before WorkManager scheduling,
+so a newly connected Luogu handle and manual `SYNC NOW` action remain visible while waiting for
+network constraints. Settings distinguishes queued, active, partial, failed, and successful runs,
+and maps known failures to stable localized messages without exposing raw server text. / 第 34 阶段：
+公开评测平台同步现在会在交给 WorkManager 前持久化 `QUEUED` 状态，因此新绑定的洛谷账号和手动“立即同步”
+在等待网络约束时仍然可见。设置页区分排队、进行中、部分完成、失败和成功，并将已知错误映射为稳定的本地化
+文案，不直接暴露服务器原始文本。
+
+This remains local-first and public-data-only. No main-site password, Cookie, Session, CSRF login,
+cloud account, cross-device sync, local compiler, custom-input runner, or automatic submission retry
+is added. Earlier phase notes and Releases remain intact. / 本阶段继续本地优先和仅公开数据，不新增主站密码、
+Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段
+说明和 Releases 保持不变。
 
 ## Documentation
 
