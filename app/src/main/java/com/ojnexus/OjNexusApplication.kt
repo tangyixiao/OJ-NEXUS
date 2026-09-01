@@ -52,12 +52,14 @@ import com.ojnexus.judge.luogu.open.LuoguOpenPlatformApi
 import com.ojnexus.judge.luogu.open.LuoguOpenPlatformClient
 import com.ojnexus.judge.luogu.open.WorkManagerLuoguResultScheduler
 import com.ojnexus.judge.luogu.open.LuoguSubmissionRepository
+import com.ojnexus.judge.luogu.open.LuoguResultWorkBootstrap
 import kotlinx.serialization.json.Json
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import java.time.Clock
+import kotlinx.coroutines.launch
 
 /**
  * Manual dependency container. Chosen deliberately over Hilt for this phase: the app has a
@@ -160,11 +162,12 @@ class AppContainer(context: android.content.Context) {
         luoguOpenCredentialStore,
         webSocketClient = okHttpClient,
     )
+    val luoguResultWorkScheduler = WorkManagerLuoguResultScheduler(context.applicationContext)
     val luoguSubmissionRepository = LuoguSubmissionRepository(
         database = database,
         gateway = luoguOpenClient,
         clock = clock,
-        resultScheduler = WorkManagerLuoguResultScheduler(context.applicationContext),
+        resultScheduler = luoguResultWorkScheduler,
     )
 
     val judgeRegistry = JudgeRegistry(
@@ -213,6 +216,10 @@ class AppContainer(context: android.content.Context) {
  */
 class OjNexusApplication : Application() {
 
+    private val applicationScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
+    )
+
     lateinit var container: AppContainer
         private set
 
@@ -220,5 +227,11 @@ class OjNexusApplication : Application() {
         super.onCreate()
         container = AppContainer(this)
         com.ojnexus.core.ui.GlobalContext.init(this)
+        applicationScope.launch {
+            LuoguResultWorkBootstrap(
+                submissionJobDao = container.database.submissionJobDao(),
+                scheduler = container.luoguResultWorkScheduler,
+            ).reconcilePending()
+        }
     }
 }

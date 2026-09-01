@@ -3,6 +3,7 @@ package com.ojnexus.judge.luogu.open
 import androidx.work.BackoffPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ListenableWorker
+import androidx.work.NetworkType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -42,5 +43,19 @@ class LuoguOpenResultWorkerTest {
             ListenableWorker.Result.Failure::class.java,
             LuoguResultWorkDecision.Failure.toWorkerResult().javaClass,
         )
+    }
+
+    @Test
+    fun `request builder applies the safe WorkManager constraints`() {
+        val spec = requireNotNull(LuoguResultWorkRequestFactory.spec("req-42"))
+        val request = LuoguResultWorkRequestFactory.request(spec)
+        val workSpec = request.workSpec
+
+        assertEquals(NetworkType.CONNECTED, workSpec.constraints.requiredNetworkType)
+        assertEquals(10_000L, workSpec.initialDelay)
+        assertEquals(30_000L, workSpec.backoffDelayDuration)
+        assertEquals(BackoffPolicy.EXPONENTIAL, workSpec.backoffPolicy)
+        assertEquals("req-42", workSpec.input.getString(LuoguResultWorkRequestFactory.REQUEST_ID_KEY))
+        assertEquals(1, workSpec.input.size())
     }
 }
