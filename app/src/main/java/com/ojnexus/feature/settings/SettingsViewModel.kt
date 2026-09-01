@@ -53,6 +53,7 @@ data class OpenAppUiState(
     val saving: Boolean = false,
     val verifying: Boolean = false,
     val error: Boolean = false,
+    val inputError: OpenAppCredentialInputError? = null,
     val checkingQuota: Boolean = false,
     val quota: LuoguOpenQuotaSnapshot? = null,
     val quotaError: OpenAppQuotaError? = null,
@@ -131,8 +132,13 @@ class SettingsViewModel(
 
     fun saveOpenAppCredential(user: String, secret: String) {
         val store = openAppCredentialStore ?: return
-        if (user.isBlank() || secret.isBlank()) {
-            openAppState.update { it.copy(error = true, quotaError = null) }
+        val normalizedUser = user.trim()
+        val normalizedSecret = secret.trim()
+        val inputError = validateOpenAppCredentialInput(normalizedUser, normalizedSecret)
+        if (inputError != null) {
+            openAppState.update {
+                it.copy(error = false, inputError = inputError, quotaError = null)
+            }
             return
         }
         openAppState.update {
@@ -140,6 +146,7 @@ class SettingsViewModel(
                 saving = true,
                 verifying = openAppQuotaReader != null,
                 error = false,
+                inputError = null,
                 quotaError = null,
             )
         }
@@ -167,7 +174,7 @@ class SettingsViewModel(
                     }
                 }
             } catch (_: Exception) {
-                openAppState.update { it.copy(saving = false, verifying = false, error = true) }
+                openAppState.update { it.copy(saving = false, verifying = false, error = true, inputError = null) }
             }
         }
     }

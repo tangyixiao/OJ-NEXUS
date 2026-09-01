@@ -439,6 +439,8 @@
     <string name="settings_openapp_configured">OPENAPP CREDENTIAL CONFIGURED</string>
     <string name="settings_openapp_clear">CLEAR OPENAPP CREDENTIAL</string>
     <string name="settings_openapp_error">CREDENTIAL COULD NOT BE SAVED</string>
+    <string name="settings_openapp_user_required">OPENAPP USER IS REQUIRED</string>
+    <string name="settings_openapp_secret_required">OPENAPP SECRET IS REQUIRED</string>
     <string name="settings_openapp_quota_check">CHECK AVAILABLE POINTS</string>
     <string name="settings_openapp_quota_checking">CHECKING POINTS…</string>
     <string name="settings_openapp_quota_available">AVAILABLE POINTS %1$d</string>

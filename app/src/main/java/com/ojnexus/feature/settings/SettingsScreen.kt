@@ -308,6 +308,7 @@ fun SettingsScreen(
                         saving = openAppState.saving,
                         verifying = openAppState.verifying,
                         error = openAppState.error,
+                        inputError = openAppState.inputError,
                         onSave = viewModel::saveOpenAppCredential,
                     )
                 }
@@ -431,6 +432,7 @@ private fun OpenAppCredentialEditor(
     saving: Boolean,
     verifying: Boolean,
     error: Boolean,
+    inputError: OpenAppCredentialInputError?,
     onSave: (String, String) -> Unit,
 ) {
     // Credentials must not enter saved-instance-state or backup bundles.
@@ -462,6 +464,18 @@ private fun OpenAppCredentialEditor(
         if (error) {
             Text(
                 text = stringResource(R.string.settings_openapp_error),
+                style = NexusTheme.typography.dataSmall,
+                color = NexusTheme.colors.danger,
+            )
+        }
+        inputError?.let { validationError ->
+            Text(
+                text = stringResource(
+                    when (validationError) {
+                        OpenAppCredentialInputError.USER_REQUIRED -> R.string.settings_openapp_user_required
+                        OpenAppCredentialInputError.SECRET_REQUIRED -> R.string.settings_openapp_secret_required
+                    },
+                ),
                 style = NexusTheme.typography.dataSmall,
                 color = NexusTheme.colors.danger,
             )

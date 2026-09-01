@@ -394,6 +394,8 @@
     <string name="settings_openapp_configured">已配置 OpenApp 凭据</string>
     <string name="settings_openapp_clear">清除 OpenApp 凭据</string>
     <string name="settings_openapp_error">凭据保存失败</string>
+    <string name="settings_openapp_user_required">请输入 OpenApp 用户</string>
+    <string name="settings_openapp_secret_required">请输入 OpenApp 密钥</string>
     <string name="settings_openapp_quota_check">查询可用计费点</string>
     <string name="settings_openapp_quota_checking">查询中…</string>
     <string name="settings_openapp_quota_available">可用计费点：%1$d</string>
