@@ -538,6 +538,8 @@
     <string name="workspace_working">处理中…</string>
     <string name="workspace_check_result">查询结果</string>
     <string name="workspace_credential_required">请在设置中配置洛谷 OpenApp 凭据</string>
+    <string name="workspace_open_settings">打开设置</string>
+    <string name="workspace_open_settings_cd">打开设置以配置洛谷 OpenApp 凭据</string>
     <string name="workspace_result">结果</string>
     <string name="workspace_request_id">请求 %s</string>
     <string name="workspace_result_pending">等待中——再次查询</string>

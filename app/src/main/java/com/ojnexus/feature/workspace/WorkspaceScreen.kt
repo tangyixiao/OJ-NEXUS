@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,6 +50,7 @@ private val InputMinHeight = 96.dp
 fun WorkspaceScreen(
     pid: String,
     onBack: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<WorkspaceViewModel>(
@@ -200,6 +203,12 @@ fun WorkspaceScreen(
                     style = NexusTheme.typography.dataSmall,
                     color = NexusTheme.colors.warning,
                 )
+                Spacer(Modifier.height(NexusSpacing.xs))
+                WorkspaceAction(
+                    label = stringResource(R.string.workspace_open_settings),
+                    contentDescription = stringResource(R.string.workspace_open_settings_cd),
+                    onClick = onOpenSettings,
+                )
             }
             state.error?.let { error ->
                 Spacer(Modifier.height(NexusSpacing.xs))
@@ -265,6 +274,7 @@ private fun CodeField(
 @Composable
 private fun WorkspaceAction(
     label: String,
+    contentDescription: String? = null,
     selected: Boolean = false,
     enabled: Boolean = true,
     onClick: () -> Unit,
@@ -282,6 +292,9 @@ private fun WorkspaceAction(
             .background(if (selected) colors.accentContainer else colors.surface, NexusRadius.sm)
             .border(NexusSize.dividerThickness, if (selected) colors.accent else colors.border, NexusRadius.sm)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .then(contentDescription?.let { description ->
+                Modifier.semantics { this.contentDescription = description }
+            } ?: Modifier)
             .padding(horizontal = NexusSpacing.sm, vertical = NexusSpacing.xs),
     )
 }

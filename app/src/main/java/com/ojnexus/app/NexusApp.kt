@@ -187,6 +187,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         WorkspaceScreen(
                             pid = pid,
                             onBack = { navController.popBackStack() },
+                            onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS) },
                         )
                     }
                     composable(

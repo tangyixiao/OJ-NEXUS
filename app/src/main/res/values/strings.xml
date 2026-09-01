@@ -589,6 +589,8 @@
     <string name="workspace_working">WORKING…</string>
     <string name="workspace_check_result">CHECK RESULT</string>
     <string name="workspace_credential_required">CONFIGURE A LUOGU OPENAPP CREDENTIAL IN SETTINGS</string>
+    <string name="workspace_open_settings">OPEN SETTINGS</string>
+    <string name="workspace_open_settings_cd">Open settings to configure the Luogu OpenApp credential</string>
     <string name="workspace_result">RESULT</string>
     <string name="workspace_request_id">REQUEST %s</string>
     <string name="workspace_result_pending">PENDING — CHECK AGAIN</string>
