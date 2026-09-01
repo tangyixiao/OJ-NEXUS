@@ -8,11 +8,13 @@ import com.ojnexus.core.model.JudgeId
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import java.io.IOException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.first
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -223,12 +225,69 @@ class LuoguSubmissionRepositoryTest {
             repository.observeRecentJobs(2).first().map { it.requestId },
         )
     }
+
+    @Test
+    fun `successful submission persists metadata before scheduling its request`() = runBlocking {
+        val scheduled = mutableListOf<String>()
+        val withScheduler = LuoguSubmissionRepository(
+            database = database,
+            gateway = gateway,
+            clock = clock,
+            resultScheduler = object : LuoguResultWorkScheduler {
+                override fun enqueue(requestId: String) {
+                    scheduled += requestId
+                }
+            },
+        )
+
+        withScheduler.submitProblem(
+            LuoguProblemJudgeRequest("P1001", "cxx/14/gcc", false, "int main() {}"),
+        )
+
+        assertEquals(listOf("req-1"), scheduled)
+        assertNotNull(database.submissionJobDao().findByRequestId("req-1"))
+    }
+
+    @Test
+    fun `transient result error keeps a pending local job`() = runBlocking {
+        repository.submitProblem(
+            LuoguProblemJudgeRequest("P1001", "cxx/14/gcc", false, "int main() {}"),
+        )
+        gateway.error = LuoguOpenApiError.Network(IOException("offline"))
+
+        assertThrows(LuoguOpenApiError.Network::class.java) {
+            runBlocking { repository.refreshResult("req-1") }
+        }
+
+        assertEquals(
+            SubmissionJobStatus.PENDING.name,
+            database.submissionJobDao().findByRequestId("req-1")?.status,
+        )
+    }
+
+    @Test
+    fun `permanent result error marks the local job failed`() = runBlocking {
+        repository.submitProblem(
+            LuoguProblemJudgeRequest("P1001", "cxx/14/gcc", false, "int main() {}"),
+        )
+        gateway.error = LuoguOpenApiError.Unauthorized
+
+        assertThrows(LuoguOpenApiError.Unauthorized::class.java) {
+            runBlocking { repository.refreshResult("req-1") }
+        }
+
+        assertEquals(
+            SubmissionJobStatus.FAILED.name,
+            database.submissionJobDao().findByRequestId("req-1")?.status,
+        )
+    }
 }
 
 private class FakeSubmissionGateway : LuoguOpenGateway {
     var result: LuoguOpenResult = LuoguOpenResult.Pending
+    var error: LuoguOpenApiError? = null
 
     override suspend fun submitProblem(request: LuoguProblemJudgeRequest) = LuoguOpenSubmission("req-1")
     override suspend fun run(request: LuoguRunRequest) = LuoguOpenSubmission("run-1")
-    override suspend fun fetchResult(requestId: String): LuoguOpenResult = result
+    override suspend fun fetchResult(requestId: String): LuoguOpenResult = error?.let { throw it } ?: result
 }

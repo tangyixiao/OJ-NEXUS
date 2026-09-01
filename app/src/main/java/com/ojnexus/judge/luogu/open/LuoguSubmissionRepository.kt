@@ -29,6 +29,7 @@ class LuoguSubmissionRepository(
     private val database: OjNexusDatabase,
     private val gateway: LuoguOpenGateway,
     private val clock: Clock,
+    private val resultScheduler: LuoguResultWorkScheduler? = null,
 ) : LuoguOpenGateway, LuoguSubmissionCenter {
     private val dao = database.submissionJobDao()
 
@@ -55,6 +56,7 @@ class LuoguSubmissionRepository(
             pid = request.pid,
             language = request.lang,
         )
+        resultScheduler?.enqueue(response.requestId)
         return response
     }
 
@@ -66,6 +68,7 @@ class LuoguSubmissionRepository(
             pid = null,
             language = request.lang,
         )
+        resultScheduler?.enqueue(response.requestId)
         return response
     }
 
@@ -74,7 +77,17 @@ class LuoguSubmissionRepository(
             gateway.fetchResult(requestId)
         } catch (error: LuoguOpenApiError) {
             dao.findByRequestId(requestId)?.let { job ->
-                dao.update(job.copy(status = SubmissionJobStatus.FAILED.name, updatedAt = clock.millis(), lastErrorType = error::class.simpleName))
+                dao.update(
+                    job.copy(
+                        status = if (error.isRetryableResultError()) {
+                            SubmissionJobStatus.PENDING.name
+                        } else {
+                            SubmissionJobStatus.FAILED.name
+                        },
+                        updatedAt = clock.millis(),
+                        lastErrorType = error::class.simpleName,
+                    ),
+                )
             }
             throw error
         }

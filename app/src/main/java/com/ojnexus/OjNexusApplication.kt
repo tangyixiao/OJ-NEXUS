@@ -50,6 +50,7 @@ import com.ojnexus.core.model.JudgeId
 import com.ojnexus.judge.luogu.open.AndroidOpenAppCredentialStore
 import com.ojnexus.judge.luogu.open.LuoguOpenPlatformApi
 import com.ojnexus.judge.luogu.open.LuoguOpenPlatformClient
+import com.ojnexus.judge.luogu.open.WorkManagerLuoguResultScheduler
 import com.ojnexus.judge.luogu.open.LuoguSubmissionRepository
 import kotlinx.serialization.json.Json
 import retrofit2.Retrofit
@@ -159,7 +160,12 @@ class AppContainer(context: android.content.Context) {
         luoguOpenCredentialStore,
         webSocketClient = okHttpClient,
     )
-    val luoguSubmissionRepository = LuoguSubmissionRepository(database, luoguOpenClient, clock)
+    val luoguSubmissionRepository = LuoguSubmissionRepository(
+        database = database,
+        gateway = luoguOpenClient,
+        clock = clock,
+        resultScheduler = WorkManagerLuoguResultScheduler(context.applicationContext),
+    )
 
     val judgeRegistry = JudgeRegistry(
         adapters = listOf(codeforcesAdapter, atCoderAdapter, luoguAdapter),
