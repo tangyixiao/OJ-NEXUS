@@ -80,7 +80,7 @@ Run `git diff --check` and `clean test assembleDebug lintDebug assembleRelease` 
 Install the signed Release APK over `emulator-5554`, open a cached/public Luogu problem detail,
 and verify the title, description, and samples are visible while the device remains online.
 
-- [ ] **Step 3: Publish and audit the GitHub Release**
+- [x] **Step 3: Publish and audit the GitHub Release**
 
 Commit with a bilingual message, push `codex/phase-5-arena`, create annotated tag `v0.3.42`,
 publish both APK and checksum assets, then compare local/remote branch SHA, peeled tag SHA,
