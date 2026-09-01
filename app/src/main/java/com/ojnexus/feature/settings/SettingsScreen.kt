@@ -124,10 +124,18 @@ fun SettingsScreen(
             focusLuogu -> luoguTargetRootY
             else -> null
         }
-        if (focusOpenApp && viewportTop != null && targetRootY != null) {
+        if (shouldScrollToFocusedSettingsSection(
+                focusOpenApp = focusOpenApp,
+                focusLuogu = focusLuogu,
+                viewportTop = viewportTop,
+                targetRootY = targetRootY,
+            )
+        ) {
+            val viewport = requireNotNull(viewportTop)
+            val target = requireNotNull(targetRootY)
             withFrameNanos { }
             settingsScrollState.animateScrollTo(
-                (targetRootY - viewportTop + settingsScrollState.value)
+                (target - viewport + settingsScrollState.value)
                     .coerceIn(0, settingsScrollState.maxValue),
             )
         }
