@@ -574,6 +574,34 @@ private fun JudgeConnectionPanel(
                     color = NexusTheme.colors.textTertiary,
                 )
             }
+            val receiptItems = syncReceiptItems(connection.capabilities, sync)
+            if (receiptItems.isNotEmpty()) {
+                Spacer(Modifier.height(NexusSpacing.sm))
+                NexusSection(label = stringResource(R.string.settings_sync_coverage)) {
+                    receiptItems.forEach { item ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = syncReceiptModuleLabel(item.module),
+                                style = NexusTheme.typography.dataSmall,
+                                color = NexusTheme.colors.textSecondary,
+                            )
+                            Text(
+                                text = syncAgeLabel(formatSyncAge(System.currentTimeMillis(), item.syncedAt)),
+                                style = NexusTheme.typography.dataSmall,
+                                color = if (item.syncedAt == null) {
+                                    NexusTheme.colors.textTertiary
+                                } else {
+                                    NexusTheme.colors.accent
+                                },
+                            )
+                        }
+                    }
+                }
+            }
             if (connection.judge == JudgeId.LUOGU &&
                 sync?.lastErrorType == "AuthenticationRequired"
             ) {
@@ -616,6 +644,24 @@ private fun syncErrorLabel(errorType: String): String = when (syncErrorLabelKey(
     "sync_error_user_not_found" -> stringResource(R.string.sync_error_user_not_found)
     "sync_error_network" -> stringResource(R.string.sync_error_network)
     else -> stringResource(R.string.sync_error_api)
+}
+
+@Composable
+private fun syncReceiptModuleLabel(module: SyncReceiptModule): String = when (module) {
+    SyncReceiptModule.PROFILE -> stringResource(R.string.settings_sync_module_profile)
+    SyncReceiptModule.RATING -> stringResource(R.string.settings_sync_module_rating)
+    SyncReceiptModule.SUBMISSIONS -> stringResource(R.string.settings_sync_module_submissions)
+    SyncReceiptModule.CONTESTS -> stringResource(R.string.settings_sync_module_contests)
+    SyncReceiptModule.PROBLEMSET -> stringResource(R.string.settings_sync_module_problemset)
+}
+
+@Composable
+private fun syncAgeLabel(age: SyncAge): String = when (age) {
+    SyncAge.NEVER -> stringResource(R.string.settings_sync_never)
+    SyncAge.JUST_NOW -> stringResource(R.string.settings_sync_just_now)
+    is SyncAge.MINUTES_AGO -> stringResource(R.string.settings_sync_minutes_ago, age.value)
+    is SyncAge.HOURS_AGO -> stringResource(R.string.settings_sync_hours_ago, age.value)
+    is SyncAge.DAYS_AGO -> stringResource(R.string.settings_sync_days_ago, age.value)
 }
 
 @Composable

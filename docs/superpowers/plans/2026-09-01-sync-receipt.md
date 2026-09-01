@@ -46,7 +46,7 @@ modules are shown.
 - Consumes the planned `syncReceiptItems(capabilities, state)` and `formatSyncAge(now, syncedAt)` functions.
 - Produces executable behavior requirements for the implementation task.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```kotlin
 class SyncReceiptTest {
@@ -129,7 +129,7 @@ fun `sync age covers never recent minutes hours days and clock skew`() {
 }
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -148,7 +148,7 @@ Expected: compilation/test failure because `SyncReceipt`, `syncReceiptItems`, an
 **Interfaces:**
 - Produces `SyncReceiptModule`, `SyncReceiptItem`, `SyncAge`, `syncReceiptItems`, and `formatSyncAge` for Settings and tests.
 
-- [ ] **Step 1: Implement the stable module model**
+- [x] **Step 1: Implement the stable module model**
 
 ```kotlin
 enum class SyncReceiptModule { PROFILE, RATING, SUBMISSIONS, CONTESTS, PROBLEMSET }
@@ -167,7 +167,7 @@ sealed interface SyncAge {
 }
 ```
 
-- [ ] **Step 2: Implement capability mapping**
+- [x] **Step 2: Implement capability mapping**
 
 Create one ordered table that maps:
 
@@ -182,13 +182,13 @@ PROBLEMSET -> PROBLEM_CATALOG -> problemsetSyncedAt
 Filter that table by capability and read the timestamp from the nullable `SyncStateEntity`.
 Return an empty list when no capability is present.
 
-- [ ] **Step 3: Implement `formatSyncAge`**
+- [x] **Step 3: Implement `formatSyncAge`**
 
 Use `maxOf(0L, now - syncedAt)` when a timestamp exists. Return `JUST_NOW` below 60 seconds,
 minutes below 60 minutes, hours below 24 hours, and days thereafter. A null timestamp returns
 `NEVER`.
 
-- [ ] **Step 4: Run the focused test and verify GREEN**
+- [x] **Step 4: Run the focused test and verify GREEN**
 
 Run the Task 1 command again. Expected: all mapping and age assertions pass.
 
@@ -203,7 +203,7 @@ Run the Task 1 command again. Expected: all mapping and age assertions pass.
 - Consumes `syncReceiptItems` and `formatSyncAge`.
 - Produces a localized `SYNC COVERAGE / 同步覆盖` section for each connected judge.
 
-- [ ] **Step 1: Add resource strings**
+- [x] **Step 1: Add resource strings**
 
 Add matching names in both locales:
 
@@ -224,19 +224,19 @@ Add matching names in both locales:
 Chinese translations use `同步覆盖`, `资料`, `Rating`, `提交`, `竞赛`, `题库`, `从未同步`, `刚刚`,
 `%d 分钟前`, `%d 小时前`, and `%d 天前`.
 
-- [ ] **Step 2: Add small pure label functions in the screen**
+- [x] **Step 2: Add small pure label functions in the screen**
 
 Map each `SyncReceiptModule` to its resource ID and each `SyncAge` to its localized resource.
 Use `System.currentTimeMillis()` only at render time for relative presentation.
 
-- [ ] **Step 3: Insert the section after existing sync metadata**
+- [x] **Step 3: Insert the section after existing sync metadata**
 
 Call `syncReceiptItems(connection.capabilities, sync)` only inside the connected-account branch.
 Render one row per returned item with module label on the left and age label on the right, using
 existing `NexusSpacing.xxs`, `NexusTheme.typography.dataSmall`, and existing colors. Do not use
 hard-coded UI copy or arbitrary layout tokens.
 
-- [ ] **Step 4: Run focused tests and compile**
+- [x] **Step 4: Run focused tests and compile**
 
 Run:
 
@@ -253,12 +253,12 @@ Expected: all focused tests pass and the app compiles.
 - Modify: `docs/ROADMAP.md`
 - Create: `docs/releases/v0.3.33.md`
 
-- [ ] **Step 1: Append Phase 37 without deleting history**
+- [x] **Step 1: Append Phase 37 without deleting history**
 
 Document that Settings now exposes capability-backed module timestamps and that Luogu private
 submission history remains outside public sync. Keep the status line and all earlier phase entries.
 
-- [ ] **Step 2: Write release notes**
+- [x] **Step 2: Write release notes**
 
 Include English and Chinese sections, changed behavior, non-goals, test command, emulator evidence,
 commit placeholder to replace after commit, and the final APK SHA-256 to fill after build.
@@ -268,7 +268,7 @@ commit placeholder to replace after commit, and the final APK SHA-256 to fill af
 **Files:**
 - All files from Tasks 1–4.
 
-- [ ] **Step 1: Run the full gate**
+- [x] **Step 1: Run the full gate**
 
 ```text
 git diff --check
@@ -277,7 +277,7 @@ git diff --check
 
 Expected: `BUILD SUCCESSFUL`, zero test failures, zero lint errors.
 
-- [ ] **Step 2: Install and launch without powering down the emulator**
+- [x] **Step 2: Install and launch without powering down the emulator**
 
 ```text
 & 'D:\Android\platform-tools\adb.exe' -s emulator-5554 install -r app\build\outputs\apk\debug\app-debug.apk
@@ -288,7 +288,7 @@ Expected: `BUILD SUCCESSFUL`, zero test failures, zero lint errors.
 
 Expected: install succeeds, `emulator-5554 device` remains present, and `MainActivity` is resumed.
 
-- [ ] **Step 3: Record the final APK SHA and commit**
+- [x] **Step 3: Record the final APK SHA and commit**
 
 ```text
 Get-FileHash app\build\outputs\apk\debug\app-debug.apk -Algorithm SHA256
@@ -301,7 +301,7 @@ git commit -m "feat: show sync receipt / 显示同步回执"
 Replace the release-note commit/hash placeholders before this commit if needed; never include
 credentials or machine-local files.
 
-- [ ] **Step 4: Push and create GitHub Release**
+- [x] **Step 4: Push and create GitHub Release**
 
 ```text
 git push origin HEAD:codex/phase-5-arena

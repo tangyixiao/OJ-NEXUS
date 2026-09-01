@@ -361,6 +361,17 @@
     <string name="settings_connecting">验证中…</string>
     <string name="settings_sync_now">立即同步</string>
     <string name="settings_background_sync_enabled">后台同步已启用 — 每 6 小时</string>
+    <string name="settings_sync_coverage">同步覆盖</string>
+    <string name="settings_sync_module_profile">资料</string>
+    <string name="settings_sync_module_rating">Rating</string>
+    <string name="settings_sync_module_submissions">提交</string>
+    <string name="settings_sync_module_contests">竞赛</string>
+    <string name="settings_sync_module_problemset">题库</string>
+    <string name="settings_sync_never">从未同步</string>
+    <string name="settings_sync_just_now">刚刚</string>
+    <string name="settings_sync_minutes_ago">%d 分钟前</string>
+    <string name="settings_sync_hours_ago">%d 小时前</string>
+    <string name="settings_sync_days_ago">%d 天前</string>
     <string name="settings_disconnect">断开连接</string>
     <string name="settings_disconnect_title">断开 %1$s</string>
     <string name="settings_disconnect_body">解除账号关联？本地训练历史、笔记和复习记录会保留。</string>

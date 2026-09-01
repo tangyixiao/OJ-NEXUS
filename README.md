@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 36 (synced judge data visibility, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 37 (sync receipt, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -335,6 +335,20 @@ compiler, custom-input runner, or automatic submission retry is added. Earlier p
 Releases remain intact. / 本阶段仅修复本地展示。洛谷公开同步继续本地优先且只使用公开内容，不新增主站密码、
 Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明
 和 Releases 保持不变。
+
+Phase 37 / 第 37 阶段: Settings now shows a capability-backed sync receipt for every connected
+judge. Profile, Rating, submissions, contests, and problemset rows appear only when the adapter
+actually declares that capability; each row reports NEVER SYNCED or a localized relative refresh
+age from the existing Room sync timestamp. / 第 37 阶段：设置页现在为每个已连接评测平台显示基于真实能力的
+同步回执。只有适配器实际声明的资料、Rating、提交、竞赛和题库能力才会出现对应行；每行使用现有 Room 同步
+时间戳显示“从未同步”或本地化的相对更新时间。
+
+The receipt preserves the local-first boundary and does not turn Luogu's unsupported private
+submission history into a missing module. No main-site password, Cookie, Session, CSRF login,
+cloud account, cross-device sync, local compiler, custom-input runner, or automatic submission
+retry is added. Earlier phase notes and Releases remain intact. / 同步回执继续保持本地优先边界，不会把洛谷不支持的
+私有提交历史误显示为缺失模块。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、
+自定义输入运行器或自动提交重试；此前阶段说明和 Releases 保持不变。
 
 ## Documentation
 

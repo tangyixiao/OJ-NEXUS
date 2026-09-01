@@ -406,6 +406,17 @@
     <string name="settings_connecting">VERIFYING…</string>
     <string name="settings_sync_now">SYNC NOW</string>
     <string name="settings_background_sync_enabled">BACKGROUND SYNC ENABLED — EVERY 6 HOURS</string>
+    <string name="settings_sync_coverage">SYNC COVERAGE</string>
+    <string name="settings_sync_module_profile">PROFILE</string>
+    <string name="settings_sync_module_rating">RATING</string>
+    <string name="settings_sync_module_submissions">SUBMISSIONS</string>
+    <string name="settings_sync_module_contests">CONTESTS</string>
+    <string name="settings_sync_module_problemset">PROBLEMSET</string>
+    <string name="settings_sync_never">NEVER SYNCED</string>
+    <string name="settings_sync_just_now">JUST NOW</string>
+    <string name="settings_sync_minutes_ago">%d MIN AGO</string>
+    <string name="settings_sync_hours_ago">%d H AGO</string>
+    <string name="settings_sync_days_ago">%d D AGO</string>
     <string name="settings_disconnect">DISCONNECT</string>
     <string name="settings_disconnect_title">DISCONNECT %1$s</string>
     <string name="settings_disconnect_body">UNBIND THE ACCOUNT? YOUR LOCAL TRAINING HISTORY, NOTES AND REVIEWS ARE KEPT.</string>

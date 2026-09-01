@@ -513,5 +513,22 @@ Room import. / 洛谷公开同步现在优先选择非空的 practice `elo` 列�
 The phase adds no endpoint or credential flow and remains public-data-only. No main-site password,
 Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, custom-input runner,
 or automatic submission retry is added. Earlier phase notes and published Releases remain intact. /
+## PHASE 37 — Sync receipt / 同步回执
+
+Settings now renders a localized sync receipt for every connected judge. The receipt is built from
+the adapter's declared capabilities and the existing per-module Room timestamps, so it lists only
+real profile, Rating, submissions, contest, and problemset modules. Each supported module shows
+`NEVER SYNCED` or a relative refresh age. / 设置页现在为每个已连接评测平台显示本地化同步回执。回执由适配器
+声明的能力和现有 Room 模块时间戳生成，因此只列出真实的资料、Rating、提交、竞赛和题库模块；每个支持的模块
+显示“从未同步”或相对更新时间。
+
+Queued and active runs keep the last stamped module time, and a failed stage never receives a
+fresh timestamp. Luogu's public capability set still does not claim private submission history;
+OpenApp submission remains a separate explicit workflow. This phase adds no endpoint, database
+migration, credential flow, cloud service, cross-device sync, local compiler, custom-input runner,
+or automatic POST retry. Earlier phase notes and published Releases remain intact. /
+排队或同步中的任务继续显示模块上一次已记录的时间，失败阶段不会获得新的时间戳。洛谷公开能力仍不声明私有提交
+历史；OpenApp 提交保持独立的明确流程。本阶段不新增接口、数据库迁移、凭据流程、云端服务、跨设备同步、本地编译器、
+自定义输入运行器或自动 POST 重试；此前阶段说明和 Releases 保持不变。
 本阶段不新增接口或凭据流程，继续只使用公开数据。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、
 跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布 Releases 保持不变。
