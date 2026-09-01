@@ -3,6 +3,21 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 41 — Luogu first-use public sync loop / 洛谷首次使用公开同步闭环
+
+Dashboard now shows a localized `CONNECT LUOGU` action whenever no enabled Luogu account is
+connected. The action opens the dedicated `settings/luogu` route, which scrolls the existing
+Settings screen to the Luogu public-account panel; ordinary Settings and the OpenApp focus route
+remain unchanged. / 当没有启用的洛谷账号时，Dashboard 现在显示本地化的“连接洛谷”操作。该操作打开专用的
+`settings/luogu` 路由，将现有设置页滚动到洛谷公开账号面板；普通设置和 OpenApp 聚焦路由保持不变。
+
+The flow reuses the existing public handle connector, sync queue, profile/Rating/contest/problem
+stages, localized errors, and sync receipt. It adds no main-site password, Cookie, Session, CSRF
+state, cloud service, cross-device sync, local compiler, custom-input runner, or automatic POST
+retry. / 此流程复用已有公开用户名连接器、同步队列、资料/Rating/竞赛/题库阶段、本地化错误和同步回执，
+不新增主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、自定义输入运行器或自动
+POST 重试。此前 Release、tag 和说明继续保留。
+
 ## PHASE 40 — Installable Release build / 可安装 Release 构建
 
 The GitHub distribution is now built from the Android `release` variant rather than the Debug

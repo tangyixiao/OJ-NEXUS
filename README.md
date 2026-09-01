@@ -22,12 +22,16 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 40 (installable Release build, safe local slice)**: The GitHub
-artifact is now an installable Release variant with `BuildConfig.DEBUG=false`, so development-only
-Demo controls stay hidden. The APK identity is aligned to `versionName=0.3.36`, `versionCode=36`.
-/ 早期开发——**第 40 阶段（可安装 Release 构建，安全的本地切片）**：GitHub 产物现在是可安装的 Release
-变体，`BuildConfig.DEBUG=false`，开发专用 Demo 控件保持隐藏；APK 版本身份同步为
-`versionName=0.3.36`、`versionCode=36`。
+Early development — **Phase 41 (Luogu first-use public sync loop, safe local slice)**: users
+without a Luogu connection can open the focused public-account setup panel directly from
+Dashboard. The APK identity is aligned to `versionName=0.3.37`, `versionCode=37`.
+/ 早期开发——**第 41 阶段（洛谷首次使用公开同步闭环，安全的本地切片）**：尚未连接洛谷的用户现在可以
+从 Dashboard 直接打开聚焦的公开账号配置面板；APK 版本身份同步为 `versionName=0.3.37`、
+`versionCode=37`。
+
+Phase 40 remains preserved below: the GitHub artifact is an installable Release variant with
+`BuildConfig.DEBUG=false`, so development-only Demo controls stay hidden. / 第 40 阶段保留如下：GitHub
+产物是可安装的 Release 变体，`BuildConfig.DEBUG=false`，开发专用 Demo 控件保持隐藏。
 
 Phase 39 remains preserved below: Luogu Open Platform result polling now uses the documented
 `GET /judge/result?id=<RequestId>` query form, so an accepted submission can be followed by a
