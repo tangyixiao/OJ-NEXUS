@@ -13,12 +13,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,7 +60,10 @@ import com.ojnexus.judge.JudgeCapability
 import com.ojnexus.judge.luogu.LuoguUrls
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    focusOpenApp: Boolean = false,
+) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<SettingsViewModel>(
         factory = ContainerViewModelFactory(container) {
@@ -96,6 +102,11 @@ fun SettingsScreen(onBack: () -> Unit) {
     var disconnectAccountId by rememberSaveable { mutableStateOf<Long?>(null) }
     var purgeCache by rememberSaveable { mutableStateOf(false) }
     val appLanguage = AppLanguage.fromLocaleTags(AppCompatDelegate.getApplicationLocales().toLanguageTags())
+    val openAppRequester = remember { BringIntoViewRequester() }
+
+    LaunchedEffect(focusOpenApp) {
+        if (focusOpenApp) openAppRequester.bringIntoView()
+    }
 
     Column(Modifier.fillMaxSize().background(NexusTheme.colors.background)) {
         NexusTopBar(
@@ -185,7 +196,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(NexusSpacing.xl))
-            NexusSection(label = stringResource(R.string.settings_section_luogu_open)) {
+            NexusSection(
+                label = stringResource(R.string.settings_section_luogu_open),
+                modifier = Modifier.bringIntoViewRequester(openAppRequester),
+            ) {
                 Text(
                     text = stringResource(R.string.settings_openapp_hint),
                     style = NexusTheme.typography.dataSmall,
