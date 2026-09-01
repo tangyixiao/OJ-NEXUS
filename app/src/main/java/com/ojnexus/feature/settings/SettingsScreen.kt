@@ -78,6 +78,7 @@ fun SettingsScreen(
                     it.userPreferencesRepository,
                     it.luoguOpenCredentialStore,
                     it.luoguOpenClient,
+                    it.luoguOpenClient,
                 )
         },
     )
@@ -261,7 +262,7 @@ fun SettingsScreen(
                     onClick = { UrlOpener.open(context, LuoguUrls.openPlatformDocs()) },
                 )
                 Spacer(Modifier.height(NexusSpacing.sm))
-                if (openAppState.configured) {
+                if (openAppState.configured && !openAppState.editing) {
                     Text(
                         text = stringResource(R.string.settings_openapp_configured),
                         style = NexusTheme.typography.data,
@@ -283,6 +284,11 @@ fun SettingsScreen(
                             },
                         ),
                         onClick = viewModel::checkOpenAppQuota,
+                    )
+                    Spacer(Modifier.height(NexusSpacing.xs))
+                    SettingsAction(
+                        label = stringResource(R.string.settings_openapp_replace),
+                        onClick = viewModel::beginOpenAppCredentialReplacement,
                     )
                     openAppState.quota?.let { quota ->
                         Spacer(Modifier.height(NexusSpacing.xs))
@@ -309,7 +315,16 @@ fun SettingsScreen(
                         verifying = openAppState.verifying,
                         error = openAppState.error,
                         inputError = openAppState.inputError,
-                        onSave = viewModel::saveOpenAppCredential,
+                        onSave = if (openAppState.configured) {
+                            viewModel::replaceOpenAppCredential
+                        } else {
+                            viewModel::saveOpenAppCredential
+                        },
+                        onCancel = if (openAppState.configured) {
+                            viewModel::cancelOpenAppCredentialReplacement
+                        } else {
+                            null
+                        },
                     )
                 }
                 openAppState.quotaError?.let { error ->
@@ -434,6 +449,7 @@ private fun OpenAppCredentialEditor(
     error: Boolean,
     inputError: OpenAppCredentialInputError?,
     onSave: (String, String) -> Unit,
+    onCancel: (() -> Unit)? = null,
 ) {
     // Credentials must not enter saved-instance-state or backup bundles.
     var user by remember { mutableStateOf("") }
@@ -450,17 +466,26 @@ private fun OpenAppCredentialEditor(
             onValueChange = { secret = it },
             password = true,
         )
-        SettingsAction(
-            label = stringResource(
-                when {
-                    verifying -> R.string.settings_openapp_verifying
-                    saving -> R.string.settings_openapp_saving
-                    else -> R.string.settings_openapp_save
-                },
-            ),
-            enabled = !saving,
-            onClick = { onSave(user, secret) },
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+            SettingsAction(
+                label = stringResource(
+                    when {
+                        verifying -> R.string.settings_openapp_verifying
+                        saving -> R.string.settings_openapp_saving
+                        else -> R.string.settings_openapp_save
+                    },
+                ),
+                enabled = !saving,
+                onClick = { onSave(user, secret) },
+            )
+            onCancel?.let { cancel ->
+                SettingsAction(
+                    label = stringResource(R.string.settings_openapp_cancel),
+                    enabled = !saving,
+                    onClick = cancel,
+                )
+            }
+        }
         if (error) {
             Text(
                 text = stringResource(R.string.settings_openapp_error),

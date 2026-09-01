@@ -22,6 +22,7 @@ import com.ojnexus.judge.sync.JudgeSyncWorker
 import com.ojnexus.judge.luogu.open.OpenAppCredential
 import com.ojnexus.judge.luogu.open.OpenAppCredentialStore
 import com.ojnexus.judge.luogu.open.LuoguOpenApiError
+import com.ojnexus.judge.luogu.open.LuoguOpenCredentialVerifier
 import com.ojnexus.judge.luogu.open.LuoguOpenQuotaReader
 import com.ojnexus.judge.luogu.open.LuoguOpenQuotaSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 data class JudgeConnectionUi(
@@ -50,6 +52,7 @@ data class BackupResult(val operation: BackupOperation, val success: Boolean)
 
 data class OpenAppUiState(
     val configured: Boolean = false,
+    val editing: Boolean = false,
     val saving: Boolean = false,
     val verifying: Boolean = false,
     val error: Boolean = false,
@@ -77,6 +80,7 @@ class SettingsViewModel(
     private val preferencesRepository: UserPreferencesRepository,
     private val openAppCredentialStore: OpenAppCredentialStore? = null,
     private val openAppQuotaReader: LuoguOpenQuotaReader? = null,
+    private val openAppCredentialVerifier: LuoguOpenCredentialVerifier? = null,
 ) : ViewModel() {
     private val judges = registry.supportedJudges().sortedBy { it.ordinal }
 
@@ -173,8 +177,104 @@ class SettingsViewModel(
                         )
                     }
                 }
+            } catch (error: CancellationException) {
+                throw error
             } catch (_: Exception) {
                 openAppState.update { it.copy(saving = false, verifying = false, error = true, inputError = null) }
+            }
+        }
+    }
+
+    fun beginOpenAppCredentialReplacement() {
+        if (!openAppState.value.configured || openAppCredentialVerifier == null) return
+        openAppState.update {
+            it.copy(
+                editing = true,
+                error = false,
+                inputError = null,
+                quotaError = null,
+            )
+        }
+    }
+
+    fun cancelOpenAppCredentialReplacement() {
+        if (!openAppState.value.configured) return
+        openAppState.update {
+            it.copy(
+                editing = false,
+                saving = false,
+                verifying = false,
+                error = false,
+                inputError = null,
+                quotaError = null,
+            )
+        }
+    }
+
+    fun replaceOpenAppCredential(user: String, secret: String) {
+        val store = openAppCredentialStore ?: return
+        val verifier = openAppCredentialVerifier ?: return
+        if (!openAppState.value.configured) return
+        val normalizedUser = user.trim()
+        val normalizedSecret = secret.trim()
+        val inputError = validateOpenAppCredentialInput(normalizedUser, normalizedSecret)
+        if (inputError != null) {
+            openAppState.update {
+                it.copy(error = false, inputError = inputError, quotaError = null)
+            }
+            return
+        }
+        openAppState.update {
+            it.copy(
+                editing = true,
+                saving = true,
+                verifying = true,
+                error = false,
+                inputError = null,
+                quotaError = null,
+            )
+        }
+        viewModelScope.launch {
+            try {
+                when (val verification = verifyAndReplaceOpenAppCredential(
+                    store = store,
+                    verifier = verifier,
+                    credential = OpenAppCredential(normalizedUser, normalizedSecret),
+                )) {
+                    is OpenAppCredentialVerification.Verified -> {
+                        openAppState.value = OpenAppUiState(
+                            configured = true,
+                            quota = verification.quota,
+                        )
+                    }
+                    is OpenAppCredentialVerification.Rejected -> {
+                        openAppState.value = OpenAppUiState(
+                            configured = true,
+                            editing = true,
+                            quotaError = verification.error,
+                        )
+                    }
+                    is OpenAppCredentialVerification.Unverified -> {
+                        openAppState.value = OpenAppUiState(
+                            configured = true,
+                            editing = true,
+                            quotaError = verification.error,
+                        )
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                openAppState.update {
+                    it.copy(
+                        configured = true,
+                        editing = true,
+                        saving = false,
+                        verifying = false,
+                        error = true,
+                        inputError = null,
+                    )
+                }
             }
         }
     }

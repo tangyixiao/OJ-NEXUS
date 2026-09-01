@@ -6,6 +6,10 @@ import android.security.keystore.KeyProperties
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption.ATOMIC_MOVE
+import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -48,9 +52,17 @@ class AndroidOpenAppCredentialStore(
         val output = ByteBuffer.allocate(iv.size + encrypted.size).put(iv).put(encrypted).array()
         val temporary = File(file.parentFile, "$FILE_NAME.tmp")
         temporary.writeBytes(output)
-        require(temporary.renameTo(file) || (file.delete() && temporary.renameTo(file))) {
-            "OpenApp credential could not be committed"
+        try {
+            try {
+                Files.move(temporary.toPath(), file.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
+            } catch (_: AtomicMoveNotSupportedException) {
+                Files.move(temporary.toPath(), file.toPath(), REPLACE_EXISTING)
+            }
+        } catch (error: Exception) {
+            temporary.delete()
+            throw IllegalStateException("OpenApp credential could not be committed", error)
         }
+        Unit
     }
 
     override suspend fun clear() = withContext(Dispatchers.IO) {

@@ -438,6 +438,8 @@
     <string name="settings_openapp_verifying">VERIFYING CREDENTIAL…</string>
     <string name="settings_openapp_configured">OPENAPP CREDENTIAL CONFIGURED</string>
     <string name="settings_openapp_clear">CLEAR OPENAPP CREDENTIAL</string>
+    <string name="settings_openapp_replace">REPLACE OPENAPP CREDENTIAL</string>
+    <string name="settings_openapp_cancel">CANCEL</string>
     <string name="settings_openapp_error">CREDENTIAL COULD NOT BE SAVED</string>
     <string name="settings_openapp_user_required">OPENAPP USER IS REQUIRED</string>
     <string name="settings_openapp_secret_required">OPENAPP SECRET IS REQUIRED</string>

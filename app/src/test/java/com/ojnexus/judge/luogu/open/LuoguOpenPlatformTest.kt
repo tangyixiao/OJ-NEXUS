@@ -252,6 +252,31 @@ class LuoguOpenPlatformClientTest {
     }
 
     @Test
+    fun `candidate quota verification uses candidate authorization without reading stored credential`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("{\"quotas\":[]}"))
+        val store = TrackingOpenAppCredentialStore(OpenAppCredential("old-user", "old-secret"))
+        val candidateClient = LuoguOpenPlatformClient(
+            api = Retrofit.Builder()
+                .baseUrl(server.url("/"))
+                .client(OkHttpClient())
+                .addConverterFactory(
+                    Json { ignoreUnknownKeys = true }
+                        .asConverterFactory("application/json".toMediaType()),
+                )
+                .build()
+                .create(LuoguOpenPlatformApi::class.java),
+            credentialStore = store,
+        )
+
+        candidateClient.verifyCredential(OpenAppCredential("new-user", "new-secret"))
+
+        val request = server.takeRequest()
+        assertEquals("/judge/quotaAvailable", request.path)
+        assertEquals("Basic bmV3LXVzZXI6bmV3LXNlY3JldA==", request.getHeader("Authorization"))
+        assertEquals(0, store.readCount)
+    }
+
+    @Test
     fun `quota exhaustion is typed and is never retried`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(402))
 
@@ -294,6 +319,20 @@ private class FakeOpenAppCredentialStore(
     private val credential: OpenAppCredential?,
 ) : OpenAppCredentialStore {
     override suspend fun read(): OpenAppCredential? = credential
+    override suspend fun write(value: OpenAppCredential) = Unit
+    override suspend fun clear() = Unit
+}
+
+private class TrackingOpenAppCredentialStore(
+    private val credential: OpenAppCredential,
+) : OpenAppCredentialStore {
+    var readCount: Int = 0
+
+    override suspend fun read(): OpenAppCredential {
+        readCount += 1
+        return credential
+    }
+
     override suspend fun write(value: OpenAppCredential) = Unit
     override suspend fun clear() = Unit
 }

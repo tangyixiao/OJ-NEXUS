@@ -22,7 +22,16 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 44 (OpenApp credential input validation, safe local slice)**: blank or
+Early development — **Phase 45 (transaction-safe OpenApp credential replacement)**: configured users can
+replace an OpenApp credential through a blank editor; the candidate is verified with the read-only quota
+endpoint before it is written, and failed verification preserves the existing credential. The editor also
+offers an explicit cancel action. **Phase 44** input validation and all earlier phases remain included.
+The APK identity is aligned to `versionName=0.3.41`, `versionCode=41`.
+/ 早期开发——**第 45 阶段（事务安全的 OpenApp 凭据更换）**：已配置用户可以通过空白编辑器更换
+OpenApp 凭据；候选凭据会先使用只读额度接口验证，验证失败时保留原凭据，并提供明确的取消操作。
+**第 44 阶段**输入校验及此前全部阶段继续保留。APK 版本身份同步为 `versionName=0.3.41`、`versionCode=41`。
+
+Phase 44 remains preserved below: blank or
 whitespace-only OpenApp user/secret input is rejected locally with field-specific feedback before
 Keystore storage or quota verification. The settings-focus correction from Phase 43 remains
 included. The APK identity is aligned to `versionName=0.3.40`, `versionCode=40`.

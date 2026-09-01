@@ -3,6 +3,22 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 45 — Transaction-safe OpenApp credential replacement / 事务安全的 OpenApp 凭据更换
+
+Configured users can replace an OpenApp credential from a blank editor. The candidate is checked
+with the read-only `quotaAvailable` endpoint using candidate Basic authorization before the local
+Keystore-backed store is changed. Unauthorized, forbidden, network, API, and persistence failures
+keep the existing credential active; `CANCEL` leaves the stored value untouched. / 已配置用户可以
+通过空白编辑器更换 OpenApp 凭据。候选凭据会使用候选 Basic Auth 调用只读的 `quotaAvailable` 接口，
+验证成功后才修改本地 Keystore 存储；未授权、禁止访问、网络、API 或持久化失败都会保留现有凭据，
+`取消` 操作不会改动已保存值。
+
+This phase does not add main-site passwords, Cookie, Session, CSRF state, cloud service,
+cross-device sync, local compiler, custom-input runner, background submission, or automatic POST
+retry. Earlier phases, commits, tags, and releases remain preserved. / 本阶段不新增主站密码、Cookie、
+Session、CSRF 状态、云服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动 POST 重试；
+此前阶段、commit、标签和 Release 均继续保留。
+
 ## PHASE 44 — OpenApp credential input validation / OpenApp 凭据输入校验
 
 OpenApp user and secret input is trimmed and validated locally before any Keystore write or

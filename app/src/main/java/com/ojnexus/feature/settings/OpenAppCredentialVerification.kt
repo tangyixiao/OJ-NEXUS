@@ -3,8 +3,10 @@ package com.ojnexus.feature.settings
 import com.ojnexus.judge.luogu.open.LuoguOpenApiError
 import com.ojnexus.judge.luogu.open.LuoguOpenQuotaReader
 import com.ojnexus.judge.luogu.open.LuoguOpenQuotaSnapshot
+import com.ojnexus.judge.luogu.open.LuoguOpenCredentialVerifier
 import com.ojnexus.judge.luogu.open.OpenAppCredential
 import com.ojnexus.judge.luogu.open.OpenAppCredentialStore
+import kotlinx.coroutines.CancellationException
 
 internal sealed interface OpenAppCredentialVerification {
     data class Verified(val quota: LuoguOpenQuotaSnapshot?) : OpenAppCredentialVerification
@@ -30,6 +32,36 @@ internal suspend fun verifyAndStoreOpenAppCredential(
         } else {
             OpenAppCredentialVerification.Unverified(mapped)
         }
+    } catch (_: Exception) {
+        OpenAppCredentialVerification.Unverified(OpenAppQuotaError.API)
+    }
+}
+
+/** Verifies a replacement candidate first, then commits it only after read-only verification succeeds. */
+internal suspend fun verifyAndReplaceOpenAppCredential(
+    store: OpenAppCredentialStore,
+    verifier: LuoguOpenCredentialVerifier,
+    credential: OpenAppCredential,
+): OpenAppCredentialVerification {
+    val quota = try {
+        verifier.verifyCredential(credential)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: LuoguOpenApiError) {
+        return if (error is LuoguOpenApiError.Unauthorized || error is LuoguOpenApiError.Forbidden) {
+            OpenAppCredentialVerification.Rejected(error.toOpenAppQuotaError())
+        } else {
+            OpenAppCredentialVerification.Unverified(error.toOpenAppQuotaError())
+        }
+    } catch (_: Exception) {
+        return OpenAppCredentialVerification.Unverified(OpenAppQuotaError.API)
+    }
+
+    return try {
+        store.write(credential)
+        OpenAppCredentialVerification.Verified(quota)
+    } catch (error: CancellationException) {
+        throw error
     } catch (_: Exception) {
         OpenAppCredentialVerification.Unverified(OpenAppQuotaError.API)
     }

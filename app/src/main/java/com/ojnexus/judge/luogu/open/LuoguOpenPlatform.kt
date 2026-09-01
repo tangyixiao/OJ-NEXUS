@@ -322,6 +322,11 @@ interface LuoguOpenQuotaReader {
     suspend fun fetchQuota(): LuoguOpenQuotaSnapshot
 }
 
+/** Verifies a candidate OpenApp credential without reading or changing the stored credential. */
+interface LuoguOpenCredentialVerifier {
+    suspend fun verifyCredential(credential: OpenAppCredential): LuoguOpenQuotaSnapshot
+}
+
 interface LuoguOpenResultSignal {
     suspend fun awaitResultSignal(requestId: String, timeoutMillis: Long): Boolean = false
 }
@@ -379,7 +384,7 @@ class LuoguOpenPlatformClient internal constructor(
     private val credentialStore: OpenAppCredentialStore,
     private val webSocketClient: OkHttpClient = OkHttpClient(),
     private val webSocketUrl: String = LuoguUrls.OPEN_PLATFORM_WEBSOCKET_URL,
-) : LuoguOpenGateway, LuoguOpenQuotaReader {
+) : LuoguOpenGateway, LuoguOpenQuotaReader, LuoguOpenCredentialVerifier {
     private val callbackJson = Json { ignoreUnknownKeys = true; coerceInputValues = true }
     override val supportsCustomInputRun: Boolean = false
 
@@ -482,8 +487,16 @@ class LuoguOpenPlatformClient internal constructor(
     }
 
     override suspend fun fetchQuota(): LuoguOpenQuotaSnapshot {
+        val credential = credentialStore.read() ?: throw LuoguOpenApiError.CredentialMissing
+        return fetchQuotaWithCredential(credential)
+    }
+
+    override suspend fun verifyCredential(credential: OpenAppCredential): LuoguOpenQuotaSnapshot =
+        fetchQuotaWithCredential(credential)
+
+    private suspend fun fetchQuotaWithCredential(credential: OpenAppCredential): LuoguOpenQuotaSnapshot {
         val response = try {
-            api.quotaAvailable(authorizationHeader())
+            api.quotaAvailable(OpenAppBasicAuth.header(credential))
         } catch (error: IOException) {
             throw LuoguOpenApiError.Network(error)
         }

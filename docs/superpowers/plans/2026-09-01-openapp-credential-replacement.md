@@ -4,17 +4,17 @@
 
 ### Task 1: Candidate verification contract (TDD)
 
-- [ ] Add a candidate-verification fake and tests for success, authorization rejection, and network failure.
-- [ ] Add the failing test for write-after-verification ordering and verify RED.
-- [ ] Add `LuoguOpenCredentialVerifier` and implement it in the real OpenApp client.
-- [ ] Run the focused OpenApp tests.
+- [x] Add a candidate-verification fake and tests for success, authorization rejection, and network failure.
+- [x] Add the failing test for write-after-verification ordering and verify RED.
+- [x] Add `LuoguOpenCredentialVerifier` and implement it in the real OpenApp client.
+- [x] Run the focused OpenApp tests.
 
 ### Task 2: Safe settings replacement flow
 
-- [ ] Add a ViewModel replacement action that verifies before writing and preserves the old credential on failure.
-- [ ] Add replacement/cancel state to the settings editor without reading the stored secret.
-- [ ] Add a ViewModel regression test for old-value preservation and successful replacement.
-- [ ] Run focused settings and credential tests.
+- [x] Add a ViewModel replacement action that verifies before writing and preserves the old credential on failure.
+- [x] Add replacement/cancel state to the settings editor without reading the stored secret.
+- [x] Add a ViewModel regression test for old-value preservation and successful replacement.
+- [x] Run focused settings and credential tests.
 
 ### Task 3: Verify and release
 
