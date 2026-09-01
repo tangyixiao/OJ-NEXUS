@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 32 (Luogu workspace first-use setup, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 33 (Luogu OpenApp setup focus, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -282,6 +282,19 @@ password, Cookie, Session, CSRF login, cloud account, cross-device sync, local c
 runner, or automatic submission retry. Earlier phase notes and Releases remain intact. / 本阶段只改变
 本地首次使用导航路径，不新增网络请求、主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、
 本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和 Releases 保持不变。
+
+Phase 33 / 第 33 阶段: The Luogu workspace setup action now opens a dedicated Settings route
+that automatically scrolls to the `LUOGU OPEN PLATFORM` section. The OpenApp user, secret, and
+save controls are brought into the visible area using layout-aware coordinates, while ordinary
+Settings navigation still starts at the top. / 第 33 阶段：洛谷工作区配置操作现在进入独立的设置路由，
+并自动滚动到“洛谷 Open Platform”区域。OpenApp 用户名、密钥和保存控件会通过布局感知坐标进入可视范围；
+普通设置入口仍从顶部开始。
+
+This phase changes only local navigation and scroll positioning. It adds no main-site password,
+Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, custom-input runner,
+or automatic submission retry. Earlier phase notes and Releases remain intact. / 本阶段只改变本地导航和
+滚动定位，不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入
+运行器或自动提交重试；此前阶段说明和 Releases 保持不变。
 
 ## Documentation
 

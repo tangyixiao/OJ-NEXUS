@@ -445,3 +445,19 @@ password, Cookie, Session, CSRF login, cloud account, cross-device sync, local c
 runner, or automatic submission retry. Earlier phase notes and published Releases remain intact. /
 本阶段仅改善本地导航，不发起网络请求，不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备
 同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布 Releases 保持不变。
+
+## PHASE 33 — Luogu OpenApp setup focus / 洛谷 OpenApp 设置定位
+
+The workspace setup action now uses a dedicated `settings/openapp` destination. After the route
+is laid out, the Settings screen calculates the OpenApp section position relative to its scroll
+viewport and moves it into view; the user, secret, and save controls are visible without manual
+searching. Ordinary `settings` navigation remains top-aligned. / 工作区配置操作现在使用独立的
+`settings/openapp` 路由。设置页完成布局后，会计算 OpenApp 区域相对于滚动视口的位置并自动定位；用户无需
+手动寻找即可看到用户名、密钥和保存控件。普通 `settings` 入口仍从顶部开始。
+
+The phase is local navigation only and does not make a network request. No Luogu main-site
+password, Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler,
+custom-input runner, or automatic submission retry is added. Earlier phase notes and published
+Releases remain intact. / 本阶段仅涉及本地导航，不发起网络请求，不新增洛谷主站密码、Cookie、Session、
+CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布
+Releases 保持不变。
