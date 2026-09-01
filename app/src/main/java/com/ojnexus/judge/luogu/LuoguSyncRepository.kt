@@ -50,7 +50,8 @@ class LuoguSyncRepository(
             val uid = resolveUid(account)
             val profilePage = adapter.fetchUserPage(uid)
             val practicePage = adapter.fetchPracticePage(uid)
-            val entries = practicePage.data?.elo ?: profilePage.data?.elo ?: emptyList()
+            val entries = practicePage.data?.elo?.takeIf { it.isNotEmpty() }
+                ?: profilePage.data?.elo.orEmpty()
             database.ratingChangeDao().upsertAll(
                 LuoguMappers.toRatingChangeEntities(JudgeId.LUOGU, account.canonicalHandle, entries),
             )

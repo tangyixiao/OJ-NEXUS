@@ -29,6 +29,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPOutputStream
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -90,6 +91,28 @@ class LuoguSyncRepositoryTest {
         assertEquals(1, database.ratingChangeDao().countByJudge(JudgeId.LUOGU.id))
         assertEquals(2, database.remoteProblemDao().countByJudge(JudgeId.LUOGU.id))
         assertEquals(1, database.contestDao().countByJudge(JudgeId.LUOGU.id))
+    }
+
+    @Test
+    fun `rating sync falls back to non-empty profile elo when practice elo is empty`() = runBlocking {
+        val account = connect()
+        adapter.userPageElo = listOf(
+            LuoguEloEntryDto(
+                rating = 1350,
+                time = 1_700_000_100,
+                contest = com.ojnexus.judge.luogu.api.dto.LuoguRatingContestDto(
+                    id = 101,
+                    name = "Profile Round",
+                ),
+            ),
+        )
+        adapter.practicePageElo = emptyList()
+
+        val outcome = repository.syncRating(account, force = true)
+
+        assertTrue(outcome.ok)
+        assertEquals(1, database.ratingChangeDao().countByJudge(JudgeId.LUOGU.id))
+        assertEquals("101", database.ratingChangeDao().observeByJudge(JudgeId.LUOGU.id).first().single().contestId)
     }
 
     @Test
@@ -225,6 +248,17 @@ private class FakeLuoguSyncAdapter : LuoguAdapter {
     var problemsetDump = ByteArray(0)
     var problemFailurePage: Int? = null
     var problemPageCalls = 0
+    var userPageElo: List<LuoguEloEntryDto> = emptyList()
+    var practicePageElo: List<LuoguEloEntryDto> = listOf(
+        LuoguEloEntryDto(
+            rating = 1200,
+            time = 1_700_000_000,
+            contest = com.ojnexus.judge.luogu.api.dto.LuoguRatingContestDto(
+                id = 99,
+                name = "Round",
+            ),
+        ),
+    )
 
     override val supportsProblemsetDump: Boolean
         get() = useProblemsetDump
@@ -245,22 +279,14 @@ private class FakeLuoguSyncAdapter : LuoguAdapter {
                 followerCount = 8,
             ),
             gu = LuoguRatingSummaryDto(rating = 1200),
+            elo = userPageElo,
         ),
     )
 
     override suspend fun fetchPracticePage(uid: Long) = LuoguUserPageResponse(
         data = LuoguUserPageData(
             user = LuoguPublicUserDto(uid = uid, name = "alice", eloValue = 1200),
-            elo = listOf(
-                LuoguEloEntryDto(
-                    rating = 1200,
-                    time = 1_700_000_000,
-                    contest = com.ojnexus.judge.luogu.api.dto.LuoguRatingContestDto(
-                        id = 99,
-                        name = "Round",
-                    ),
-                ),
-            ),
+            elo = practicePageElo,
         ),
     )
 
