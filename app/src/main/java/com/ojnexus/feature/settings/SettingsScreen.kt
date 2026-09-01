@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -32,11 +30,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
@@ -104,13 +104,17 @@ fun SettingsScreen(
     var disconnectAccountId by rememberSaveable { mutableStateOf<Long?>(null) }
     var purgeCache by rememberSaveable { mutableStateOf(false) }
     val appLanguage = AppLanguage.fromLocaleTags(AppCompatDelegate.getApplicationLocales().toLanguageTags())
-    val openAppRequester = remember { BringIntoViewRequester() }
+    val settingsScrollState = rememberScrollState()
+    var openAppContentOffset by remember { mutableStateOf<Int?>(null) }
     var openAppReady by remember { mutableStateOf(false) }
 
-    LaunchedEffect(focusOpenApp, openAppReady) {
-        if (focusOpenApp && openAppReady) {
+    LaunchedEffect(focusOpenApp, openAppReady, openAppContentOffset) {
+        val contentOffset = openAppContentOffset
+        if (focusOpenApp && openAppReady && contentOffset != null) {
             withFrameNanos { }
-            openAppRequester.bringIntoView()
+            settingsScrollState.animateScrollTo(
+                contentOffset.coerceIn(0, settingsScrollState.maxValue),
+            )
         }
     }
 
@@ -127,7 +131,7 @@ fun SettingsScreen(
             },
         )
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            Modifier.fillMaxSize().verticalScroll(settingsScrollState)
                 .padding(horizontal = NexusSpacing.screenHorizontal),
         ) {
             Spacer(Modifier.height(NexusSpacing.md))
@@ -205,8 +209,12 @@ fun SettingsScreen(
             NexusSection(
                 label = stringResource(R.string.settings_section_luogu_open),
                 modifier = Modifier
-                    .bringIntoViewRequester(openAppRequester)
-                    .onGloballyPositioned { openAppReady = true },
+                    .onGloballyPositioned { coordinates ->
+                        if (openAppContentOffset == null) {
+                            openAppContentOffset = coordinates.positionInParent().y.roundToInt()
+                        }
+                        openAppReady = true
+                    },
             ) {
                 Text(
                     text = stringResource(R.string.settings_openapp_hint),
