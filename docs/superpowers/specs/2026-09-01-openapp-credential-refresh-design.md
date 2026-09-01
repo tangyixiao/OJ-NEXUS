@@ -8,10 +8,10 @@ whitespace-only input also reaches storage/API validation and becomes a generic 
 
 ## Goal / 目标
 
-Make credential maintenance usable without exposing the stored secret:
+Make first-time credential entry clearer without exposing the stored secret:
 
 1. Validate trimmed user and secret input before starting storage or quota verification.
-2. Let a configured user open a blank replacement form directly.
+2. Show a field-specific localized error for missing user or secret.
 3. Keep the existing Keystore-backed store, read-only quota verification, and rejection behavior.
 
 ## Design / 设计
@@ -28,17 +28,17 @@ internal fun validateOpenAppCredentialInput(
 ```
 
 The ViewModel trims both values, rejects the first missing field locally, and does not launch
-a coroutine or write a credential for invalid input. A configured Settings panel gets a
-`REPLACE OPENAPP CREDENTIAL` action. Clicking it opens the existing editor with blank fields;
-the secret is never read back or displayed. A successful save returns to the configured state;
-an invalid or unverifiable save keeps the replacement form available through the existing
-state and error messages.
+a coroutine or write a credential for invalid input. The existing configured state and clear
+action remain unchanged. This phase deliberately does not add replacement-in-place behavior:
+the current verifier writes a candidate before calling the store-backed quota reader, so a
+transactional replacement requires a separate design rather than silently risking the old
+credential.
 
 ## State and UI / 状态与界面
 
-The editor visibility is local Compose state (`editingCredential`) while configured status
-remains ViewModel state. Clear still removes the credential. Save and quota verification keep
-their current loading, authorization-rejection, and network-error semantics.
+The input error is ViewModel state while configured status remains ViewModel state. Clear still
+removes the credential. Save and quota verification keep their current loading,
+authorization-rejection, and network-error semantics.
 
 ## Boundaries / 边界
 
@@ -50,5 +50,5 @@ The stored secret remains Keystore-backed and excluded from backup.
 
 TDD covers whitespace trimming, missing user, missing secret, and valid input. ViewModel
 regression tests cover that invalid input does not write. A Release emulator check confirms
-the configured panel exposes replacement without revealing the secret and that the app remains
+the field-specific setup errors render without revealing the secret and that the app remains
 online.
