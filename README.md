@@ -22,6 +22,20 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
+Early development — **Phase 46 (Luogu sample-pair compatibility)**: live Luogu problem
+responses whose samples are encoded as nested `[input, output]` pairs are now decoded at the
+network boundary and rendered by the existing native detail screen; older flat sample fixtures
+remain supported. The APK identity is aligned to `versionName=0.3.42`, `versionCode=42`.
+/ 早期开发——**第 46 阶段（洛谷样例对兼容）**：洛谷实时题目响应中的嵌套 `[输入, 输出]` 样例对现在会在
+网络 DTO 边界解码，并由现有原生题目详情页渲染；旧的扁平样例格式继续支持。APK 版本身份同步为
+`versionName=0.3.42`、`versionCode=42`。
+
+Phase 46 is a compatibility fix at the DTO boundary only. It does not add main-site passwords,
+Cookie, Session, CSRF state, cloud service, cross-device sync, local compiler, or custom-input
+runner. Earlier phases, commits, tags, and releases remain preserved. / 第 46 阶段仅修复 DTO 边界的
+兼容性，不新增主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器或自定义输入运行器。
+此前阶段、commit、标签和 Release 均继续保留。
+
 Early development — **Phase 45 (transaction-safe OpenApp credential replacement)**: configured users can
 replace an OpenApp credential through a blank editor; the candidate is verified with the read-only quota
 endpoint before it is written, and failed verification preserves the existing credential. The editor also

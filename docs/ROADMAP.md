@@ -3,6 +3,20 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 46 — Luogu sample-pair compatibility / 洛谷样例对兼容
+
+Live Luogu problem details may encode samples as nested `[input, output]` pairs, while older
+fixtures use a flat string list. The network DTO now accepts both shapes and flattens nested
+pairs into the existing ordered domain/cache contract, so native detail rendering can show real
+sample content. / 洛谷实时题目详情可能将样例编码为嵌套的 `[输入, 输出]` 样例对，而旧 fixture 使用扁平字符串
+列表。网络 DTO 现在同时接受两种格式，并将嵌套样例对按原顺序展开为现有领域/缓存契约，使原生详情页能够显示真实样例内容。
+
+This is a parsing compatibility fix only. It does not add main-site passwords, Cookie, Session,
+CSRF state, cloud service, cross-device sync, local compiler, custom-input runner, or automatic
+POST retry. Earlier phases, commits, tags, and releases remain preserved. / 本阶段仅修复解析兼容性，不新增主站
+密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、自定义输入运行器或自动 POST 重试；此前阶段、
+commit、标签和 Release 均继续保留。
+
 ## PHASE 45 — Transaction-safe OpenApp credential replacement / 事务安全的 OpenApp 凭据更换
 
 Configured users can replace an OpenApp credential from a blank editor. The candidate is checked

@@ -3,12 +3,35 @@ package com.ojnexus.judge.luogu
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemContentDto
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemDetailData
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemDetailDto
+import com.ojnexus.judge.luogu.api.dto.LuoguProblemDetailResponse
 import com.ojnexus.judge.luogu.api.dto.LuoguProblemLimitsDto
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LuoguProblemDetailTest {
+
+    @Test
+    fun `decodes Luogu nested sample pairs into ordered flat samples`() {
+        val response = Json { ignoreUnknownKeys = true }.decodeFromString<LuoguProblemDetailResponse>(
+            """
+            {
+              "data": {
+                "problem": {
+                  "pid": "B4132",
+                  "name": "Sample",
+                  "samples": [["1 2", "3"], ["4 5", "9"]]
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+
+        val detail = LuoguProblemDetailMapper.toDomain(requireNotNull(response.data))
+
+        assertEquals(listOf("1 2", "3", "4 5", "9"), detail.samples)
+    }
 
     @Test
     fun `maps structured problem content and sample limits`() {
