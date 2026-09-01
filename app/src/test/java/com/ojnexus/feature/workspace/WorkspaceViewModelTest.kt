@@ -70,7 +70,7 @@ class WorkspaceViewModelTest {
     }
 
     @Test
-    fun `submit enters pending state and result check resolves it`() = runBlocking {
+    fun `explicit submit performs the result check when the result is ready`() = runBlocking {
         val gateway = FakeGateway()
         val viewModel = WorkspaceViewModel("P1001", "A+B", gateway, FakeStore(), CoroutineScope(coroutineContext))
 
@@ -79,16 +79,32 @@ class WorkspaceViewModelTest {
         viewModel.submit()
 
         assertEquals("req-1", viewModel.state.value.requestId)
-        assertEquals(WorkspaceResultState.PENDING, viewModel.state.value.resultState)
-
-        viewModel.checkResult()
-
         assertEquals(WorkspaceResultState.READY, viewModel.state.value.resultState)
         assertEquals(12, viewModel.state.value.evaluation?.status)
     }
 
     @Test
     fun `result check polls in the foreground until the judge is ready`() = runBlocking {
+        val gateway = PollingGateway()
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = "A+B",
+            gateway = gateway,
+            credentialStore = FakeStore(),
+            history = FakeHistory(pendingJob("req-poll")),
+            testScope = CoroutineScope(coroutineContext),
+            delayForResult = {},
+        )
+
+        viewModel.checkResult()
+
+        assertEquals(3, gateway.resultCalls)
+        assertEquals(WorkspaceResultState.READY, viewModel.state.value.resultState)
+        assertEquals(12, viewModel.state.value.evaluation?.status)
+    }
+
+    @Test
+    fun `explicit submit performs the bounded foreground result check`() = runBlocking {
         val gateway = PollingGateway()
         val viewModel = WorkspaceViewModel(
             pid = "P1001",
@@ -102,7 +118,6 @@ class WorkspaceViewModelTest {
         viewModel.setCode("int main() {}")
         viewModel.setMode(WorkspaceMode.SUBMIT)
         viewModel.submit()
-        viewModel.checkResult()
 
         assertEquals(3, gateway.resultCalls)
         assertEquals(WorkspaceResultState.READY, viewModel.state.value.resultState)
@@ -117,13 +132,11 @@ class WorkspaceViewModelTest {
             title = "A+B",
             gateway = gateway,
             credentialStore = FakeStore(),
+            history = FakeHistory(pendingJob("req-poll")),
             testScope = CoroutineScope(coroutineContext),
             delayForResult = {},
         )
 
-        viewModel.setCode("int main() {}")
-        viewModel.setMode(WorkspaceMode.SUBMIT)
-        viewModel.submit()
         viewModel.checkResult()
 
         assertEquals(8, gateway.resultCalls)
@@ -138,13 +151,11 @@ class WorkspaceViewModelTest {
             title = "A+B",
             gateway = gateway,
             credentialStore = FakeStore(),
+            history = FakeHistory(pendingJob("req-partial")),
             testScope = CoroutineScope(coroutineContext),
             delayForResult = {},
         )
 
-        viewModel.setCode("int main() {}")
-        viewModel.setMode(WorkspaceMode.SUBMIT)
-        viewModel.submit()
         viewModel.checkResult()
 
         assertEquals(8, gateway.resultCalls)
@@ -550,6 +561,17 @@ private class FakeHistory(
 ) : LuoguSubmissionHistory {
     override suspend fun latestForProblem(pid: String): SubmissionJobEntity? = job.takeIf { it.pid == pid }
 }
+
+private fun pendingJob(requestId: String) = SubmissionJobEntity(
+    judge = "luogu",
+    requestId = requestId,
+    kind = SubmissionJobKind.PROBLEM.name,
+    pid = "P1001",
+    language = "cxx/14/gcc",
+    status = SubmissionJobStatus.PENDING.name,
+    createdAt = 1,
+    updatedAt = 2,
+)
 
 private class BlockingHistory : LuoguSubmissionHistory {
     val started = CompletableDeferred<Unit>()

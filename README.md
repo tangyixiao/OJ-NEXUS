@@ -22,6 +22,21 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
+Early development — **Phase 48 (foreground submission result convergence)**: after the user
+explicitly submits through Luogu Open Platform, the workspace now runs the existing bounded
+foreground result poll immediately. Terminal evaluations render without a second tap; pending
+evaluations remain recoverable through the existing result-check action. POST requests are still
+never retried automatically. The APK identity is aligned to `versionName=0.3.44`, `versionCode=44`.
+/ 早期开发——**第 48 阶段（前台提交结果闭环）**：用户通过洛谷 Open Platform 明确提交后，工作区现在会立即执行已有的
+有界前台结果轮询；终态评测无需再次点击即可展示，仍在评测的请求会保留并可通过原有结果查询操作恢复。POST 请求仍不会
+自动重试。APK 版本身份同步为 `versionName=0.3.44`、`versionCode=44`。
+
+Phase 48 keeps submission foreground-only and local-first. It does not add background submission,
+main-site passwords, Cookie, Session, CSRF state, cloud service, cross-device sync, local compiler,
+or custom-input runner. Earlier phases, commits, tags, and releases remain preserved. /
+第 48 阶段继续保持提交仅由用户前台触发、本地优先；不新增后台提交、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、
+本地编译器或自定义输入运行器。此前阶段、commit、标签和 Release 均继续保留。
+
 Early development — **Phase 47 (workspace problem context)**: opening the workspace from a
 native Luogu problem detail now preserves the live problem title as an encoded optional route
 context while keeping PID as the only submission identity. PID-only callers remain compatible.

@@ -262,6 +262,7 @@ class WorkspaceViewModel(
                         resultState = WorkspaceResultState.PENDING,
                     )
                 }
+                applyResult(pollResult(response.requestId))
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -278,23 +279,7 @@ class WorkspaceViewModel(
         mutableState.update { it.copy(busy = true, error = null) }
         workScope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
-                when (val result = pollResult(requestId)) {
-                    LuoguOpenResult.Pending -> mutableState.update {
-                        it.copy(resultState = WorkspaceResultState.PENDING)
-                    }
-                    is LuoguOpenResult.InProgress -> mutableState.update {
-                        it.copy(
-                            resultState = WorkspaceResultState.PENDING,
-                            evaluation = result.evaluation,
-                        )
-                    }
-                    is LuoguOpenResult.Ready -> mutableState.update {
-                        it.copy(
-                            resultState = WorkspaceResultState.READY,
-                            evaluation = result.evaluation,
-                        )
-                    }
-                }
+                applyResult(pollResult(requestId))
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -312,6 +297,26 @@ class WorkspaceViewModel(
             delayForResult = delayForResult,
             awaitResultSignal = gateway::awaitResultSignal,
         )
+    }
+
+    private fun applyResult(result: LuoguOpenResult) {
+        when (result) {
+            LuoguOpenResult.Pending -> mutableState.update {
+                it.copy(resultState = WorkspaceResultState.PENDING)
+            }
+            is LuoguOpenResult.InProgress -> mutableState.update {
+                it.copy(
+                    resultState = WorkspaceResultState.PENDING,
+                    evaluation = result.evaluation,
+                )
+            }
+            is LuoguOpenResult.Ready -> mutableState.update {
+                it.copy(
+                    resultState = WorkspaceResultState.READY,
+                    evaluation = result.evaluation,
+                )
+            }
+        }
     }
 
     private fun markDraftEdited() {

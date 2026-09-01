@@ -3,6 +3,21 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 48 — Foreground submission result convergence / 前台提交结果闭环
+
+After an explicit Luogu Open Platform submission, the workspace immediately uses the existing
+bounded foreground result poll. Terminal evaluations are rendered without a second tap; pending
+or partial evaluations remain visible and recoverable through the existing result-check action.
+Submission POST requests are never retried automatically. / 用户明确发起洛谷 Open Platform 提交后，工作区现在立即使用
+已有的有界前台结果轮询；终态评测无需再次点击即可展示，待处理或部分评测会继续可见，并可通过原有结果查询操作恢复。
+提交 POST 请求绝不自动重试。
+
+This phase changes only the explicit foreground submission flow. It adds no background submission,
+main-site password, Cookie, Session, CSRF state, cloud service, cross-device sync, local compiler,
+or custom-input runner. Earlier phases, commits, tags, and releases remain preserved. /
+本阶段仅修改用户明确触发的前台提交流程，不新增后台提交、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、
+本地编译器或自定义输入运行器；此前阶段、commit、标签和 Release 均继续保留。
+
 ## PHASE 47 — Workspace problem context / 工作区题目上下文
 
 Opening a workspace from native Luogu problem details now carries the live problem title as an
