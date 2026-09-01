@@ -380,3 +380,20 @@ or cross-device sync is added. Earlier phase notes and published Releases remain
 瞬时网络和可重试 HTTP 错误会让本地任务保持待处理；永久凭据、权限、资源和格式错误会显示为本地失败。
 Worker 输入只包含 Request ID，绝不包含源代码、标准输入、密码、Cookie、Session 或 CSRF 状态。不新增后台
 提交、POST 重试、本地编译器、自定义输入运行器、云端账号或跨设备同步；此前阶段说明和已发布 Releases 保持不变。
+
+## PHASE 29 — Submission center manual recovery / 提交中心手动恢复
+
+The submission center now provides explicit `QUEUE CHECK` for pending requests and `QUEUE RETRY`
+for failed requests. Each action creates an immediate, unique local WorkManager result job without
+replacing the normal delayed queue; the existing bounded foreground `CHECK RESULT` poll remains
+available. / 提交中心现在为待处理请求提供“排队查询”，为失败请求提供“重新排队”。每次操作都会创建
+立即执行的本地唯一 WorkManager 结果任务，不替换正常的延迟队列；现有有界前台“查询结果”轮询仍然可用。
+
+The recovery button only sends the request ID to the official GET result worker. WorkManager keeps
+the connected-network constraint and `KEEP` uniqueness, while scheduler errors stay visible as a
+local action error. No submission is created, no POST is retried, and no main-site password,
+Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, or custom-input
+runner is added. Earlier phase notes and Releases remain intact. / 恢复按钮只向官方 GET 结果 Worker
+传递 Request ID。WorkManager 保持联网约束和 `KEEP` 唯一策略，调度错误会作为本地操作错误显示。
+该操作不会创建提交，也不会重试 POST；不新增主站密码、Cookie、Session、CSRF 登录、云端账号、
+跨设备同步、本地编译器或自定义输入运行器；此前阶段说明和 Releases 保持不变。

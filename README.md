@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 28 (background Luogu OpenApp result convergence, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 29 (submission center manual result recovery, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -226,6 +226,20 @@ CSRF login, cloud account, cross-device sync, local compiler, or custom-input ru
 Historical phase notes and Releases remain intact. / 瞬时网络或服务器错误保持待处理并重试；永久凭据或资源
 错误在本地可见。不新增后台提交、POST 重试、主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、
 本地编译器或自定义输入运行器；历史阶段说明和 Releases 保持不变。
+
+Phase 29 / 第 29 阶段: The submission center now exposes explicit `QUEUE CHECK` and
+`QUEUE RETRY` actions for pending or failed Luogu OpenApp result requests. Manual recovery
+uses an immediate, unique local WorkManager result job and keeps the existing foreground
+`CHECK RESULT` poll available. / 第 29 阶段：提交中心现在为待处理或失败的洛谷 OpenApp
+结果请求提供明确的“排队查询”和“重新排队”操作。手动恢复使用立即执行的本地唯一
+WorkManager 结果任务，同时保留现有前台“查询结果”轮询。
+
+The manual action only carries the request ID and only performs the official GET result check;
+it never creates a submission or retries a POST. No main-site password, Cookie, Session, CSRF
+login, cloud account, cross-device sync, local compiler, or custom-input runner is added.
+Previous phase notes and Releases remain intact. / 手动操作只携带 Request ID，只执行官方 GET
+结果查询，不创建提交，也不重试 POST。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、
+跨设备同步、本地编译器或自定义输入运行器；此前阶段说明和 Releases 保持不变。
 
 ## Documentation
 
