@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 27 (local Luogu workspace drafts, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 28 (background Luogu OpenApp result convergence, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -213,6 +213,19 @@ cloud account, cross-device sync, local compiler, custom-input runner, or automa
 added. Earlier phase notes and Releases remain intact. / 数据库迁移不破坏旧数据；提交请求元数据仍不会
 保存源代码或输入，草稿只属于本地备份数据。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、
 跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和 Releases 保持不变。
+
+Phase 28 / 第 28 阶段: Existing Luogu OpenApp submissions now enqueue a unique local WorkManager
+result job after their lifecycle metadata is persisted. The job uses only the official GET result
+endpoint, connected-network constraints, bounded exponential retry, and a startup reconciliation
+of at most 50 pending jobs; foreground polling remains available. / 第 28 阶段：已有洛谷 OpenApp 提交
+在生命周期元数据落盘后加入本地唯一 WorkManager 结果任务。任务只使用官方 GET 结果接口、联网约束和
+有界指数退避，并在启动时最多恢复 50 个待处理任务；前台查询仍然可用。
+Transient network/server errors remain pending for retry; permanent credential or resource errors
+remain visible locally. No background submission, POST retry, main-site password, Cookie, Session,
+CSRF login, cloud account, cross-device sync, local compiler, or custom-input runner is added.
+Historical phase notes and Releases remain intact. / 瞬时网络或服务器错误保持待处理并重试；永久凭据或资源
+错误在本地可见。不新增后台提交、POST 重试、主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、
+本地编译器或自定义输入运行器；历史阶段说明和 Releases 保持不变。
 
 ## Documentation
 

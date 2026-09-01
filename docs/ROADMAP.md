@@ -361,3 +361,22 @@ or automatic POST retry is added. / Schema 10 只新增 `workspace_drafts` 表�
 草稿随本地 Room 备份处理，而 `submission_jobs` 仍不保存源代码和标准输入。本阶段继续本地优先、仅
 OpenApp，不新增洛谷主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义
 输入运行器或自动提交重试。
+
+## PHASE 28 — Luogu OpenApp background result convergence / 洛谷 OpenApp 结果后台收敛
+
+After local submission metadata is persisted, each Luogu OpenApp request now enters a unique
+WorkManager result job. The worker performs only official `GET /judge/result/{requestId}`, requires
+network connectivity, uses bounded exponential retry, and reconciles at most 50 pending local jobs
+when the app starts. Existing foreground notification and polling remain unchanged. / 洛谷 OpenApp
+提交元数据落盘后，每个请求现在加入唯一的 WorkManager 结果任务；Worker 只执行官方
+`GET /judge/result/{requestId}`，要求网络连接，使用有界指数退避，并在应用启动时最多恢复 50 个本地
+待处理任务。已有前台通知和轮询保持不变。
+
+Transient network and retryable HTTP errors leave the local job pending; permanent credential,
+permission, resource, and malformed-response errors are visible as local failures. The worker input
+contains only the request ID and never source code, standard input, passwords, cookies, sessions, or
+CSRF state. No background submission, POST retry, local compiler, custom-input runner, cloud account,
+or cross-device sync is added. Earlier phase notes and published Releases remain intact. /
+瞬时网络和可重试 HTTP 错误会让本地任务保持待处理；永久凭据、权限、资源和格式错误会显示为本地失败。
+Worker 输入只包含 Request ID，绝不包含源代码、标准输入、密码、Cookie、Session 或 CSRF 状态。不新增后台
+提交、POST 重试、本地编译器、自定义输入运行器、云端账号或跨设备同步；此前阶段说明和已发布 Releases 保持不变。
