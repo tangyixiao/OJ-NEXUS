@@ -183,7 +183,7 @@ fun WorkspaceScreen(
             Spacer(Modifier.height(NexusSpacing.md))
             Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
                 WorkspaceAction(
-                    label = stringResource(if (state.busy) R.string.workspace_working else R.string.workspace_execute),
+                    label = stringResource(workspaceActionLabelRes(state)),
                     enabled = state.credentialConfigured && state.code.isNotBlank() && !state.busy,
                     selected = true,
                     onClick = viewModel::submit,
