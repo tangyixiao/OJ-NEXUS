@@ -30,17 +30,38 @@ internal data class LuoguResultWorkSpec(
 internal object LuoguResultWorkRequestFactory {
     const val REQUEST_ID_KEY = "request_id"
     const val UNIQUE_WORK_PREFIX = "luogu-result:"
+    const val IMMEDIATE_WORK_PREFIX = "luogu-result-manual:"
     const val INITIAL_DELAY_MILLIS = 10_000L
     const val BACKOFF_DELAY_MILLIS = 30_000L
 
     fun spec(requestId: String): LuoguResultWorkSpec? {
+        return createSpec(
+            requestId = requestId,
+            uniqueWorkPrefix = UNIQUE_WORK_PREFIX,
+            initialDelayMillis = INITIAL_DELAY_MILLIS,
+        )
+    }
+
+    fun immediateSpec(requestId: String): LuoguResultWorkSpec? {
+        return createSpec(
+            requestId = requestId,
+            uniqueWorkPrefix = IMMEDIATE_WORK_PREFIX,
+            initialDelayMillis = 0L,
+        )
+    }
+
+    private fun createSpec(
+        requestId: String,
+        uniqueWorkPrefix: String,
+        initialDelayMillis: Long,
+    ): LuoguResultWorkSpec? {
         val trimmed = requestId.trim().takeIf { it.isNotEmpty() } ?: return null
         return LuoguResultWorkSpec(
             requestId = trimmed,
-            uniqueWorkName = "$UNIQUE_WORK_PREFIX$trimmed",
+            uniqueWorkName = "$uniqueWorkPrefix$trimmed",
             inputData = mapOf(REQUEST_ID_KEY to trimmed),
             requiresConnectedNetwork = true,
-            initialDelayMillis = INITIAL_DELAY_MILLIS,
+            initialDelayMillis = initialDelayMillis,
             backoffDelayMillis = BACKOFF_DELAY_MILLIS,
             backoffPolicy = BackoffPolicy.EXPONENTIAL,
             existingWorkPolicy = ExistingWorkPolicy.KEEP,
@@ -66,13 +87,23 @@ internal object LuoguResultWorkRequestFactory {
 
 interface LuoguResultWorkScheduler {
     fun enqueue(requestId: String)
+
+    fun enqueueNow(requestId: String) = enqueue(requestId)
 }
 
 class WorkManagerLuoguResultScheduler(context: Context) : LuoguResultWorkScheduler {
     private val workManager = WorkManager.getInstance(context.applicationContext)
 
     override fun enqueue(requestId: String) {
-        val spec = LuoguResultWorkRequestFactory.spec(requestId) ?: return
+        enqueue(LuoguResultWorkRequestFactory.spec(requestId))
+    }
+
+    override fun enqueueNow(requestId: String) {
+        enqueue(LuoguResultWorkRequestFactory.immediateSpec(requestId))
+    }
+
+    private fun enqueue(spec: LuoguResultWorkSpec?) {
+        spec ?: return
         workManager.enqueueUniqueWork(
             spec.uniqueWorkName,
             spec.existingWorkPolicy,

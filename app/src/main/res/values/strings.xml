@@ -643,6 +643,10 @@
     <string name="submissions_check_result">CHECK RESULT</string>
     <string name="submissions_checking_result">CHECKING…</string>
     <string name="submissions_check_result_cd">Check result for request %1$s</string>
+    <string name="submissions_queue_check">QUEUE CHECK</string>
+    <string name="submissions_queue_retry">QUEUE RETRY</string>
+    <string name="submissions_queue_requested">QUEUED — TAP TO RETRY</string>
+    <string name="submissions_queue_result_cd">Queue a background result check for request %1$s</string>
     <string name="submissions_open_workspace_cd">Open workspace for problem %1$s</string>
     <string name="submissions_row_cd">%1$s request, problem %2$s, request %3$s, status %4$s</string>
     <string name="submissions_kind_problem">PROBLEM</string>

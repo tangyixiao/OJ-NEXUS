@@ -7,6 +7,7 @@ import com.ojnexus.core.database.entity.SubmissionJobEntity
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.localizedString
 import com.ojnexus.judge.luogu.open.LuoguOpenApiError
+import com.ojnexus.judge.luogu.open.LuoguResultWorkScheduler
 import com.ojnexus.judge.luogu.open.LuoguSubmissionCenter
 import com.ojnexus.judge.luogu.open.pollLuoguOpenResult
 import kotlinx.coroutines.CancellationException
@@ -34,25 +35,30 @@ sealed interface SubmissionCenterActionError {
 data class SubmissionCenterUiState(
     val jobs: List<SubmissionJobEntity>,
     val busyRequestIds: Set<String>,
+    val queuedRequestIds: Set<String> = emptySet(),
     val actionError: SubmissionCenterActionError?,
 )
 
 class SubmissionCenterViewModel(
     private val submissionCenter: LuoguSubmissionCenter,
     private val delayForResult: suspend (Long) -> Unit = { delay(it) },
+    private val scheduler: LuoguResultWorkScheduler? = null,
 ) : ViewModel() {
     private val busyRequestIds = MutableStateFlow<Set<String>>(emptySet())
+    private val queuedRequestIds = MutableStateFlow<Set<String>>(emptySet())
     private val actionError = MutableStateFlow<SubmissionCenterActionError?>(null)
 
     val state: StateFlow<Loadable<SubmissionCenterUiState>> = combine(
         submissionCenter.observeRecentJobs(RECENT_JOB_LIMIT),
         busyRequestIds,
+        queuedRequestIds,
         actionError,
-    ) { jobs, busyIds, error ->
+    ) { jobs, busyIds, queuedIds, error ->
         Loadable.Ready(
             SubmissionCenterUiState(
                 jobs = jobs,
                 busyRequestIds = busyIds,
+                queuedRequestIds = queuedIds,
                 actionError = error,
             ),
         )
@@ -61,6 +67,24 @@ class SubmissionCenterViewModel(
             emit(Loadable.Failed(it.message ?: localizedString(R.string.error_load_failed)))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
+
+    fun queueRecovery(requestId: String) {
+        val trimmed = requestId.trim().takeIf { it.isNotEmpty() } ?: return
+        if (scheduler == null) return
+        viewModelScope.launch {
+            try {
+                scheduler.enqueueNow(trimmed)
+                queuedRequestIds.update { it + trimmed }
+                actionError.update { current ->
+                    if (current?.requestId == trimmed) null else current
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                actionError.value = error.toActionError(trimmed)
+            }
+        }
+    }
 
     fun checkResult(requestId: String) {
         var shouldLaunch = false

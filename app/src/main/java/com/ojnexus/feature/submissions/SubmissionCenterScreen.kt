@@ -46,7 +46,10 @@ fun SubmissionCenterScreen(
     val container = LocalAppContainer.current
     val viewModel = viewModel<SubmissionCenterViewModel>(
         factory = ContainerViewModelFactory(container) {
-            SubmissionCenterViewModel(it.luoguSubmissionRepository)
+            SubmissionCenterViewModel(
+                submissionCenter = it.luoguSubmissionRepository,
+                scheduler = it.luoguResultWorkScheduler,
+            )
         },
     )
     val state = viewModel.state.collectAsStateWithLifecycle().value
@@ -76,6 +79,7 @@ fun SubmissionCenterScreen(
             is Loadable.Ready -> SubmissionCenterContent(
                 state = state.value,
                 onCheckResult = viewModel::checkResult,
+                onQueueRecovery = viewModel::queueRecovery,
                 onOpenWorkspace = onOpenWorkspace,
             )
         }
@@ -86,6 +90,7 @@ fun SubmissionCenterScreen(
 private fun SubmissionCenterContent(
     state: SubmissionCenterUiState,
     onCheckResult: (String) -> Unit,
+    onQueueRecovery: (String) -> Unit,
     onOpenWorkspace: (String) -> Unit,
 ) {
     Column(
@@ -125,7 +130,9 @@ private fun SubmissionCenterContent(
                 SubmissionJobCard(
                     job = job,
                     busy = job.requestId in state.busyRequestIds,
+                    queued = job.requestId in state.queuedRequestIds,
                     onCheckResult = onCheckResult,
+                    onQueueRecovery = onQueueRecovery,
                     onOpenWorkspace = onOpenWorkspace,
                 )
                 if (index != state.jobs.lastIndex) {
@@ -156,7 +163,9 @@ private fun SubmissionCenterMessage(
 private fun SubmissionJobCard(
     job: SubmissionJobEntity,
     busy: Boolean,
+    queued: Boolean,
     onCheckResult: (String) -> Unit,
+    onQueueRecovery: (String) -> Unit,
     onOpenWorkspace: (String) -> Unit,
 ) {
     val pidValue = job.pid?.takeIf { it.isNotBlank() } ?: stringResource(R.string.problems_no_value)
@@ -269,6 +278,18 @@ private fun SubmissionJobCard(
                     onClickLabel = stringResource(R.string.submissions_check_result_cd, job.requestId),
                     enabled = !busy,
                     onClick = { onCheckResult(job.requestId) },
+                )
+                SubmissionActionTag(
+                    label = stringResource(
+                        when {
+                            queued -> R.string.submissions_queue_requested
+                            job.status == SubmissionJobStatus.FAILED.name -> R.string.submissions_queue_retry
+                            else -> R.string.submissions_queue_check
+                        },
+                    ),
+                    onClickLabel = stringResource(R.string.submissions_queue_result_cd, job.requestId),
+                    enabled = true,
+                    onClick = { onQueueRecovery(job.requestId) },
                 )
             }
             if (canOpenWorkspace) {

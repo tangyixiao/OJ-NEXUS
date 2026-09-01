@@ -30,6 +30,28 @@ class LuoguOpenResultWorkerTest {
     }
 
     @Test
+    fun `manual recovery spec is immediate and independent from delayed work`() {
+        val spec = requireNotNull(LuoguResultWorkRequestFactory.immediateSpec("  req-42  "))
+
+        assertEquals("req-42", spec.requestId)
+        assertEquals("luogu-result-manual:req-42", spec.uniqueWorkName)
+        assertEquals(setOf(LuoguResultWorkRequestFactory.REQUEST_ID_KEY), spec.inputData.keys)
+        assertEquals(0L, spec.initialDelayMillis)
+        assertEquals(ExistingWorkPolicy.KEEP, spec.existingWorkPolicy)
+    }
+
+    @Test
+    fun `manual request builder keeps the same network and input safety boundary`() {
+        val spec = requireNotNull(LuoguResultWorkRequestFactory.immediateSpec("req-42"))
+        val workSpec = LuoguResultWorkRequestFactory.request(spec).workSpec
+
+        assertEquals(NetworkType.CONNECTED, workSpec.constraints.requiredNetworkType)
+        assertEquals(0L, workSpec.initialDelay)
+        assertEquals("req-42", workSpec.input.getString(LuoguResultWorkRequestFactory.REQUEST_ID_KEY))
+        assertEquals(1, workSpec.input.size())
+    }
+
+    @Test
     fun `worker decisions map to WorkManager results`() {
         assertEquals(
             ListenableWorker.Result.Success::class.java,

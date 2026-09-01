@@ -6,6 +6,7 @@ import com.ojnexus.judge.luogu.open.LuoguOpenApiError
 import com.ojnexus.judge.luogu.open.LuoguOpenEvaluation
 import com.ojnexus.judge.luogu.open.LuoguOpenResult
 import com.ojnexus.judge.luogu.open.LuoguSubmissionCenter
+import com.ojnexus.judge.luogu.open.LuoguResultWorkScheduler
 import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
@@ -27,6 +28,51 @@ import kotlin.coroutines.coroutineContext
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class SubmissionCenterViewModelTest {
+
+    @Test
+    fun `queue recovery records acknowledgement and sends only the request id`() = runBlocking {
+        val jobs = MutableStateFlow(listOf(pendingJob("req-queue")))
+        val scheduler = RecordingScheduler()
+        val viewModel = SubmissionCenterViewModel(FakeSubmissionCenter(jobs), scheduler = scheduler)
+        val collector = collectState(viewModel)
+        awaitReady(viewModel)
+
+        viewModel.queueRecovery("req-queue")
+
+        withTimeout(1_000) {
+            while (scheduler.requestIds.isEmpty()) {
+                drainMainLooper()
+                delay(1)
+            }
+        }
+        val state = awaitReady(viewModel)
+        assertEquals(listOf("req-queue"), scheduler.requestIds)
+        assertEquals(setOf("req-queue"), state.queuedRequestIds)
+        collector.cancel()
+    }
+
+    @Test
+    fun `queue recovery keeps cached rows and exposes scheduler failure`() = runBlocking {
+        val jobs = MutableStateFlow(listOf(pendingJob("req-queue-error")))
+        val scheduler = RecordingScheduler(error = IllegalStateException("work unavailable"))
+        val viewModel = SubmissionCenterViewModel(FakeSubmissionCenter(jobs), scheduler = scheduler)
+        val collector = collectState(viewModel)
+        awaitReady(viewModel)
+
+        viewModel.queueRecovery("req-queue-error")
+
+        withTimeout(1_000) {
+            while (awaitReady(viewModel).actionError == null) {
+                drainMainLooper()
+                delay(1)
+            }
+        }
+        val state = awaitReady(viewModel)
+        assertEquals(listOf("req-queue-error"), state.jobs.map { it.requestId })
+        assertEquals(null, state.queuedRequestIds.singleOrNull())
+        assertEquals("req-queue-error", state.actionError?.requestId)
+        collector.cancel()
+    }
 
     @Test
     fun `state exposes ready rows from the local submission center`() = runBlocking {
@@ -314,6 +360,12 @@ class SubmissionCenterViewModelTest {
         updatedAt = 2,
     )
 
+    private fun pendingJob(requestId: String) = readyJob(requestId).copy(
+        status = "PENDING",
+        score = null,
+        judgeStatus = null,
+    )
+
     private fun readyResult(requestId: String) = LuoguOpenResult.Ready(
         LuoguOpenEvaluation(
             requestId = requestId,
@@ -352,6 +404,19 @@ private class FakeSubmissionCenter(
     }
 
     override suspend fun latestForProblem(pid: String): SubmissionJobEntity? = null
+}
+
+private class RecordingScheduler(
+    private val error: Throwable? = null,
+) : LuoguResultWorkScheduler {
+    val requestIds = mutableListOf<String>()
+
+    override fun enqueue(requestId: String) = Unit
+
+    override fun enqueueNow(requestId: String) {
+        error?.let { throw it }
+        requestIds += requestId
+    }
 }
 
 private sealed interface RefreshOutcome {
