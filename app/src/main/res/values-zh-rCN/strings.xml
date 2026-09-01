@@ -348,7 +348,8 @@
     <string name="achievement_contestant">竞赛选手</string>
     <string name="profile_judge_contests">%d 场竞赛</string>
     <string name="profile_judge_solved">已解决 %d 道</string>
-    <string name="profile_phase2_note">OJ 档案在 Phase 2 连接</string>
+    <string name="profile_phase2_note">请在设置中连接 OJ 档案</string>
+    <string name="profile_no_rated_contests">尚无同步的 Rated 竞赛</string>
     <string name="profile_open_settings">前往设置连接</string>
     <string name="settings_title">设置</string>
     <string name="action_back">返回</string>

@@ -290,26 +290,23 @@ private fun ProfileContent(
                     .padding(top = NexusSpacing.xxs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = if (state.cfAccount != null) {
-                        stringResource(R.string.rating_rated_contests)
-                    } else {
-                        stringResource(R.string.profile_phase2_note)
-                    },
-                    style = NexusTheme.typography.dataSmall,
-                    color = colors.textTertiary,
-                    modifier = Modifier.weight(1f),
-                )
-                if (state.cfAccount != null) {
+                if (state.ratedContests > 0) {
+                    Text(
+                        text = stringResource(R.string.rating_rated_contests),
+                        style = NexusTheme.typography.dataSmall,
+                        color = colors.textTertiary,
+                        modifier = Modifier.weight(1f),
+                    )
                     Text(
                         text = state.ratedContests.toString(),
                         style = NexusTheme.typography.dataSmall,
                         color = colors.textSecondary,
                     )
                 } else {
-                    NexusTag(
-                        text = stringResource(R.string.dash_not_connected),
-                        tone = NexusTone.Neutral,
+                    Text(
+                        text = stringResource(R.string.profile_no_rated_contests),
+                        style = NexusTheme.typography.dataSmall,
+                        color = colors.textTertiary,
                     )
                 }
             }

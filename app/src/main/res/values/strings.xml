@@ -391,7 +391,8 @@
     <string name="achievement_contestant">CONTESTANT</string>
     <string name="profile_judge_contests">%d CONTESTS</string>
     <string name="profile_judge_solved">%d SOLVED</string>
-    <string name="profile_phase2_note">OJ PROFILES CONNECT IN PHASE 2</string>
+    <string name="profile_phase2_note">OJ PROFILES CONNECT IN SETTINGS</string>
+    <string name="profile_no_rated_contests">NO RATED CONTESTS SYNCED</string>
     <string name="profile_open_settings">CONNECT IN SETTINGS</string>
 
     <!-- Settings / connected judges -->

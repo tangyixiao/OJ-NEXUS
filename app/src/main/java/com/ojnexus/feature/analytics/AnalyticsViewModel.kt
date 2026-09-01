@@ -44,7 +44,7 @@ data class AnalyticsUiState(
 ) {
     /** True when there is nothing to show yet — drives the empty state. */
     val isEmpty: Boolean
-        get() = totals.attempts == 0 && totals.problems == 0
+        get() = analyticsHasNoData(totals, ratingHistories)
 }
 
 class AnalyticsViewModel(
@@ -138,6 +138,16 @@ class AnalyticsViewModel(
         return first - (dayOfWeek - 1)
     }
 }
+
+internal fun analyticsHasData(
+    totals: com.ojnexus.core.data.repository.Totals,
+    ratingHistories: Map<JudgeId, List<RatingChangeEntity>>,
+): Boolean = totals.attempts > 0 || totals.problems > 0 || ratingHistories.values.any { it.isNotEmpty() }
+
+internal fun analyticsHasNoData(
+    totals: com.ojnexus.core.data.repository.Totals,
+    ratingHistories: Map<JudgeId, List<RatingChangeEntity>>,
+): Boolean = !analyticsHasData(totals, ratingHistories)
 
 internal fun ratingHistoriesByJudge(
     codeforces: List<RatingChangeEntity>,
