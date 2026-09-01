@@ -30,7 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -105,20 +105,22 @@ fun SettingsScreen(
     var purgeCache by rememberSaveable { mutableStateOf(false) }
     val appLanguage = AppLanguage.fromLocaleTags(AppCompatDelegate.getApplicationLocales().toLanguageTags())
     val settingsScrollState = rememberScrollState()
-    var openAppContentOffset by remember { mutableStateOf<Int?>(null) }
-    var openAppReady by remember { mutableStateOf(false) }
+    var settingsViewportTop by remember { mutableStateOf<Int?>(null) }
+    var openAppTargetRootY by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(
         focusOpenApp,
-        openAppReady,
-        openAppContentOffset,
+        settingsViewportTop,
+        openAppTargetRootY,
         settingsScrollState.maxValue,
     ) {
-        val contentOffset = openAppContentOffset
-        if (focusOpenApp && openAppReady && contentOffset != null) {
+        val viewportTop = settingsViewportTop
+        val targetRootY = openAppTargetRootY
+        if (focusOpenApp && viewportTop != null && targetRootY != null) {
             withFrameNanos { }
             settingsScrollState.animateScrollTo(
-                contentOffset.coerceIn(0, settingsScrollState.maxValue),
+                (targetRootY - viewportTop + settingsScrollState.value)
+                    .coerceIn(0, settingsScrollState.maxValue),
             )
         }
     }
@@ -136,7 +138,11 @@ fun SettingsScreen(
             },
         )
         Column(
-            Modifier.fillMaxSize().verticalScroll(settingsScrollState)
+            Modifier.fillMaxSize()
+                .onGloballyPositioned { coordinates ->
+                    settingsViewportTop = coordinates.positionInRoot().y.roundToInt()
+                }
+                .verticalScroll(settingsScrollState)
                 .padding(horizontal = NexusSpacing.screenHorizontal),
         ) {
             Spacer(Modifier.height(NexusSpacing.md))
@@ -215,10 +221,9 @@ fun SettingsScreen(
                 label = stringResource(R.string.settings_section_luogu_open),
                 modifier = Modifier
                     .onGloballyPositioned { coordinates ->
-                        if (openAppContentOffset == null) {
-                            openAppContentOffset = coordinates.positionInParent().y.roundToInt()
+                        if (openAppTargetRootY == null) {
+                            openAppTargetRootY = coordinates.positionInRoot().y.roundToInt()
                         }
-                        openAppReady = true
                     },
             ) {
                 Text(
