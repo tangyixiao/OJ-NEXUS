@@ -14,9 +14,10 @@
 
 - [x] Change `@Path("id")` to `@Query("id")`.
 - [x] Correct `docs/LUOGU_OPEN_PLATFORM.md` and update bilingual README/Roadmap/release notes.
+- [x] Align the APK identity to `versionName=0.3.35` and `versionCode=35` for the new release.
 
 ## Step 4 — Verification and publish / 验证与发布
 
-- [ ] Run the focused test and the full Gradle gate.
-- [ ] Install and launch the APK on `emulator-5554`.
+- [x] Run the focused test and the full Gradle gate.
+- [x] Install and launch the APK on `emulator-5554`.
 - [ ] Push branch/tag `v0.3.35`, create the GitHub Release, and verify the asset digest.

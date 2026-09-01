@@ -24,9 +24,11 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 Early development — **Phase 39 (Luogu result query alignment, safe local slice)**: Luogu Open
 Platform result polling now uses the documented `GET /judge/result?id=<RequestId>` query form,
-so an accepted submission can be followed by a compatible result request. / 早期开发——**第 39 阶段（洛谷
-结果查询对齐，安全的本地切片）**：洛谷 Open Platform 结果轮询现在使用文档规定的
-`GET /judge/result?id=<RequestId>` query 形式，提交被接受后可以继续使用兼容的结果请求查询。
+so an accepted submission can be followed by a compatible result request; the APK identity is
+aligned to `versionName=0.3.35`, `versionCode=35`. / 早期开发——**第 39 阶段（洛谷结果查询对齐，
+安全的本地切片）**：洛谷 Open Platform 结果轮询现在使用文档规定的
+`GET /judge/result?id=<RequestId>` query 形式，提交被接受后可以继续查询兼容的结果；APK 版本身份同步为
+`versionName=0.3.35`、`versionCode=35`。
 
 Phase 38 remains preserved below: The APK metadata now
 matches the published release identity (`versionName=0.3.34`, `versionCode=34`) so Android users
