@@ -52,6 +52,8 @@
     <string name="dash_section_load">TRAINING LOAD</string>
     <string name="dash_oj_connection">OJ CONNECTION</string>
     <string name="dash_not_connected">NOT CONNECTED</string>
+    <string name="dash_connect_luogu">CONNECT LUOGU</string>
+    <string name="dash_connect_luogu_cd">OPEN LUOGU PUBLIC ACCOUNT SETUP</string>
     <string name="dash_status_ready">READY</string>
     <string name="dash_local_mode">LOCAL</string>
     <string name="dash_empty_tasks">NO TASKS — ADD ONE FROM TRAINING</string>

@@ -1,6 +1,7 @@
 package com.ojnexus.feature.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -111,6 +115,7 @@ private fun DashboardContent(
     onOpenLuoguSetup: () -> Unit,
 ) {
     val colors = NexusTheme.colors
+    val luoguSetupDescription = stringResource(R.string.dash_connect_luogu_cd)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -176,6 +181,23 @@ private fun DashboardContent(
                     }
                     }
                 }
+            }
+            if (shouldShowLuoguSetup(state.judgeConnections.map { it.judge }.toSet())) {
+                Spacer(Modifier.height(NexusSpacing.xs))
+                Text(
+                    text = stringResource(R.string.dash_connect_luogu),
+                    style = NexusTheme.typography.sectionLabel,
+                    color = colors.accent,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(colors.accentContainer, NexusRadius.sm)
+                        .border(NexusSize.dividerThickness, colors.accent, NexusRadius.sm)
+                        .clickable(role = Role.Button, onClick = onOpenLuoguSetup)
+                        .semantics {
+                            contentDescription = luoguSetupDescription
+                        }
+                        .padding(horizontal = NexusSpacing.sm, vertical = NexusSpacing.xs),
+                )
             }
             NexusDivider(insetEnd = NexusSpacing.xxs)
             Row(

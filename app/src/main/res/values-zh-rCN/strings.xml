@@ -43,6 +43,8 @@
     <string name="dash_section_load">训练负荷</string>
     <string name="dash_oj_connection">OJ 连接</string>
     <string name="dash_not_connected">未连接</string>
+    <string name="dash_connect_luogu">连接洛谷</string>
+    <string name="dash_connect_luogu_cd">打开洛谷公开账号配置</string>
     <string name="dash_status_ready">就绪</string>
     <string name="dash_local_mode">本地</string>
     <string name="dash_empty_tasks">暂无任务——请从训练中添加</string>
