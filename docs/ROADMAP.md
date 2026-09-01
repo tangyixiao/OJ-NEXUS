@@ -397,3 +397,20 @@ runner is added. Earlier phase notes and Releases remain intact. / 恢复按钮�
 传递 Request ID。WorkManager 保持联网约束和 `KEEP` 唯一策略，调度错误会作为本地操作错误显示。
 该操作不会创建提交，也不会重试 POST；不新增主站密码、Cookie、Session、CSRF 登录、云端账号、
 跨设备同步、本地编译器或自定义输入运行器；此前阶段说明和 Releases 保持不变。
+
+## PHASE 30 — Background sync startup reconciliation / 后台同步启动校准
+
+Existing active accounts now have their six-hour periodic `JudgeSyncWorker` work reconciled at
+application startup. The pure bootstrap filters the registered judges by the real
+`BACKGROUND_SYNC` capability, skips missing or disabled accounts, and isolates individual
+scheduler failures so one platform cannot block another. / 应用启动时现在会为已有活跃账号校准六小时
+周期 `JudgeSyncWorker` 任务。纯校准器按已注册评测平台的真实 `BACKGROUND_SYNC` 能力筛选，跳过缺失或
+已禁用账号，并隔离单个平台的调度异常，避免阻塞其他平台。
+
+Settings exposes `BACKGROUND SYNC ENABLED — EVERY 6 HOURS` for connected capable judges. The
+startup pass restores scheduling only; it does not perform an immediate sync or create submission
+work. No main-site password, Cookie, Session, CSRF login, cloud account, cross-device sync, local
+compiler, or custom-input runner is added. Earlier phase notes and Releases remain intact. /
+设置页会为已连接且具备能力的评测平台显示“后台同步已启用 — 每 6 小时”。启动校准只恢复调度，不会
+立即执行同步，也不会创建提交任务。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、
+本地编译器或自定义输入运行器；此前阶段说明和 Releases 保持不变。

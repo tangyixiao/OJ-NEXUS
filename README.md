@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 29 (submission center manual result recovery, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 30 (background sync startup reconciliation, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -240,6 +240,20 @@ login, cloud account, cross-device sync, local compiler, or custom-input runner 
 Previous phase notes and Releases remain intact. / 手动操作只携带 Request ID，只执行官方 GET
 结果查询，不创建提交，也不重试 POST。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、
 跨设备同步、本地编译器或自定义输入运行器；此前阶段说明和 Releases 保持不变。
+
+Phase 30 / 第 30 阶段: Existing active accounts now have their six-hour background sync work
+reconciled when the application starts. The bootstrap covers every judge advertising the real
+`BACKGROUND_SYNC` capability, skips missing or disabled accounts, and isolates scheduler failures;
+Settings now exposes the capability as `BACKGROUND SYNC ENABLED`. / 第 30 阶段：应用启动时现在会为
+已有活跃账号校准六小时后台同步任务。启动校准覆盖声明真实 `BACKGROUND_SYNC` 能力的评测平台，跳过
+缺失或已禁用账号，并隔离调度异常；设置页现在明确显示“后台同步已启用”。
+
+This restores existing sync scheduling only; it does not trigger an immediate sync or create
+submission work. No main-site password, Cookie, Session, CSRF login, cloud account, cross-device
+sync, local compiler, or custom-input runner is added. Previous phase notes and Releases remain
+intact. / 本阶段只恢复已有账号的同步调度，不立即执行同步，也不创建提交任务。不新增主站密码、
+Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器或自定义输入运行器；此前阶段说明和
+Releases 保持不变。
 
 ## Documentation
 
