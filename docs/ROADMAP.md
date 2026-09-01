@@ -481,6 +481,26 @@ automatic submission retry is added. Earlier phase notes and published Releases 
 不直接渲染服务器原始消息。本阶段继续本地优先和仅公开数据：不新增主站密码、Cookie、Session、CSRF 登录、
 云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布 Releases 保持不变。
 
+## PHASE 36 — Luogu synced data visibility / 洛谷同步数据可见性
+
+Analytics now treats a non-empty synchronized Rating history as content even when local
+attempts and problems are both zero. A user who has just synchronized Luogu Rating history can
+therefore see the per-judge Rating section instead of the generic empty state. / Analytics 现在将非空的
+同步 Rating 历史视为有效内容，即使本地提交和题目数量都为零。用户刚完成洛谷 Rating 同步后，可以看到按
+评测平台划分的 Rating 区域，而不会误进入通用空态。
+
+Profile’s rated-contest summary is now judge-independent: it shows the aggregate count from
+Codeforces, AtCoder, or Luogu whenever present, and a neutral no-history label otherwise. The
+obsolete Phase 2 guidance is no longer shown to users. / Profile 的 Rated 竞赛摘要现在不依赖具体评测平台：
+只要 Codeforces、AtCoder 或洛谷任一方有数据，就显示汇总数量；否则显示中性的无历史文案，不再向用户显示过期
+的 Phase 2 指引。
+
+This remains a local presentation change. No main-site password, Cookie, Session, CSRF login,
+cloud account, cross-device sync, local compiler, custom-input runner, or automatic submission
+retry is added. Earlier phase notes and published Releases remain intact. / 本阶段仅改变本地展示，不新增主站
+密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段
+说明和已发布 Releases 保持不变。
+
 ## PHASE 35 — Luogu Rating history fallback / 洛谷 Rating 历史回退
 
 The Luogu public sync now selects a non-empty practice `elo` list and otherwise falls back to

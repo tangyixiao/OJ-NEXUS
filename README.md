@@ -22,7 +22,7 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 34 (public sync queue visibility, safe local slice)**: Codeforces and AtCoder now share
+Early development — **Phase 36 (synced judge data visibility, safe local slice)**: Codeforces and AtCoder now share
 judge-independent sync contracts while keeping separate adapters, request gates, cursors,
 and cached data. AtCoder uses the community AtCoder Problems data source, soft public-handle
 binding, timestamp pagination, and source-native estimated difficulty. Settings, dashboard,
@@ -321,6 +321,20 @@ main-site password, Cookie, Session, CSRF login, cloud account, cross-device syn
 custom-input runner, or automatic submission retry is added. Earlier phase notes and Releases
 remain intact. / 本修复不改变登录或存储边界：洛谷仍只同步公开数据，不新增主站密码、Cookie、Session、CSRF 登录、
 云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和 Releases 保持不变。
+
+Phase 36 / 第 36 阶段: Analytics now treats synchronized Rating history as real content, so a
+user with Luogu Rating data but no local attempts is not sent to the empty state. Profile shows
+the aggregate rated-contest count from any connected judge and uses neutral localized copy when
+there is no history. / 第 36 阶段：Analytics 现在将同步得到的 Rating 历史视为真实内容，因此只有洛谷
+Rating 数据、尚无本地做题记录的用户不会再被错误送入空态。Profile 显示所有已连接评测平台的 Rated 竞赛总数，
+没有历史时使用中性的本地化文案。
+
+This is a local presentation fix only. Public Luogu sync remains local-first and content-only;
+no main-site password, Cookie, Session, CSRF login, cloud account, cross-device sync, local
+compiler, custom-input runner, or automatic submission retry is added. Earlier phase notes and
+Releases remain intact. / 本阶段仅修复本地展示。洛谷公开同步继续本地优先且只使用公开内容，不新增主站密码、
+Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明
+和 Releases 保持不变。
 
 ## Documentation
 
