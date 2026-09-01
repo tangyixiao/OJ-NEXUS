@@ -22,7 +22,15 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 42 (OpenApp action intent clarity, safe local slice)**: the Luogu
+Early development — **Phase 43 (Luogu settings focus correction, safe local slice)**: the Dashboard
+`CONNECT LUOGU` route now scrolls Settings to the Luogu public-account panel; the OpenApp action
+intent correction from Phase 42 remains included. The APK identity is aligned to
+`versionName=0.3.39`, `versionCode=39`.
+/ 早期开发——**第 43 阶段（洛谷设置定位修正，安全的本地切片）**：Dashboard 的“连接洛谷”入口现在会将
+设置页滚动到洛谷公开账号面板；第 42 阶段的 OpenApp 操作意图修正继续保留。APK 版本身份同步为
+`versionName=0.3.39`、`versionCode=39`。
+
+Phase 42 remains preserved below: the Luogu
 workspace now labels the real OpenApp problem action `SUBMIT`, while `RUN` remains reserved for
 gateways that explicitly support custom-input execution. The APK identity is aligned to
 `versionName=0.3.38`, `versionCode=38`.

@@ -3,6 +3,19 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 43 — Luogu settings focus correction / 洛谷设置定位修正
+
+The Dashboard `CONNECT LUOGU` route now scrolls the existing Settings screen to the Luogu
+public-account panel. OpenApp focus and ordinary Settings navigation remain unchanged; the
+coordinate guard now covers both supported focused routes. / Dashboard 的“连接洛谷”入口现在会将已有
+设置页滚动到洛谷公开账号面板。OpenApp 聚焦和普通设置导航保持不变；坐标守卫现在覆盖两个受支持的聚焦入口。
+
+This is a local navigation correction only. It adds no network request, credential type,
+main-site password, Cookie, Session, CSRF state, cloud service, cross-device sync, local
+compiler, custom-input runner, or automatic POST retry. Earlier Release, tag, and notes remain
+preserved. / 本阶段仅修正本地导航，不新增网络请求、凭据类型、主站密码、Cookie、Session、CSRF 状态、
+云服务、跨设备同步、本地编译器、自定义输入运行器或自动 POST 重试；此前 Release、标签和说明继续保留。
+
 ## PHASE 42 — OpenApp action intent clarity / OpenApp 操作意图明确化
 
 The Luogu workspace primary action now displays `SUBMIT` when the actual OpenApp gateway submits
