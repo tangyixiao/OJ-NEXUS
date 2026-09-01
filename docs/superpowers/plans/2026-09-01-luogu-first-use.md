@@ -168,6 +168,6 @@ Expected: \`BUILD SUCCESSFUL\`, zero test failures, and no new lint errors.
 
 Sign with the existing local standard debug keystore without tracking it; install with \`adb -s emulator-5554 install -r\`; launch \`com.ojnexus/.MainActivity\`; verify version metadata, the Luogu setup path, no fatal exception, and \`adb -s emulator-5554 get-state\` returns \`device\`. Do not clear data or stop the emulator.
 
-- [ ] **Step 4: Commit, push, tag, and publish**
+- [x] **Step 4: Commit, push, tag, and publish**
 
 Use commit message \`release: prepare Luogu first-use v0.3.37 / 准备洛谷首次使用版本\`, push \`codex/phase-5-arena\`, create annotated tag \`v0.3.37\`, upload both assets with \`gh release create\`, and verify branch/tag SHAs, non-draft/non-prerelease status, remote APK digest, clean worktree, and online emulator.
