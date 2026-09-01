@@ -8,7 +8,7 @@ import com.ojnexus.core.model.JudgeId
 import com.ojnexus.judge.JudgeSyncCoordinator
 import kotlinx.coroutines.CancellationException
 
-/** Orchestrates public Luogu stages and records the private-data limitation as PARTIAL. */
+/** Orchestrates only the public Luogu stages advertised by the adapter. */
 class LuoguSyncCoordinator(
     private val accountRepository: JudgeAccountRepository,
     private val syncRepository: LuoguSyncRepository,
@@ -28,8 +28,6 @@ class LuoguSyncCoordinator(
         outcomes += syncRepository.syncContests(account, force)
         ensureActive(account)
         outcomes += syncRepository.syncProblems(account, force)
-        ensureActive(account)
-        outcomes += syncRepository.syncSubmissions(account, force)
 
         val report = SyncReport(outcomes)
         syncRepository.finalizeSync(report)

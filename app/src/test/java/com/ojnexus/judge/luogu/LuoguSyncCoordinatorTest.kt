@@ -62,18 +62,19 @@ class LuoguSyncCoordinatorTest {
     }
 
     @Test
-    fun `public stages run before auth gated submissions and finish partial`() = runBlocking {
+    fun `public stages run in order and finish successfully without submissions`() = runBlocking {
         val account = accounts.connect(JudgeId.LUOGU, "alice")
 
         val report = coordinator.syncAccount(account.id, force = true)
 
-        val stageOrder = listOf("profile", "rating", "contests", "problems", "submissions")
+        val stageOrder = listOf("profile", "rating", "contests", "problems")
             .map { stage -> adapter.calls.indexOf(stage) }
         assertTrue(stageOrder.zipWithNext().all { (previous, next) -> previous < next })
-        assertEquals(SyncPhase.PARTIAL, report?.phase())
-        assertEquals(SyncStage.SUBMISSIONS, report?.failures?.single()?.stage)
-        assertEquals("AuthenticationRequired", report?.failures?.single()?.errorType)
-        assertEquals(SyncPhase.PARTIAL.name, database.syncStateDao().findByJudge("luogu")?.state)
+        assertTrue("submissions" !in adapter.calls)
+        assertEquals(SyncPhase.SUCCESS, report?.phase())
+        assertTrue(report?.allOk == true)
+        assertEquals(SyncStage.PROBLEMS, report?.outcomes?.last()?.stage)
+        assertEquals(SyncPhase.SUCCESS.name, database.syncStateDao().findByJudge("luogu")?.state)
     }
 
     @Test
