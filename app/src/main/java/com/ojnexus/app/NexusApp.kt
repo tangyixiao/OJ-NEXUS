@@ -57,6 +57,7 @@ object NexusRoutes {
     const val CONTEST_FOCUS = "contest-focus/{judge}/{contestId}"
     const val SETTINGS = "settings"
     const val SETTINGS_OPENAPP = "settings/openapp"
+    const val SETTINGS_LUOGU = "settings/luogu"
     const val SUBMISSIONS = "submissions"
     const val WORKSPACE = "workspace/{pid}"
     const val LUOGU_PROBLEM_DETAIL = "luogu-problem/{pid}"
@@ -113,6 +114,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         DashboardScreen(
                             onOpenContests = { navController.navigate(NexusRoutes.CONTESTS) },
                             onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS) },
+                            onOpenLuoguSetup = { navController.navigate(NexusRoutes.SETTINGS_LUOGU) },
                         )
                     }
                     composable(NexusDestination.PROBLEMS.route) {
@@ -176,6 +178,12 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         SettingsScreen(
                             onBack = { navController.popBackStack() },
                             focusOpenApp = true,
+                        )
+                    }
+                    composable(route = NexusRoutes.SETTINGS_LUOGU) {
+                        SettingsScreen(
+                            onBack = { navController.popBackStack() },
+                            focusLuogu = true,
                         )
                     }
                     composable(route = NexusRoutes.SUBMISSIONS) {

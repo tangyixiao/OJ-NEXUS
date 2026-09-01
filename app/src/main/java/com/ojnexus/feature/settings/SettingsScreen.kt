@@ -65,6 +65,7 @@ import com.ojnexus.judge.luogu.LuoguUrls
 fun SettingsScreen(
     onBack: () -> Unit,
     focusOpenApp: Boolean = false,
+    focusLuogu: Boolean = false,
 ) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<SettingsViewModel>(
@@ -107,15 +108,22 @@ fun SettingsScreen(
     val settingsScrollState = rememberScrollState()
     var settingsViewportTop by remember { mutableStateOf<Int?>(null) }
     var openAppTargetRootY by remember { mutableStateOf<Int?>(null) }
+    var luoguTargetRootY by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(
         focusOpenApp,
+        focusLuogu,
         settingsViewportTop,
         openAppTargetRootY,
+        luoguTargetRootY,
         settingsScrollState.maxValue,
     ) {
         val viewportTop = settingsViewportTop
-        val targetRootY = openAppTargetRootY
+        val targetRootY = when {
+            focusOpenApp -> openAppTargetRootY
+            focusLuogu -> luoguTargetRootY
+            else -> null
+        }
         if (focusOpenApp && viewportTop != null && targetRootY != null) {
             withFrameNanos { }
             settingsScrollState.animateScrollTo(
@@ -149,14 +157,22 @@ fun SettingsScreen(
             NexusSection(label = stringResource(R.string.settings_section_judges)) {
                 state.connections.forEachIndexed { index, connection ->
                     if (index > 0) Spacer(Modifier.height(NexusSpacing.sm))
-                    JudgeConnectionPanel(
-                        connection = connection,
-                        error = errors[connection.judge],
-                        connecting = connection.judge in connecting,
-                        onConnect = { handle -> viewModel.connect(connection.judge, handle) },
-                        onSync = { connection.account?.let(viewModel::syncNow) },
-                        onDisconnect = { disconnectAccountId = connection.account?.id },
-                    )
+                     Box(
+                         modifier = Modifier.onGloballyPositioned { coordinates ->
+                             if (connection.judge == JudgeId.LUOGU) {
+                                 luoguTargetRootY = coordinates.positionInRoot().y.roundToInt()
+                             }
+                         },
+                     ) {
+                         JudgeConnectionPanel(
+                             connection = connection,
+                             error = errors[connection.judge],
+                             connecting = connection.judge in connecting,
+                             onConnect = { handle -> viewModel.connect(connection.judge, handle) },
+                             onSync = { connection.account?.let(viewModel::syncNow) },
+                             onDisconnect = { disconnectAccountId = connection.account?.id },
+                         )
+                     }
                 }
             }
             Spacer(Modifier.height(NexusSpacing.xl))

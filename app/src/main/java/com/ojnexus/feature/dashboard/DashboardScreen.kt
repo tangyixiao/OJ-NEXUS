@@ -62,6 +62,7 @@ private const val LoadBarAlphaStep = 0.1875f
 fun DashboardScreen(
     onOpenContests: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenLuoguSetup: () -> Unit = {},
 ) {
     val container = com.ojnexus.core.ui.LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<DashboardViewModel>(
@@ -96,6 +97,7 @@ fun DashboardScreen(
                 state = s.value,
                 onOpenContests = onOpenContests,
                 onOpenSettings = onOpenSettings,
+                onOpenLuoguSetup = onOpenLuoguSetup,
             )
         }
     }
@@ -106,6 +108,7 @@ private fun DashboardContent(
     state: DashboardUiState,
     onOpenContests: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenLuoguSetup: () -> Unit,
 ) {
     val colors = NexusTheme.colors
     Column(
