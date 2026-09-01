@@ -129,7 +129,9 @@ class LuoguOpenPlatformClientTest {
         server.enqueue(MockResponse().setResponseCode(204))
 
         assertEquals(LuoguOpenResult.Pending, client.fetchResult("req-1"))
-        assertEquals("/judge/result/req-1", server.takeRequest().path)
+        val request = server.takeRequest()
+        assertEquals("/judge/result", request.requestUrl?.encodedPath)
+        assertEquals("id=req-1", request.requestUrl?.encodedQuery)
     }
 
     @Test

@@ -5,7 +5,7 @@
 - API 基地址：`https://open-v1.lgapi.cn/`
 - 认证：HTTP Basic，凭据由 Open Platform 提供。
 - 题库评测：`POST /judge/problem`
-- 查询异步结果：`GET /judge/result/{requestId}`；尚未产生结果时为 204
+- 查询异步结果：`GET /judge/result?id={requestId}`；尚未产生结果时为 204
 - 查询账户可用计费点：`GET /judge/quotaAvailable`
 
 应用只在设置页显式录入 OpenApp 用户和密钥，并通过 Android Keystore 加密后写入

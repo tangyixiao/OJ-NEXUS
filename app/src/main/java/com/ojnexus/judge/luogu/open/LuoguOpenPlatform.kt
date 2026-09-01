@@ -25,7 +25,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
-import retrofit2.http.Path
+import retrofit2.http.Query
 import kotlin.coroutines.resume
 import kotlinx.coroutines.selects.select
 
@@ -168,10 +168,10 @@ internal interface LuoguOpenPlatformApi {
         @Body request: LuoguProblemJudgeRequestDto,
     ): Response<LuoguAsyncResponseDto>
 
-    @GET("judge/result/{id}")
+    @GET("judge/result")
     suspend fun result(
         @Header("Authorization") authorization: String,
-        @Path("id") requestId: String,
+        @Query("id") requestId: String,
     ): Response<LuoguJudgeCallbackDto>
 
     @GET("judge/quotaAvailable")

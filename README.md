@@ -22,7 +22,13 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
-Early development — **Phase 38 (release identity, safe local slice)**: The APK metadata now
+Early development — **Phase 39 (Luogu result query alignment, safe local slice)**: Luogu Open
+Platform result polling now uses the documented `GET /judge/result?id=<RequestId>` query form,
+so an accepted submission can be followed by a compatible result request. / 早期开发——**第 39 阶段（洛谷
+结果查询对齐，安全的本地切片）**：洛谷 Open Platform 结果轮询现在使用文档规定的
+`GET /judge/result?id=<RequestId>` query 形式，提交被接受后可以继续使用兼容的结果请求查询。
+
+Phase 38 remains preserved below: The APK metadata now
 matches the published release identity (`versionName=0.3.34`, `versionCode=34`) so Android users
 can identify the installed build and future upgrades consistently. / 早期开发——**第 38 阶段（发布版本身份，
 安全的本地切片）**：APK 元数据现在与发布身份一致（`versionName=0.3.34`、`versionCode=34`），
@@ -360,6 +366,13 @@ Phase 38 changes release metadata and documentation only. It adds no endpoint, d
 credential flow, cloud service, cross-device sync, local compiler, custom-input runner, or automatic
 submission retry. Earlier phase notes and Releases remain intact. / 第 38 阶段仅修改发布元数据和文档，
 不新增接口、数据库迁移、凭据流程、云端服务、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；
+此前阶段说明和 Releases 保持不变。
+
+Phase 39 changes only the documented result-request shape and its contract test. It adds no new
+login mode, main-site password, Cookie, Session, CSRF state, cloud service, local compiler,
+custom-input runner, automatic POST retry, or public submission-history import. Earlier phase notes
+and Releases remain intact. / 第 39 阶段仅修正文档规定的结果请求形式及其契约测试，不新增登录模式、主站密码、
+Cookie、Session、CSRF 状态、云端服务、本地编译器、自定义输入运行器、自动 POST 重试或公开提交历史导入；
 此前阶段说明和 Releases 保持不变。
 
 ## Documentation

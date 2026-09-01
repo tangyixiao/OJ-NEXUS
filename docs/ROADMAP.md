@@ -3,6 +3,20 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 39 — Luogu result query alignment / 洛谷结果查询对齐
+
+Luogu Open Platform result polling now uses the documented `GET /judge/result?id=<RequestId>`
+query form instead of embedding the request ID in the path. The contract test locks the exact
+request shape while preserving 204 Pending, partial-result handling, terminal-result handling,
+WebSocket wake-up, and local recovery. / 洛谷 Open Platform 结果轮询现在使用文档规定的
+`GET /judge/result?id=<RequestId>` query 形式，不再把请求 ID 放在路径中。契约测试锁定准确请求形式，
+同时保留 204 Pending、部分结果处理、终态结果处理、WebSocket 唤醒和本地恢复。
+
+This is an endpoint-shape correction only. No new login mode, main-site password, Cookie, Session,
+CSRF state, cloud service, local compiler, custom-input runner, automatic POST retry, or public
+submission-history import is added. / 本阶段仅修正接口请求形式，不新增登录模式、主站密码、Cookie、Session、
+CSRF 状态、云端服务、本地编译器、自定义输入运行器、自动 POST 重试或公开提交历史导入。
+
 ## PHASE 38 — Release identity / 发布版本身份
 
 The Android APK now carries `versionName=0.3.34` and `versionCode=34`, matching the `v0.3.34`
