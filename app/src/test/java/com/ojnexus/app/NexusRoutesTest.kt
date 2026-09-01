@@ -1,6 +1,7 @@
 package com.ojnexus.app
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NexusRoutesTest {
@@ -9,5 +10,19 @@ class NexusRoutesTest {
         assertEquals("settings", NexusRoutes.SETTINGS)
         assertEquals("settings/openapp", NexusRoutes.SETTINGS_OPENAPP)
         assertEquals("settings/luogu", NexusRoutes.SETTINGS_LUOGU)
+    }
+
+    @Test
+    fun `workspace route encodes pid and title context`() {
+        val route = NexusRoutes.workspace("B/4132", "[信息与未来] 简单")
+
+        assertTrue(route.startsWith("workspace/B%2F4132?title="))
+        assertTrue("[信息与未来] 简单" !in route)
+        assertTrue("%5B" in route)
+    }
+
+    @Test
+    fun `workspace route omits blank title`() {
+        assertEquals("workspace/B%2F4132", NexusRoutes.workspace("B/4132", "  "))
     }
 }

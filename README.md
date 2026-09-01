@@ -22,6 +22,20 @@ WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
 ## Status
 
+Early development — **Phase 47 (workspace problem context)**: opening the workspace from a
+native Luogu problem detail now preserves the live problem title as an encoded optional route
+context while keeping PID as the only submission identity. PID-only callers remain compatible.
+The APK identity is aligned to `versionName=0.3.43`, `versionCode=43`.
+/ 早期开发——**第 47 阶段（工作区题目上下文）**：从原生洛谷题目详情进入工作区时，现在会保留经过编码的实时题名
+作为可选路由上下文，同时继续只使用 PID 作为提交身份；仅提供 PID 的旧入口保持兼容。APK 版本身份同步为
+`versionName=0.3.43`、`versionCode=43`。
+
+Phase 47 is a local navigation and display-context improvement only. It does not add main-site
+passwords, Cookie, Session, CSRF state, cloud service, cross-device sync, local compiler, or
+custom-input runner. Earlier phases, commits, tags, and releases remain preserved. / 第 47 阶段仅改进本地
+导航和显示上下文，不新增主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器或自定义输入运行器。
+此前阶段、commit、标签和 Release 均继续保留。
+
 Early development — **Phase 46 (Luogu sample-pair compatibility)**: live Luogu problem
 responses whose samples are encoded as nested `[input, output]` pairs are now decoded at the
 network boundary and rendered by the existing native detail screen; older flat sample fixtures

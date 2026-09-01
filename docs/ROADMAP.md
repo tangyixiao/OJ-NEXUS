@@ -3,6 +3,20 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 47 — Workspace problem context / 工作区题目上下文
+
+Opening a workspace from native Luogu problem details now carries the live problem title as an
+optional UTF-8 percent-encoded query value while keeping the PID as the only required identity.
+The workspace displays the PID and title together; callers that only know a PID remain compatible.
+/ 从原生洛谷题目详情打开工作区时，现在会携带经过 UTF-8 百分号编码的实时题名作为可选查询值，同时继续将 PID 作为唯一
+必需身份。工作区会同时显示题号和题名；只知道 PID 的旧入口保持兼容。
+
+This is a local navigation/display-context change only. It does not add main-site passwords,
+Cookie, Session, CSRF state, cloud service, cross-device sync, local compiler, custom-input
+runner, or automatic POST retry. Earlier phases, commits, tags, and releases remain preserved.
+/ 本阶段仅修改本地导航和显示上下文，不新增主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、
+自定义输入运行器或自动 POST 重试；此前阶段、commit、标签和 Release 均继续保留。
+
 ## PHASE 46 — Luogu sample-pair compatibility / 洛谷样例对兼容
 
 Live Luogu problem details may encode samples as nested `[input, output]` pairs, while older

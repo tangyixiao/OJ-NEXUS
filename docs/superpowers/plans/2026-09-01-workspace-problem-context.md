@@ -15,7 +15,7 @@ the title as display-only ViewModel state.
 ## Global Constraints
 
 - Keep `pid` as the required stable identity and omit blank optional titles.
-- Use `android.net.Uri.encode` for route values; do not concatenate raw title text into routes.
+- Use UTF-8 percent-encoding for route values; do not concatenate raw title text into routes.
 - Keep submission requests keyed by PID; title is display context only.
 - Do not add main-site passwords, Cookie, Session, CSRF state, cloud service, compiler, or custom runner.
 - Add failing tests before production behavior and finish with the repository quality gate.
@@ -34,14 +34,14 @@ the title as display-only ViewModel state.
 - Produces: `NexusRoutes.workspace(pid: String, title: String? = null): String`.
 - Produces: `WorkspaceScreen(..., title: String? = null)` and `WorkspaceState.title` retention.
 
-- [ ] **Step 1: Write failing route and state tests**
+- [x] **Step 1: Write failing route and state tests**
 
 Add a route assertion for `NexusRoutes.workspace("B/4132", "[信息与未来] 简单")` that contains
 encoded values and a second assertion that a blank title produces `workspace/B%2F4132` without a
 `title` query. Add a ViewModel test that constructs `WorkspaceViewModel(..., title = "Sample")`
 and asserts `state.value.title == "Sample"`.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run:
 
@@ -52,12 +52,12 @@ Run:
 Expected: compilation/test failure because the route helper and title parameter are not yet
 available.
 
-- [ ] **Step 3: Implement the smallest route/state change**
+- [x] **Step 3: Implement the smallest route/state change**
 
 Add the route helper and optional Navigation argument, thread `title` into the workspace screen
 and ViewModel, and retain it in the existing state without changing submission payloads.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run the same focused command and confirm `BUILD SUCCESSFUL`.
 
@@ -76,17 +76,17 @@ Run the same focused command and confirm `BUILD SUCCESSFUL`.
 - Consumes: the route helper and title-aware workspace state from Task 1.
 - Produces: a native detail-to-workspace title-preserving flow and bilingual v0.3.43 Release.
 
-- [ ] **Step 1: Pass the live detail title**
+- [x] **Step 1: Pass the live detail title**
 
 Change the Luogu detail workspace callback to provide `(pid, detail.title)` and navigate through
 `NexusRoutes.workspace`; keep all PID-only callers on the helper's default `title = null` path.
 
-- [ ] **Step 2: Render the title beside the PID**
+- [x] **Step 2: Render the title beside the PID**
 
 Display a non-blank `state.title` in the existing workspace identity row, using resource-backed
 copy and existing design tokens. Do not add arbitrary colors, dimensions, or new network work.
 
-- [ ] **Step 3: Run the full quality gate and install without clearing data**
+- [x] **Step 3: Run the full quality gate and install without clearing data**
 
 Run `git diff --check` and `clean test assembleDebug lintDebug assembleRelease`; sign and install
 the Release APK over `emulator-5554`, then verify the native Luogu detail-to-workspace path.

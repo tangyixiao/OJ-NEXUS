@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,6 +50,7 @@ private val InputMinHeight = 96.dp
 @Composable
 fun WorkspaceScreen(
     pid: String,
+    title: String? = null,
     onBack: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -58,7 +60,7 @@ fun WorkspaceScreen(
         factory = ContainerViewModelFactory(container) {
             WorkspaceViewModel(
                 pid = pid,
-                title = null,
+                title = title,
                 gateway = it.luoguSubmissionRepository,
                 credentialStore = it.luoguOpenCredentialStore,
                 history = it.luoguSubmissionRepository,
@@ -89,13 +91,26 @@ fun WorkspaceScreen(
                 .padding(horizontal = NexusSpacing.screenHorizontal),
         ) {
             Spacer(Modifier.height(NexusSpacing.md))
-            Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+            ) {
                 NexusTag(
                     text = stringResource(R.string.workspace_luogu),
                     tone = com.ojnexus.core.designsystem.NexusTone.Accent,
                     selected = true,
                 )
                 Text(state.pid, style = NexusTheme.typography.dataLarge, color = NexusTheme.colors.accent)
+                state.title?.takeIf { it.isNotBlank() }?.let { problemTitle ->
+                    Text(
+                        text = problemTitle,
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.textSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
             Spacer(Modifier.height(NexusSpacing.sm))
             NexusSection(label = stringResource(R.string.workspace_mode)) {
