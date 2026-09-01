@@ -91,7 +91,7 @@ copy and existing design tokens. Do not add arbitrary colors, dimensions, or new
 Run `git diff --check` and `clean test assembleDebug lintDebug assembleRelease`; sign and install
 the Release APK over `emulator-5554`, then verify the native Luogu detail-to-workspace path.
 
-- [ ] **Step 4: Publish and audit the GitHub Release**
+- [x] **Step 4: Publish and audit the GitHub Release**
 
 Commit with bilingual message, push branch and annotated `v0.3.43`, publish APK plus checksum,
 then compare remote branch SHA, peeled tag SHA, Release asset digest, manifest hash, installed
