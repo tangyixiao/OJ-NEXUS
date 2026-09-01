@@ -31,6 +31,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -104,9 +105,10 @@ fun SettingsScreen(
     var purgeCache by rememberSaveable { mutableStateOf(false) }
     val appLanguage = AppLanguage.fromLocaleTags(AppCompatDelegate.getApplicationLocales().toLanguageTags())
     val openAppRequester = remember { BringIntoViewRequester() }
+    var openAppReady by remember { mutableStateOf(false) }
 
-    LaunchedEffect(focusOpenApp) {
-        if (focusOpenApp) {
+    LaunchedEffect(focusOpenApp, openAppReady) {
+        if (focusOpenApp && openAppReady) {
             withFrameNanos { }
             openAppRequester.bringIntoView()
         }
@@ -202,7 +204,9 @@ fun SettingsScreen(
             Spacer(Modifier.height(NexusSpacing.xl))
             NexusSection(
                 label = stringResource(R.string.settings_section_luogu_open),
-                modifier = Modifier.bringIntoViewRequester(openAppRequester),
+                modifier = Modifier
+                    .bringIntoViewRequester(openAppRequester)
+                    .onGloballyPositioned { openAppReady = true },
             ) {
                 Text(
                     text = stringResource(R.string.settings_openapp_hint),
