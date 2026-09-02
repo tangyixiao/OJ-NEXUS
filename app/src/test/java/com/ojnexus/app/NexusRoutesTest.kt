@@ -34,6 +34,7 @@ class NexusRoutesTest {
         assertTrue("sampleInput=" in route)
         assertTrue("sampleOutput=" in route)
         assertTrue("1 2" !in route)
+        assertTrue("%0A" in route)
     }
 
     @Test

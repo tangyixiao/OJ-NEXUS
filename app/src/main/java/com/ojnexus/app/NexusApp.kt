@@ -72,11 +72,11 @@ object NexusRoutes {
     ): String {
         val base = "workspace/${encodeRouteValue(pid)}"
         val query = listOf(
-            "title" to title,
-            "sampleInput" to sampleInput,
-            "sampleOutput" to sampleOutput,
+            "title" to title?.trim()?.takeIf { it.isNotEmpty() },
+            "sampleInput" to sampleInput?.takeIf { it.isNotBlank() },
+            "sampleOutput" to sampleOutput?.takeIf { it.isNotBlank() },
         ).mapNotNull { (key, value) ->
-            value?.trim()?.takeIf { it.isNotEmpty() }?.let { normalized ->
+            value?.let { normalized ->
                 "$key=${encodeRouteValue(normalized)}"
             }
         }
