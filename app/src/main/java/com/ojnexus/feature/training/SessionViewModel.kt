@@ -60,6 +60,8 @@ data class SessionSurfaceState(
     val liveProblemCount: Int?,
     /** Fully computed once the session is finished. */
     val summary: SessionSummary?,
+    /** Reactive progress rows for the active or historical session. */
+    val problems: List<SessionProblem> = emptyList(),
     val actionError: SessionActionError? = null,
 )
 
@@ -86,6 +88,17 @@ class SessionViewModel(
     }
 
     private val actionError = MutableStateFlow<SessionActionError?>(null)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val sessionProblems: StateFlow<List<SessionProblem>> = sessionFlow
+        .flatMapLatest { session ->
+            if (session == null) {
+                flowOf(emptyList())
+            } else {
+                trainingRepository.observeSessionProblems(session.id)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val problems: StateFlow<List<Problem>> = problemRepository.observeLibrary()
         .catch { emit(emptyList()) }
@@ -127,12 +140,14 @@ class SessionViewModel(
         liveProblemCount,
         finishedSummary,
         actionError.asStateFlow(),
-    ) { session, liveCount, summary, error ->
+        sessionProblems,
+    ) { session, liveCount, summary, error, problems ->
         Loadable.Ready(
             SessionSurfaceState(
                 session = session,
                 liveProblemCount = liveCount,
                 summary = summary,
+                problems = problems,
                 actionError = error,
             ),
         )
