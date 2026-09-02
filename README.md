@@ -25,6 +25,24 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Early development — **Phase 58 (Submission Control Tower)**: Submission Center now opens with a
+local `SUBMISSION PULSE` showing total, pending, ready, and failed request counts. Local status
+filters isolate actionable history, and `CLEAR FILTER` restores the full view without changing
+stored jobs. Existing result checks, retries, and workspace navigation remain intact. The APK
+identity is aligned to `versionName=0.3.54`, `versionCode=54`. / 早期开发——**第 58 阶段（提交控制塔）**：
+提交中心现在以本地“提交脉冲”开场，展示总数、等待中、已就绪和失败请求数量。本地状态筛选可以聚焦需要处理的历史记录，
+“清除筛选”会恢复完整视图而不改写已存请求。现有结果查询、重试和工作区导航保持不变。APK 版本身份同步为
+`versionName=0.3.54`、`versionCode=54`。
+
+Phase 58 is a local presentation and list-filtering change. Summary values derive from the
+existing Room/Flow snapshot; unknown statuses remain visible in ALL and no bulk retry or new
+request is created. It adds no network fields, database migration, main-site passwords, Cookie,
+Session, CSRF state, cloud service, cross-device sync, local compiler, custom-input runner,
+background submission, or automatic POST retry. Earlier phases, commits, tags, and releases
+remain preserved. / 第 58 阶段仅改变本地展示和列表筛选；摘要来自已有 Room/Flow 快照，未知状态在“全部”视图中继续可见，
+不会批量重试或创建新请求。不新增网络字段、数据库迁移、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、
+本地编译器、自定义输入运行器、后台提交或自动提交 POST 重试。此前阶段、commit、标签和 Release 均继续保留。
+
 Early development — **Phase 57 (Contest Command Center)**: Contests now opens with a local
 `CONTEST PULSE` showing live, upcoming, recent, and next-contest state. Local phase filters keep
 the list focused, while `OPEN NEXT` opens the earliest upcoming contest through the existing

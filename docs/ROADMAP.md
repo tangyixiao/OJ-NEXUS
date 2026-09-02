@@ -3,6 +3,21 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 58 — Submission Control Tower / 提交控制塔
+
+Submission Center now opens with a local `SUBMISSION PULSE` for total, pending, ready, and failed
+request counts. Four local status filters isolate actionable history, while `CLEAR FILTER`
+restores the full list without changing stored jobs. Existing checks, retries, and workspace
+navigation remain intact. / 提交中心现在以本地“提交脉冲”开场，展示总数、等待中、已就绪和失败请求数量。
+四个本地状态筛选可以聚焦需要处理的历史记录，“清除筛选”会恢复完整列表而不改写已存请求；现有查询、重试和工作区导航保持不变。
+
+Summary values derive from the existing Room/Flow snapshot. Unknown statuses remain visible in
+ALL, and the phase adds no network field, database migration, credential flow, cloud service,
+cross-device sync, local compiler, custom-input runner, background submission, bulk retry, or
+automatic POST retry. Earlier phase notes and published Releases remain intact. / 摘要来自已有 Room/Flow 快照，
+未知状态在“全部”视图中继续可见。本阶段不新增网络字段、数据库迁移、凭据流程、云端服务、跨设备同步、本地编译器、
+自定义输入运行器、后台提交、批量重试或自动提交重试；此前阶段说明和已发布 Release 均保持不变。
+
 ## PHASE 57 — Contest Command Center / 竞赛指挥中心
 
 Contests now opens with a local `CONTEST PULSE` for live, upcoming, recent, and next-contest
