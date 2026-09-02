@@ -229,6 +229,8 @@ private fun DashboardContent(
             }
         }
 
+        SectionGap()
+
         // SYSTEM STATUS — honest connection state; rating only from a real synced profile.
         NexusSection(
             label = stringResource(R.string.dash_section_system),
