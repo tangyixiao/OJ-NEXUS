@@ -25,6 +25,24 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Early development — **Phase 54 (Dashboard command deck)**: Dashboard now opens with a compact
+local readout for due reviews, weekly solved count, the next contest countdown, and connected
+judges. Four accessible command cells open the existing Training, Review, Problems, and Submission
+Center surfaces. The APK identity is aligned to `versionName=0.3.49`, `versionCode=49`. / 早期开发——**第 54 阶段（Dashboard 指挥台）**：Dashboard
+现在以紧凑的本地读数开场，展示待复习、本周解决题数、下一场竞赛倒计时和已连接 OJ 数量。
+四个可访问的命令单元格可以打开现有的训练、复习、题库和提交中心页面。APK 版本身份同步为
+`versionName=0.3.49`、`versionCode=49`。
+
+Phase 54 is a local presentation and navigation change. The summary is derived from existing
+Room/Flow state, the contest countdown refreshes from a cancellable local clock tick, and reduced
+motion is respected. It adds no network fields, database migration, main-site passwords, Cookie,
+Session, CSRF state, cloud service, cross-device sync, local compiler, custom-input runner,
+background submission, or automatic POST retry. Earlier phases, commits, tags, and releases remain
+preserved. / 第 54 阶段仅改变本地展示和导航；摘要来自已有 Room/Flow 状态，竞赛倒计时由可取消的本地时钟更新，
+并遵守减少动效设置。不新增网络字段、数据库迁移、主站密码、Cookie、Session、CSRF 状态、
+云服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交 POST 重试。此前阶段、
+commit、标签和 Release 均继续保留。
+
 Early development — **Phase 53 (submission title propagation)**: when a terminal Luogu OpenApp
 submission creates a missing local problem row, the saved local submission title is now used
 instead of degrading the library title to the PID. Existing problem rows remain untouched, and

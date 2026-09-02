@@ -3,6 +3,24 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 54 — Dashboard command deck / Dashboard 指挥台
+
+Dashboard now starts with a compact local command readout for due reviews, solved problems this
+week, the next future contest countdown, and enabled judge connections. A four-cell command deck
+opens the existing Training, Review, Problems, and Submission Center surfaces with explicit
+accessibility descriptions. / Dashboard 现在以紧凑的本地指挥读数开场，展示待复习、本周解决题数、下一场未来竞赛倒计时和已启用的
+OJ 连接。四格命令台通过明确的无障碍描述打开现有的训练、复习、题库和提交中心页面。
+
+The readout is derived from existing Room/Flow state; a cancellable local clock tick keeps the
+countdown current while subscribed. Summary changes and training-load bars use restrained motion
+and immediately switch when reduce motion is enabled. This phase adds no network field, database
+migration, credential flow, main-site password, Cookie, Session, CSRF state, cloud service,
+cross-device sync, local compiler, custom-input runner, background submission, or automatic POST
+retry. Earlier phase notes and published Releases remain intact. / 读数来自已有 Room/Flow 状态；页面订阅期间由可取消的本地时钟更新倒计时。
+摘要变化和训练负荷柱使用克制的动效，启用减少动效后立即切换。本阶段不新增网络字段、数据库迁移、凭据流程、
+主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、自定义输入运行器、
+后台提交或自动提交 POST 重试；此前阶段说明和已发布 Release 均保持不变。
+
 ## PHASE 53 — Submission title propagation / 提交题名传递
 
 When a terminal Luogu OpenApp result materializes a new local problem row, the repository now
