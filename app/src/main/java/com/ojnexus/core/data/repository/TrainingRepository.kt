@@ -91,6 +91,19 @@ class TrainingRepository(
     fun observeSessionProblemCount(sessionId: Long): Flow<Int> =
         sessionDao.observeSessionProblemCount(sessionId)
 
+    fun observeSessionProblems(sessionId: Long): Flow<List<SessionProblem>> =
+        sessionDao.observeSessionProblemProgress(sessionId).map { rows ->
+            rows.map { row ->
+                SessionProblem(
+                    problemId = row.problemId,
+                    title = row.title,
+                    difficulty = row.difficulty,
+                    solved = row.solved,
+                    attempts = row.attempts,
+                )
+            }
+        }
+
     fun observeSession(id: Long): Flow<TrainingSession?> =
         sessionDao.observeById(id).map { it?.toDomain() }
 

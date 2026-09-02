@@ -6,7 +6,10 @@ import androidx.test.core.app.ApplicationProvider
 import com.ojnexus.core.data.DataError
 import com.ojnexus.core.data.DataResult
 import com.ojnexus.core.database.OjNexusDatabase
+import com.ojnexus.core.database.entity.AttemptEntity
+import com.ojnexus.core.database.entity.ProblemEntity
 import com.ojnexus.core.model.TrainingType
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -113,6 +116,109 @@ class TrainingRepositorySessionTest {
         assertEquals(1, database.sessionDao().countActive())
         assertEquals(1, totalSessions())
     }
+
+    @Test
+    fun `session progress counts only attempts inside session window`() = runBlocking {
+        val firstProblem = insertProblem("1A", "Alpha", 800)
+        val secondProblem = insertProblem("1B", "Beta", 900)
+        val created = trainingRepository.createAndStartSession(
+            TrainingType.PRACTICE,
+            null,
+            null,
+            listOf(firstProblem, secondProblem),
+        ) as DataResult.Success
+        val startedAt = database.sessionDao().findById(created.value)!!.startedAt
+
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = firstProblem,
+                timestamp = startedAt - 1_000L,
+                dayIndex = 0L,
+                verdict = "WA",
+            ),
+        )
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = firstProblem,
+                timestamp = startedAt,
+                dayIndex = 0L,
+                verdict = "AC",
+            ),
+        )
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = secondProblem,
+                timestamp = startedAt + 2_000L,
+                dayIndex = 0L,
+                verdict = "WA",
+            ),
+        )
+
+        val rows = trainingRepository.observeSessionProblems(created.value).first()
+
+        assertEquals(listOf(firstProblem, secondProblem), rows.map { it.problemId })
+        assertEquals(listOf(1, 1), rows.map { it.attempts })
+        assertEquals(listOf(true, false), rows.map { it.solved })
+    }
+
+    @Test
+    fun `session progress is empty when no problems are attached`() = runBlocking {
+        val created = trainingRepository.createAndStartSession(
+            TrainingType.PRACTICE,
+            null,
+            null,
+            emptyList(),
+        ) as DataResult.Success
+
+        assertTrue(trainingRepository.observeSessionProblems(created.value).first().isEmpty())
+    }
+
+    @Test
+    fun `finished session excludes attempts after its finish time`() = runBlocking {
+        val problemId = insertProblem("1C", "Gamma", 1000)
+        val created = trainingRepository.createAndStartSession(
+            TrainingType.PRACTICE,
+            null,
+            null,
+            listOf(problemId),
+        ) as DataResult.Success
+        val startedAt = database.sessionDao().findById(created.value)!!.startedAt
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = problemId,
+                timestamp = startedAt,
+                dayIndex = 0L,
+                verdict = "WA",
+            ),
+        )
+        assertTrue(trainingRepository.finishSession(created.value) is DataResult.Success)
+        val finishedAt = database.sessionDao().findById(created.value)!!.finishedAt!!
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = problemId,
+                timestamp = finishedAt + 1_000L,
+                dayIndex = 0L,
+                verdict = "AC",
+            ),
+        )
+
+        val row = trainingRepository.observeSessionProblems(created.value).first().single()
+
+        assertEquals(1, row.attempts)
+        assertTrue(!row.solved)
+    }
+
+    private suspend fun insertProblem(externalId: String, title: String, difficulty: Int): Long =
+        database.problemDao().insert(
+            ProblemEntity(
+                judge = "codeforces",
+                externalId = externalId,
+                title = title,
+                difficulty = difficulty,
+                createdAt = 1L,
+                updatedAt = 1L,
+            ),
+        )
 
     private suspend fun totalSessions(): Int = database.sessionDao().countAll()
 }

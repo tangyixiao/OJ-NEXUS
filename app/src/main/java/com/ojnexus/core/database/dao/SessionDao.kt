@@ -1,6 +1,7 @@
 package com.ojnexus.core.database.dao
 
 import androidx.room.Dao
+import androidx.room.ColumnInfo
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
@@ -9,6 +10,15 @@ import com.ojnexus.core.database.entity.TrainingSessionEntity
 import com.ojnexus.core.database.entity.TrainingSessionProblemEntity
 import com.ojnexus.core.database.relation.SessionWithProblemsPojo
 import kotlinx.coroutines.flow.Flow
+
+/** Aggregated attempt progress for one problem inside a persisted training-session window. */
+data class SessionProblemProgressRow(
+    @ColumnInfo(name = "problem_id") val problemId: Long,
+    val title: String,
+    val difficulty: Int?,
+    val attempts: Int,
+    val solved: Boolean,
+)
 
 @Dao
 interface SessionDao {
@@ -43,6 +53,27 @@ interface SessionDao {
 
     @Query("SELECT COUNT(*) FROM training_session_problems WHERE session_id = :sessionId")
     fun observeSessionProblemCount(sessionId: Long): Flow<Int>
+
+    @Query(
+        """
+        SELECT p.id AS problem_id,
+               p.title AS title,
+               p.difficulty AS difficulty,
+               COUNT(a.id) AS attempts,
+               CASE WHEN MAX(CASE WHEN a.verdict = 'AC' THEN 1 ELSE 0 END) = 1
+                    THEN 1 ELSE 0 END AS solved
+        FROM training_session_problems link
+        JOIN training_sessions session ON session.id = link.session_id
+        JOIN problems p ON p.id = link.problem_id
+        LEFT JOIN attempts a ON a.problem_id = p.id
+            AND a.timestamp >= session.started_at
+            AND (session.finished_at IS NULL OR a.timestamp <= session.finished_at)
+        WHERE link.session_id = :sessionId
+        GROUP BY p.id, p.title, p.difficulty
+        ORDER BY link.problem_id ASC
+        """,
+    )
+    fun observeSessionProblemProgress(sessionId: Long): Flow<List<SessionProblemProgressRow>>
 
     @Insert
     suspend fun insertSessionProblem(link: TrainingSessionProblemEntity)
