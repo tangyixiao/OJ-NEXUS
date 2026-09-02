@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -103,6 +104,8 @@ fun SubmissionCenterScreen(
                 state = state.value,
                 onCheckResult = viewModel::checkResult,
                 onQueueRecovery = viewModel::queueRecovery,
+                onCheckPending = viewModel::checkPending,
+                onQueueFailed = viewModel::queueFailed,
                 onOpenWorkspace = onOpenWorkspace,
             )
         }
@@ -114,6 +117,8 @@ private fun SubmissionCenterContent(
     state: SubmissionCenterUiState,
     onCheckResult: (String) -> Unit,
     onQueueRecovery: (String) -> Unit,
+    onCheckPending: () -> Unit,
+    onQueueFailed: () -> Unit,
     onOpenWorkspace: (String, String?) -> Unit,
 ) {
     var statusFilter by rememberSaveable { mutableStateOf(SubmissionStatusFilter.ALL) }
@@ -143,7 +148,10 @@ private fun SubmissionCenterContent(
         SubmissionPulse(
             summary = summary,
             selected = statusFilter,
+            recoveryAvailable = state.recoveryAvailable,
             onClear = { statusFilter = SubmissionStatusFilter.ALL },
+            onCheckPending = onCheckPending,
+            onQueueFailed = onQueueFailed,
         )
         Spacer(Modifier.padding(top = NexusSpacing.sm))
         SubmissionStatusControls(
@@ -200,7 +208,10 @@ private fun SubmissionCenterContent(
 private fun SubmissionPulse(
     summary: SubmissionCenterSummary,
     selected: SubmissionStatusFilter,
+    recoveryAvailable: Boolean,
     onClear: () -> Unit,
+    onCheckPending: () -> Unit,
+    onQueueFailed: () -> Unit,
 ) {
     val colors = NexusTheme.colors
     NexusSection(
@@ -249,6 +260,29 @@ private fun SubmissionPulse(
                 value = summary.failed,
                 modifier = Modifier.weight(1f),
             )
+        }
+        if (summary.pending > 0 || (summary.failed > 0 && recoveryAvailable)) {
+            Spacer(Modifier.padding(top = NexusSpacing.xs))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+            ) {
+                if (summary.pending > 0) {
+                    SubmissionActionTag(
+                        label = stringResource(R.string.submissions_check_pending),
+                        onClickLabel = stringResource(R.string.submissions_check_pending_cd),
+                        enabled = true,
+                        onClick = onCheckPending,
+                    )
+                }
+                if (summary.failed > 0 && recoveryAvailable) {
+                    SubmissionActionTag(
+                        label = stringResource(R.string.submissions_queue_failed),
+                        onClickLabel = stringResource(R.string.submissions_queue_failed_cd),
+                        enabled = true,
+                        onClick = onQueueFailed,
+                    )
+                }
+            }
         }
     }
 }
@@ -343,18 +377,30 @@ private fun SubmissionJobCard(
     val problemDisplay = submissionProblemDisplay(pidValue, titleValue)
     val canOpenWorkspace = job.kind == SubmissionJobKind.PROBLEM.name && job.pid?.isNotBlank() == true
     val canCheckResult = job.status == SubmissionJobStatus.PENDING.name || job.status == SubmissionJobStatus.FAILED.name
+    var detailsExpanded by rememberSaveable(job.requestId) { mutableStateOf(false) }
+    val detailsState = stringResource(
+        if (detailsExpanded) R.string.submissions_details_expanded else R.string.submissions_details_collapsed,
+    )
     val rowDescription = stringResource(
         R.string.submissions_row_cd,
         kindLabel(job.kind),
         problemDisplay,
         job.requestId,
         statusLabel(job.status),
+        detailsState,
     )
+    val detailsDescription = stringResource(R.string.submissions_details_cd, problemDisplay)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = NexusSpacing.xs)
+            .animateContentSize(
+                animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+                    NexusMotion.DURATION_NORMAL,
+                    easing = NexusMotion.EasingStandard,
+                ),
+            )
             .semantics { contentDescription = rowDescription },
         verticalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
     ) {
@@ -363,7 +409,11 @@ private fun SubmissionJobCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 NexusTag(
                     text = kindLabel(job.kind),
                     tone = if (job.kind == SubmissionJobKind.PROBLEM.name) NexusTone.Accent else NexusTone.Neutral,
@@ -386,67 +436,31 @@ private fun SubmissionJobCard(
             )
         }
 
-        SubmissionMetadataLine(stringResource(R.string.submissions_kind), kindLabel(job.kind))
-        SubmissionMetadataLine(stringResource(R.string.submissions_pid), pidValue)
-        titleValue?.let {
-            SubmissionMetadataLine(stringResource(R.string.submissions_problem_title), it)
-        }
         SubmissionMetadataLine(stringResource(R.string.submissions_language), job.language)
-        SubmissionMetadataLine(stringResource(R.string.submissions_request_id), job.requestId)
         SubmissionMetadataLine(
             stringResource(R.string.submissions_time),
             formatDateTime(job.updatedAt),
         )
-        SubmissionMetadataLine(stringResource(R.string.submissions_status), statusLabel(job.status))
-        job.score?.let {
-            SubmissionMetadataLine(
-                stringResource(R.string.submissions_score),
-                stringResource(R.string.submissions_score_value, it),
+        if (detailsExpanded) {
+            SubmissionJobDetails(
+                job = job,
+                pidValue = pidValue,
+                titleValue = titleValue,
             )
-        }
-        job.judgeStatus?.let {
-            SubmissionMetadataLine(
-                stringResource(R.string.submissions_judge_status),
-                stringResource(R.string.submissions_judge_status_value, it),
-            )
-        }
-        job.compileSuccess?.let {
-            SubmissionMetadataLine(
-                stringResource(R.string.submissions_compile),
-                stringResource(
-                    if (it) R.string.submissions_compile_success else R.string.submissions_compile_failed,
-                ),
-            )
-        }
-        job.compileMessage?.takeIf { it.isNotBlank() }?.let {
-            SubmissionMetadataLine(stringResource(R.string.submissions_compile_message), it)
-        }
-        job.output?.takeIf { it.isNotBlank() }?.let {
-            SubmissionMetadataLine(stringResource(R.string.submissions_output), it)
-        }
-        job.exitCode?.let {
-            SubmissionMetadataLine(
-                stringResource(R.string.submissions_exit_code),
-                stringResource(R.string.submissions_exit_code_value, it),
-            )
-        }
-        job.executionTimeMs?.let {
-            SubmissionMetadataLine(
-                stringResource(R.string.submissions_execution_time),
-                stringResource(R.string.submissions_execution_time_value, it),
-            )
-        }
-        job.memoryKiB?.let {
-            SubmissionMetadataLine(
-                stringResource(R.string.submissions_memory),
-                stringResource(R.string.submissions_memory_value, it),
-            )
-        }
-        job.lastErrorType?.takeIf { it.isNotBlank() }?.let {
-            SubmissionMetadataLine(stringResource(R.string.submissions_error), it)
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+        ) {
+            SubmissionActionTag(
+                label = stringResource(submissionDetailsLabel(detailsExpanded)),
+                onClickLabel = detailsDescription,
+                enabled = true,
+                onClick = { detailsExpanded = !detailsExpanded },
+            )
             if (canCheckResult) {
                 SubmissionActionTag(
                     label = stringResource(
@@ -486,6 +500,70 @@ private fun SubmissionJobCard(
         }
     }
 }
+
+@Composable
+private fun SubmissionJobDetails(
+    job: SubmissionJobEntity,
+    pidValue: String,
+    titleValue: String?,
+) {
+    SubmissionMetadataLine(stringResource(R.string.submissions_pid), pidValue)
+    titleValue?.let {
+        SubmissionMetadataLine(stringResource(R.string.submissions_problem_title), it)
+    }
+    SubmissionMetadataLine(stringResource(R.string.submissions_request_id), job.requestId)
+    SubmissionMetadataLine(stringResource(R.string.submissions_status), statusLabel(job.status))
+    job.score?.let {
+        SubmissionMetadataLine(
+            stringResource(R.string.submissions_score),
+            stringResource(R.string.submissions_score_value, it),
+        )
+    }
+    job.judgeStatus?.let {
+        SubmissionMetadataLine(
+            stringResource(R.string.submissions_judge_status),
+            stringResource(R.string.submissions_judge_status_value, it),
+        )
+    }
+    job.compileSuccess?.let {
+        SubmissionMetadataLine(
+            stringResource(R.string.submissions_compile),
+            stringResource(
+                if (it) R.string.submissions_compile_success else R.string.submissions_compile_failed,
+            ),
+        )
+    }
+    job.compileMessage?.takeIf { it.isNotBlank() }?.let {
+        SubmissionMetadataLine(stringResource(R.string.submissions_compile_message), it)
+    }
+    job.output?.takeIf { it.isNotBlank() }?.let {
+        SubmissionMetadataLine(stringResource(R.string.submissions_output), it)
+    }
+    job.exitCode?.let {
+        SubmissionMetadataLine(
+            stringResource(R.string.submissions_exit_code),
+            stringResource(R.string.submissions_exit_code_value, it),
+        )
+    }
+    job.executionTimeMs?.let {
+        SubmissionMetadataLine(
+            stringResource(R.string.submissions_execution_time),
+            stringResource(R.string.submissions_execution_time_value, it),
+        )
+    }
+    job.memoryKiB?.let {
+        SubmissionMetadataLine(
+            stringResource(R.string.submissions_memory),
+            stringResource(R.string.submissions_memory_value, it),
+        )
+    }
+    job.lastErrorType?.takeIf { it.isNotBlank() }?.let {
+        SubmissionMetadataLine(stringResource(R.string.submissions_error), it)
+    }
+}
+
+internal fun submissionDetailsLabel(expanded: Boolean): Int =
+    if (expanded) R.string.submissions_hide_details else R.string.submissions_details
 
 internal fun submissionProblemDisplay(pid: String, title: String?): String =
     title?.trim()?.takeIf { it.isNotEmpty() }?.let { "$it · $pid" } ?: pid

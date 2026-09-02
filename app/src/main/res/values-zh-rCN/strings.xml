@@ -677,6 +677,10 @@
     <string name="submissions_pulse_pending">等待中</string>
     <string name="submissions_pulse_ready">已就绪</string>
     <string name="submissions_pulse_failed">失败</string>
+    <string name="submissions_check_pending">查询等待中</string>
+    <string name="submissions_check_pending_cd">查询全部等待中的提交结果</string>
+    <string name="submissions_queue_failed">排队失败项</string>
+    <string name="submissions_queue_failed_cd">为全部失败请求排队后台恢复</string>
     <string name="submissions_clear_filter">清除筛选</string>
     <string name="submissions_clear_filter_cd">显示全部提交请求</string>
     <string name="submissions_filter_all">全部</string>
@@ -725,7 +729,12 @@
     <string name="submissions_queue_requested">已排队 — 可再次重试</string>
     <string name="submissions_queue_result_cd">为请求 %1$s 排队后台结果查询</string>
     <string name="submissions_open_workspace_cd">打开题目 %1$s 的工作区</string>
-    <string name="submissions_row_cd">%1$s 请求，题目 %2$s，请求 %3$s，状态 %4$s</string>
+    <string name="submissions_details">详情</string>
+    <string name="submissions_hide_details">收起详情</string>
+    <string name="submissions_details_cd">切换 %1$s 的详情</string>
+    <string name="submissions_details_collapsed">已收起</string>
+    <string name="submissions_details_expanded">已展开</string>
+    <string name="submissions_row_cd">%1$s 请求，题目 %2$s，请求 %3$s，状态 %4$s，详情 %5$s</string>
     <string name="submissions_kind_problem">题目提交</string>
     <string name="submissions_kind_run">运行</string>
     <string name="submissions_kind_unknown">未知</string>
