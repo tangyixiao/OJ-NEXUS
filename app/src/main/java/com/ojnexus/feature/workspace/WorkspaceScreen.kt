@@ -1,6 +1,10 @@
 package com.ojnexus.feature.workspace
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,12 +18,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
@@ -33,14 +41,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ojnexus.R
 import com.ojnexus.core.designsystem.NexusRadius
+import com.ojnexus.core.designsystem.NexusMotion
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusSize
+import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.designsystem.NexusTheme
+import com.ojnexus.core.designsystem.component.NexusDivider
+import com.ojnexus.core.designsystem.component.NexusMetric
 import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
+import com.ojnexus.core.ui.formatCount
 import com.ojnexus.judge.luogu.open.LuoguOpenEvaluation
 import com.ojnexus.judge.luogu.open.LuoguLanguages
 
@@ -67,6 +80,8 @@ fun WorkspaceScreen(
                 credentialStore = it.luoguOpenCredentialStore,
                 history = it.luoguSubmissionRepository,
                 drafts = it.workspaceDraftRepository,
+                sampleInput = sampleInput,
+                sampleOutput = sampleOutput,
             )
         },
     )
@@ -115,6 +130,8 @@ fun WorkspaceScreen(
                 }
             }
             Spacer(Modifier.height(NexusSpacing.sm))
+            WorkspacePulse(state)
+            Spacer(Modifier.height(NexusSpacing.md))
             NexusSection(label = stringResource(R.string.workspace_mode)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
                     if (state.customRunAvailable) {
@@ -151,9 +168,13 @@ fun WorkspaceScreen(
                         WorkspaceAction(
                             label = option.label,
                             selected = state.language == option.id,
-                        ) { viewModel.setLanguage(option.id) }
+                    ) { viewModel.setLanguage(option.id) }
                     }
                 }
+                WorkspaceO2Control(
+                    checked = state.o2,
+                    onCheckedChange = viewModel::setO2,
+                )
             }
             Spacer(Modifier.height(NexusSpacing.md))
             NexusSection(label = stringResource(R.string.workspace_code)) {
@@ -189,12 +210,40 @@ fun WorkspaceScreen(
             if (state.customRunAvailable && state.mode == WorkspaceMode.RUN) {
                 Spacer(Modifier.height(NexusSpacing.md))
                 NexusSection(label = stringResource(R.string.workspace_input)) {
+                    if (state.sampleInput != null || state.input.isNotBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+                        ) {
+                            state.sampleInput?.let {
+                                WorkspaceAction(
+                                    label = stringResource(R.string.workspace_load_sample),
+                                    contentDescription = stringResource(R.string.workspace_load_sample_cd),
+                                    onClick = viewModel::loadSampleInput,
+                                )
+                            }
+                            if (state.input.isNotBlank()) {
+                                WorkspaceAction(
+                                    label = stringResource(R.string.workspace_clear_input),
+                                    contentDescription = stringResource(R.string.workspace_clear_input_cd),
+                                    onClick = viewModel::clearInput,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(NexusSpacing.xs))
+                    }
                     CodeField(
                         value = state.input,
                         onValueChange = viewModel::setInput,
                         placeholder = stringResource(R.string.workspace_input_hint),
                         minHeight = InputMinHeight,
                     )
+                }
+            }
+            state.sampleOutput?.let { expectedOutput ->
+                Spacer(Modifier.height(NexusSpacing.md))
+                NexusSection(label = stringResource(R.string.workspace_expected_output)) {
+                    WorkspaceCodeBlock(expectedOutput)
                 }
             }
             Spacer(Modifier.height(NexusSpacing.md))
@@ -237,19 +286,24 @@ fun WorkspaceScreen(
             }
             state.requestId?.let { requestId ->
                 Spacer(Modifier.height(NexusSpacing.md))
-                NexusSection(label = stringResource(R.string.workspace_result)) {
+                NexusSection(
+                    label = stringResource(R.string.workspace_result),
+                    modifier = Modifier.animateContentSize(
+                        animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+                            NexusMotion.DURATION_NORMAL,
+                            easing = NexusMotion.EasingStandard,
+                        ),
+                    ),
+                ) {
                     Text(
                         text = stringResource(R.string.workspace_request_id, requestId),
                         style = NexusTheme.typography.dataSmall,
                         color = NexusTheme.colors.textTertiary,
                     )
                     Spacer(Modifier.height(NexusSpacing.xs))
+                    WorkspaceResultTag(state.resultState)
                     when (state.resultState) {
-                        WorkspaceResultState.PENDING -> NexusTag(
-                            text = stringResource(R.string.workspace_result_pending),
-                            tone = com.ojnexus.core.designsystem.NexusTone.Warning,
-                            selected = true,
-                        )
+                        WorkspaceResultState.PENDING -> Unit
                         WorkspaceResultState.READY -> state.evaluation?.let { EvaluationContent(it) }
                         WorkspaceResultState.IDLE -> Unit
                     }
@@ -376,3 +430,160 @@ private val WorkspaceError.labelRes: Int
         WorkspaceError.SERVER -> R.string.workspace_error_server
         WorkspaceError.PREVIOUS_REQUEST_FAILED -> R.string.workspace_error_previous_request_failed
     }
+
+@Composable
+private fun WorkspacePulse(state: WorkspaceState) {
+    val telemetry = workspaceTelemetry(state)
+    val languageLabel = LuoguLanguages.options
+        .firstOrNull { it.id == telemetry.language }
+        ?.label
+        ?: telemetry.language
+    NexusSection(
+        label = stringResource(R.string.workspace_pulse),
+        modifier = Modifier.animateContentSize(
+            animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+                NexusMotion.DURATION_NORMAL,
+                easing = NexusMotion.EasingStandard,
+            ),
+        ),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            NexusMetric(
+                label = stringResource(R.string.workspace_pulse_mode),
+                value = stringResource(workspaceModeLabelRes(telemetry.mode)),
+                modifier = Modifier.weight(1f),
+            )
+            WorkspaceMetricSeparator()
+            NexusMetric(
+                label = stringResource(R.string.workspace_pulse_language),
+                value = languageLabel,
+                modifier = Modifier.weight(1f),
+            )
+            WorkspaceMetricSeparator()
+            WorkspacePulseMetric(
+                label = stringResource(R.string.workspace_pulse_lines),
+                value = telemetry.codeLines,
+                modifier = Modifier.weight(1f),
+            )
+            WorkspaceMetricSeparator()
+            NexusMetric(
+                label = stringResource(R.string.workspace_pulse_draft),
+                value = stringResource(workspaceDraftLabelRes(telemetry.draftState)),
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun WorkspacePulseMetric(
+    label: String,
+    value: Int,
+    modifier: Modifier = Modifier,
+) {
+    val animatedValue by animateIntAsState(
+        targetValue = value,
+        animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+            NexusMotion.DURATION_NORMAL,
+            easing = NexusMotion.EasingStandard,
+        ),
+        label = "workspace pulse $label",
+    )
+    NexusMetric(label = label, value = formatCount(animatedValue), modifier = modifier)
+}
+
+@Composable
+private fun WorkspaceMetricSeparator() {
+    Box(
+        modifier = Modifier
+            .width(NexusSize.dividerThickness)
+            .height(NexusSize.tableRowHeight)
+            .background(NexusTheme.colors.border),
+    )
+}
+
+@Composable
+private fun WorkspaceO2Control(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val colors = NexusTheme.colors
+    val description = stringResource(R.string.workspace_o2_cd)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = NexusSpacing.xs),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(R.string.workspace_o2),
+            style = NexusTheme.typography.dataSmall,
+            color = colors.textSecondary,
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.semantics { contentDescription = description },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = colors.accent,
+                checkedTrackColor = colors.accentContainer,
+                checkedBorderColor = colors.accent,
+                uncheckedThumbColor = colors.textTertiary,
+                uncheckedTrackColor = colors.surfaceElevated,
+                uncheckedBorderColor = colors.border,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun WorkspaceCodeBlock(text: String) {
+    Text(
+        text = text,
+        style = NexusTheme.typography.dataSmall,
+        color = NexusTheme.colors.textPrimary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(NexusTheme.colors.surface, NexusRadius.xs)
+            .border(NexusSize.dividerThickness, NexusTheme.colors.border, NexusRadius.xs)
+            .padding(NexusSpacing.sm),
+    )
+}
+
+@Composable
+private fun WorkspaceResultTag(resultState: WorkspaceResultState) {
+    val (labelRes, tone) = when (resultState) {
+        WorkspaceResultState.IDLE -> R.string.workspace_result_idle to NexusTone.Neutral
+        WorkspaceResultState.PENDING -> R.string.workspace_result_pending to NexusTone.Warning
+        WorkspaceResultState.READY -> R.string.workspace_result_ready to NexusTone.Success
+    }
+    val pendingDescription = stringResource(R.string.workspace_result_pending_cd)
+    NexusTag(
+        text = stringResource(labelRes),
+        tone = tone,
+        selected = resultState != WorkspaceResultState.IDLE,
+        modifier = if (resultState == WorkspaceResultState.PENDING) {
+            Modifier.semantics { contentDescription = pendingDescription }
+        } else {
+            Modifier
+        },
+    )
+}
+
+private fun workspaceModeLabelRes(mode: WorkspaceMode): Int = when (mode) {
+    WorkspaceMode.RUN -> R.string.workspace_mode_run
+    WorkspaceMode.SUBMIT -> R.string.workspace_mode_submit
+}
+
+private fun workspaceDraftLabelRes(state: WorkspaceDraftState): Int = when (state) {
+    WorkspaceDraftState.DISABLED -> R.string.workspace_draft_disabled
+    WorkspaceDraftState.LOADING -> R.string.workspace_draft_loading
+    WorkspaceDraftState.CLEAN -> R.string.workspace_draft_clean
+    WorkspaceDraftState.SAVING -> R.string.workspace_draft_saving
+    WorkspaceDraftState.SAVED -> R.string.workspace_draft_saved
+    WorkspaceDraftState.ERROR -> R.string.workspace_draft_error
+}
