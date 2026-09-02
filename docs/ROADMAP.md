@@ -5,9 +5,21 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.63` and `versionCode=63`. It carries
-the Phase 65 Review Run. / 当前 Android 安装包身份为 `versionName=0.3.63`、`versionCode=63`，
-对应第 65 阶段连续复习。
+The current Android package identity is `versionName=0.3.64` and `versionCode=64`. It carries
+the Phase 66 Focus Sprint. / 当前 Android 安装包身份为 `versionName=0.3.64`、`versionCode=64`，
+对应第 66 阶段专注冲刺。
+
+## PHASE 66 — Focus Sprint / 专注冲刺
+
+Training now derives a deterministic local focus plan from due reviews and ranked targets. The
+inactive session section shows a `FOCUS SPRINT` preview with source counts and up to five problem
+rows; `BUILD SPRINT` opens the existing session form pre-filled with `FOCUS`, 25 minutes, a
+localized sprint tag, and the selected IDs. Users can edit the preset before the existing session
+transaction starts. / 训练页现在从到期复习和排序后的训练目标中生成确定性的本地专注计划。没有活动会话时，会话区域展示“专注冲刺”预览、来源数量和最多五道题；“构建冲刺”打开已有会话表单，预填“专注”、25 分钟、本地化冲刺标签和选中题目 ID。用户可以在已有会话事务启动前编辑计划。
+
+This phase is local-only and snapshot-based. It adds no schema migration, network request,
+background work, compiler, credential flow, or new session state; no data is written until the
+user confirms the existing form. / 本阶段仅限本地并基于快照；在用户确认已有表单前不会写入数据，不新增数据库迁移、网络请求、后台任务、本地编译器、凭据流程或会话状态。
 
 ## PHASE 65 — Review Run / 连续复习
 

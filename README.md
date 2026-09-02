@@ -25,11 +25,18 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 65 (Review Run)**: Training's due-review pulse now opens a focused
-continuous run with stable due-item ordering, `DONE / LEFT / TOTAL` progress, explicit outcome
-recording, and a direct next-item flow. The APK identity is aligned to `versionName=0.3.63`,
-`versionCode=63`. / 早期开发——**第 65 阶段（连续复习）**：训练页的到期复习脉冲现在会打开连续复习专注页，按稳定顺序处理到期题目，展示“已完成 / 剩余 / 总数”进度，记录明确结果，并可直接进入下一题。APK 版本身份同步为
-`versionName=0.3.63`、`versionCode=63`。
+Early development — **Phase 66 (Focus Sprint)**: Training now derives a deterministic local focus
+plan from due reviews and ranked targets. `BUILD SPRINT` opens the existing session form with
+`FOCUS`, a 25-minute target, and up to five selected problems ready to edit. The APK identity is
+aligned to `versionName=0.3.64`, `versionCode=64`. / 早期开发——**第 66 阶段（专注冲刺）**：训练页现在会从到期复习和排序后的训练目标中生成确定性的本地专注计划。“构建冲刺”会打开已有会话表单，并预填“专注”、25 分钟和最多 5 道题，用户仍可编辑。APK 版本身份同步为
+`versionName=0.3.64`、`versionCode=64`。
+
+Phase 66 remains local-first: the plan is a snapshot and only the existing session transaction
+creates data after confirmation; no migration, network request, background work, compiler,
+credential storage, or new session state was added. / 第 66 阶段继续坚持本地优先：计划是本地快照，只有确认后才通过已有会话事务写入数据；不新增迁移、网络请求、后台任务、本地编译器、凭据存储或会话状态。
+
+Phase 65 remains local-first: no database migration, network request, background work, compiler,
+credential storage, or new review result was added. / 第 65 阶段继续坚持本地优先：不新增数据库迁移、网络请求、后台任务、本地编译器、凭据存储或复习结果类型。
 
 Phase 65 remains local-first: no database migration, network request, background work, compiler,
 credential storage, or new review result was added. / 第 65 阶段继续坚持本地优先：不新增数据库迁移、网络请求、后台任务、本地编译器、凭据存储或复习结果类型。
