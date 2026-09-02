@@ -3,6 +3,21 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 52 — Legacy submission title backfill / 旧提交题名回填
+
+Upgrading a database created before Phase 50 now fills missing local submission titles from the
+cached `remote_problem_details` table first, then from the local `problems` table. Existing
+titles are never overwritten; blank cached titles and records without a matching cache remain
+PID-only. / 从第 50 阶段之前创建的数据库升级时，现在会优先从缓存的 `remote_problem_details` 表、再从本地 `problems` 表，
+为缺失的本地提交题名回填标题。已有题名绝不会被覆盖；缓存题名为空或没有匹配缓存的记录继续仅显示 PID。
+
+The 11→12 Room migration is local and non-destructive: it adds no network field, credential
+flow, main-site password, Cookie, Session, CSRF state, cloud service, cross-device sync, local
+compiler, custom-input runner, background submission, or automatic POST retry. Earlier phase
+notes and published Releases remain intact. / 11→12 Room 迁移是本地、非破坏性的：不新增网络字段、凭据流程、主站密码、Cookie、
+Session、CSRF 状态、云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试；此前阶段说明和已发布
+Release 均保持不变。
+
 ## PHASE 51 — Submission workspace title restoration / 提交工作区题名恢复
 
 Opening a Luogu request from Submission Center now passes its locally stored public problem title

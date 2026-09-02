@@ -74,8 +74,10 @@ import com.ojnexus.core.database.entity.WorkspaceDraftEntity
  * v10 (Phase 27 Luogu): local workspace drafts keyed by judge and problem.
  *
  * v11 (Phase 50 Luogu): nullable local problem titles on submission history rows.
+ *
+ * v12 (Phase 52 Luogu): backfill legacy submission titles from local problem caches.
  */
-const val OJ_NEXUS_SCHEMA_VERSION = 11
+const val OJ_NEXUS_SCHEMA_VERSION = 12
 
 @Database(
     entities = [
@@ -572,6 +574,37 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_11_12: Migration = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "UPDATE `submission_jobs` SET `title` = (" +
+                        "SELECT NULLIF(TRIM(`remote_problem_details`.`title`), '') " +
+                        "FROM `remote_problem_details` " +
+                        "WHERE `remote_problem_details`.`judge` = `submission_jobs`.`judge` " +
+                        "AND `remote_problem_details`.`external_id` = `submission_jobs`.`pid` " +
+                        "LIMIT 1) " +
+                        "WHERE `submission_jobs`.`title` IS NULL " +
+                        "AND `submission_jobs`.`pid` IS NOT NULL " +
+                        "AND EXISTS (SELECT 1 FROM `remote_problem_details` " +
+                        "WHERE `remote_problem_details`.`judge` = `submission_jobs`.`judge` " +
+                        "AND `remote_problem_details`.`external_id` = `submission_jobs`.`pid`)",
+                )
+                db.execSQL(
+                    "UPDATE `submission_jobs` SET `title` = (" +
+                        "SELECT NULLIF(TRIM(`problems`.`title`), '') " +
+                        "FROM `problems` " +
+                        "WHERE `problems`.`judge` = `submission_jobs`.`judge` " +
+                        "AND `problems`.`external_id` = `submission_jobs`.`pid` " +
+                        "LIMIT 1) " +
+                        "WHERE `submission_jobs`.`title` IS NULL " +
+                        "AND `submission_jobs`.`pid` IS NOT NULL " +
+                        "AND EXISTS (SELECT 1 FROM `problems` " +
+                        "WHERE `problems`.`judge` = `submission_jobs`.`judge` " +
+                        "AND `problems`.`external_id` = `submission_jobs`.`pid`)",
+                )
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
                 .addMigrations(
@@ -585,6 +618,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
                     MIGRATION_8_9,
                     MIGRATION_9_10,
                     MIGRATION_10_11,
+                    MIGRATION_11_12,
                 )
                 .build()
     }

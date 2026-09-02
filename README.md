@@ -25,6 +25,21 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Early development — **Phase 52 (legacy submission title backfill)**: upgrading from the
+pre-title schema now backfills missing local submission titles from cached remote problem
+details first, then the local problem library. Existing titles are untouched, and records with
+no matching cache remain safely PID-only. The APK identity is aligned to `versionName=0.3.47`,
+`versionCode=47`. / 早期开发——**第 52 阶段（旧提交题名回填）**：从旧版本升级时，现在会优先从本地缓存的
+远程题面详情、再从本地题库，为缺失题名的提交记录回填标题。已有题名不会被覆盖；找不到缓存的记录安全地保持仅 PID 显示。
+APK 版本身份同步为 `versionName=0.3.47`、`versionCode=47`。
+
+Phase 52 is a local, non-destructive Room migration only. It does not add network fields,
+main-site passwords, Cookie, Session, CSRF state, cloud service, cross-device sync, local
+compiler, custom-input runner, background submission, or automatic POST retry. Earlier phases,
+commits, tags, and releases remain preserved. / 第 52 阶段仅是本地、非破坏性的 Room 数据库迁移，不新增网络字段、
+主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交 POST 重试。
+此前阶段、commit、标签和 Release 均继续保留。
+
 Early development — **Phase 51 (submission workspace title restoration)**: reopening a Luogu
 workspace from Submission Center now carries the locally stored problem title through the
 existing encoded route. PID remains the only submission identity; blank or legacy titles keep
