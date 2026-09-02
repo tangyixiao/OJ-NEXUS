@@ -165,7 +165,7 @@ git commit -m "feat: add workspace sample and optimization state"
 fun source_line_count_handles_blank_and_multiline_code() {
     assertEquals(0, sourceLineCount(""))
     assertEquals(1, sourceLineCount("int main() {}\n"))
-    assertEquals(2, sourceLineCount("int main() {\n  return 0;\n}\n"))
+    assertEquals(3, sourceLineCount("int main() {\n  return 0;\n}\n"))
 }
 
 @Test
@@ -281,4 +281,3 @@ Expected: all tasks complete with BUILD SUCCESSFUL.
 - [ ] Step 4: Search post-interaction logcat for FATAL EXCEPTION and Process: com.ojnexus; record NO_APP_FATAL_EXCEPTION when absent. Update v0.3.56.md with actual command output summary, screenshot path, package identity, hash, and log result.
 
 - [ ] Step 5: Run git diff --check, git status --short, and git log -8 --oneline. The worktree must be clean and release evidence must match the installed APK.
-
