@@ -35,6 +35,7 @@ class ReviewRepository(
                 ReviewQueueItem(
                     problemId = row.review.problemId,
                     problemTitle = problem.title,
+                    externalId = problem.externalId,
                     judge = com.ojnexus.core.model.JudgeId.fromId(problem.judge)
                         ?: com.ojnexus.core.model.JudgeId.LOCAL,
                     difficulty = problem.difficulty,
