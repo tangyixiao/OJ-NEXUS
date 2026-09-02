@@ -132,7 +132,7 @@ class ReviewRunViewModel(
                 }
             } catch (error: CancellationException) {
                 throw error
-            } catch (_: Throwable) {
+            } catch (_: Exception) {
                 internal.update { it.copy(error = localizedErrorMessage(), isRecording = false) }
             }
         }

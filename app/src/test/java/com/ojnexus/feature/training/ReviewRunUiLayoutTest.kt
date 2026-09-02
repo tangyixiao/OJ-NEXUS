@@ -42,7 +42,7 @@ class ReviewRunUiLayoutTest {
         )
 
         assertTrue(source.contains("localizedString(com.ojnexus.R.string.error_load_failed)"))
-        assertTrue(source.contains("catch (_: Throwable)"))
+        assertTrue(source.contains("catch (_: Exception)"))
         assertTrue(source.contains("isRecording = false"))
         assertTrue(!source.contains("Review queue unavailable"))
     }
