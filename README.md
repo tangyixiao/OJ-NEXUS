@@ -25,11 +25,14 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 63 (Session Debrief)**: Terminal training sessions now expose a
-local debrief with solved, attention, and pending lanes, latest in-session verdicts, existing
-review signals, and direct `OPEN REVIEW` or `OPEN` actions. The APK identity is aligned to
-`versionName=0.3.61`, `versionCode=61`. / 早期开发——**第 63 阶段（会话复盘）**：已结束训练会话现在提供本地复盘，按已解决、需关注和待处理分组，展示会话内最近 verdict、已有复习状态，并提供“打开复习”或“打开”操作。APK 版本身份同步为
-`versionName=0.3.61`、`versionCode=61`。
+Early development — **Phase 64 (Session Review Actions)**: Terminal debriefs can now queue
+attention and pending problems into the local review ladder without overwriting existing review
+rows; reactive debrief rows switch to `OPEN REVIEW` after scheduling. The APK identity is aligned
+to `versionName=0.3.62`, `versionCode=62`. / 早期开发——**第 64 阶段（会话复习操作）**：终端复盘现在可以将需关注和待处理题目批量加入本地复习阶梯，不覆盖已有复习记录；排程后复盘行会实时切换为“打开复习”。APK 版本身份同步为
+`versionName=0.3.62`、`versionCode=62`。
+
+Phase 64 remains local-first: no database migration, network request, background work, compiler,
+credential storage, or new session state was added. / 第 64 阶段继续坚持本地优先：不新增数据库迁移、网络请求、后台任务、本地编译器、凭据存储或会话状态。
 
 Phase 63 is a local read-only debrief and navigation surface. It adds no database migration,
 network request, background submission, compiler, credential storage, or new session state. / 第 63 阶段仅增加本地只读复盘与导航展示，

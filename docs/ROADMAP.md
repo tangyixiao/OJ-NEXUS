@@ -5,9 +5,16 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.61` and `versionCode=61`. It carries
-the Phase 63 Session Debrief. / 当前 Android 安装包身份为 `versionName=0.3.61`、`versionCode=61`，
-对应第 63 阶段会话复盘。
+The current Android package identity is `versionName=0.3.62` and `versionCode=62`. It carries
+the Phase 64 Session Review Actions. / 当前 Android 安装包身份为 `versionName=0.3.62`、`versionCode=62`，
+对应第 64 阶段会话复习操作。
+
+## PHASE 64 — Session Review Actions / 会话复习操作
+
+The terminal debrief now derives a local review-candidate set from ATTENTION and PENDING rows.
+`SCHEDULE ATTENTION` inserts only missing stage-0 review rows in one transaction; existing review
+rows are preserved. Room reactivity then changes each affected row to `OPEN REVIEW`, while a quiet
+`REVIEW QUEUE READY` state replaces the bulk action when nothing remains to schedule. / 终端复盘现在从“需关注”和“待处理”行中计算本地复习候选；“安排需关注”在一个事务内只插入缺失的初始复习记录，不覆盖已有复习记录。Room 响应式更新会让受影响的行切换为“打开复习”，没有待排程题目时则显示安静的“复习队列已就绪”状态。
 
 ## PHASE 63 — Session Debrief / 会话复盘
 
