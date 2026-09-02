@@ -12,11 +12,15 @@ import com.ojnexus.core.model.TrainingTask
 import com.ojnexus.core.ui.Loadable
 import java.time.Clock
 import java.time.LocalDate
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 
 data class WeekSummary(
     val solved: Int,
@@ -34,6 +38,7 @@ data class DashboardUiState(
     val recent: List<com.ojnexus.core.model.RecentAttempt>,
     /** Heatmap-style intensities (0–4) for the last 7 days, oldest first. */
     val loadWeek: List<Int>,
+    val summary: DashboardSummary,
     val judgeConnections: List<JudgeDashboardConnection> = emptyList(),
     // Codeforces rating remains source-native and official.
     val cfAccount: com.ojnexus.core.database.entity.JudgeAccountEntity? = null,
@@ -83,36 +88,54 @@ class DashboardViewModel(
         LocalSnapshot(tasks, week, streaks, queue, recent)
     }
 
+    private val clockTicks = flow {
+        while (currentCoroutineContext().isActive) {
+            emit(clock.instant().epochSecond)
+            delay(CLOCK_TICK_INTERVAL_MS)
+        }
+    }
+
     val state: StateFlow<Loadable<DashboardUiState>> = combine(
         localSnapshot,
         judgeDataRepository.observeConnections(),
         judgeDataRepository.observeContests(),
-    ) { local, connections, contests ->
-        val now = clock.instant().epochSecond
+        clockTicks,
+    ) { local, connections, contests, now ->
         val cfAccount = connections.accounts[com.ojnexus.core.model.JudgeId.CODEFORCES]
+        val week = WeekSummary(
+            solved = local.week.sumOf { it.solved },
+            attempts = local.week.sumOf { it.attempts },
+            trainingMs = local.week.sumOf { it.trainingMs },
+        )
+        val dueReviews = local.queue.filter { it.dueDayIndex <= todayEpochDay }
+        val judgeConnections = connections.accounts.mapNotNull { (judge, account) ->
+            if (!account.enabled) null else JudgeDashboardConnection(judge, account, connections.syncStates[judge])
+        }.sortedBy { it.judge.ordinal }
+        val nextContest = contests
+            .filter { (it.startTimeSeconds ?: 0L) > now }
+            .minByOrNull { it.startTimeSeconds ?: Long.MAX_VALUE }
         Loadable.Ready(
             DashboardUiState(
                 todayTasks = local.tasks,
-                week = WeekSummary(
-                    solved = local.week.sumOf { it.solved },
-                    attempts = local.week.sumOf { it.attempts },
-                    trainingMs = local.week.sumOf { it.trainingMs },
-                ),
+                week = week,
                 currentStreak = local.streaks.current,
                 longestStreak = local.streaks.longest,
-                nextReview = local.queue.filter { it.dueDayIndex <= todayEpochDay }
-                    .minByOrNull { it.dueDayIndex },
+                nextReview = dueReviews.minByOrNull { it.dueDayIndex },
                 recent = local.recent,
                 loadWeek = local.week.sortedBy { it.dayIndex }.map { ActivityScorer.intensity(it) },
-                judgeConnections = connections.accounts.mapNotNull { (judge, account) ->
-                    if (!account.enabled) null else JudgeDashboardConnection(judge, account, connections.syncStates[judge])
-                }.sortedBy { it.judge.ordinal },
+                summary = deriveDashboardSummary(
+                    reviews = local.queue,
+                    todayEpochDay = todayEpochDay,
+                    enabledJudgeCount = judgeConnections.size,
+                    solvedThisWeek = week.solved,
+                    contests = contests,
+                    nowSeconds = now,
+                ),
+                judgeConnections = judgeConnections,
                 cfAccount = cfAccount,
                 cfProfile = connections.profiles[com.ojnexus.core.model.JudgeId.CODEFORCES],
                 cfSyncState = connections.syncStates[com.ojnexus.core.model.JudgeId.CODEFORCES],
-                nextContest = contests
-                    .filter { (it.startTimeSeconds ?: 0L) > now }
-                    .minByOrNull { it.startTimeSeconds ?: Long.MAX_VALUE },
+                nextContest = nextContest,
                 nowSeconds = now,
             ),
         )
@@ -122,3 +145,5 @@ class DashboardViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
 }
+
+private const val CLOCK_TICK_INTERVAL_MS = 60_000L
