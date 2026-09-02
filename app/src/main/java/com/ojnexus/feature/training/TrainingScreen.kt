@@ -1198,9 +1198,10 @@ private fun NewSessionDialog(
     var duration by rememberSaveable(initialDuration) { mutableStateOf(initialDuration) }
     var tag by rememberSaveable(initialTag) { mutableStateOf(initialTag) }
     val selected = rememberSaveable(initialSelectedIds) { mutableStateOf(initialSelectedIds.toSet()) }
+    val canDismiss = canDismissSessionDialog(startState)
 
     androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (canDismiss) onDismiss() },
         containerColor = NexusTheme.colors.surface,
         titleContentColor = NexusTheme.colors.textPrimary,
         textContentColor = NexusTheme.colors.textSecondary,
@@ -1322,9 +1323,9 @@ private fun NewSessionDialog(
             Text(
                 text = stringResource(R.string.action_cancel),
                 style = NexusTheme.typography.data,
-                color = NexusTheme.colors.textSecondary,
+                color = if (canDismiss) NexusTheme.colors.textSecondary else NexusTheme.colors.textTertiary,
                 modifier = Modifier
-                    .clickable(role = Role.Button) { onDismiss() }
+                    .clickable(enabled = canDismiss, role = Role.Button) { onDismiss() }
                     .padding(NexusSpacing.xs),
             )
         },

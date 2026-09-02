@@ -50,6 +50,9 @@ fun trainingSessionStartState(
     )
 }
 
+fun canDismissSessionDialog(startState: TrainingSessionStartState): Boolean =
+    startState !is TrainingSessionStartState.Starting
+
 class TrainingViewModel(
     private val trainingRepository: TrainingRepository,
     private val reviewRepository: ReviewRepository,

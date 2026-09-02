@@ -8,6 +8,13 @@ import org.junit.Test
 class TrainingSessionStartStateTest {
 
     @Test
+    fun `starting session cannot dismiss its dialog`() {
+        assertEquals(false, canDismissSessionDialog(TrainingSessionStartState.Starting))
+        assertEquals(true, canDismissSessionDialog(TrainingSessionStartState.Idle))
+        assertEquals(true, canDismissSessionDialog(TrainingSessionStartState.Failed("FAILED")))
+    }
+
+    @Test
     fun `successful creation produces a started state`() {
         assertEquals(
             TrainingSessionStartState.Started,
