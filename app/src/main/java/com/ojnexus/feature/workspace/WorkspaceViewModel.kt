@@ -38,6 +38,8 @@ enum class WorkspaceDraftState { DISABLED, LOADING, CLEAN, SAVING, SAVED, ERROR 
 data class WorkspaceState(
     val pid: String,
     val title: String?,
+    val sampleInput: String? = null,
+    val sampleOutput: String? = null,
     val code: String = "",
     val input: String = "",
     val language: String = LuoguLanguages.DEFAULT_ID,
@@ -76,12 +78,16 @@ class WorkspaceViewModel(
     private val delayForResult: suspend (Long) -> Unit = { delay(it) },
     private val drafts: WorkspaceDraftRepository? = null,
     private val delayForDraft: suspend (Long) -> Unit = { delay(it) },
+    sampleInput: String? = null,
+    sampleOutput: String? = null,
 ) : ViewModel() {
     private val workScope = testScope ?: viewModelScope
     private val mutableState = MutableStateFlow(
         WorkspaceState(
             pid = pid,
             title = title,
+            sampleInput = sampleInput?.takeIf { it.isNotBlank() },
+            sampleOutput = sampleOutput?.takeIf { it.isNotBlank() },
             mode = if (gateway.supportsCustomInputRun) WorkspaceMode.RUN else WorkspaceMode.SUBMIT,
             customRunAvailable = gateway.supportsCustomInputRun,
             draftState = if (drafts == null) WorkspaceDraftState.DISABLED else WorkspaceDraftState.LOADING,
@@ -190,6 +196,14 @@ class WorkspaceViewModel(
     fun setInput(value: String) {
         mutableState.update { it.copy(input = value, error = null) }
         markDraftEdited()
+    }
+
+    fun loadSampleInput() {
+        mutableState.value.sampleInput?.let(::setInput)
+    }
+
+    fun clearInput() {
+        setInput("")
     }
 
     fun setLanguage(value: String) {

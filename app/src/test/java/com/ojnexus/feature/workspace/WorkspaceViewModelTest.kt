@@ -190,6 +190,52 @@ class WorkspaceViewModelTest {
     }
 
     @Test
+    fun `sample input can be loaded and cleared without changing code`() = runBlocking {
+        val viewModel = WorkspaceViewModel(
+            pid = "P1001",
+            title = "A+B",
+            gateway = FakeGateway(),
+            credentialStore = FakeStore(),
+            testScope = CoroutineScope(coroutineContext),
+            sampleInput = "1 2\n",
+            sampleOutput = "3\n",
+        )
+
+        viewModel.setCode("int main() {}")
+        viewModel.loadSampleInput()
+        assertEquals("1 2\n", viewModel.state.value.input)
+        assertEquals("int main() {}", viewModel.state.value.code)
+        assertEquals("3\n", viewModel.state.value.sampleOutput)
+        viewModel.clearInput()
+        assertEquals("", viewModel.state.value.input)
+    }
+
+    @Test
+    fun `run forwards the O2 flag`() = runBlocking {
+        val gateway = FakeGateway()
+        val viewModel = WorkspaceViewModel("P1001", "A+B", gateway, FakeStore(), CoroutineScope(coroutineContext))
+
+        viewModel.setCode("print(1)")
+        viewModel.setO2(true)
+        viewModel.submit()
+
+        assertEquals(true, gateway.lastRunRequest?.o2)
+    }
+
+    @Test
+    fun `submit forwards the O2 flag`() = runBlocking {
+        val gateway = FakeGateway()
+        val viewModel = WorkspaceViewModel("P1001", "A+B", gateway, FakeStore(), CoroutineScope(coroutineContext))
+
+        viewModel.setCode("int main() {}")
+        viewModel.setO2(true)
+        viewModel.setMode(WorkspaceMode.SUBMIT)
+        viewModel.submit()
+
+        assertEquals(true, gateway.lastProblemRequest?.o2)
+    }
+
+    @Test
     fun `busy submit is not duplicated`() = runBlocking {
         val gateway = BusyGateway()
         val scope = CoroutineScope(Dispatchers.Default)
@@ -454,6 +500,7 @@ private class FakeGateway(
 ) : LuoguOpenGateway {
     var submitCount = 0
     var lastProblemRequest: LuoguProblemJudgeRequest? = null
+    var lastRunRequest: LuoguRunRequest? = null
     override val supportsCustomInputRun: Boolean = customRunAvailable
     override suspend fun submitProblem(request: LuoguProblemJudgeRequest): LuoguOpenSubmission {
         submitCount++
@@ -461,7 +508,10 @@ private class FakeGateway(
         return LuoguOpenSubmission("req-1")
     }
 
-    override suspend fun run(request: LuoguRunRequest): LuoguOpenSubmission = LuoguOpenSubmission("run-1")
+    override suspend fun run(request: LuoguRunRequest): LuoguOpenSubmission {
+        lastRunRequest = request
+        return LuoguOpenSubmission("run-1")
+    }
 
     override suspend fun fetchResult(requestId: String): LuoguOpenResult =
         LuoguOpenResult.Ready(
