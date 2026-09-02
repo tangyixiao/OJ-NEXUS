@@ -29,10 +29,10 @@ Early development — **Phase 55 (Review triage)**: Training now opens with a lo
 showing overdue, today, and later counts, three filters for all/due-now/upcoming items, and a
 real `START NEXT` action that opens the earliest due review. The queue keeps its existing rows,
 navigation, and empty states; reduced motion is respected. The APK identity is aligned to
-`versionName=0.3.50`, `versionCode=50`. / 早期开发——**第 55 阶段（复习分诊台）**：训练页新增本地复习脉冲，
+`versionName=0.3.51`, `versionCode=51`. / 早期开发——**第 55 阶段（复习分诊台）**：训练页新增本地复习脉冲，
 展示逾期、今天和稍后数量，提供全部、现在到期和即将到期三个筛选，并用真实的“开始下一题”打开最早到期的复习。
 队列继续保留原有行、导航和空状态，并遵守减少动效设置。APK 版本身份同步为
-`versionName=0.3.50`、`versionCode=50`。
+`versionName=0.3.51`、`versionCode=51`。
 
 Phase 55 is a local presentation and navigation change. Counts and next-item selection are
 derived from existing Room/Flow state; no review record is created by the pulse. It adds no
