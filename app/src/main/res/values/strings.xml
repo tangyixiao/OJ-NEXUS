@@ -142,6 +142,16 @@
     <string name="problems_filter_solved">SOLVED</string>
     <string name="problems_filter_review">REVIEW</string>
     <string name="problems_filter_favorite">FAVORITE</string>
+    <string name="problems_section_pulse">LIBRARY PULSE</string>
+    <string name="problems_pulse_total">TOTAL</string>
+    <string name="problems_pulse_visible">VISIBLE</string>
+    <string name="problems_pulse_solved">SOLVED</string>
+    <string name="problems_pulse_review">REVIEW</string>
+    <string name="problems_clear_filters">CLEAR FILTERS</string>
+    <string name="problems_clear_filters_cd">Clear problem filters and restore default sorting</string>
+    <string name="problems_favorite_on_cd">Remove problem from favorites</string>
+    <string name="problems_favorite_off_cd">Add problem to favorites</string>
+    <string name="problems_delete_cd">Delete problem</string>
     <string name="problems_sort_label">SORT</string>
     <string name="problems_sort_updated">UPDATED</string>
     <string name="problems_sort_difficulty">DIFFICULTY</string>

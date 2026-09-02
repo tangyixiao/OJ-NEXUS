@@ -21,6 +21,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateContentSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,6 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -50,14 +56,17 @@ import com.ojnexus.core.ui.UrlOpener
 import com.ojnexus.core.ui.labelRes
 import com.ojnexus.core.ui.tone
 import com.ojnexus.core.designsystem.NexusRadius
+import com.ojnexus.core.designsystem.NexusMotion
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.designsystem.component.NexusDivider
+import com.ojnexus.core.designsystem.component.NexusMetric
 import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
+import com.ojnexus.core.designsystem.component.foregroundColor
 import com.ojnexus.core.database.entity.RemoteProblemEntity
 
 // Library layout metrics.
@@ -66,6 +75,7 @@ private val RatingColumnWidth = 56.dp
 private val StatusColumnWidth = 92.dp
 private val IconTouchSize = 32.dp
 private val RemoteProblemRowHeight = 82.dp
+private val ProblemStatusRailWidth = 3.dp
 
 internal enum class ProblemScope { LIBRARY, REMOTE }
 
@@ -105,7 +115,7 @@ fun ProblemsScreen(
             trailing = {
                 Text(
                     text = when (val s = state) {
-                        is Loadable.Ready -> stringResource(R.string.problems_count, s.value.totalCount)
+                        is Loadable.Ready -> stringResource(R.string.problems_count, s.value.summary.visible)
                         else -> ""
                     },
                     style = NexusTheme.typography.dataSmall,
@@ -199,6 +209,12 @@ private fun LibraryContent(
                     query = uiState.filter.query,
                     onQueryChange = viewModel::setQuery,
                     hintText = stringResource(R.string.problems_search_hint),
+                )
+                Spacer(modifier = Modifier.height(NexusSpacing.xs))
+                LibraryPulse(
+                    summary = uiState.summary,
+                    showClear = !isProblemLibraryDefaultView(uiState.filter, uiState.sort),
+                    onClear = viewModel::clearFilter,
                 )
                 if (BuildConfig.DEBUG) {
                     Spacer(modifier = Modifier.height(NexusSpacing.xs))
@@ -324,6 +340,88 @@ private fun EmptyHint(title: String, hint: String) {
             )
         }
     }
+}
+
+@Composable
+private fun LibraryPulse(
+    summary: ProblemLibrarySummary,
+    showClear: Boolean,
+    onClear: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    val reduceMotion = NexusTheme.reduceMotion
+    val clearDescription = stringResource(R.string.problems_clear_filters_cd)
+    NexusSection(
+        label = stringResource(R.string.problems_section_pulse),
+        trailing = if (showClear) {
+            {
+                Text(
+                    text = stringResource(R.string.problems_clear_filters),
+                    style = NexusTheme.typography.sectionLabel,
+                    color = colors.accent,
+                    modifier = Modifier
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = clearDescription,
+                            onClick = onClear,
+                        )
+                        .semantics { contentDescription = clearDescription },
+                )
+            }
+        } else {
+            null
+        },
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize(
+                    animationSpec = if (reduceMotion) snap() else tween(
+                        NexusMotion.DURATION_NORMAL,
+                        easing = NexusMotion.EasingStandard,
+                    ),
+                ),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
+        ) {
+            LibraryPulseMetric(
+                label = stringResource(R.string.problems_pulse_total),
+                value = summary.total,
+                modifier = Modifier.weight(1f),
+            )
+            LibraryPulseMetric(
+                label = stringResource(R.string.problems_pulse_visible),
+                value = summary.visible,
+                modifier = Modifier.weight(1f),
+            )
+            LibraryPulseMetric(
+                label = stringResource(R.string.problems_pulse_solved),
+                value = summary.solved,
+                modifier = Modifier.weight(1f),
+            )
+            LibraryPulseMetric(
+                label = stringResource(R.string.problems_pulse_review),
+                value = summary.review,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun LibraryPulseMetric(label: String, value: Int, modifier: Modifier = Modifier) {
+    val animatedValue by animateIntAsState(
+        targetValue = value,
+        animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+            NexusMotion.DURATION_NORMAL,
+            easing = NexusMotion.EasingStandard,
+        ),
+        label = "library pulse $label",
+    )
+    NexusMetric(
+        label = label,
+        value = com.ojnexus.core.ui.formatCount(animatedValue),
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -810,6 +908,10 @@ private fun ProblemRow(
     onDelete: () -> Unit,
 ) {
     val colors = NexusTheme.colors
+    val favoriteDescription = stringResource(
+        if (problem.favorite) R.string.problems_favorite_on_cd else R.string.problems_favorite_off_cd,
+    )
+    val deleteDescription = stringResource(R.string.problems_delete_cd)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -817,6 +919,13 @@ private fun ProblemRow(
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Box(
+            modifier = Modifier
+                .width(ProblemStatusRailWidth)
+                .height(ProblemRowHeight)
+                .background(problem.status.tone().foregroundColor(colors)),
+        )
+        Spacer(modifier = Modifier.width(NexusSpacing.xs))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -843,7 +952,12 @@ private fun ProblemRow(
         Box(
             modifier = Modifier
                 .size(IconTouchSize)
-                .clickable(role = Role.Button, onClick = onToggleFavorite)
+                .clickable(
+                    role = Role.Button,
+                    onClickLabel = favoriteDescription,
+                    onClick = onToggleFavorite,
+                )
+                .semantics { contentDescription = favoriteDescription }
                 .padding(8.dp)
                 .background(
                     if (problem.favorite) colors.accent else colors.surface,
@@ -878,7 +992,12 @@ private fun ProblemRow(
             Box(
                 modifier = Modifier
                     .size(IconTouchSize)
-                    .clickable(role = Role.Button, onClick = onDelete),
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = deleteDescription,
+                        onClick = onDelete,
+                    )
+                    .semantics { contentDescription = deleteDescription },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(

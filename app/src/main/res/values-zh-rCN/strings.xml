@@ -121,6 +121,16 @@
     <string name="problems_filter_solved">已解决</string>
     <string name="problems_filter_review">复习中</string>
     <string name="problems_filter_favorite">收藏</string>
+    <string name="problems_section_pulse">题库脉冲</string>
+    <string name="problems_pulse_total">总数</string>
+    <string name="problems_pulse_visible">当前显示</string>
+    <string name="problems_pulse_solved">已解决</string>
+    <string name="problems_pulse_review">复习中</string>
+    <string name="problems_clear_filters">清除筛选</string>
+    <string name="problems_clear_filters_cd">清除题库筛选并恢复默认排序</string>
+    <string name="problems_favorite_on_cd">取消收藏题目</string>
+    <string name="problems_favorite_off_cd">收藏题目</string>
+    <string name="problems_delete_cd">删除题目</string>
     <string name="problems_sort_label">排序</string>
     <string name="problems_sort_updated">更新时间</string>
     <string name="problems_sort_difficulty">难度</string>
