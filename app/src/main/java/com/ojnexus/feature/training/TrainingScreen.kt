@@ -1003,9 +1003,7 @@ private fun NewSessionDialog(
         textContentColor = NexusTheme.colors.textSecondary,
         title = { Text(text = stringResource(R.string.session_create_title), style = NexusTheme.typography.title) },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-            ) {
+            Column {
                 Text(
                     text = stringResource(R.string.task_field_type),
                     style = NexusTheme.typography.sectionLabel,
