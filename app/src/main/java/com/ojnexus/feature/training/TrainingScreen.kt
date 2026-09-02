@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.animateContentSize
@@ -131,11 +132,13 @@ private fun TrainingContent(
 ) {
     var showTaskDialog by rememberSaveable { mutableStateOf(false) }
     var showSessionDialog by rememberSaveable { mutableStateOf(false) }
+    var focusSprintMode by rememberSaveable { mutableStateOf(false) }
     var showTaskProblemPicker by rememberSaveable { mutableStateOf(false) }
     var reviewFilter by rememberSaveable { mutableStateOf(ReviewQueueFilter.ALL) }
     val reduceMotion = NexusTheme.reduceMotion
     val reviewSummary = reviewQueueSummary(uiState.reviews)
     val visibleReviews = filterReviewBuckets(uiState.reviews, reviewFilter)
+    val focusSprintPlan = buildFocusSprintPlan(uiState.reviews, uiState.recommendations)
 
     Column(
         modifier = Modifier
@@ -149,7 +152,15 @@ private fun TrainingContent(
         SessionSection(
             activeSession = uiState.activeSession,
             onOpenSession = onOpenSession,
-            onNewSession = { showSessionDialog = true },
+            focusSprintPlan = focusSprintPlan,
+            onNewSession = {
+                focusSprintMode = false
+                showSessionDialog = true
+            },
+            onFocusSprint = {
+                focusSprintMode = true
+                showSessionDialog = true
+            },
         )
 
         SectionGap()
@@ -292,12 +303,20 @@ private fun TrainingContent(
     if (showSessionDialog) {
         NewSessionDialog(
             problems = problems,
+            initialType = if (focusSprintMode) TrainingType.FOCUS else TrainingType.PRACTICE,
+            initialDuration = if (focusSprintMode) "25" else "",
+            initialTag = if (focusSprintMode) stringResource(R.string.training_focus_sprint_tag) else "",
+            initialSelectedIds = if (focusSprintMode) focusSprintPlan.ids else emptyList(),
             onConfirm = { type, duration, tag, problemIds ->
                 viewModel.startSession(type, duration, tag, problemIds)
                 showSessionDialog = false
+                focusSprintMode = false
                 onOpenSession(null)
             },
-            onDismiss = { showSessionDialog = false },
+            onDismiss = {
+                showSessionDialog = false
+                focusSprintMode = false
+            },
         )
     }
 }
@@ -602,7 +621,9 @@ private fun SectionEmpty(text: String) {
 private fun SessionSection(
     activeSession: TrainingSession?,
     onOpenSession: (Long?) -> Unit,
+    focusSprintPlan: FocusSprintPlan,
     onNewSession: () -> Unit,
+    onFocusSprint: () -> Unit,
 ) {
     val colors = NexusTheme.colors
     NexusSection(
@@ -646,6 +667,11 @@ private fun SessionSection(
                         color = colors.accent,
                     )
                 }
+                Spacer(modifier = Modifier.height(NexusSpacing.md))
+                FocusSprintPanel(
+                    plan = focusSprintPlan,
+                    onLaunch = onFocusSprint,
+                )
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     NexusTag(
@@ -683,6 +709,156 @@ private fun SessionSection(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FocusSprintPanel(
+    plan: FocusSprintPlan,
+    onLaunch: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    val reduceMotion = NexusTheme.reduceMotion
+    val launchEnabled = plan.items.isNotEmpty()
+    val launchDescription = stringResource(R.string.training_focus_sprint_launch_cd)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.background, NexusRadius.sm)
+            .animateContentSize(
+                animationSpec = if (reduceMotion) snap() else tween(
+                    NexusMotion.DURATION_NORMAL,
+                    easing = NexusMotion.EasingStandard,
+                ),
+            )
+            .padding(NexusSpacing.md),
+    ) {
+        Row(verticalAlignment = Alignment.Top) {
+            Box(
+                modifier = Modifier
+                    .width(NexusSize.focusSprintRailWidth)
+                    .height(NexusSize.focusSprintRailHeight)
+                    .background(colors.accent, NexusRadius.xs),
+            )
+            Spacer(modifier = Modifier.width(NexusSpacing.sm))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.training_focus_sprint_title),
+                    style = NexusTheme.typography.sectionLabel,
+                    color = colors.accent,
+                )
+                Text(
+                    text = if (launchEnabled) {
+                        stringResource(R.string.training_focus_sprint_ready)
+                    } else {
+                        stringResource(R.string.training_focus_sprint_empty)
+                    },
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textSecondary,
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+        ) {
+            NexusMetric(
+                label = stringResource(R.string.training_focus_sprint_total),
+                value = plan.items.size.toString(),
+                changeTone = if (launchEnabled) NexusTone.Accent else NexusTone.Neutral,
+                modifier = Modifier.weight(1f),
+            )
+            NexusMetric(
+                label = stringResource(R.string.training_focus_sprint_due),
+                value = plan.dueCount.toString(),
+                changeTone = if (plan.dueCount > 0) NexusTone.Warning else NexusTone.Neutral,
+                modifier = Modifier.weight(1f),
+            )
+            NexusMetric(
+                label = stringResource(R.string.training_focus_sprint_targets),
+                value = plan.targetCount.toString(),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        if (plan.items.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            plan.items.take(3).forEachIndexed { index, item ->
+                FocusSprintPreview(item)
+                if (index != plan.items.take(3).lastIndex) {
+                    NexusDivider(insetEnd = NexusSpacing.xxs)
+                }
+            }
+            if (plan.items.size > 3) {
+                Text(
+                    text = stringResource(R.string.training_focus_sprint_more, plan.items.size - 3),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textTertiary,
+                    modifier = Modifier.padding(top = NexusSpacing.xxs),
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
+        Box(
+            modifier = Modifier
+                .background(
+                    if (launchEnabled) colors.surface else colors.background,
+                    NexusRadius.xs,
+                )
+                .clickable(
+                    enabled = launchEnabled,
+                    role = Role.Button,
+                    onClickLabel = launchDescription,
+                    onClick = onLaunch,
+                )
+                .semantics { contentDescription = launchDescription }
+                .padding(horizontal = NexusSpacing.md, vertical = NexusSpacing.xs),
+        ) {
+            Text(
+                text = stringResource(R.string.training_focus_sprint_launch),
+                style = NexusTheme.typography.data,
+                color = if (launchEnabled) colors.accent else colors.textTertiary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FocusSprintPreview(item: FocusSprintItem) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = NexusSpacing.xxs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = buildString {
+                    append(item.judge)
+                    item.externalId?.let { append(" ").append(it) }
+                },
+                style = NexusTheme.typography.sectionLabel,
+                color = NexusTheme.colors.textTertiary,
+            )
+            Text(
+                text = item.title,
+                style = NexusTheme.typography.dataSmall,
+                color = NexusTheme.colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        NexusTag(
+            text = stringResource(
+                if (item.source == FocusSprintSource.DUE) {
+                    R.string.training_focus_sprint_due_source
+                } else {
+                    R.string.training_focus_sprint_target_source
+                },
+            ),
+            tone = if (item.source == FocusSprintSource.DUE) NexusTone.Warning else NexusTone.Neutral,
+        )
     }
 }
 
@@ -991,13 +1167,17 @@ private fun ProblemPickerDialog(problems: List<com.ojnexus.core.model.Problem>, 
 @Composable
 private fun NewSessionDialog(
     problems: List<com.ojnexus.core.model.Problem>,
+    initialType: TrainingType = TrainingType.PRACTICE,
+    initialDuration: String = "",
+    initialTag: String = "",
+    initialSelectedIds: List<Long> = emptyList(),
     onConfirm: (TrainingType, Int?, String?, List<Long>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var type by rememberSaveable { mutableStateOf(TrainingType.PRACTICE) }
-    var duration by rememberSaveable { mutableStateOf("") }
-    var tag by rememberSaveable { mutableStateOf("") }
-    val selected = rememberSaveable { mutableStateOf(setOf<Long>()) }
+    var type by rememberSaveable(initialType) { mutableStateOf(initialType) }
+    var duration by rememberSaveable(initialDuration) { mutableStateOf(initialDuration) }
+    var tag by rememberSaveable(initialTag) { mutableStateOf(initialTag) }
+    val selected = rememberSaveable(initialSelectedIds) { mutableStateOf(initialSelectedIds.toSet()) }
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,

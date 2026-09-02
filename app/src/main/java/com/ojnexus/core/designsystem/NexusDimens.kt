@@ -39,6 +39,8 @@ object NexusSize {
     val bottomBarIndicatorHeight = 2.dp
     val navIcon = 20.dp
     val tableRowHeight = 44.dp
+    val focusSprintRailWidth = 3.dp
+    val focusSprintRailHeight = 48.dp
     val reviewRunRailHeight = 4.dp
     val reviewRunActionHeight = 48.dp
     val dividerThickness = 1.dp
