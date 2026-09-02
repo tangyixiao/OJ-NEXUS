@@ -25,6 +25,24 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Early development — **Phase 60 (Workspace Execution Cockpit)**: Workspace now opens with a local
+`WORKSPACE PULSE` for mode, language, source lines, and draft state. The O2 optimization flag is
+now visible and wired to both run and submit requests. When a Luogu problem detail has a sample
+pair, the Workspace carries it in as optional context, offers `LOAD SAMPLE` and `CLEAR INPUT`,
+and shows read-only `EXPECTED OUTPUT`. The APK identity is aligned to `versionName=0.3.56`,
+`versionCode=56`. / 早期开发——**第 60 阶段（工作区执行驾驶舱）**：工作区现在以本地“工作区脉冲”开场，
+展示模式、语言、源代码行数和草稿状态。O2 优化开关已可见，并同时接入运行与提交请求；从洛谷题目详情进入且存在样例对时，
+工作区会带入可选样例上下文，提供“载入样例”“清空输入”，并以只读方式展示“期望输出”。APK 版本身份同步为
+`versionName=0.3.56`、`versionCode=56`。
+
+Phase 60 is a local presentation and navigation-context change. Sample values come from the
+already loaded Luogu detail screen; no Workspace fetch, database migration, network field,
+credential storage, main-site password, Cookie, Session, CSRF state, cloud service, cross-device
+sync, local compiler, custom-input runner, background submission, or automatic POST retry is
+added. Existing drafts, requests, polling, and result semantics remain intact. / 第 60 阶段仅改变本地展示与导航上下文；
+样例值来自已经加载的洛谷题目详情，工作区不会新增抓取、数据库迁移、网络字段、凭据存储、主站密码、Cookie、Session、CSRF 状态、
+云服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试。现有草稿、请求、轮询和结果语义保持不变。
+
 Early development — **Phase 59 (Analytics Focus Lens)**: Analytics now opens with a local
 `ANALYTICS PULSE` for the selected 14D, 30D, or 90D activity window, covering solved, attempts,
 active days, and training time. The existing 365-day heatmap and all-time distributions remain

@@ -3,6 +3,20 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 60 — Workspace Execution Cockpit / 工作区执行驾驶舱
+
+Workspace now opens with a local `WORKSPACE PULSE` for mode, language, source lines, and draft
+state. The existing O2 request flag is exposed for both run and submit. Luogu detail navigation
+can carry its first sample pair into Workspace, where users can load or clear sample input and
+read expected output without editing it. / 工作区现在以本地“工作区脉冲”开场，展示模式、语言、源代码行数和草稿状态。
+现有 O2 请求字段已同时开放给运行和提交；洛谷题目详情导航可以把第一组样例带入工作区，用户可载入或清空样例输入，并查看只读期望输出。
+
+This phase is local-only and uses optional navigation context from the already loaded detail
+screen. It adds no Workspace fetch, network field, database migration, credential storage, cloud
+service, cross-device sync, local compiler, custom-input runner, background submission, or
+automatic POST retry. / 本阶段仅限本地，使用已加载题目详情提供的可选导航上下文；不新增工作区抓取、网络字段、数据库迁移、凭据存储、
+云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试。
+
 ## PHASE 59 — Analytics Focus Lens / 分析聚焦透镜
 
 Analytics now opens with a local `ANALYTICS PULSE` for the selected 14D, 30D, or 90D activity
