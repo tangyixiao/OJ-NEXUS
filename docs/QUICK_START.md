@@ -5,10 +5,10 @@ This guide describes the supported local-first Luogu workflow in the released An
 
 ## 1. Install / 安装
 
-1. Download `OJ-NEXUS-v0.3.44.apk` from the [v0.3.44 GitHub Release](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v0.3.44).
-   / 从 [v0.3.44 GitHub Release](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v0.3.44) 下载 `OJ-NEXUS-v0.3.44.apk`。
-2. Verify the download with `SHA256SUMS-v0.3.44.txt` before installing. /
-   安装前使用 `SHA256SUMS-v0.3.44.txt` 校验下载文件。
+1. Download `OJ-NEXUS-v0.3.46.apk` from the [v0.3.46 GitHub Release](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v0.3.46).
+   / 从 [v0.3.46 GitHub Release](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v0.3.46) 下载 `OJ-NEXUS-v0.3.46.apk`。
+2. Verify the download with `SHA256SUMS-v0.3.46.txt` before installing. /
+   安装前使用 `SHA256SUMS-v0.3.46.txt` 校验下载文件。
 
 ## 2. Connect public Luogu data / 连接洛谷公开资料
 
@@ -41,6 +41,9 @@ Session 或 CSRF Token。
 4. After the explicit submit, the workspace checks the asynchronous result in the foreground.
    Terminal results appear automatically; `PENDING` results can be checked again. /
    明确提交后，工作区会在前台查询异步结果；终态结果会自动显示，`PENDING` 结果可以再次查询。
+5. Open `PROFILE` → `SUBMISSIONS` to review local request metadata. Opening a problem request
+   from there restores its saved title when available. / 打开 `PROFILE` → `SUBMISSIONS` 查看本地请求元数据；
+   从那里打开题目请求时，会在可用情况下恢复已保存的题目标题。
 
 The OpenApp secret is stored locally through Android Keystore. Source code and standard input
 are not stored in submission metadata or uploaded to a cloud service. / OpenApp 密钥通过 Android Keystore
