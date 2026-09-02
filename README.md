@@ -25,13 +25,16 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 61 (Submission Ops Deck)**: Submission Center now adds manual
-`CHECK PENDING` and `QUEUE FAILED` operations over the existing local request history. Each request
-opens as a compact inspector row; `DETAILS` reveals the stored request, compile, judge, output,
-and resource metadata with reduced-motion-safe expansion. The APK identity is aligned to
-`versionName=0.3.58`, `versionCode=58`. / 早期开发——**第 61 阶段（提交运营台）**：提交中心现在基于已有本地请求历史提供手动“查询等待中”和“排队失败项”操作。
-每条请求默认以紧凑检查器行显示，“详情”可以展开请求、编译、评测、输出和资源元数据，并遵守减少动效设置。APK 版本身份同步为
-`versionName=0.3.58`、`versionCode=58`。
+Early development — **Phase 62 (Live Session Board)**: Training sessions now expose a local
+`SESSION PULSE` and actionable `PROBLEM QUEUE`. The queue tracks solved, attempted, and pending
+problems inside the persisted session window, with direct `OPEN` navigation to local problem
+details. The APK identity is aligned to `versionName=0.3.59`, `versionCode=59`. / 早期开发——**第 62 阶段（实时训练队列）**：训练会话现在提供本地“会话脉冲”和可操作的“题目队列”。
+队列按会话持久化时间窗口追踪已解决、已尝试和待处理题目，并可直接打开本地题目详情。APK 版本身份同步为
+`versionName=0.3.59`、`versionCode=59`。
+
+Phase 62 is a local read-only progress and navigation surface. It adds no database migration,
+network request, background submission, compiler, credential storage, or new session state. / 第 62 阶段仅增加本地只读进度与导航展示，
+不新增数据库迁移、网络请求、后台提交、本地编译器、凭据存储或会话状态。
 
 Phase 61 is a local presentation and manual-operation change. Bulk actions snapshot existing
 request IDs and reuse the current foreground polling and recovery scheduler; no new jobs,

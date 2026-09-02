@@ -5,10 +5,21 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.58` and `versionCode=58`. This is a
-metadata-only maintenance increment; the Phase 61 behavior and its local-only boundaries remain
-unchanged. / 当前 Android 安装包身份为 `versionName=0.3.58`、`versionCode=58`。本次仅递增版本元数据，
-第 61 阶段功能及其本地化边界保持不变。
+The current Android package identity is `versionName=0.3.59` and `versionCode=59`. It carries
+the Phase 62 Live Session Board. / 当前 Android 安装包身份为 `versionName=0.3.59`、`versionCode=59`，
+对应第 62 阶段实时训练队列。
+
+## PHASE 62 — Live Session Board / 实时训练队列
+
+Training sessions now expose a local `SESSION PULSE` with total, solved, attempted, and pending
+counts, plus a determinate progress rail. The `PROBLEM QUEUE` uses the persisted session window
+to show each attached problem's judge/external ID, status, attempt count, and a direct `OPEN`
+route to local problem details. / 训练会话现在提供本地“会话脉冲”，展示总题数、已解决、已尝试和待处理数量，并提供确定性进度轨。
+“题目队列”依据会话持久化时间窗口展示每道附加题的评测机/外部编号、状态、尝试次数，并可直接打开本地题目详情。
+
+This phase is local-only and read-only at the progress layer. It adds no schema migration,
+network request, background submission, compiler, credential flow, or new session state. / 本阶段仅限本地，进度层只读；
+不新增数据库迁移、网络请求、后台提交、本地编译器、凭据流程或会话状态。
 
 ## PHASE 61 — Submission Ops Deck / 提交运营台
 
