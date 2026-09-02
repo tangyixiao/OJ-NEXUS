@@ -1,5 +1,9 @@
 package com.ojnexus.feature.contests
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,20 +18,27 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
+import com.ojnexus.core.designsystem.NexusMotion
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.designsystem.component.NexusDivider
+import com.ojnexus.core.designsystem.component.NexusMetric
 import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
@@ -35,9 +46,9 @@ import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.formatDateTime
 import com.ojnexus.core.ui.formatCountdown
+import com.ojnexus.core.ui.formatCount
 import com.ojnexus.core.ui.formatDuration
 import com.ojnexus.core.domain.ContestTimeState
-import com.ojnexus.core.model.JudgeId
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -63,6 +74,9 @@ fun ContestCenterScreen(
         }
     }
     val rows = viewModel.rows(envelope, nowSeconds)
+    var phaseFilter by rememberSaveable { mutableStateOf(ContestPhaseFilter.ALL) }
+    val summary = summarizeContestCenter(rows)
+    val visibleRows = filterContestCenter(rows, phaseFilter)
 
     Column(
         modifier = Modifier
@@ -98,39 +112,179 @@ fun ContestCenterScreen(
                 }
             }
             Spacer(modifier = Modifier.height(NexusSpacing.sm))
-            if (rows.upcoming.isEmpty() && rows.live.isEmpty() && rows.recent.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.contest_empty),
-                    style = NexusTheme.typography.dataSmall,
-                    color = NexusTheme.colors.textTertiary,
-                    modifier = Modifier.padding(vertical = NexusSpacing.xs),
-                )
-            }
-            if (rows.live.isNotEmpty()) {
-                ContestGroup(
-                    label = stringResource(R.string.contest_section_live),
-                    rows = rows.live,
-                    tone = NexusTone.Danger,
-                    onOpenFocus = onOpenFocus,
-                )
-            }
-            if (rows.upcoming.isNotEmpty()) {
-                ContestGroup(
-                    label = stringResource(R.string.contest_section_upcoming),
-                    rows = rows.upcoming,
-                    tone = NexusTone.Accent,
-                    onOpenFocus = onOpenFocus,
-                )
-            }
-            if (rows.recent.isNotEmpty()) {
-                ContestGroup(
-                    label = stringResource(R.string.contest_section_recent),
-                    rows = rows.recent,
-                    tone = NexusTone.Neutral,
-                    onOpenFocus = onOpenFocus,
-                )
+            ContestPulse(summary = summary, onOpenFocus = onOpenFocus)
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            ContestPhaseControls(selected = phaseFilter, onSelect = { phaseFilter = it })
+            Spacer(modifier = Modifier.height(NexusSpacing.xs))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(
+                        animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+                            NexusMotion.DURATION_NORMAL,
+                            easing = NexusMotion.EasingStandard,
+                        ),
+                    ),
+            ) {
+                if (rows.upcoming.isEmpty() && rows.live.isEmpty() && rows.recent.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.contest_empty),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.textTertiary,
+                        modifier = Modifier.padding(vertical = NexusSpacing.xs),
+                    )
+                } else if (visibleRows.upcoming.isEmpty() && visibleRows.live.isEmpty() && visibleRows.recent.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.contest_phase_empty),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.textTertiary,
+                        modifier = Modifier.padding(vertical = NexusSpacing.xs),
+                    )
+                }
+                if (visibleRows.live.isNotEmpty()) {
+                    ContestGroup(
+                        label = stringResource(R.string.contest_section_live),
+                        rows = visibleRows.live,
+                        tone = NexusTone.Danger,
+                        onOpenFocus = onOpenFocus,
+                    )
+                }
+                if (visibleRows.upcoming.isNotEmpty()) {
+                    ContestGroup(
+                        label = stringResource(R.string.contest_section_upcoming),
+                        rows = visibleRows.upcoming,
+                        tone = NexusTone.Accent,
+                        onOpenFocus = onOpenFocus,
+                    )
+                }
+                if (visibleRows.recent.isNotEmpty()) {
+                    ContestGroup(
+                        label = stringResource(R.string.contest_section_recent),
+                        rows = visibleRows.recent,
+                        tone = NexusTone.Neutral,
+                        onOpenFocus = onOpenFocus,
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(NexusSpacing.xxl))
+        }
+    }
+}
+
+@Composable
+private fun ContestPulse(
+    summary: ContestCenterSummary,
+    onOpenFocus: (String, String) -> Unit,
+) {
+    val next = summary.nextUpcoming
+    val actionLabel = if (next == null) {
+        stringResource(R.string.contest_pulse_no_upcoming)
+    } else {
+        stringResource(R.string.contest_pulse_open_next)
+    }
+    val actionDescription = if (next == null) {
+        stringResource(R.string.contest_pulse_no_upcoming_cd)
+    } else {
+        stringResource(R.string.contest_pulse_open_next_cd)
+    }
+
+    NexusSection(label = stringResource(R.string.contest_section_pulse)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
+        ) {
+            ContestPulseMetric(
+                label = stringResource(R.string.contest_pulse_live),
+                value = summary.live,
+                modifier = Modifier.weight(1f),
+            )
+            ContestPulseMetric(
+                label = stringResource(R.string.contest_pulse_upcoming),
+                value = summary.upcoming,
+                modifier = Modifier.weight(1f),
+            )
+            ContestPulseMetric(
+                label = stringResource(R.string.contest_pulse_recent),
+                value = summary.recent,
+                modifier = Modifier.weight(1f),
+            )
+            NexusMetric(
+                label = stringResource(R.string.contest_pulse_next),
+                value = next?.let { formatCountdown(it.countdownSeconds) }
+                    ?: stringResource(R.string.contest_pulse_no_upcoming),
+                modifier = Modifier.weight(1.5f),
+            )
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
+        NexusTag(
+            text = actionLabel,
+            tone = if (next == null) NexusTone.Neutral else NexusTone.Accent,
+            selected = next != null,
+            modifier = Modifier
+                .clickable(
+                    enabled = next != null,
+                    role = Role.Button,
+                    onClickLabel = actionDescription,
+                    onClick = { next?.let { onOpenFocus(it.judge.id, it.contestId) } },
+                )
+                .semantics { contentDescription = actionDescription },
+        )
+    }
+}
+
+@Composable
+private fun ContestPulseMetric(
+    label: String,
+    value: Int,
+    modifier: Modifier = Modifier,
+) {
+    val animatedValue by animateIntAsState(
+        targetValue = value,
+        animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+            NexusMotion.DURATION_NORMAL,
+            easing = NexusMotion.EasingStandard,
+        ),
+        label = "contest pulse $label",
+    )
+    NexusMetric(label = label, value = formatCount(animatedValue), modifier = modifier)
+}
+
+@Composable
+private fun ContestPhaseControls(
+    selected: ContestPhaseFilter,
+    onSelect: (ContestPhaseFilter) -> Unit,
+) {
+    val filters = listOf(
+        ContestPhaseFilter.ALL to R.string.contest_filter_all,
+        ContestPhaseFilter.LIVE to R.string.contest_filter_live,
+        ContestPhaseFilter.UPCOMING to R.string.contest_filter_upcoming,
+        ContestPhaseFilter.RECENT to R.string.contest_filter_recent,
+    )
+    val descriptions = mapOf(
+        ContestPhaseFilter.ALL to R.string.contest_filter_all_cd,
+        ContestPhaseFilter.LIVE to R.string.contest_filter_live_cd,
+        ContestPhaseFilter.UPCOMING to R.string.contest_filter_upcoming_cd,
+        ContestPhaseFilter.RECENT to R.string.contest_filter_recent_cd,
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+    ) {
+        filters.forEach { (filter, labelRes) ->
+            val description = stringResource(descriptions.getValue(filter))
+            NexusTag(
+                text = stringResource(labelRes),
+                tone = if (filter == selected) NexusTone.Accent else NexusTone.Neutral,
+                selected = filter == selected,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = description,
+                        onClick = { onSelect(filter) },
+                    )
+                    .semantics { contentDescription = description },
+            )
         }
     }
 }
@@ -227,7 +381,7 @@ private fun JudgeFilterTag(label: String, selected: Boolean, onClick: () -> Unit
         text = label,
         tone = if (selected) NexusTone.Accent else NexusTone.Neutral,
         selected = selected,
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier.clickable(role = Role.Button, onClick = onClick),
     )
 }
 
