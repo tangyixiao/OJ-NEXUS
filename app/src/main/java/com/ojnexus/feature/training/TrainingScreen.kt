@@ -15,6 +15,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,16 +34,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
 import com.ojnexus.core.designsystem.NexusRadius
+import com.ojnexus.core.designsystem.NexusMotion
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.designsystem.component.NexusDivider
+import com.ojnexus.core.designsystem.component.NexusMetric
 import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusStatus
 import com.ojnexus.core.designsystem.component.NexusTag
@@ -52,6 +65,7 @@ import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.formatDate
 import com.ojnexus.core.ui.formatDuration
+import com.ojnexus.core.ui.formatCount
 import com.ojnexus.core.ui.labelRes
 import com.ojnexus.core.ui.tone
 
@@ -120,6 +134,10 @@ private fun TrainingContent(
     var showTaskDialog by rememberSaveable { mutableStateOf(false) }
     var showSessionDialog by rememberSaveable { mutableStateOf(false) }
     var showTaskProblemPicker by rememberSaveable { mutableStateOf(false) }
+    var reviewFilter by rememberSaveable { mutableStateOf(ReviewQueueFilter.ALL) }
+    val reduceMotion = NexusTheme.reduceMotion
+    val reviewSummary = reviewQueueSummary(uiState.reviews)
+    val visibleReviews = filterReviewBuckets(uiState.reviews, reviewFilter)
 
     Column(
         modifier = Modifier
@@ -138,14 +156,29 @@ private fun TrainingContent(
 
         SectionGap()
 
+        ReviewPulse(
+            summary = reviewSummary,
+            onStartNext = { problemId -> onOpenReview(problemId) },
+        )
+
+        SectionGap()
+
         // REVIEW QUEUE
         NexusSection(
             label = stringResource(R.string.review_section_queue),
             trailing = {
                 Text(
-                    text = uiState.reviews.dueNowCount.toString(),
+                    text = (
+                        visibleReviews.overdue.size +
+                            visibleReviews.dueToday.size +
+                            visibleReviews.upcoming.size
+                        ).toString(),
                     style = NexusTheme.typography.data,
-                    color = if (uiState.reviews.dueNowCount > 0) {
+                    color = if (
+                        visibleReviews.overdue.isNotEmpty() ||
+                        visibleReviews.dueToday.isNotEmpty() ||
+                        visibleReviews.upcoming.isNotEmpty()
+                    ) {
                         NexusTheme.colors.accent
                     } else {
                         NexusTheme.colors.textTertiary
@@ -153,18 +186,35 @@ private fun TrainingContent(
                 )
             },
         ) {
-            val reviews = uiState.reviews
-            if (reviews.isEmpty) {
-                SectionEmpty(stringResource(R.string.review_queue_empty))
-            } else {
-                if (reviews.overdue.isNotEmpty()) {
-                    QueueGroup(stringResource(R.string.review_filter_overdue), reviews.overdue, onOpenReview)
-                }
-                if (reviews.dueToday.isNotEmpty()) {
-                    QueueGroup(stringResource(R.string.review_filter_due), reviews.dueToday, onOpenReview)
-                }
-                if (reviews.upcoming.isNotEmpty()) {
-                    QueueGroup(stringResource(R.string.review_filter_upcoming), reviews.upcoming, onOpenReview)
+            ReviewFilterControls(
+                selected = reviewFilter,
+                onSelected = { reviewFilter = it },
+            )
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            AnimatedContent(
+                targetState = visibleReviews,
+                transitionSpec = {
+                    if (reduceMotion) {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    } else {
+                        fadeIn(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard)) togetherWith
+                            fadeOut(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingExit))
+                    }
+                },
+                label = "review queue filter",
+            ) { reviews ->
+                if (reviews.isEmpty) {
+                    SectionEmpty(
+                        stringResource(
+                            if (uiState.reviews.isEmpty) R.string.review_queue_empty else R.string.review_filter_empty,
+                        ),
+                    )
+                } else {
+                    ReviewQueueGroups(
+                        reviews = reviews,
+                        todayEpochDay = uiState.todayEpochDay,
+                        onOpenReview = onOpenReview,
+                    )
                 }
             }
         }
@@ -312,6 +362,184 @@ private fun RecommendationSection(
                 if (index != recommendations.take(5).lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
             }
         }
+    }
+}
+
+@Composable
+private fun ReviewPulse(
+    summary: ReviewQueueSummary,
+    onStartNext: (Long) -> Unit,
+) {
+    val colors = NexusTheme.colors
+    val reduceMotion = NexusTheme.reduceMotion
+    val nextProblemId = summary.nextDueProblemId
+    val actionDescription = stringResource(
+        if (nextProblemId == null) R.string.training_pulse_nothing_due_cd
+        else R.string.training_pulse_start_next_cd,
+    )
+
+    NexusSection(label = stringResource(R.string.training_section_pulse)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
+        ) {
+            PulseMetric(
+                label = stringResource(R.string.training_pulse_overdue),
+                value = summary.overdue,
+                modifier = Modifier.weight(1f),
+            )
+            PulseMetric(
+                label = stringResource(R.string.training_pulse_today),
+                value = summary.dueToday,
+                modifier = Modifier.weight(1f),
+            )
+            PulseMetric(
+                label = stringResource(R.string.training_pulse_upcoming),
+                value = summary.upcoming,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = NexusSize.dividerThickness,
+                    color = if (nextProblemId != null) colors.accent else colors.border,
+                    shape = NexusRadius.xs,
+                )
+                .clickable(
+                    enabled = nextProblemId != null,
+                    role = Role.Button,
+                    onClickLabel = actionDescription,
+                ) {
+                    nextProblemId?.let(onStartNext)
+                }
+                .semantics { contentDescription = actionDescription }
+                .padding(horizontal = NexusSpacing.sm, vertical = NexusSpacing.xs),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text(
+                text = stringResource(
+                    if (nextProblemId == null) R.string.training_pulse_nothing_due
+                    else R.string.training_pulse_start_next,
+                ),
+                style = NexusTheme.typography.sectionLabel,
+                color = if (nextProblemId != null) colors.accent else colors.textTertiary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PulseMetric(label: String, value: Int, modifier: Modifier = Modifier) {
+    val animatedValue by animateIntAsState(
+        targetValue = value,
+        animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+            NexusMotion.DURATION_NORMAL,
+            easing = NexusMotion.EasingStandard,
+        ),
+        label = "review pulse $label",
+    )
+    NexusMetric(label = label, value = formatCount(animatedValue), modifier = modifier)
+}
+
+@Composable
+private fun ReviewFilterControls(
+    selected: ReviewQueueFilter,
+    onSelected: (ReviewQueueFilter) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+    ) {
+        ReviewFilterButton(
+            filter = ReviewQueueFilter.ALL,
+            label = stringResource(R.string.training_filter_all),
+            description = stringResource(R.string.training_filter_all_cd),
+            selected = selected == ReviewQueueFilter.ALL,
+            onClick = onSelected,
+            modifier = Modifier.weight(1f),
+        )
+        ReviewFilterButton(
+            filter = ReviewQueueFilter.DUE_NOW,
+            label = stringResource(R.string.training_filter_due_now),
+            description = stringResource(R.string.training_filter_due_now_cd),
+            selected = selected == ReviewQueueFilter.DUE_NOW,
+            onClick = onSelected,
+            modifier = Modifier.weight(1f),
+        )
+        ReviewFilterButton(
+            filter = ReviewQueueFilter.UPCOMING,
+            label = stringResource(R.string.training_filter_upcoming),
+            description = stringResource(R.string.training_filter_upcoming_cd),
+            selected = selected == ReviewQueueFilter.UPCOMING,
+            onClick = onSelected,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun ReviewFilterButton(
+    filter: ReviewQueueFilter,
+    label: String,
+    description: String,
+    selected: Boolean,
+    onClick: (ReviewQueueFilter) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = NexusTheme.colors
+    Box(
+        modifier = modifier
+            .height(NexusSize.commandBarHeight)
+            .background(if (selected) colors.surface else colors.background, NexusRadius.xs)
+            .border(
+                width = NexusSize.dividerThickness,
+                color = if (selected) colors.accent else colors.border,
+                shape = NexusRadius.xs,
+            )
+            .clickable(role = Role.Button, onClickLabel = description) { onClick(filter) }
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = NexusTheme.typography.sectionLabel,
+            color = if (selected) colors.accent else colors.textTertiary,
+        )
+    }
+}
+
+@Composable
+private fun ReviewQueueGroups(
+    reviews: ReviewBuckets,
+    todayEpochDay: Long,
+    onOpenReview: (Long) -> Unit,
+) {
+    if (reviews.overdue.isNotEmpty()) {
+        QueueGroup(
+            label = stringResource(R.string.review_filter_overdue),
+            items = reviews.overdue,
+            todayEpochDay = todayEpochDay,
+            onOpenReview = onOpenReview,
+        )
+    }
+    if (reviews.dueToday.isNotEmpty()) {
+        QueueGroup(
+            label = stringResource(R.string.review_filter_due),
+            items = reviews.dueToday,
+            todayEpochDay = todayEpochDay,
+            onOpenReview = onOpenReview,
+        )
+    }
+    if (reviews.upcoming.isNotEmpty()) {
+        QueueGroup(
+            label = stringResource(R.string.review_filter_upcoming),
+            items = reviews.upcoming,
+            todayEpochDay = todayEpochDay,
+            onOpenReview = onOpenReview,
+        )
     }
 }
 
@@ -464,7 +692,12 @@ private fun SessionSection(
 }
 
 @Composable
-private fun QueueGroup(label: String, items: List<ReviewQueueItem>, onOpenReview: (Long) -> Unit) {
+private fun QueueGroup(
+    label: String,
+    items: List<ReviewQueueItem>,
+    todayEpochDay: Long,
+    onOpenReview: (Long) -> Unit,
+) {
     Text(
         text = "$label · ${items.size}",
         style = NexusTheme.typography.sectionLabel,
@@ -472,14 +705,14 @@ private fun QueueGroup(label: String, items: List<ReviewQueueItem>, onOpenReview
         modifier = Modifier.padding(vertical = NexusSpacing.xxs),
     )
     items.forEachIndexed { index, item ->
-        QueueRow(item, onOpenReview)
+        QueueRow(item, todayEpochDay, onOpenReview)
         if (index != items.lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
     }
     Spacer(modifier = Modifier.height(NexusSpacing.xxs))
 }
 
 @Composable
-private fun QueueRow(item: ReviewQueueItem, onOpenReview: (Long) -> Unit) {
+private fun QueueRow(item: ReviewQueueItem, todayEpochDay: Long, onOpenReview: (Long) -> Unit) {
     val colors = NexusTheme.colors
     Row(
         modifier = Modifier
@@ -519,7 +752,7 @@ private fun QueueRow(item: ReviewQueueItem, onOpenReview: (Long) -> Unit) {
         Text(
             text = formatDate(item.dueAt),
             style = NexusTheme.typography.dataSmall,
-            color = if (item.dueDayIndex <= java.time.LocalDate.now().toEpochDay()) colors.accent else colors.textTertiary,
+            color = if (item.dueDayIndex <= todayEpochDay) colors.accent else colors.textTertiary,
         )
     }
 }
