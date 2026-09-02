@@ -190,4 +190,3 @@ Write the exact build result, package identity, APK SHA-256, runtime observation
 git add app/build.gradle.kts README.md docs/ROADMAP.md docs/releases/v0.3.63.md
 git commit -m "release: prepare v0.3.63"
 ```
-

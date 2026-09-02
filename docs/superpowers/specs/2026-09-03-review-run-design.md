@@ -55,4 +55,3 @@ advances to the next captured item without returning to the queue.
   controls plus the reduced-motion progress treatment.
 - Run `test assembleDebug lintDebug`, install on `emulator-5554`, use existing due local reviews,
   record at least two outcomes, verify progress and completion, and check for fatal exceptions.
-
