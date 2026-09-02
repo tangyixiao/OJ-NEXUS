@@ -194,10 +194,12 @@ git commit -m "feat: add submission bulk operations"
 - [ ] Step 1: Add a pure display-label test.
 
 ~~~kotlin
+import com.ojnexus.R
+
 @Test
 fun detailsLabelTracksExpansionState() {
-    assertEquals("DETAILS", submissionDetailsLabel(false))
-    assertEquals("HIDE DETAILS", submissionDetailsLabel(true))
+    assertEquals(R.string.submissions_details, submissionDetailsLabel(false))
+    assertEquals(R.string.submissions_hide_details, submissionDetailsLabel(true))
 }
 ~~~
 
@@ -211,7 +213,7 @@ Expected: compilation failure because submissionDetailsLabel is absent.
 
 - [ ] Step 3: Implement the UI.
 
-Add submissionDetailsLabel(expanded: Boolean), the new strings, and rememberSaveable(job.requestId) for expansion. Apply animateContentSize with NexusMotion.DURATION_NORMAL and snap when NexusTheme.reduceMotion is true:
+Add resource-safe submissionDetailsLabel(expanded: Boolean): Int, returning the resource ID for the localized label, plus the new strings. Use rememberSaveable(job.requestId) for expansion and apply animateContentSize with NexusMotion.DURATION_NORMAL and snap when NexusTheme.reduceMotion is true:
 
 ~~~kotlin
 var detailsExpanded by rememberSaveable(job.requestId) { mutableStateOf(false) }
@@ -321,4 +323,3 @@ git log --oneline -8
 ~~~
 
 Expected: NO_APP_FATAL_EXCEPTION, clean diff, and the branch contains the Phase 61 commits.
-

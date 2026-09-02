@@ -3,6 +3,18 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 61 — Submission Ops Deck / 提交运营台
+
+Submission Center now exposes manual `CHECK PENDING` and `QUEUE FAILED` actions over the existing
+local request snapshot. Recent requests render as compact inspector rows by default; `DETAILS`
+reveals the stored request, compile, judge, output, and resource metadata with reduced-motion-safe
+expansion. / 提交中心现在基于已有本地请求快照提供手动“查询等待中”和“排队失败项”操作。最近请求默认以紧凑检查器行显示，“详情”可以展开请求、编译、评测、输出和资源元数据，并遵守减少动效设置。
+
+Bulk actions reuse existing per-request foreground polling and recovery guards, and expansion is
+screen-local. This phase adds no new jobs, network field, database migration, credential flow,
+cloud service, cross-device sync, local compiler, custom-input runner, background submission, or
+automatic POST retry. / 批量操作复用现有逐请求前台查询与恢复保护，展开状态仅存在于当前界面；本阶段不新增请求、网络字段、数据库迁移、凭据流程、云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试。
+
 ## PHASE 60 — Workspace Execution Cockpit / 工作区执行驾驶舱
 
 Workspace now opens with a local `WORKSPACE PULSE` for mode, language, source lines, and draft

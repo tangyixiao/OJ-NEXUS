@@ -25,6 +25,20 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Early development — **Phase 61 (Submission Ops Deck)**: Submission Center now adds manual
+`CHECK PENDING` and `QUEUE FAILED` operations over the existing local request history. Each request
+opens as a compact inspector row; `DETAILS` reveals the stored request, compile, judge, output,
+and resource metadata with reduced-motion-safe expansion. The APK identity is aligned to
+`versionName=0.3.57`, `versionCode=57`. / 早期开发——**第 61 阶段（提交运营台）**：提交中心现在基于已有本地请求历史提供手动“查询等待中”和“排队失败项”操作。
+每条请求默认以紧凑检查器行显示，“详情”可以展开请求、编译、评测、输出和资源元数据，并遵守减少动效设置。APK 版本身份同步为
+`versionName=0.3.57`、`versionCode=57`。
+
+Phase 61 is a local presentation and manual-operation change. Bulk actions snapshot existing
+request IDs and reuse the current foreground polling and recovery scheduler; no new jobs,
+database migration, network field, credential storage, main-site password, Cookie, Session, CSRF
+state, cloud service, cross-device sync, local compiler, custom-input runner, background
+submission, or automatic POST retry is added. / 第 61 阶段仅改变本地展示和手动操作；批量操作读取已有请求 ID 快照并复用当前前台查询与恢复调度器，不新增请求、数据库迁移、网络字段、凭据存储、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试。
+
 Early development — **Phase 60 (Workspace Execution Cockpit)**: Workspace now opens with a local
 `WORKSPACE PULSE` for mode, language, source lines, and draft state. The O2 optimization flag is
 now visible and wired to both run and submit requests. When a Luogu problem detail has a sample
