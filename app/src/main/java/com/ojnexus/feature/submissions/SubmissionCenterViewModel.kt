@@ -36,6 +36,7 @@ data class SubmissionCenterUiState(
     val jobs: List<SubmissionJobEntity>,
     val busyRequestIds: Set<String>,
     val queuedRequestIds: Set<String> = emptySet(),
+    val recoveryAvailable: Boolean = false,
     val actionError: SubmissionCenterActionError?,
 )
 
@@ -59,6 +60,7 @@ class SubmissionCenterViewModel(
                 jobs = jobs,
                 busyRequestIds = busyIds,
                 queuedRequestIds = queuedIds,
+                recoveryAvailable = scheduler != null,
                 actionError = error,
             ),
         )
@@ -84,6 +86,16 @@ class SubmissionCenterViewModel(
                 actionError.value = error.toActionError(trimmed)
             }
         }
+    }
+
+    fun checkPending() {
+        val ready = state.value as? Loadable.Ready ?: return
+        pendingSubmissionRequestIds(ready.value.jobs).forEach(::checkResult)
+    }
+
+    fun queueFailed() {
+        val ready = state.value as? Loadable.Ready ?: return
+        failedSubmissionRequestIds(ready.value.jobs).forEach(::queueRecovery)
     }
 
     fun checkResult(requestId: String) {

@@ -7,6 +7,7 @@ import com.ojnexus.judge.luogu.open.LuoguOpenEvaluation
 import com.ojnexus.judge.luogu.open.LuoguOpenResult
 import com.ojnexus.judge.luogu.open.LuoguSubmissionCenter
 import com.ojnexus.judge.luogu.open.LuoguResultWorkScheduler
+import com.ojnexus.judge.luogu.open.SubmissionJobStatus
 import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
@@ -99,6 +100,67 @@ class SubmissionCenterViewModelTest {
         assertEquals(emptyList<SubmissionJobEntity>(), state.jobs)
         assertEquals(emptySet<String>(), state.busyRequestIds)
         assertNull(state.actionError)
+        collector.cancel()
+    }
+
+    @Test
+    fun `state exposes recovery availability and queueFailed uses failed snapshot`() = runBlocking {
+        val jobs = MutableStateFlow(
+            listOf(
+                pendingJob("req-pending"),
+                pendingJob("req-failed").copy(status = SubmissionJobStatus.FAILED.name),
+                pendingJob("req-failed-2").copy(status = SubmissionJobStatus.FAILED.name),
+            ),
+        )
+        val scheduler = RecordingScheduler()
+        val viewModel = SubmissionCenterViewModel(FakeSubmissionCenter(jobs), scheduler = scheduler)
+        val collector = collectState(viewModel)
+        awaitReady(viewModel)
+
+        assertEquals(true, awaitReady(viewModel).recoveryAvailable)
+        viewModel.queueFailed()
+
+        withTimeout(1_000) {
+            while (scheduler.requestIds.size < 2) {
+                drainMainLooper()
+                delay(1)
+            }
+        }
+        assertEquals(listOf("req-failed", "req-failed-2"), scheduler.requestIds)
+        collector.cancel()
+    }
+
+    @Test
+    fun `checkPending checks each pending request once`() = runBlocking {
+        val jobs = MutableStateFlow(
+            listOf(
+                pendingJob("req-a"),
+                pendingJob("req-b"),
+                readyJob(requestId = "req-ready"),
+            ),
+        )
+        val center = FakeSubmissionCenter(
+            jobs = jobs,
+            refreshResults = ArrayDeque(
+                listOf(
+                    RefreshOutcome.Return(readyResult("req-a")),
+                    RefreshOutcome.Return(readyResult("req-b")),
+                ),
+            ),
+        )
+        val viewModel = SubmissionCenterViewModel(center, delayForResult = {})
+        val collector = collectState(viewModel)
+        awaitReady(viewModel)
+
+        viewModel.checkPending()
+
+        withTimeout(1_000) {
+            while (center.refreshCalls.size < 2) {
+                drainMainLooper()
+                delay(1)
+            }
+        }
+        assertEquals(listOf("req-a", "req-b"), center.refreshCalls)
         collector.cancel()
     }
 
