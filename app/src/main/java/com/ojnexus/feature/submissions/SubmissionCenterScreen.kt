@@ -1,5 +1,9 @@
 package com.ojnexus.feature.submissions
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +18,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -25,10 +33,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ojnexus.R
 import com.ojnexus.core.database.entity.SubmissionJobEntity
+import com.ojnexus.core.designsystem.NexusMotion
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.designsystem.component.NexusDivider
+import com.ojnexus.core.designsystem.component.NexusMetric
 import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
@@ -36,6 +46,7 @@ import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.formatDateTime
+import com.ojnexus.core.ui.formatCount
 import com.ojnexus.judge.luogu.open.SubmissionJobKind
 import com.ojnexus.judge.luogu.open.SubmissionJobStatus
 
@@ -105,6 +116,10 @@ private fun SubmissionCenterContent(
     onQueueRecovery: (String) -> Unit,
     onOpenWorkspace: (String, String?) -> Unit,
 ) {
+    var statusFilter by rememberSaveable { mutableStateOf(SubmissionStatusFilter.ALL) }
+    val summary = summarizeSubmissionCenter(state.jobs)
+    val visibleJobs = filterSubmissionJobs(state.jobs, statusFilter)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -125,34 +140,177 @@ private fun SubmissionCenterContent(
             }
             Spacer(Modifier.padding(top = NexusSpacing.md))
         }
-        if (state.jobs.isEmpty()) {
-            NexusSection(label = stringResource(R.string.submissions_section_recent)) {
+        SubmissionPulse(
+            summary = summary,
+            selected = statusFilter,
+            onClear = { statusFilter = SubmissionStatusFilter.ALL },
+        )
+        Spacer(Modifier.padding(top = NexusSpacing.sm))
+        SubmissionStatusControls(
+            selected = statusFilter,
+            onSelect = { statusFilter = it },
+        )
+        Spacer(Modifier.padding(top = NexusSpacing.xs))
+        Column(
+            modifier = Modifier.animateContentSize(
+                animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+                    NexusMotion.DURATION_NORMAL,
+                    easing = NexusMotion.EasingStandard,
+                ),
+            ),
+        ) {
+            if (state.jobs.isEmpty()) {
+                NexusSection(label = stringResource(R.string.submissions_section_recent)) {
+                    Text(
+                        text = stringResource(R.string.submissions_empty),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.textTertiary,
+                    )
+                }
+            } else if (visibleJobs.isEmpty()) {
                 Text(
-                    text = stringResource(R.string.submissions_empty),
+                    text = stringResource(R.string.submissions_filter_empty),
                     style = NexusTheme.typography.dataSmall,
                     color = NexusTheme.colors.textTertiary,
+                    modifier = Modifier.padding(vertical = NexusSpacing.xs),
                 )
-            }
-            Spacer(Modifier.padding(top = NexusSpacing.xxl))
-            return
-        }
-
-        NexusSection(label = stringResource(R.string.submissions_section_recent)) {
-            state.jobs.forEachIndexed { index, job ->
-                SubmissionJobCard(
-                    job = job,
-                    busy = job.requestId in state.busyRequestIds,
-                    queued = job.requestId in state.queuedRequestIds,
-                    onCheckResult = onCheckResult,
-                    onQueueRecovery = onQueueRecovery,
-                    onOpenWorkspace = onOpenWorkspace,
-                )
-                if (index != state.jobs.lastIndex) {
-                    NexusDivider(insetEnd = NexusSpacing.xxs)
+            } else {
+                NexusSection(label = stringResource(R.string.submissions_section_recent)) {
+                    visibleJobs.forEachIndexed { index, job ->
+                        SubmissionJobCard(
+                            job = job,
+                            busy = job.requestId in state.busyRequestIds,
+                            queued = job.requestId in state.queuedRequestIds,
+                            onCheckResult = onCheckResult,
+                            onQueueRecovery = onQueueRecovery,
+                            onOpenWorkspace = onOpenWorkspace,
+                        )
+                        if (index != visibleJobs.lastIndex) {
+                            NexusDivider(insetEnd = NexusSpacing.xxs)
+                        }
+                    }
                 }
             }
         }
         Spacer(Modifier.padding(top = NexusSpacing.xxl))
+    }
+}
+
+@Composable
+private fun SubmissionPulse(
+    summary: SubmissionCenterSummary,
+    selected: SubmissionStatusFilter,
+    onClear: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    NexusSection(
+        label = stringResource(R.string.submissions_section_pulse),
+        trailing = if (selected == SubmissionStatusFilter.ALL) {
+            null
+        } else {
+            {
+                val description = stringResource(R.string.submissions_clear_filter_cd)
+                Text(
+                    text = stringResource(R.string.submissions_clear_filter),
+                    style = NexusTheme.typography.sectionLabel,
+                    color = colors.accent,
+                    modifier = Modifier
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = description,
+                            onClick = onClear,
+                        )
+                        .semantics { contentDescription = description },
+                )
+            }
+        },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
+        ) {
+            SubmissionPulseMetric(
+                label = stringResource(R.string.submissions_pulse_total),
+                value = summary.total,
+                modifier = Modifier.weight(1f),
+            )
+            SubmissionPulseMetric(
+                label = stringResource(R.string.submissions_pulse_pending),
+                value = summary.pending,
+                modifier = Modifier.weight(1f),
+            )
+            SubmissionPulseMetric(
+                label = stringResource(R.string.submissions_pulse_ready),
+                value = summary.ready,
+                modifier = Modifier.weight(1f),
+            )
+            SubmissionPulseMetric(
+                label = stringResource(R.string.submissions_pulse_failed),
+                value = summary.failed,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SubmissionPulseMetric(
+    label: String,
+    value: Int,
+    modifier: Modifier = Modifier,
+) {
+    val animatedValue by animateIntAsState(
+        targetValue = value,
+        animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+            NexusMotion.DURATION_NORMAL,
+            easing = NexusMotion.EasingStandard,
+        ),
+        label = "submission pulse $label",
+    )
+    NexusMetric(
+        label = label,
+        value = formatCount(animatedValue),
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun SubmissionStatusControls(
+    selected: SubmissionStatusFilter,
+    onSelect: (SubmissionStatusFilter) -> Unit,
+) {
+    val filters = listOf(
+        SubmissionStatusFilter.ALL to R.string.submissions_filter_all,
+        SubmissionStatusFilter.PENDING to R.string.submissions_filter_pending,
+        SubmissionStatusFilter.READY to R.string.submissions_filter_ready,
+        SubmissionStatusFilter.FAILED to R.string.submissions_filter_failed,
+    )
+    val descriptions = mapOf(
+        SubmissionStatusFilter.ALL to R.string.submissions_filter_all_cd,
+        SubmissionStatusFilter.PENDING to R.string.submissions_filter_pending_cd,
+        SubmissionStatusFilter.READY to R.string.submissions_filter_ready_cd,
+        SubmissionStatusFilter.FAILED to R.string.submissions_filter_failed_cd,
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+    ) {
+        filters.forEach { (filter, labelRes) ->
+            val description = stringResource(descriptions.getValue(filter))
+            NexusTag(
+                text = stringResource(labelRes),
+                tone = if (filter == selected) NexusTone.Accent else NexusTone.Neutral,
+                selected = filter == selected,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = description,
+                        onClick = { onSelect(filter) },
+                    )
+                    .semantics { contentDescription = description },
+            )
+        }
     }
 }
 
