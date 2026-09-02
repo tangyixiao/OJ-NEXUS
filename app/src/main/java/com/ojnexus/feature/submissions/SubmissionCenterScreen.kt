@@ -39,10 +39,21 @@ import com.ojnexus.core.ui.formatDateTime
 import com.ojnexus.judge.luogu.open.SubmissionJobKind
 import com.ojnexus.judge.luogu.open.SubmissionJobStatus
 
+internal data class SubmissionWorkspaceContext(
+    val pid: String,
+    val title: String?,
+)
+
+internal fun submissionWorkspaceContext(pid: String, title: String?): SubmissionWorkspaceContext =
+    SubmissionWorkspaceContext(
+        pid = pid,
+        title = title?.trim()?.takeIf { it.isNotEmpty() },
+    )
+
 @Composable
 fun SubmissionCenterScreen(
     onBack: () -> Unit,
-    onOpenWorkspace: (String) -> Unit,
+    onOpenWorkspace: (String, String?) -> Unit,
 ) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<SubmissionCenterViewModel>(
@@ -92,7 +103,7 @@ private fun SubmissionCenterContent(
     state: SubmissionCenterUiState,
     onCheckResult: (String) -> Unit,
     onQueueRecovery: (String) -> Unit,
-    onOpenWorkspace: (String) -> Unit,
+    onOpenWorkspace: (String, String?) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -167,7 +178,7 @@ private fun SubmissionJobCard(
     queued: Boolean,
     onCheckResult: (String) -> Unit,
     onQueueRecovery: (String) -> Unit,
-    onOpenWorkspace: (String) -> Unit,
+    onOpenWorkspace: (String, String?) -> Unit,
 ) {
     val pidValue = job.pid?.takeIf { it.isNotBlank() } ?: stringResource(R.string.problems_no_value)
     val titleValue = job.title?.trim()?.takeIf { it.isNotEmpty() }
@@ -308,7 +319,10 @@ private fun SubmissionJobCard(
                         job.pid.orEmpty(),
                     ),
                     enabled = true,
-                    onClick = { onOpenWorkspace(job.pid.orEmpty()) },
+                    onClick = {
+                        val context = submissionWorkspaceContext(job.pid.orEmpty(), job.title)
+                        onOpenWorkspace(context.pid, context.title)
+                    },
                 )
             }
         }

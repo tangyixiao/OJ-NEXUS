@@ -3,6 +3,19 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 51 — Submission workspace title restoration / 提交工作区题名恢复
+
+Opening a Luogu request from Submission Center now passes its locally stored public problem title
+through the existing encoded workspace route. PID remains the only submission identity; null or
+blank legacy titles use the existing PID-only route. / 从提交中心打开洛谷请求时，现在会通过现有编码工作区路由传递本地
+保存的公开题目标题。PID 仍是唯一提交身份；旧记录中的空或空白题名继续使用仅 PID 的路由。
+
+This phase changes local navigation/display context only. It adds no network field, database
+migration, credential flow, cloud service, cross-device sync, local compiler, custom-input runner,
+or automatic submission POST retry. Earlier phase notes and published Releases remain intact. /
+本阶段仅修改本地导航和展示上下文，不新增网络字段、数据库迁移、凭据流程、云端服务、跨设备同步、本地编译器、
+自定义输入运行器或自动提交 POST 重试；此前阶段说明和已发布 Release 均保留。
+
 ## PHASE 49 — First-use guide / 首次使用指南
 
 The repository now includes a bilingual quick-start guide covering Release installation, public

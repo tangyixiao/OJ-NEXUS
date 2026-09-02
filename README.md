@@ -25,6 +25,21 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Early development — **Phase 51 (submission workspace title restoration)**: reopening a Luogu
+workspace from Submission Center now carries the locally stored problem title through the
+existing encoded route. PID remains the only submission identity; blank or legacy titles keep
+the PID-only route. The APK identity is aligned to `versionName=0.3.46`, `versionCode=46`. /
+早期开发——**第 51 阶段（提交工作区题名恢复）**：从提交中心重新打开洛谷工作区时，现在会通过现有编码路由继续携带
+本地保存的题目标题。PID 仍是唯一提交身份；空题名或旧记录继续使用仅 PID 的路由。APK 版本身份同步为
+`versionName=0.3.46`、`versionCode=46`。
+
+Phase 51 is a local navigation/display-context change only. It does not add network fields,
+database migrations, main-site passwords, Cookie, Session, CSRF state, cloud service,
+cross-device sync, local compiler, custom-input runner, or automatic submission POST retry.
+Earlier phases, commits, tags, and releases remain preserved. / 第 51 阶段仅改变本地导航和展示上下文，不新增网络字段、
+数据库迁移、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、自定义输入运行器或自动提交 POST 重试。
+此前阶段、commit、标签和 Release 均继续保留。
+
 Early development — **Phase 50 (submission title context)**: local submission history now keeps
 the public problem title beside the PID when the workspace already knows it. PID remains the
 only submission identity, old rows migrate with a nullable title, and the title is excluded from

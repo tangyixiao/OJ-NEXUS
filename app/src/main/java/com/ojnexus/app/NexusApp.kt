@@ -202,8 +202,8 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     composable(route = NexusRoutes.SUBMISSIONS) {
                         SubmissionCenterScreen(
                             onBack = { navController.popBackStack() },
-                            onOpenWorkspace = { pid ->
-                                navController.navigate(NexusRoutes.workspace(pid))
+                            onOpenWorkspace = { pid, title ->
+                                navController.navigate(NexusRoutes.workspace(pid, title))
                             },
                         )
                     }
