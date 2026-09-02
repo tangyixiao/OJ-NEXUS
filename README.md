@@ -25,6 +25,23 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Early development — **Phase 56 (Problem Library 2.0)**: Problems now opens with a local library
+pulse showing total, visible, solved, and review counts. Active filters expose a real `CLEAR
+FILTERS` action that restores the default updated ordering, while problem rows gain a status rail
+and explicit favorite/delete accessibility actions. The APK identity is aligned to
+`versionName=0.3.52`, `versionCode=52`. / 早期开发——**第 56 阶段（题库 2.0）**：题库现在以本地题库脉冲开场，
+展示总数、当前显示、已解决和复习中数量。启用筛选时会显示真实的“清除筛选”操作，恢复默认更新时间排序；题目行增加状态标尺，
+并补充收藏/删除无障碍操作。APK 版本身份同步为 `versionName=0.3.52`、`versionCode=52`。
+
+Phase 56 is a local presentation and state-reset change. Summary values derive from existing
+Room/Flow state, and clearing filters changes only ViewModel filter/sort state; no problem data is
+deleted or rewritten. It adds no network fields, database migration, main-site passwords, Cookie,
+Session, CSRF state, cloud service, cross-device sync, local compiler, custom-input runner,
+background submission, or automatic POST retry. Earlier phases, commits, tags, and releases
+remain preserved. / 第 56 阶段仅改变本地展示和状态恢复；摘要来自已有 Room/Flow 状态，清除筛选只改变 ViewModel 的筛选/排序状态，
+不会删除或改写题目数据。不新增网络字段、数据库迁移、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、
+本地编译器、自定义输入运行器、后台提交或自动提交 POST 重试。此前阶段、commit、标签和 Release 均继续保留。
+
 Early development — **Phase 55 (Review triage)**: Training now opens with a local review pulse
 showing overdue, today, and later counts, three filters for all/due-now/upcoming items, and a
 real `START NEXT` action that opens the earliest due review. The queue keeps its existing rows,

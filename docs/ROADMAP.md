@@ -3,6 +3,22 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 56 — Problem Library 2.0 / 题库 2.0
+
+The local problem library now opens with a four-value pulse for total, visible, solved, and
+review counts. Active filters expose `CLEAR FILTERS`, which resets both filter criteria and sort
+order without touching stored problems. Existing rows gain a restrained status rail and explicit
+favorite/delete accessibility actions. / 本地题库现在以四项脉冲开场，展示总数、当前显示、已解决和复习中数量。
+启用筛选时显示“清除筛选”，可在不修改已存题目的情况下同时恢复筛选条件和排序。现有题目行增加克制的状态标尺，
+并补充收藏/删除无障碍操作。
+
+Counts are derived from the existing Room/Flow library stream. The pulse, reset action, and row
+polish remain local-only, use reduced-motion-safe transitions, and add no network field, database
+migration, credential flow, cloud service, cross-device sync, local compiler, custom-input runner,
+background submission, or automatic POST retry. Earlier phase notes and published Releases remain
+intact. / 数量来自已有 Room/Flow 题库流。脉冲、恢复操作和题目行优化仅限本地，并遵守减少动效设置；不新增网络字段、数据库迁移、
+凭据流程、云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试；此前阶段说明和已发布 Release 均保持不变。
+
 ## PHASE 55 — Review triage / 复习分诊台
 
 Training now begins with a local review pulse for overdue, today, and later work. Three explicit
