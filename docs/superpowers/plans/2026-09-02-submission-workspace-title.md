@@ -82,29 +82,29 @@
 - Consumes: verified implementation and bilingual docs from Tasks 1–2.
 - Produces: signed, checksum-verified GitHub Release v0.3.46 and a clean remote branch/tag.
 
-- [ ] **Step 1: Run the full fresh gate**
+- [x] **Step 1: Run the full fresh gate**
 
   Run `.\tools\gradlew-local.bat clean test assembleDebug lintDebug assembleRelease --no-daemon --rerun-tasks --console=plain` and require `BUILD SUCCESSFUL`.
 
-- [ ] **Step 2: Sign and verify the Release APK**
+- [x] **Step 2: Sign and verify the Release APK**
 
   Sign `app-release-unsigned.apk` with the existing local debug keystore using Build Tools 37.0.0,
   verify v2/v3 signatures with `apksigner verify --verbose`, compute SHA-256, and write the exact
   digest to `SHA256SUMS-v0.3.46.txt`.
 
-- [ ] **Step 3: Install and smoke-test without reset**
+- [x] **Step 3: Install and smoke-test without reset**
 
   Run `adb install -r app/build/outputs/apk/release/OJ-NEXUS-v0.3.46.apk`, launch the app, open
   the Submission Center, and check package version, running PID, and `AndroidRuntime:E` output.
   Do not call `pm clear`, `adb uninstall`, emulator wipe, or shutdown.
 
-- [ ] **Step 4: Commit, push, tag, and create Release**
+- [x] **Step 4: Commit, push, tag, and create Release**
 
   Use bilingual commit text `release: restore submission workspace titles v0.3.46 / 恢复提交工作区题名`;
   push the branch, create annotated tag `v0.3.46`, and upload the signed APK and checksum with
   `gh release create` using `docs/releases/v0.3.46.md` as notes.
 
-- [ ] **Step 5: Audit remote identity**
+- [x] **Step 5: Audit remote identity**
 
   Compare local HEAD with `git ls-remote` branch SHA, compare the peeled tag with the release
   commit, compare the GitHub asset digest with the local APK digest, confirm the release is public
