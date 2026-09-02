@@ -49,6 +49,7 @@ class LuoguSubmissionRepositoryTest {
                 lang = "cxx/14/gcc",
                 o2 = false,
                 code = "SECRET SOURCE SHOULD NOT BE STORED",
+                displayTitle = "A+B Problem",
             ),
         )
 
@@ -57,6 +58,7 @@ class LuoguSubmissionRepositoryTest {
         assertEquals(SubmissionJobKind.PROBLEM.name, job?.kind)
         assertEquals(SubmissionJobStatus.PENDING.name, job?.status)
         assertEquals(1_000L, job?.createdAt)
+        assertEquals("A+B Problem", job?.title)
     }
 
     @Test

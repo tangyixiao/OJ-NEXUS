@@ -591,6 +591,7 @@
     <string name="submissions_empty">还没有本地洛谷请求。在工作区运行或提交后，这里会显示历史记录。</string>
     <string name="submissions_kind">类型</string>
     <string name="submissions_pid">题号</string>
+    <string name="submissions_problem_title">题目标题</string>
     <string name="submissions_language">语言</string>
     <string name="submissions_request_id">请求 ID</string>
     <string name="submissions_time">时间</string>

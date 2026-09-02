@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ojnexus.R
@@ -169,12 +170,14 @@ private fun SubmissionJobCard(
     onOpenWorkspace: (String) -> Unit,
 ) {
     val pidValue = job.pid?.takeIf { it.isNotBlank() } ?: stringResource(R.string.problems_no_value)
+    val titleValue = job.title?.trim()?.takeIf { it.isNotEmpty() }
+    val problemDisplay = submissionProblemDisplay(pidValue, titleValue)
     val canOpenWorkspace = job.kind == SubmissionJobKind.PROBLEM.name && job.pid?.isNotBlank() == true
     val canCheckResult = job.status == SubmissionJobStatus.PENDING.name || job.status == SubmissionJobStatus.FAILED.name
     val rowDescription = stringResource(
         R.string.submissions_row_cd,
         kindLabel(job.kind),
-        pidValue,
+        problemDisplay,
         job.requestId,
         statusLabel(job.status),
     )
@@ -199,9 +202,11 @@ private fun SubmissionJobCard(
                 )
                 job.pid?.takeIf { it.isNotBlank() }?.let {
                     Text(
-                        text = it,
+                        text = problemDisplay,
                         style = NexusTheme.typography.data,
                         color = NexusTheme.colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -214,6 +219,9 @@ private fun SubmissionJobCard(
 
         SubmissionMetadataLine(stringResource(R.string.submissions_kind), kindLabel(job.kind))
         SubmissionMetadataLine(stringResource(R.string.submissions_pid), pidValue)
+        titleValue?.let {
+            SubmissionMetadataLine(stringResource(R.string.submissions_problem_title), it)
+        }
         SubmissionMetadataLine(stringResource(R.string.submissions_language), job.language)
         SubmissionMetadataLine(stringResource(R.string.submissions_request_id), job.requestId)
         SubmissionMetadataLine(
@@ -306,6 +314,9 @@ private fun SubmissionJobCard(
         }
     }
 }
+
+internal fun submissionProblemDisplay(pid: String, title: String?): String =
+    title?.trim()?.takeIf { it.isNotEmpty() }?.let { "$it · $pid" } ?: pid
 
 @Composable
 private fun SubmissionMetadataLine(

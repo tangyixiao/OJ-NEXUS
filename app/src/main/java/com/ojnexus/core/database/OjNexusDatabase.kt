@@ -72,8 +72,10 @@ import com.ojnexus.core.database.entity.WorkspaceDraftEntity
  * v9 (Phase 25 Luogu): cached public problem detail snapshots for offline-first reading.
  *
  * v10 (Phase 27 Luogu): local workspace drafts keyed by judge and problem.
+ *
+ * v11 (Phase 50 Luogu): nullable local problem titles on submission history rows.
  */
-const val OJ_NEXUS_SCHEMA_VERSION = 10
+const val OJ_NEXUS_SCHEMA_VERSION = 11
 
 @Database(
     entities = [
@@ -564,6 +566,12 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_10_11: Migration = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `submission_jobs` ADD COLUMN `title` TEXT")
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
                 .addMigrations(
@@ -576,6 +584,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
                     MIGRATION_7_8,
                     MIGRATION_8_9,
                     MIGRATION_9_10,
+                    MIGRATION_10_11,
                 )
                 .build()
     }

@@ -21,6 +21,8 @@ data class SubmissionJobEntity(
     @ColumnInfo(name = "track_id") val trackId: String? = null,
     val kind: String,
     val pid: String? = null,
+    /** Public problem title captured locally for history display; PID remains the identity. */
+    val title: String? = null,
     val language: String,
     val status: String,
     @ColumnInfo(name = "judge_status") val judgeStatus: Int? = null,

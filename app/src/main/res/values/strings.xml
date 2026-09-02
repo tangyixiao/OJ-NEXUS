@@ -642,6 +642,7 @@
     <string name="submissions_empty">NO LOCAL LUOGU REQUESTS YET. RUN OR SUBMIT FROM THE WORKSPACE TO SEE HISTORY HERE.</string>
     <string name="submissions_kind">KIND</string>
     <string name="submissions_pid">PID</string>
+    <string name="submissions_problem_title">PROBLEM TITLE</string>
     <string name="submissions_language">LANGUAGE</string>
     <string name="submissions_request_id">REQUEST ID</string>
     <string name="submissions_time">TIME</string>

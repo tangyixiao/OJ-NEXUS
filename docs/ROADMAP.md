@@ -700,3 +700,19 @@ or automatic POST retry. Earlier phase notes and published Releases remain intac
 自定义输入运行器或自动 POST 重试；此前阶段说明和 Releases 保持不变。
 本阶段不新增接口或凭据流程，继续只使用公开数据。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、
 跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布 Releases 保持不变。
+## PHASE 50 — Submission title context / 提交题名上下文
+
+Local Open Platform submission history now retains a nullable public problem title when a
+workspace submission already has one. The submission center shows the title beside the PID and
+keeps a separate title metadata line; legacy rows remain readable with PID-only context. The
+title is local display metadata only and is deliberately excluded from the official Open
+Platform request DTO. / 本地 Open Platform 提交历史现在会在工作区已有题名时保存可空的公开题目标题。
+提交中心会在 PID 旁显示题名，并保留独立的题名元数据行；旧记录仍可仅凭 PID 正常显示。题名只是本地展示元数据，
+会明确排除在官方 Open Platform 请求 DTO 之外。
+
+Room migration 10→11 adds the nullable `submission_jobs.title` column without deleting existing
+requests. This phase remains local-first and explicit: no main-site password, Cookie, Session,
+CSRF login, cloud account, cross-device sync, local compiler, custom-input runner, or automatic
+POST retry is added. Earlier phase notes and published Releases remain intact. / Room 10→11 迁移新增可空的
+`submission_jobs.title` 列，不删除已有请求。本阶段继续本地优先和明确操作：不新增主站密码、Cookie、Session、CSRF 登录、
+云端账号、跨设备同步、本地编译器、自定义输入运行器或自动 POST 重试；此前阶段说明和已发布 Release 均保留。

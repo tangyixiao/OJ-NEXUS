@@ -178,6 +178,18 @@ class WorkspaceViewModelTest {
     }
 
     @Test
+    fun `submit forwards the problem title as local display context`() = runBlocking {
+        val gateway = FakeGateway()
+        val viewModel = WorkspaceViewModel("P1001", "A+B", gateway, FakeStore(), CoroutineScope(coroutineContext))
+
+        viewModel.setCode("int main() {}")
+        viewModel.setMode(WorkspaceMode.SUBMIT)
+        viewModel.submit()
+
+        assertEquals("A+B", gateway.lastProblemRequest?.displayTitle)
+    }
+
+    @Test
     fun `busy submit is not duplicated`() = runBlocking {
         val gateway = BusyGateway()
         val scope = CoroutineScope(Dispatchers.Default)

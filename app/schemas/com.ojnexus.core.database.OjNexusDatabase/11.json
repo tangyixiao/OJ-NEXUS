@@ -1,0 +1,2033 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 11,
+    "identityHash": "2d69a48609415003ef271af6313a507f",
+    "entities": [
+      {
+        "tableName": "problems",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `judge` TEXT NOT NULL, `external_id` TEXT NOT NULL, `title` TEXT NOT NULL, `difficulty` INTEGER, `difficulty_source` TEXT NOT NULL DEFAULT 'UNKNOWN', `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `first_solved_at` INTEGER, `last_attempt_at` INTEGER, `attempt_count` INTEGER NOT NULL, `solved` INTEGER NOT NULL, `favorite` INTEGER NOT NULL, `source_url` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "judge",
+            "columnName": "judge",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "externalId",
+            "columnName": "external_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "difficulty",
+            "columnName": "difficulty",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "difficultySource",
+            "columnName": "difficulty_source",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'UNKNOWN'"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstSolvedAt",
+            "columnName": "first_solved_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastAttemptAt",
+            "columnName": "last_attempt_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "attemptCount",
+            "columnName": "attempt_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "solved",
+            "columnName": "solved",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "favorite",
+            "columnName": "favorite",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceUrl",
+            "columnName": "source_url",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_problems_judge_external_id",
+            "unique": true,
+            "columnNames": [
+              "judge",
+              "external_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_problems_judge_external_id` ON `${TABLE_NAME}` (`judge`, `external_id`)"
+          },
+          {
+            "name": "index_problems_judge",
+            "unique": false,
+            "columnNames": [
+              "judge"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_problems_judge` ON `${TABLE_NAME}` (`judge`)"
+          },
+          {
+            "name": "index_problems_solved",
+            "unique": false,
+            "columnNames": [
+              "solved"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_problems_solved` ON `${TABLE_NAME}` (`solved`)"
+          },
+          {
+            "name": "index_problems_updated_at",
+            "unique": false,
+            "columnNames": [
+              "updated_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_problems_updated_at` ON `${TABLE_NAME}` (`updated_at`)"
+          }
+        ]
+      },
+      {
+        "tableName": "problem_tags",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_problem_tags_name",
+            "unique": true,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_problem_tags_name` ON `${TABLE_NAME}` (`name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "problem_tag_cross_ref",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`problem_id` INTEGER NOT NULL, `tag_id` INTEGER NOT NULL, PRIMARY KEY(`problem_id`, `tag_id`), FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`tag_id`) REFERENCES `problem_tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "problemId",
+            "columnName": "problem_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagId",
+            "columnName": "tag_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "problem_id",
+            "tag_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_problem_tag_cross_ref_tag_id",
+            "unique": false,
+            "columnNames": [
+              "tag_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_problem_tag_cross_ref_tag_id` ON `${TABLE_NAME}` (`tag_id`)"
+          },
+          {
+            "name": "index_problem_tag_cross_ref_problem_id",
+            "unique": false,
+            "columnNames": [
+              "problem_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_problem_tag_cross_ref_problem_id` ON `${TABLE_NAME}` (`problem_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "problems",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "problem_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "problem_tags",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "tag_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "attempts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `problem_id` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL, `day_index` INTEGER NOT NULL, `verdict` TEXT NOT NULL, `raw_verdict` TEXT, `duration_min` INTEGER, `language` TEXT, `note` TEXT, `source_judge` TEXT, `external_submission_id` TEXT, `contest_id` TEXT, `participant_type` TEXT, `testset` TEXT, `passed_test_count` INTEGER, `execution_time_ms` INTEGER, `memory_bytes` INTEGER, `score` REAL, `code_length_bytes` INTEGER, FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "problemId",
+            "columnName": "problem_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dayIndex",
+            "columnName": "day_index",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "verdict",
+            "columnName": "verdict",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawVerdict",
+            "columnName": "raw_verdict",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "durationMinutes",
+            "columnName": "duration_min",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "language",
+            "columnName": "language",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sourceJudge",
+            "columnName": "source_judge",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "externalSubmissionId",
+            "columnName": "external_submission_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "contestId",
+            "columnName": "contest_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "participantType",
+            "columnName": "participant_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "testset",
+            "columnName": "testset",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "passedTestCount",
+            "columnName": "passed_test_count",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "executionTimeMs",
+            "columnName": "execution_time_ms",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "memoryBytes",
+            "columnName": "memory_bytes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "score",
+            "columnName": "score",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "codeLengthBytes",
+            "columnName": "code_length_bytes",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_attempts_problem_id",
+            "unique": false,
+            "columnNames": [
+              "problem_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_attempts_problem_id` ON `${TABLE_NAME}` (`problem_id`)"
+          },
+          {
+            "name": "index_attempts_day_index",
+            "unique": false,
+            "columnNames": [
+              "day_index"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_attempts_day_index` ON `${TABLE_NAME}` (`day_index`)"
+          },
+          {
+            "name": "index_attempts_timestamp",
+            "unique": false,
+            "columnNames": [
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_attempts_timestamp` ON `${TABLE_NAME}` (`timestamp`)"
+          },
+          {
+            "name": "index_attempts_source_judge_external_submission_id",
+            "unique": true,
+            "columnNames": [
+              "source_judge",
+              "external_submission_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_attempts_source_judge_external_submission_id` ON `${TABLE_NAME}` (`source_judge`, `external_submission_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "problems",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "problem_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "failure_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `problem_id` INTEGER NOT NULL, `attempt_id` INTEGER, `category` TEXT NOT NULL, `description` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `day_index` INTEGER NOT NULL, FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`attempt_id`) REFERENCES `attempts`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "problemId",
+            "columnName": "problem_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attemptId",
+            "columnName": "attempt_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dayIndex",
+            "columnName": "day_index",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_failure_entries_problem_id",
+            "unique": false,
+            "columnNames": [
+              "problem_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_failure_entries_problem_id` ON `${TABLE_NAME}` (`problem_id`)"
+          },
+          {
+            "name": "index_failure_entries_attempt_id",
+            "unique": false,
+            "columnNames": [
+              "attempt_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_failure_entries_attempt_id` ON `${TABLE_NAME}` (`attempt_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "problems",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "problem_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "attempts",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "attempt_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "problem_notes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`problem_id` INTEGER NOT NULL, `key_insight` TEXT NOT NULL, `implementation_notes` TEXT NOT NULL, `complexity` TEXT NOT NULL, `general` TEXT NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`problem_id`), FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "problemId",
+            "columnName": "problem_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "keyInsight",
+            "columnName": "key_insight",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "implementationNotes",
+            "columnName": "implementation_notes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "complexity",
+            "columnName": "complexity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "general",
+            "columnName": "general",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "problem_id"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "problems",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "problem_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "reviews",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`problem_id` INTEGER NOT NULL, `stage` INTEGER NOT NULL, `due_at` INTEGER NOT NULL, `due_day_index` INTEGER NOT NULL, `last_result` TEXT, `last_reviewed_at` INTEGER, `created_at` INTEGER NOT NULL, PRIMARY KEY(`problem_id`), FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "problemId",
+            "columnName": "problem_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stage",
+            "columnName": "stage",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dueAt",
+            "columnName": "due_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dueDayIndex",
+            "columnName": "due_day_index",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastResult",
+            "columnName": "last_result",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastReviewedAt",
+            "columnName": "last_reviewed_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "problem_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reviews_due_day_index",
+            "unique": false,
+            "columnNames": [
+              "due_day_index"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reviews_due_day_index` ON `${TABLE_NAME}` (`due_day_index`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "problems",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "problem_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "review_log",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `problem_id` INTEGER NOT NULL, `result` TEXT NOT NULL, `stage` INTEGER NOT NULL, `completed_at` INTEGER NOT NULL, `day_index` INTEGER NOT NULL, FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "problemId",
+            "columnName": "problem_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "result",
+            "columnName": "result",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stage",
+            "columnName": "stage",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completedAt",
+            "columnName": "completed_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dayIndex",
+            "columnName": "day_index",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_review_log_problem_id",
+            "unique": false,
+            "columnNames": [
+              "problem_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_review_log_problem_id` ON `${TABLE_NAME}` (`problem_id`)"
+          },
+          {
+            "name": "index_review_log_day_index",
+            "unique": false,
+            "columnNames": [
+              "day_index"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_review_log_day_index` ON `${TABLE_NAME}` (`day_index`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "problems",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "problem_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "training_tasks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date_epoch_day` INTEGER NOT NULL, `type` TEXT NOT NULL, `problem_id` INTEGER, `title` TEXT, `completed` INTEGER NOT NULL, `priority` INTEGER NOT NULL, `sort_order` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateEpochDay",
+            "columnName": "date_epoch_day",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "problemId",
+            "columnName": "problem_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "completed",
+            "columnName": "completed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "priority",
+            "columnName": "priority",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sort_order",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_training_tasks_date_epoch_day",
+            "unique": false,
+            "columnNames": [
+              "date_epoch_day"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_training_tasks_date_epoch_day` ON `${TABLE_NAME}` (`date_epoch_day`)"
+          },
+          {
+            "name": "index_training_tasks_problem_id",
+            "unique": false,
+            "columnNames": [
+              "problem_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_training_tasks_problem_id` ON `${TABLE_NAME}` (`problem_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "problems",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "problem_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "training_sessions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `state` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `paused_at` INTEGER, `total_paused_ms` INTEGER NOT NULL, `finished_at` INTEGER, `target_duration_min` INTEGER, `target_tag` TEXT, `note` TEXT, `day_index` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "started_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pausedAt",
+            "columnName": "paused_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "totalPausedMs",
+            "columnName": "total_paused_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finishedAt",
+            "columnName": "finished_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "targetDurationMin",
+            "columnName": "target_duration_min",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "targetTag",
+            "columnName": "target_tag",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "dayIndex",
+            "columnName": "day_index",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_training_sessions_state",
+            "unique": false,
+            "columnNames": [
+              "state"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_training_sessions_state` ON `${TABLE_NAME}` (`state`)"
+          },
+          {
+            "name": "index_training_sessions_day_index",
+            "unique": false,
+            "columnNames": [
+              "day_index"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_training_sessions_day_index` ON `${TABLE_NAME}` (`day_index`)"
+          },
+          {
+            "name": "index_training_sessions_started_at",
+            "unique": false,
+            "columnNames": [
+              "started_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_training_sessions_started_at` ON `${TABLE_NAME}` (`started_at`)"
+          }
+        ]
+      },
+      {
+        "tableName": "training_session_problems",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`session_id` INTEGER NOT NULL, `problem_id` INTEGER NOT NULL, `solved` INTEGER NOT NULL, `attempts` INTEGER NOT NULL, PRIMARY KEY(`session_id`, `problem_id`), FOREIGN KEY(`session_id`) REFERENCES `training_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "sessionId",
+            "columnName": "session_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "problemId",
+            "columnName": "problem_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "solved",
+            "columnName": "solved",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempts",
+            "columnName": "attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "session_id",
+            "problem_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_training_session_problems_problem_id",
+            "unique": false,
+            "columnNames": [
+              "problem_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_training_session_problems_problem_id` ON `${TABLE_NAME}` (`problem_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "training_sessions",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "session_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "problems",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "problem_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "judge_accounts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `judge` TEXT NOT NULL, `handle` TEXT NOT NULL, `canonical_handle` TEXT NOT NULL, `connected_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `enabled` INTEGER NOT NULL, `verification_state` TEXT NOT NULL, `source_reliability` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "judge",
+            "columnName": "judge",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "handle",
+            "columnName": "handle",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canonicalHandle",
+            "columnName": "canonical_handle",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "connectedAt",
+            "columnName": "connected_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enabled",
+            "columnName": "enabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "verificationState",
+            "columnName": "verification_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceReliability",
+            "columnName": "source_reliability",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_judge_accounts_judge_canonical_handle",
+            "unique": true,
+            "columnNames": [
+              "judge",
+              "canonical_handle"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_judge_accounts_judge_canonical_handle` ON `${TABLE_NAME}` (`judge`, `canonical_handle`)"
+          }
+        ]
+      },
+      {
+        "tableName": "judge_profiles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`judge` TEXT NOT NULL, `handle` TEXT NOT NULL, `first_name` TEXT, `last_name` TEXT, `country` TEXT, `city` TEXT, `organization` TEXT, `contribution` INTEGER, `rating` INTEGER, `max_rating` INTEGER, `rank` TEXT, `max_rank` TEXT, `friend_of_count` INTEGER, `registration_time_seconds` INTEGER, `last_online_time_seconds` INTEGER, `avatar` TEXT, `title_photo` TEXT, `introduction` TEXT, `slogan` TEXT, `badge` TEXT, `ranking` INTEGER, `follower_count` INTEGER, `following_count` INTEGER, `passed_problem_count` INTEGER, `submitted_problem_count` INTEGER, `ccf_level` INTEGER, `xcpc_level` INTEGER, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`judge`))",
+        "fields": [
+          {
+            "fieldPath": "judge",
+            "columnName": "judge",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "handle",
+            "columnName": "handle",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstName",
+            "columnName": "first_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastName",
+            "columnName": "last_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "country",
+            "columnName": "country",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "city",
+            "columnName": "city",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "organization",
+            "columnName": "organization",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "contribution",
+            "columnName": "contribution",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rating",
+            "columnName": "rating",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "maxRating",
+            "columnName": "max_rating",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rank",
+            "columnName": "rank",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "maxRank",
+            "columnName": "max_rank",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "friendOfCount",
+            "columnName": "friend_of_count",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "registrationTimeSeconds",
+            "columnName": "registration_time_seconds",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastOnlineTimeSeconds",
+            "columnName": "last_online_time_seconds",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "avatar",
+            "columnName": "avatar",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "titlePhoto",
+            "columnName": "title_photo",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "introduction",
+            "columnName": "introduction",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "slogan",
+            "columnName": "slogan",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "badge",
+            "columnName": "badge",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ranking",
+            "columnName": "ranking",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "followerCount",
+            "columnName": "follower_count",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "followingCount",
+            "columnName": "following_count",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "passedProblemCount",
+            "columnName": "passed_problem_count",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "submittedProblemCount",
+            "columnName": "submitted_problem_count",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "ccfLevel",
+            "columnName": "ccf_level",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "xcpcLevel",
+            "columnName": "xcpc_level",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "judge"
+          ]
+        }
+      },
+      {
+        "tableName": "rating_changes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `judge` TEXT NOT NULL, `handle` TEXT NOT NULL, `contest_id` TEXT NOT NULL, `contest_name` TEXT NOT NULL, `rank` INTEGER, `old_rating` INTEGER, `new_rating` INTEGER NOT NULL, `rating_update_time_seconds` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "judge",
+            "columnName": "judge",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "handle",
+            "columnName": "handle",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contestId",
+            "columnName": "contest_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contestName",
+            "columnName": "contest_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rank",
+            "columnName": "rank",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "oldRating",
+            "columnName": "old_rating",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "newRating",
+            "columnName": "new_rating",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ratingUpdateTimeSeconds",
+            "columnName": "rating_update_time_seconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_rating_changes_judge_contest_id",
+            "unique": true,
+            "columnNames": [
+              "judge",
+              "contest_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_rating_changes_judge_contest_id` ON `${TABLE_NAME}` (`judge`, `contest_id`)"
+          },
+          {
+            "name": "index_rating_changes_judge_rating_update_time_seconds",
+            "unique": false,
+            "columnNames": [
+              "judge",
+              "rating_update_time_seconds"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_rating_changes_judge_rating_update_time_seconds` ON `${TABLE_NAME}` (`judge`, `rating_update_time_seconds`)"
+          }
+        ]
+      },
+      {
+        "tableName": "remote_problems",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`judge` TEXT NOT NULL, `external_id` TEXT NOT NULL, `contest_id` TEXT, `index` TEXT, `name` TEXT NOT NULL, `type` TEXT, `rating` INTEGER, `difficulty_source` TEXT NOT NULL, `points` REAL, `tags` TEXT NOT NULL, `solved_count` INTEGER, `updated_at` INTEGER NOT NULL, `last_seen_at` INTEGER NOT NULL, PRIMARY KEY(`judge`, `external_id`))",
+        "fields": [
+          {
+            "fieldPath": "judge",
+            "columnName": "judge",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "externalId",
+            "columnName": "external_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contestId",
+            "columnName": "contest_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "index",
+            "columnName": "index",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rating",
+            "columnName": "rating",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "difficultySource",
+            "columnName": "difficulty_source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "points",
+            "columnName": "points",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "tags",
+            "columnName": "tags",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "solvedCount",
+            "columnName": "solved_count",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSeenAt",
+            "columnName": "last_seen_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "judge",
+            "external_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_remote_problems_judge_rating",
+            "unique": false,
+            "columnNames": [
+              "judge",
+              "rating"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_remote_problems_judge_rating` ON `${TABLE_NAME}` (`judge`, `rating`)"
+          },
+          {
+            "name": "index_remote_problems_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_remote_problems_name` ON `${TABLE_NAME}` (`name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "remote_problem_details",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`judge` TEXT NOT NULL, `external_id` TEXT NOT NULL, `title` TEXT NOT NULL, `difficulty` INTEGER, `tags_json` TEXT NOT NULL, `total_submit` INTEGER, `total_accepted` INTEGER, `background` TEXT NOT NULL, `description` TEXT NOT NULL, `input_format` TEXT NOT NULL, `output_format` TEXT NOT NULL, `hint` TEXT NOT NULL, `samples_json` TEXT NOT NULL, `time_limit_ms` INTEGER, `memory_limit_mb` INTEGER, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`judge`, `external_id`))",
+        "fields": [
+          {
+            "fieldPath": "judge",
+            "columnName": "judge",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "externalId",
+            "columnName": "external_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "difficulty",
+            "columnName": "difficulty",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "tagsJson",
+            "columnName": "tags_json",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalSubmit",
+            "columnName": "total_submit",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "totalAccepted",
+            "columnName": "total_accepted",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "background",
+            "columnName": "background",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "inputFormat",
+            "columnName": "input_format",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outputFormat",
+            "columnName": "output_format",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hint",
+            "columnName": "hint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "samplesJson",
+            "columnName": "samples_json",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeLimitMs",
+            "columnName": "time_limit_ms",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "memoryLimitMb",
+            "columnName": "memory_limit_mb",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "judge",
+            "external_id"
+          ]
+        }
+      },
+      {
+        "tableName": "contests",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`judge` TEXT NOT NULL, `external_contest_id` TEXT NOT NULL, `name` TEXT NOT NULL, `type` TEXT, `phase` TEXT NOT NULL, `frozen` INTEGER NOT NULL, `duration_seconds` INTEGER NOT NULL, `start_time_seconds` INTEGER, `relative_time_seconds` INTEGER, `prepared_by` TEXT, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`judge`, `external_contest_id`))",
+        "fields": [
+          {
+            "fieldPath": "judge",
+            "columnName": "judge",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "externalContestId",
+            "columnName": "external_contest_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "phase",
+            "columnName": "phase",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "frozen",
+            "columnName": "frozen",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationSeconds",
+            "columnName": "duration_seconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startTimeSeconds",
+            "columnName": "start_time_seconds",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "relativeTimeSeconds",
+            "columnName": "relative_time_seconds",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "preparedBy",
+            "columnName": "prepared_by",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "judge",
+            "external_contest_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_contests_judge_start_time_seconds",
+            "unique": false,
+            "columnNames": [
+              "judge",
+              "start_time_seconds"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_contests_judge_start_time_seconds` ON `${TABLE_NAME}` (`judge`, `start_time_seconds`)"
+          },
+          {
+            "name": "index_contests_judge_phase",
+            "unique": false,
+            "columnNames": [
+              "judge",
+              "phase"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_contests_judge_phase` ON `${TABLE_NAME}` (`judge`, `phase`)"
+          }
+        ]
+      },
+      {
+        "tableName": "contest_problem_markers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`judge` TEXT NOT NULL, `contest_id` TEXT NOT NULL, `problem_external_id` TEXT NOT NULL, `marker` TEXT NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`judge`, `contest_id`, `problem_external_id`))",
+        "fields": [
+          {
+            "fieldPath": "judge",
+            "columnName": "judge",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contestId",
+            "columnName": "contest_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "problemExternalId",
+            "columnName": "problem_external_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "marker",
+            "columnName": "marker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "judge",
+            "contest_id",
+            "problem_external_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_contest_problem_markers_judge_contest_id",
+            "unique": false,
+            "columnNames": [
+              "judge",
+              "contest_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_contest_problem_markers_judge_contest_id` ON `${TABLE_NAME}` (`judge`, `contest_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "problem_knowledge",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`problem_id` INTEGER NOT NULL, `knowledge_area` TEXT NOT NULL, PRIMARY KEY(`problem_id`, `knowledge_area`), FOREIGN KEY(`problem_id`) REFERENCES `problems`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "problemId",
+            "columnName": "problem_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "knowledgeArea",
+            "columnName": "knowledge_area",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "problem_id",
+            "knowledge_area"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_problem_knowledge_knowledge_area",
+            "unique": false,
+            "columnNames": [
+              "knowledge_area"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_problem_knowledge_knowledge_area` ON `${TABLE_NAME}` (`knowledge_area`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "problems",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "problem_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "sync_states",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`judge` TEXT NOT NULL, `account_id` INTEGER, `state` TEXT NOT NULL, `started_at` INTEGER, `finished_at` INTEGER, `last_successful_sync_at` INTEGER, `last_error_type` TEXT, `last_error_message` TEXT, `current_stage` TEXT, `submissions_imported` INTEGER, `profile_synced_at` INTEGER, `rating_synced_at` INTEGER, `submissions_synced_at` INTEGER, `contests_synced_at` INTEGER, `problemset_synced_at` INTEGER, `latest_external_submission_id` INTEGER, `latest_submission_time_seconds` INTEGER, PRIMARY KEY(`judge`))",
+        "fields": [
+          {
+            "fieldPath": "judge",
+            "columnName": "judge",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "account_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "started_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "finishedAt",
+            "columnName": "finished_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastSuccessfulSyncAt",
+            "columnName": "last_successful_sync_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastErrorType",
+            "columnName": "last_error_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastErrorMessage",
+            "columnName": "last_error_message",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "currentStage",
+            "columnName": "current_stage",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "submissionsImported",
+            "columnName": "submissions_imported",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "profileSyncedAt",
+            "columnName": "profile_synced_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "ratingSyncedAt",
+            "columnName": "rating_synced_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "submissionsSyncedAt",
+            "columnName": "submissions_synced_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "contestsSyncedAt",
+            "columnName": "contests_synced_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "problemsetSyncedAt",
+            "columnName": "problemset_synced_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "latestExternalSubmissionId",
+            "columnName": "latest_external_submission_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "latestSubmissionTimeSeconds",
+            "columnName": "latest_submission_time_seconds",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "judge"
+          ]
+        }
+      },
+      {
+        "tableName": "submission_jobs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `judge` TEXT NOT NULL, `request_id` TEXT NOT NULL, `track_id` TEXT, `kind` TEXT NOT NULL, `pid` TEXT, `title` TEXT, `language` TEXT NOT NULL, `status` TEXT NOT NULL, `judge_status` INTEGER, `score` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `last_error_type` TEXT, `compile_success` INTEGER, `compile_message` TEXT, `output` TEXT, `exit_code` INTEGER, `execution_time_ms` INTEGER, `memory_kib` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "judge",
+            "columnName": "judge",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestId",
+            "columnName": "request_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trackId",
+            "columnName": "track_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pid",
+            "columnName": "pid",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "language",
+            "columnName": "language",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "judgeStatus",
+            "columnName": "judge_status",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "score",
+            "columnName": "score",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastErrorType",
+            "columnName": "last_error_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "compileSuccess",
+            "columnName": "compile_success",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "compileMessage",
+            "columnName": "compile_message",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "output",
+            "columnName": "output",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "exitCode",
+            "columnName": "exit_code",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "executionTimeMs",
+            "columnName": "execution_time_ms",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "memoryKiB",
+            "columnName": "memory_kib",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_submission_jobs_request_id",
+            "unique": true,
+            "columnNames": [
+              "request_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_submission_jobs_request_id` ON `${TABLE_NAME}` (`request_id`)"
+          },
+          {
+            "name": "index_submission_jobs_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_submission_jobs_status` ON `${TABLE_NAME}` (`status`)"
+          },
+          {
+            "name": "index_submission_jobs_updated_at",
+            "unique": false,
+            "columnNames": [
+              "updated_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_submission_jobs_updated_at` ON `${TABLE_NAME}` (`updated_at`)"
+          }
+        ]
+      },
+      {
+        "tableName": "workspace_drafts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`judge` TEXT NOT NULL, `pid` TEXT NOT NULL, `code` TEXT NOT NULL, `input` TEXT NOT NULL, `language` TEXT NOT NULL, `o2` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`judge`, `pid`))",
+        "fields": [
+          {
+            "fieldPath": "judge",
+            "columnName": "judge",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pid",
+            "columnName": "pid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "input",
+            "columnName": "input",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "language",
+            "columnName": "language",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "o2",
+            "columnName": "o2",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "judge",
+            "pid"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2d69a48609415003ef271af6313a507f')"
+    ]
+  }
+}

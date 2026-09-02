@@ -54,6 +54,7 @@ class LuoguSubmissionRepository(
             requestId = response.requestId,
             kind = SubmissionJobKind.PROBLEM,
             pid = request.pid,
+            title = request.displayTitle,
             language = request.lang,
         )
         resultScheduler?.enqueue(response.requestId)
@@ -204,6 +205,7 @@ class LuoguSubmissionRepository(
         requestId: String,
         kind: SubmissionJobKind,
         pid: String?,
+        title: String? = null,
         language: String,
     ) {
         val now = clock.millis()
@@ -213,6 +215,7 @@ class LuoguSubmissionRepository(
                 requestId = requestId,
                 kind = kind.name,
                 pid = pid,
+                title = title?.trim()?.takeIf { it.isNotEmpty() },
                 language = language,
                 status = SubmissionJobStatus.PENDING.name,
                 createdAt = now,

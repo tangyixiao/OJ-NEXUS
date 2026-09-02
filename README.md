@@ -25,6 +25,21 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Early development — **Phase 50 (submission title context)**: local submission history now keeps
+the public problem title beside the PID when the workspace already knows it. PID remains the
+only submission identity, old rows migrate with a nullable title, and the title is excluded from
+the official Open Platform request DTO. The APK identity is aligned to `versionName=0.3.45`,
+`versionCode=45`. / 早期开发——**第 50 阶段（提交题名上下文）**：本地提交历史现在会在工作区已知题名时，
+在 PID 旁保存并显示公开题目标题。PID 仍是唯一提交身份；旧记录通过可空标题字段迁移，题名不会进入官方
+Open Platform 请求 DTO。APK 版本身份同步为 `versionName=0.3.45`、`versionCode=45`。
+
+Phase 50 is a local display-context and additive migration change. It does not add background
+submission, main-site passwords, Cookie, Session, CSRF state, cloud service, cross-device sync,
+local compiler, custom-input runner, or automatic POST retry. Earlier phases, commits, tags, and
+releases remain preserved. / 第 50 阶段仅增加本地展示上下文和非破坏性数据库迁移，不新增后台提交、主站密码、
+Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、自定义输入运行器或自动 POST 重试。此前阶段、
+commit、标签和 Release 均继续保留。
+
 Early development — **Phase 48 (foreground submission result convergence)**: after the user
 explicitly submits through Luogu Open Platform, the workspace now runs the existing bounded
 foreground result poll immediately. Terminal evaluations render without a second tap; pending

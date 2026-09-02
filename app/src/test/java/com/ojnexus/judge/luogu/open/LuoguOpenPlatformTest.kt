@@ -125,6 +125,26 @@ class LuoguOpenPlatformClientTest {
     }
 
     @Test
+    fun `problem display title is local context and never crosses the Open Platform boundary`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("{\"requestId\":\"req-title\"}"))
+
+        client.submitProblem(
+            LuoguProblemJudgeRequest(
+                pid = "P1001",
+                lang = "cxx/14/gcc",
+                o2 = false,
+                code = "int main() {}",
+                displayTitle = "LOCAL ONLY TITLE",
+            ),
+        )
+
+        val request = server.takeRequest()
+        val body = request.body.readUtf8()
+        assertFalse(body.contains("LOCAL ONLY TITLE"))
+        assertFalse(body.contains("displayTitle"))
+    }
+
+    @Test
     fun `result endpoint maps 204 to pending`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(204))
 

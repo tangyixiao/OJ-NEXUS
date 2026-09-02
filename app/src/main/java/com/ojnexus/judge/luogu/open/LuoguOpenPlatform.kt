@@ -63,6 +63,8 @@ data class LuoguProblemJudgeRequest(
     val o2: Boolean,
     val code: String,
     val trackId: String? = null,
+    /** Local display context only; the Open Platform DTO is built without this field. */
+    val displayTitle: String? = null,
 )
 
 data class LuoguRunRequest(

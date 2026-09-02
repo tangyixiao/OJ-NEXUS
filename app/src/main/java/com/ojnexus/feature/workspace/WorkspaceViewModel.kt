@@ -244,6 +244,7 @@ class WorkspaceViewModel(
                             lang = snapshot.language,
                             o2 = snapshot.o2,
                             code = snapshot.code,
+                            displayTitle = snapshot.title,
                         ),
                     )
                 } else {
