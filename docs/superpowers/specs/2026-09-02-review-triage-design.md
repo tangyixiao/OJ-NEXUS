@@ -1,7 +1,7 @@
 # Review Triage Design
 
-**Date:** 2026-09-02  
-**Target phase:** v0.3.50 / Phase 55  
+**Date:** 2026-09-02
+**Target phase:** v0.3.50 / Phase 55
 **Status:** Approved direction; implementation pending
 
 ## Goal
