@@ -16,6 +16,11 @@ class NexusRoutesTest {
     }
 
     @Test
+    fun `review run route is stable and carries no problem list`() {
+        assertEquals("review-run", NexusRoutes.REVIEW_RUN)
+    }
+
+    @Test
     fun `settings routes keep stable ids`() {
         assertEquals("settings", NexusRoutes.SETTINGS)
         assertEquals("settings/openapp", NexusRoutes.SETTINGS_OPENAPP)

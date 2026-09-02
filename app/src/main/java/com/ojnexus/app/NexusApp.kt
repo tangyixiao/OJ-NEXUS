@@ -43,6 +43,7 @@ import com.ojnexus.feature.problems.ProblemsScreen
 import com.ojnexus.feature.settings.SettingsScreen
 import com.ojnexus.feature.submissions.SubmissionCenterScreen
 import com.ojnexus.feature.training.TrainingScreen
+import com.ojnexus.feature.training.ReviewRunScreen
 import com.ojnexus.feature.workspace.WorkspaceScreen
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -53,6 +54,7 @@ object NexusRoutes {
     const val PROBLEM_ADD = "problem/add"
     const val PROBLEM_EDIT = "problem/{problemId}/edit"
     const val REVIEW_SESSION = "review/{problemId}"
+    const val REVIEW_RUN = "review-run"
     const val SESSION_ACTIVE = "session/active"
     const val SESSION_DETAIL = "session/{sessionId}"
     const val CONTESTS = "contests"
@@ -193,6 +195,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
                                 )
                             },
                             onOpenReview = { id -> navController.navigate("review/$id") },
+                            onOpenReviewRun = { navController.navigate(NexusRoutes.REVIEW_RUN) },
                         )
                     }
                     composable(NexusDestination.ANALYTICS.route) { AnalyticsScreen() }
@@ -321,6 +324,9 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     ) { entry ->
                         val problemId = entry.arguments?.getLong("problemId") ?: return@composable
                         ProblemFormScreen(editProblemId = problemId, onDone = { navController.popBackStack() })
+                    }
+                    composable(route = NexusRoutes.REVIEW_RUN) {
+                        ReviewRunScreen(onDone = { navController.popBackStack() })
                     }
                     composable(
                         route = NexusRoutes.REVIEW_SESSION,

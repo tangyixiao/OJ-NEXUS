@@ -68,6 +68,7 @@ import com.ojnexus.core.ui.tone
 fun TrainingScreen(
     onOpenSession: (Long?) -> Unit,
     onOpenReview: (Long) -> Unit,
+    onOpenReviewRun: () -> Unit,
     onOpenProblem: (Long) -> Unit,
 ) {
     val container = LocalAppContainer.current
@@ -100,6 +101,7 @@ fun TrainingScreen(
                 viewModel = viewModel,
                 onOpenSession = onOpenSession,
                 onOpenReview = onOpenReview,
+                onOpenReviewRun = onOpenReviewRun,
                 onOpenProblem = onOpenProblem,
             )
         }
@@ -124,6 +126,7 @@ private fun TrainingContent(
     viewModel: TrainingViewModel,
     onOpenSession: (Long?) -> Unit,
     onOpenReview: (Long) -> Unit,
+    onOpenReviewRun: () -> Unit,
     onOpenProblem: (Long) -> Unit,
 ) {
     var showTaskDialog by rememberSaveable { mutableStateOf(false) }
@@ -153,7 +156,7 @@ private fun TrainingContent(
 
         ReviewPulse(
             summary = reviewSummary,
-            onStartNext = { problemId -> onOpenReview(problemId) },
+            onStartRun = onOpenReviewRun,
         )
 
         SectionGap()
@@ -360,7 +363,7 @@ private fun RecommendationSection(
 @Composable
 private fun ReviewPulse(
     summary: ReviewQueueSummary,
-    onStartNext: (Long) -> Unit,
+    onStartRun: () -> Unit,
 ) {
     val colors = NexusTheme.colors
     val reduceMotion = NexusTheme.reduceMotion
@@ -405,7 +408,7 @@ private fun ReviewPulse(
                     role = Role.Button,
                     onClickLabel = actionDescription,
                 ) {
-                    nextProblemId?.let(onStartNext)
+                    nextProblemId?.let { onStartRun() }
                 }
                 .semantics { contentDescription = actionDescription }
                 .padding(horizontal = NexusSpacing.sm, vertical = NexusSpacing.xs),

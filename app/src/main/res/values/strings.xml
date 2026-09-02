@@ -280,6 +280,18 @@
     <string name="review_result_skip">SKIP</string>
     <string name="review_next_scheduled">RE-TEST IN %dD</string>
     <string name="review_problem_missing">PROBLEM MISSING</string>
+    <string name="review_run_title">REVIEW RUN</string>
+    <string name="review_run_progress">RUN PROGRESS</string>
+    <string name="review_run_done">DONE</string>
+    <string name="review_run_left">LEFT</string>
+    <string name="review_run_total">TOTAL</string>
+    <string name="review_run_current">CURRENT REVIEW</string>
+    <string name="review_run_complete">RUN COMPLETE</string>
+    <string name="review_run_no_due">NO REVIEWS DUE</string>
+    <string name="review_run_next_item">NEXT ITEM</string>
+    <string name="review_run_close">CLOSE RUN</string>
+    <string name="review_run_next_cd">Advance to the next review item</string>
+    <string name="review_run_close_cd">Close the review run</string>
 
     <!-- Sessions -->
     <string name="training_section_session">SESSION</string>
