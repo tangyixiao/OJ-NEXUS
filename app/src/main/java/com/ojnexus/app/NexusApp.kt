@@ -66,6 +66,8 @@ object NexusRoutes {
 
     fun problem(problemId: Long): String = "problem/$problemId"
 
+    fun review(problemId: Long): String = "review/$problemId"
+
     fun workspace(
         pid: String,
         title: String? = null,
@@ -338,7 +340,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
                                 navController.navigate(NexusRoutes.problem(problemId))
                             },
                             onOpenReview = { problemId ->
-                                navController.navigate("review/$problemId")
+                                navController.navigate(NexusRoutes.review(problemId))
                             },
                         )
                     }
@@ -354,7 +356,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
                                 navController.navigate(NexusRoutes.problem(problemId))
                             },
                             onOpenReview = { problemId ->
-                                navController.navigate("review/$problemId")
+                                navController.navigate(NexusRoutes.review(problemId))
                             },
                         )
                     }

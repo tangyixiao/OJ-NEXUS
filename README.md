@@ -25,12 +25,15 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 62 (Live Session Board)**: Training sessions now expose a local
-`SESSION PULSE` and actionable `PROBLEM QUEUE`. The queue tracks solved, attempted, and pending
-problems inside the persisted session window, with direct `OPEN` navigation to local problem
-details. The APK identity is aligned to `versionName=0.3.59`, `versionCode=59`. / 早期开发——**第 62 阶段（实时训练队列）**：训练会话现在提供本地“会话脉冲”和可操作的“题目队列”。
-队列按会话持久化时间窗口追踪已解决、已尝试和待处理题目，并可直接打开本地题目详情。APK 版本身份同步为
-`versionName=0.3.59`、`versionCode=59`。
+Early development — **Phase 63 (Session Debrief)**: Terminal training sessions now expose a
+local debrief with solved, attention, and pending lanes, latest in-session verdicts, existing
+review signals, and direct `OPEN REVIEW` or `OPEN` actions. The APK identity is aligned to
+`versionName=0.3.60`, `versionCode=60`. / 早期开发——**第 63 阶段（会话复盘）**：已结束训练会话现在提供本地复盘，按已解决、需关注和待处理分组，展示会话内最近 verdict、已有复习状态，并提供“打开复习”或“打开”操作。APK 版本身份同步为
+`versionName=0.3.60`、`versionCode=60`。
+
+Phase 63 is a local read-only debrief and navigation surface. It adds no database migration,
+network request, background submission, compiler, credential storage, or new session state. / 第 63 阶段仅增加本地只读复盘与导航展示，
+不新增数据库迁移、网络请求、后台提交、本地编译器、凭据存储或会话状态。
 
 Phase 62 is a local read-only progress and navigation surface. It adds no database migration,
 network request, background submission, compiler, credential storage, or new session state. / 第 62 阶段仅增加本地只读进度与导航展示，

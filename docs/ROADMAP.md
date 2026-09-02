@@ -5,9 +5,20 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.59` and `versionCode=59`. It carries
-the Phase 62 Live Session Board. / 当前 Android 安装包身份为 `versionName=0.3.59`、`versionCode=59`，
-对应第 62 阶段实时训练队列。
+The current Android package identity is `versionName=0.3.60` and `versionCode=60`. It carries
+the Phase 63 Session Debrief. / 当前 Android 安装包身份为 `versionName=0.3.60`、`versionCode=60`，
+对应第 63 阶段会话复盘。
+
+## PHASE 63 — Session Debrief / 会话复盘
+
+Terminal sessions now expose a local `SESSION DEBRIEF` with solved, attention, and pending lanes,
+latest verdicts constrained to the session window, and existing review-state signals. Filters
+keep the report focused; each row routes to `OPEN REVIEW` when a review already exists, otherwise
+to local problem details. / 已结束会话现在提供本地“会话复盘”，按已解决、需关注和待处理分组，最近 verdict 严格限制在会话时间窗内，并展示已有复习状态。
+筛选器让报告保持聚焦；已有复习记录的题目进入“打开复习”，其他题目进入本地题目详情。
+
+This phase is local-only and read-only. It adds no schema migration, network request, background
+submission, compiler, credential flow, or new session state. / 本阶段仅限本地只读，不新增数据库迁移、网络请求、后台提交、本地编译器、凭据流程或会话状态。
 
 ## PHASE 62 — Live Session Board / 实时训练队列
 

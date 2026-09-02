@@ -11,6 +11,11 @@ class NexusRoutesTest {
     }
 
     @Test
+    fun `review route carries the selected local id`() {
+        assertEquals("review/42", NexusRoutes.review(42L))
+    }
+
+    @Test
     fun `settings routes keep stable ids`() {
         assertEquals("settings", NexusRoutes.SETTINGS)
         assertEquals("settings/openapp", NexusRoutes.SETTINGS_OPENAPP)
