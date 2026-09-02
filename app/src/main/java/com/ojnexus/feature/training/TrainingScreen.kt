@@ -15,12 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -191,18 +186,15 @@ private fun TrainingContent(
                 onSelected = { reviewFilter = it },
             )
             Spacer(modifier = Modifier.height(NexusSpacing.sm))
-            AnimatedContent(
-                targetState = visibleReviews,
-                transitionSpec = {
-                    if (reduceMotion) {
-                        EnterTransition.None togetherWith ExitTransition.None
-                    } else {
-                        fadeIn(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard)) togetherWith
-                            fadeOut(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingExit))
-                    }
-                },
-                label = "review queue filter",
-            ) { reviews ->
+            Column(
+                modifier = Modifier.animateContentSize(
+                    animationSpec = if (reduceMotion) snap() else tween(
+                        NexusMotion.DURATION_NORMAL,
+                        easing = NexusMotion.EasingStandard,
+                    ),
+                ),
+            ) {
+                val reviews = visibleReviews
                 if (reviews.isEmpty) {
                     SectionEmpty(
                         stringResource(
