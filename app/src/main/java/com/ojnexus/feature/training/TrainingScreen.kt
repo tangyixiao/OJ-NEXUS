@@ -22,6 +22,7 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -86,6 +87,7 @@ fun TrainingScreen(
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
     val problems by viewModel.problems.collectAsStateWithLifecycle()
+    val sessionStartState by viewModel.sessionStartState.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -104,6 +106,7 @@ fun TrainingScreen(
                 onOpenReview = onOpenReview,
                 onOpenReviewRun = onOpenReviewRun,
                 onOpenProblem = onOpenProblem,
+                sessionStartState = sessionStartState,
             )
         }
     }
@@ -129,16 +132,28 @@ private fun TrainingContent(
     onOpenReview: (Long) -> Unit,
     onOpenReviewRun: () -> Unit,
     onOpenProblem: (Long) -> Unit,
+    sessionStartState: TrainingSessionStartState,
 ) {
     var showTaskDialog by rememberSaveable { mutableStateOf(false) }
     var showSessionDialog by rememberSaveable { mutableStateOf(false) }
     var focusSprintMode by rememberSaveable { mutableStateOf(false) }
+    var focusSprintIds by rememberSaveable { mutableStateOf(emptyList<Long>()) }
     var showTaskProblemPicker by rememberSaveable { mutableStateOf(false) }
     var reviewFilter by rememberSaveable { mutableStateOf(ReviewQueueFilter.ALL) }
     val reduceMotion = NexusTheme.reduceMotion
     val reviewSummary = reviewQueueSummary(uiState.reviews)
     val visibleReviews = filterReviewBuckets(uiState.reviews, reviewFilter)
     val focusSprintPlan = buildFocusSprintPlan(uiState.reviews, uiState.recommendations)
+
+    LaunchedEffect(sessionStartState) {
+        if (sessionStartState is TrainingSessionStartState.Started) {
+            showSessionDialog = false
+            focusSprintMode = false
+            focusSprintIds = emptyList()
+            viewModel.clearSessionStartState()
+            onOpenSession(null)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -154,10 +169,14 @@ private fun TrainingContent(
             onOpenSession = onOpenSession,
             focusSprintPlan = focusSprintPlan,
             onNewSession = {
+                viewModel.clearSessionStartState()
                 focusSprintMode = false
+                focusSprintIds = emptyList()
                 showSessionDialog = true
             },
             onFocusSprint = {
+                viewModel.clearSessionStartState()
+                focusSprintIds = focusSprintPlan.ids
                 focusSprintMode = true
                 showSessionDialog = true
             },
@@ -306,16 +325,16 @@ private fun TrainingContent(
             initialType = if (focusSprintMode) TrainingType.FOCUS else TrainingType.PRACTICE,
             initialDuration = if (focusSprintMode) "25" else "",
             initialTag = if (focusSprintMode) stringResource(R.string.training_focus_sprint_tag) else "",
-            initialSelectedIds = if (focusSprintMode) focusSprintPlan.ids else emptyList(),
+            initialSelectedIds = if (focusSprintMode) focusSprintIds else emptyList(),
+            startState = sessionStartState,
             onConfirm = { type, duration, tag, problemIds ->
                 viewModel.startSession(type, duration, tag, problemIds)
-                showSessionDialog = false
-                focusSprintMode = false
-                onOpenSession(null)
             },
             onDismiss = {
                 showSessionDialog = false
                 focusSprintMode = false
+                focusSprintIds = emptyList()
+                viewModel.clearSessionStartState()
             },
         )
     }
@@ -1171,6 +1190,7 @@ private fun NewSessionDialog(
     initialDuration: String = "",
     initialTag: String = "",
     initialSelectedIds: List<Long> = emptyList(),
+    startState: TrainingSessionStartState = TrainingSessionStartState.Idle,
     onConfirm: (TrainingType, Int?, String?, List<Long>) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1264,6 +1284,23 @@ private fun NewSessionDialog(
                         }
                     }
                 }
+                when (startState) {
+                    TrainingSessionStartState.Starting -> Text(
+                        text = stringResource(R.string.session_starting),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.accent,
+                        modifier = Modifier.padding(top = NexusSpacing.xs),
+                    )
+                    is TrainingSessionStartState.Failed -> Text(
+                        text = startState.message,
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.danger,
+                        modifier = Modifier.padding(top = NexusSpacing.xs),
+                    )
+                    TrainingSessionStartState.Idle,
+                    TrainingSessionStartState.Started,
+                    -> Unit
+                }
             }
         },
         confirmButton = {
@@ -1272,7 +1309,10 @@ private fun NewSessionDialog(
                 style = NexusTheme.typography.data,
                 color = NexusTheme.colors.accent,
                 modifier = Modifier
-                    .clickable(role = Role.Button) {
+                    .clickable(
+                        enabled = startState !is TrainingSessionStartState.Starting,
+                        role = Role.Button,
+                    ) {
                         onConfirm(type, duration.trim().toIntOrNull(), tag.trim(), selected.value.toList())
                     }
                     .padding(NexusSpacing.xs),

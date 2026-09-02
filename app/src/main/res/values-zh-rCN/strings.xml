@@ -295,6 +295,7 @@
     <string name="session_pick_problems">题目</string>
     <string name="session_picked_count">已选择 %d 道</string>
     <string name="session_active_exists">已有活动会话</string>
+    <string name="session_starting">正在启动会话…</string>
     <string name="session_running_title">会话</string>
     <string name="session_label_elapsed">已用时间</string>
     <string name="session_label_target">目标</string>

@@ -330,6 +330,7 @@
     <string name="session_pick_problems">PROBLEMS</string>
     <string name="session_picked_count">%d SELECTED</string>
     <string name="session_active_exists">A SESSION IS ALREADY ACTIVE</string>
+    <string name="session_starting">STARTING SESSION…</string>
     <string name="session_running_title">SESSION</string>
     <string name="session_label_elapsed">ELAPSED</string>
     <string name="session_label_target">TARGET</string>

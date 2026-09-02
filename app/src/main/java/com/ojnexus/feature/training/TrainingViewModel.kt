@@ -2,6 +2,9 @@ package com.ojnexus.feature.training
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ojnexus.R
+import com.ojnexus.core.data.DataError
+import com.ojnexus.core.data.DataResult
 import com.ojnexus.core.data.repository.ProblemRepository
 import com.ojnexus.core.data.repository.ReviewRepository
 import com.ojnexus.core.data.repository.TrainingRepository
@@ -12,7 +15,9 @@ import com.ojnexus.core.model.TrainingType
 import com.ojnexus.core.domain.TrainingCandidate
 import com.ojnexus.core.domain.TrainingPlanner
 import com.ojnexus.core.ui.Loadable
+import com.ojnexus.core.ui.localizedString
 import java.time.Clock
+import kotlinx.coroutines.CancellationException
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,12 +28,35 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+sealed interface TrainingSessionStartState {
+    data object Idle : TrainingSessionStartState
+    data object Starting : TrainingSessionStartState
+    data object Started : TrainingSessionStartState
+    data class Failed(val message: String) : TrainingSessionStartState
+}
+
+fun trainingSessionStartState(
+    result: DataResult<Long>,
+    genericError: String,
+    activeSessionError: String,
+): TrainingSessionStartState = when (result) {
+    is DataResult.Success -> TrainingSessionStartState.Started
+    is DataResult.Failure -> TrainingSessionStartState.Failed(
+        if (result.error is DataError.Storage && result.error.message.startsWith("A session is already active")) {
+            activeSessionError
+        } else {
+            genericError
+        },
+    )
+}
+
 class TrainingViewModel(
     private val trainingRepository: TrainingRepository,
     private val reviewRepository: ReviewRepository,
     private val problemRepository: ProblemRepository,
     private val knowledgeRepository: com.ojnexus.core.data.repository.KnowledgeRepository,
     private val clock: Clock,
+    private val errorMessage: () -> String = { localizedString(R.string.error_load_failed) },
 ) : ViewModel() {
 
     /**
@@ -39,6 +67,9 @@ class TrainingViewModel(
 
     /** Manual re-sync trigger for flows whose sources change outside Room (none currently). */
     private val refresh = MutableStateFlow(0)
+    private val sessionStart = MutableStateFlow<TrainingSessionStartState>(TrainingSessionStartState.Idle)
+
+    val sessionStartState: StateFlow<TrainingSessionStartState> = sessionStart
 
     private data class TrainingSignals(
         val knowledge: List<com.ojnexus.core.data.repository.KnowledgeAreaState>,
@@ -137,9 +168,33 @@ class TrainingViewModel(
         targetTag: String?,
         problemIds: List<Long>,
     ) {
+        if (sessionStart.value is TrainingSessionStartState.Starting) return
+        sessionStart.value = TrainingSessionStartState.Starting
         viewModelScope.launch {
-            trainingRepository.createAndStartSession(type, targetDurationMin, targetTag, problemIds)
-            refresh.update { it + 1 }
+            try {
+                when (val result = trainingRepository.createAndStartSession(type, targetDurationMin, targetTag, problemIds)) {
+                    is DataResult.Success -> {
+                        refresh.update { it + 1 }
+                        sessionStart.value = TrainingSessionStartState.Started
+                    }
+                    is DataResult.Failure -> {
+                        sessionStart.value = trainingSessionStartState(
+                            result = result,
+                            genericError = errorMessage(),
+                            activeSessionError = localizedString(R.string.session_active_exists),
+                        )
+                    }
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                sessionStart.value = TrainingSessionStartState.Failed(errorMessage())
+            }
         }
     }
+
+    fun clearSessionStartState() {
+        sessionStart.value = TrainingSessionStartState.Idle
+    }
+
 }
