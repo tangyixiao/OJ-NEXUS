@@ -25,4 +25,22 @@ class NexusRoutesTest {
     fun `workspace route omits blank title`() {
         assertEquals("workspace/B%2F4132", NexusRoutes.workspace("B/4132", "  "))
     }
+
+    @Test
+    fun `workspace route encodes sample context`() {
+        val route = NexusRoutes.workspace("P1001", "A+B", "1 2\n", "3\n")
+
+        assertTrue(route.startsWith("workspace/P1001?title="))
+        assertTrue("sampleInput=" in route)
+        assertTrue("sampleOutput=" in route)
+        assertTrue("1 2" !in route)
+    }
+
+    @Test
+    fun `workspace route omits blank sample context`() {
+        assertEquals(
+            "workspace/P1001?title=A%2BB",
+            NexusRoutes.workspace("P1001", "A+B", " ", ""),
+        )
+    }
 }

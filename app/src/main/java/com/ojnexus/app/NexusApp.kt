@@ -61,15 +61,26 @@ object NexusRoutes {
     const val SETTINGS_OPENAPP = "settings/openapp"
     const val SETTINGS_LUOGU = "settings/luogu"
     const val SUBMISSIONS = "submissions"
-    const val WORKSPACE = "workspace/{pid}?title={title}"
+    const val WORKSPACE = "workspace/{pid}?title={title}&sampleInput={sampleInput}&sampleOutput={sampleOutput}"
     const val LUOGU_PROBLEM_DETAIL = "luogu-problem/{pid}"
 
-    fun workspace(pid: String, title: String? = null): String {
+    fun workspace(
+        pid: String,
+        title: String? = null,
+        sampleInput: String? = null,
+        sampleOutput: String? = null,
+    ): String {
         val base = "workspace/${encodeRouteValue(pid)}"
-        val normalizedTitle = title?.trim()?.takeIf { it.isNotEmpty() }
-        return normalizedTitle?.let {
-            "$base?title=${encodeRouteValue(it)}"
-        } ?: base
+        val query = listOf(
+            "title" to title,
+            "sampleInput" to sampleInput,
+            "sampleOutput" to sampleOutput,
+        ).mapNotNull { (key, value) ->
+            value?.trim()?.takeIf { it.isNotEmpty() }?.let { normalized ->
+                "$key=${encodeRouteValue(normalized)}"
+            }
+        }
+        return if (query.isEmpty()) base else "$base?${query.joinToString("&")}"
     }
 
     private fun encodeRouteValue(value: String): String =
@@ -243,13 +254,27 @@ fun NexusApp(modifier: Modifier = Modifier) {
                                 nullable = true
                                 defaultValue = null
                             },
+                            navArgument("sampleInput") {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            },
+                            navArgument("sampleOutput") {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            },
                         ),
                     ) { entry ->
                         val pid = entry.arguments?.getString("pid") ?: return@composable
                         val title = entry.arguments?.getString("title")
+                        val sampleInput = entry.arguments?.getString("sampleInput")
+                        val sampleOutput = entry.arguments?.getString("sampleOutput")
                         WorkspaceScreen(
                             pid = pid,
                             title = title,
+                            sampleInput = sampleInput,
+                            sampleOutput = sampleOutput,
                             onBack = { navController.popBackStack() },
                             onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS_OPENAPP) },
                         )
@@ -262,8 +287,10 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         LuoguProblemDetailScreen(
                             pid = pid,
                             onBack = { navController.popBackStack() },
-                            onOpenWorkspace = { problemPid, title ->
-                                navController.navigate(NexusRoutes.workspace(problemPid, title))
+                            onOpenWorkspace = { problemPid, title, sampleInput, sampleOutput ->
+                                navController.navigate(
+                                    NexusRoutes.workspace(problemPid, title, sampleInput, sampleOutput),
+                                )
                             },
                         )
                     }

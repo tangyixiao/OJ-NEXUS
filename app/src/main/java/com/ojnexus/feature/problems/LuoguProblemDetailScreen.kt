@@ -45,7 +45,7 @@ import com.ojnexus.judge.luogu.LuoguUrls
 fun LuoguProblemDetailScreen(
     pid: String,
     onBack: () -> Unit,
-    onOpenWorkspace: (String, String) -> Unit,
+    onOpenWorkspace: (String, String, String?, String?) -> Unit,
 ) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<LuoguProblemDetailViewModel>(
@@ -99,7 +99,14 @@ fun LuoguProblemDetailScreen(
                 source = state.source,
                 refreshError = state.refreshError,
                 onOpenSource = { UrlOpener.open(context, LuoguUrls.problem(pid)) },
-                onOpenWorkspace = { onOpenWorkspace(pid, content.value.title) },
+                onOpenWorkspace = {
+                    onOpenWorkspace(
+                        pid,
+                        content.value.title,
+                        content.value.samples.getOrNull(0),
+                        content.value.samples.getOrNull(1),
+                    )
+                },
             )
         }
     }

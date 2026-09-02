@@ -51,6 +51,8 @@ private val InputMinHeight = 96.dp
 fun WorkspaceScreen(
     pid: String,
     title: String? = null,
+    sampleInput: String? = null,
+    sampleOutput: String? = null,
     onBack: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
