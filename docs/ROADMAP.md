@@ -3,6 +3,20 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 53 — Submission title propagation / 提交题名传递
+
+When a terminal Luogu OpenApp result materializes a new local problem row, the repository now
+uses the already persisted local submission title. This keeps the title in the problem library
+even when no prior problem cache exists. Existing problem rows are not overwritten, and a
+missing title continues to fall back to the PID. / 洛谷 OpenApp 终态结果落库并新建本地题目记录时，现在会使用已保存的本地提交题名。
+即使此前没有题目缓存，也能让题库保留题名；已有题目记录不会被覆盖，缺失题名时继续回退到 PID。
+
+This phase changes local result materialization only. It adds no network field, credential flow,
+main-site password, Cookie, Session, CSRF state, cloud service, cross-device sync, local
+compiler, custom-input runner, background submission, or automatic POST retry. Earlier phase
+notes and published Releases remain intact. / 本阶段仅修改本地评测结果落库，不新增网络字段、凭据流程、主站密码、Cookie、Session、CSRF 状态、
+云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试；此前阶段说明和已发布 Release 均保持不变。
+
 ## PHASE 52 — Legacy submission title backfill / 旧提交题名回填
 
 Upgrading a database created before Phase 50 now fills missing local submission titles from the

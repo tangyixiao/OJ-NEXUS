@@ -5,10 +5,10 @@ This guide describes the supported local-first Luogu workflow in the released An
 
 ## 1. Install / 安装
 
-1. Download `OJ-NEXUS-v0.3.47.apk` from the [v0.3.47 GitHub Release](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v0.3.47).
-   / 从 [v0.3.47 GitHub Release](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v0.3.47) 下载 `OJ-NEXUS-v0.3.47.apk`。
-2. Verify the download with `SHA256SUMS-v0.3.47.txt` before installing. /
-   安装前使用 `SHA256SUMS-v0.3.47.txt` 校验下载文件。
+1. Download `OJ-NEXUS-v0.3.48.apk` from the [v0.3.48 GitHub Release](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v0.3.48).
+   / 从 [v0.3.48 GitHub Release](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v0.3.48) 下载 `OJ-NEXUS-v0.3.48.apk`。
+2. Verify the download with `SHA256SUMS-v0.3.48.txt` before installing. /
+   安装前使用 `SHA256SUMS-v0.3.48.txt` 校验下载文件。
 
 ## 2. Connect public Luogu data / 连接洛谷公开资料
 

@@ -25,6 +25,20 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Early development — **Phase 53 (submission title propagation)**: when a terminal Luogu OpenApp
+submission creates a missing local problem row, the saved local submission title is now used
+instead of degrading the library title to the PID. Existing problem rows remain untouched, and
+missing titles still fall back safely to the PID. The APK identity is aligned to
+`versionName=0.3.48`, `versionCode=48`. / 早期开发——**第 53 阶段（提交题名传递）**：洛谷 OpenApp 提交完成并需要新建本地题目记录时，
+现在会使用本地提交记录中的题名，不再把题库标题降级成 PID。已有题目记录不会被覆盖；缺失题名时仍安全回退到 PID。APK 版本身份同步为
+`versionName=0.3.48`、`versionCode=48`。
+
+Phase 53 is a local result-materialization change only. It does not add network fields,
+main-site passwords, Cookie, Session, CSRF state, cloud service, cross-device sync, local
+compiler, custom-input runner, background submission, or automatic POST retry. Earlier phases,
+commits, tags, and releases remain preserved. / 第 53 阶段仅改变本地评测结果落库，不新增网络字段、主站密码、Cookie、Session、CSRF 状态、
+云服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交 POST 重试。此前阶段、commit、标签和 Release 均继续保留。
+
 Early development — **Phase 52 (legacy submission title backfill)**: upgrading from the
 pre-title schema now backfills missing local submission titles from cached remote problem
 details first, then the local problem library. Existing titles are untouched, and records with

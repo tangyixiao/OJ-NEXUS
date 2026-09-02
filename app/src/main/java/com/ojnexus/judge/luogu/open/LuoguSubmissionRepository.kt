@@ -155,7 +155,7 @@ class LuoguSubmissionRepository(
             ProblemEntity(
                 judge = JudgeId.LUOGU.id,
                 externalId = pid,
-                title = pid,
+                title = job.title?.trim()?.takeIf { it.isNotEmpty() } ?: pid,
                 difficulty = null,
                 createdAt = job.createdAt,
                 updatedAt = clock.millis(),

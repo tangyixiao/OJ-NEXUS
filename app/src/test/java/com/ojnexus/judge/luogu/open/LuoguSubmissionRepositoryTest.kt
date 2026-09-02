@@ -131,6 +131,41 @@ class LuoguSubmissionRepositoryTest {
     }
 
     @Test
+    fun `terminal problem result keeps the submitted local title when creating the library row`() = runBlocking {
+        repository.submitProblem(
+            LuoguProblemJudgeRequest(
+                pid = "P1001",
+                lang = "cxx/14/gcc",
+                o2 = false,
+                code = "int main() {}",
+                displayTitle = "A+B Problem",
+            ),
+        )
+        gateway.result = LuoguOpenResult.Ready(
+            LuoguOpenEvaluation(
+                requestId = "req-1",
+                trackId = null,
+                type = "judge",
+                compileSuccess = true,
+                compileMessage = null,
+                status = 12,
+                score = 100,
+                timeMs = null,
+                memoryKiB = null,
+                output = null,
+                exitCode = null,
+            ),
+        )
+
+        repository.fetchResult("req-1")
+
+        assertEquals(
+            "A+B Problem",
+            database.problemDao().findByKey(JudgeId.LUOGU.id, "P1001")?.title,
+        )
+    }
+
+    @Test
     fun `waiting judge result does not create a finished attempt`() = runBlocking {
         repository.submitProblem(
             LuoguProblemJudgeRequest("P1001", "cxx/14/gcc", false, "int main() {}"),
