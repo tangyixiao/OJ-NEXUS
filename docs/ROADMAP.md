@@ -3,6 +3,20 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 57 — Contest Command Center / 竞赛指挥中心
+
+Contests now opens with a local `CONTEST PULSE` for live, upcoming, recent, and next-contest
+state. Four local phase filters keep the visible groups focused, and `OPEN NEXT` opens the
+earliest upcoming contest through the existing focus route. / 竞赛页现在以本地“竞赛脉冲”开场，展示进行中、即将开始、最近和下一场竞赛状态。
+四个本地阶段筛选让可见分组保持聚焦，“打开下一场”通过现有 Arena 路由打开最早即将开始的竞赛。
+
+Pulse values derive from the existing Room/Flow contest snapshot and local clock. The phase is
+presentation, filtering, and navigation only: no network field, database migration, credential
+flow, cloud service, cross-device sync, local compiler, custom-input runner, background
+submission, or automatic POST retry is added. Earlier phase notes and published Releases remain
+intact. / 脉冲数值来自已有 Room/Flow 竞赛快照和本地时钟。本阶段仅限展示、筛选和导航，不新增网络字段、数据库迁移、凭据流程、
+云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试；此前阶段说明和已发布 Release 均保持不变。
+
 ## PHASE 56 — Problem Library 2.0 / 题库 2.0
 
 The local problem library now opens with a four-value pulse for total, visible, solved, and

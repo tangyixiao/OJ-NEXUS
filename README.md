@@ -25,6 +25,23 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Early development — **Phase 57 (Contest Command Center)**: Contests now opens with a local
+`CONTEST PULSE` showing live, upcoming, recent, and next-contest state. Local phase filters keep
+the list focused, while `OPEN NEXT` opens the earliest upcoming contest through the existing
+focus route. The APK identity is aligned to `versionName=0.3.53`, `versionCode=53`. /
+早期开发——**第 57 阶段（竞赛指挥中心）**：竞赛页现在以本地“竞赛脉冲”开场，展示进行中、即将开始、最近和下一场竞赛状态。
+本地阶段筛选让列表保持聚焦，“打开下一场”通过现有 Arena 路由打开最早即将开始的竞赛。APK 版本身份同步为
+`versionName=0.3.53`、`versionCode=53`。
+
+Phase 57 is a local presentation, filtering, and navigation change. Pulse values derive from
+the existing Room/Flow contest snapshot and local clock; no contest is fabricated when the
+upcoming list is empty. It adds no network fields, database migration, main-site passwords,
+Cookie, Session, CSRF state, cloud service, cross-device sync, local compiler, custom-input
+runner, background submission, or automatic POST retry. Earlier phases, commits, tags, and
+releases remain preserved. / 第 57 阶段仅改变本地展示、筛选和导航；脉冲来自已有 Room/Flow 竞赛快照与本地时钟，
+即将开始列表为空时不会伪造竞赛。不新增网络字段、数据库迁移、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、
+本地编译器、自定义输入运行器、后台提交或自动提交 POST 重试。此前阶段、commit、标签和 Release 均继续保留。
+
 Early development — **Phase 56 (Problem Library 2.0)**: Problems now opens with a local library
 pulse showing total, visible, solved, and review counts. Active filters expose a real `CLEAR
 FILTERS` action that restores the default updated ordering, while problem rows gain a status rail
