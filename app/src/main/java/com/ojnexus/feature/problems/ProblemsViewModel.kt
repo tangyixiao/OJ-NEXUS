@@ -33,6 +33,7 @@ data class ProblemsUiState(
     val allTags: List<String>,
     val filter: ProblemFilter,
     val sort: ProblemSort,
+    val summary: ProblemLibrarySummary,
 )
 
 data class RemoteProblemsUiState(
@@ -67,13 +68,15 @@ class ProblemsViewModel(
             filter,
             sort,
         ) { problems, tags, f, s ->
+            val visibleProblems = problems.applyFilterSort(f, s)
             Loadable.Ready(
                 ProblemsUiState(
                     totalCount = problems.size,
-                    problems = problems.applyFilterSort(f, s),
+                    problems = visibleProblems,
                     allTags = tags,
                     filter = f,
                     sort = s,
+                    summary = summarizeProblemLibrary(problems, visibleProblems),
                 ),
             )
         }
@@ -248,7 +251,10 @@ class ProblemsViewModel(
         ProblemSort.entries[(current.ordinal + 1) % ProblemSort.entries.size]
     }
 
-    fun clearFilter() = filter.update { ProblemFilter() }
+    fun clearFilter() {
+        filter.update { ProblemFilter() }
+        sort.update { ProblemSort.UPDATED }
+    }
 
     fun toggleFavorite(problemId: Long, current: Boolean) {
         viewModelScope.launch { repository.setFavorite(problemId, !current) }
