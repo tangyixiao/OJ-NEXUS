@@ -5,8 +5,8 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.60` and `versionCode=60`. It carries
-the Phase 63 Session Debrief. / 当前 Android 安装包身份为 `versionName=0.3.60`、`versionCode=60`，
+The current Android package identity is `versionName=0.3.61` and `versionCode=61`. It carries
+the Phase 63 Session Debrief. / 当前 Android 安装包身份为 `versionName=0.3.61`、`versionCode=61`，
 对应第 63 阶段会话复盘。
 
 ## PHASE 63 — Session Debrief / 会话复盘
