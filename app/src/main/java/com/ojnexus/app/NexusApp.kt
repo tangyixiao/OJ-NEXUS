@@ -76,6 +76,21 @@ object NexusRoutes {
         URLEncoder.encode(value, StandardCharsets.UTF_8.toString()).replace("+", "%20")
 }
 
+enum class DashboardCommand {
+    TRAINING,
+    REVIEW,
+    PROBLEMS,
+    SUBMISSIONS,
+}
+
+internal fun dashboardCommandRoute(command: DashboardCommand): String = when (command) {
+    DashboardCommand.TRAINING,
+    DashboardCommand.REVIEW,
+    -> NexusDestination.TRAINING.route
+    DashboardCommand.PROBLEMS -> NexusDestination.PROBLEMS.route
+    DashboardCommand.SUBMISSIONS -> NexusRoutes.SUBMISSIONS
+}
+
 /**
  * Application shell: dark background, top-level NavHost and the flat bottom bar.
  * Status bar inset is consumed once here; screens lay out below it.
@@ -128,6 +143,18 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             onOpenContests = { navController.navigate(NexusRoutes.CONTESTS) },
                             onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS) },
                             onOpenLuoguSetup = { navController.navigate(NexusRoutes.SETTINGS_LUOGU) },
+                            onOpenTraining = {
+                                navController.navigateToTopLevel(dashboardCommandRoute(DashboardCommand.TRAINING))
+                            },
+                            onOpenReview = {
+                                navController.navigateToTopLevel(dashboardCommandRoute(DashboardCommand.REVIEW))
+                            },
+                            onOpenProblems = {
+                                navController.navigateToTopLevel(dashboardCommandRoute(DashboardCommand.PROBLEMS))
+                            },
+                            onOpenSubmissions = {
+                                navController.navigate(dashboardCommandRoute(DashboardCommand.SUBMISSIONS))
+                            },
                         )
                     }
                     composable(NexusDestination.PROBLEMS.route) {
