@@ -96,6 +96,8 @@ class TrainingRepository(
             rows.map { row ->
                 SessionProblem(
                     problemId = row.problemId,
+                    judge = row.judge,
+                    externalId = row.externalId,
                     title = row.title,
                     difficulty = row.difficulty,
                     solved = row.solved,

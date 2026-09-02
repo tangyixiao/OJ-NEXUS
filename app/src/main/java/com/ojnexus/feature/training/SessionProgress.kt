@@ -20,3 +20,7 @@ fun deriveSessionProgressPulse(problems: List<SessionProblem>): SessionProgressP
         pending = problems.count { it.attempts == 0 },
     )
 }
+
+/** Safe determinate-rail fraction; an empty queue never reads as complete. */
+fun sessionProgressFraction(pulse: SessionProgressPulse): Float =
+    if (pulse.total <= 0) 0f else (pulse.solved.toFloat() / pulse.total).coerceIn(0f, 1f)
