@@ -3,6 +3,13 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## CURRENT PACKAGE IDENTITY
+
+The current Android package identity is `versionName=0.3.58` and `versionCode=58`. This is a
+metadata-only maintenance increment; the Phase 61 behavior and its local-only boundaries remain
+unchanged. / 当前 Android 安装包身份为 `versionName=0.3.58`、`versionCode=58`。本次仅递增版本元数据，
+第 61 阶段功能及其本地化边界保持不变。
+
 ## PHASE 61 — Submission Ops Deck / 提交运营台
 
 Submission Center now exposes manual `CHECK PENDING` and `QUEUE FAILED` actions over the existing

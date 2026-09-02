@@ -29,9 +29,9 @@ Early development — **Phase 61 (Submission Ops Deck)**: Submission Center now 
 `CHECK PENDING` and `QUEUE FAILED` operations over the existing local request history. Each request
 opens as a compact inspector row; `DETAILS` reveals the stored request, compile, judge, output,
 and resource metadata with reduced-motion-safe expansion. The APK identity is aligned to
-`versionName=0.3.57`, `versionCode=57`. / 早期开发——**第 61 阶段（提交运营台）**：提交中心现在基于已有本地请求历史提供手动“查询等待中”和“排队失败项”操作。
+`versionName=0.3.58`, `versionCode=58`. / 早期开发——**第 61 阶段（提交运营台）**：提交中心现在基于已有本地请求历史提供手动“查询等待中”和“排队失败项”操作。
 每条请求默认以紧凑检查器行显示，“详情”可以展开请求、编译、评测、输出和资源元数据，并遵守减少动效设置。APK 版本身份同步为
-`versionName=0.3.57`、`versionCode=57`。
+`versionName=0.3.58`、`versionCode=58`。
 
 Phase 61 is a local presentation and manual-operation change. Bulk actions snapshot existing
 request IDs and reuse the current foreground polling and recovery scheduler; no new jobs,
