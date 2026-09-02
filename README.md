@@ -20,6 +20,9 @@ mastery, and analytics into one dark, telemetry-style tool.
 Kotlin · Jetpack Compose · Material 3 · Navigation Compose · Room · Coroutines/Flow ·
 WorkManager · Retrofit/OkHttp · kotlinx.serialization
 
+First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南：
+[docs/QUICK_START.md](docs/QUICK_START.md)
+
 ## Status
 
 Early development — **Phase 48 (foreground submission result convergence)**: after the user

@@ -3,6 +3,18 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 49 — First-use guide / 首次使用指南
+
+The repository now includes a bilingual quick-start guide covering Release installation, public
+Luogu profile synchronization, remote problem search, native details, OpenApp configuration,
+foreground submission, and result recovery. It records the supported local-first boundary so a
+user can operate the released APK without guessing which credential or workflow is supported. /
+仓库现在提供双语首用指南，覆盖 Release 安装、洛谷公开资料同步、远端题目搜索、原生题面、OpenApp 配置、前台提交和结果恢复，
+并明确记录本地优先边界，使用户无需猜测支持哪种凭据或流程即可操作已发布 APK。
+
+This is documentation only; the v0.3.44 application behavior and all earlier phase notes,
+commits, tags, and Releases remain unchanged. / 本阶段仅增加文档；v0.3.44 应用行为以及此前所有阶段说明、commit、标签和 Release 均保持不变。
+
 ## PHASE 48 — Foreground submission result convergence / 前台提交结果闭环
 
 After an explicit Luogu Open Platform submission, the workspace immediately uses the existing
