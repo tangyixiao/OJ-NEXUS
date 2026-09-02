@@ -23,8 +23,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -524,19 +522,11 @@ private fun WorkspaceO2Control(
             style = NexusTheme.typography.dataSmall,
             color = colors.textSecondary,
         )
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = Modifier.semantics { contentDescription = description },
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = colors.accent,
-                checkedTrackColor = colors.accentContainer,
-                checkedBorderColor = colors.accent,
-                uncheckedThumbColor = colors.textTertiary,
-                uncheckedTrackColor = colors.surfaceElevated,
-                uncheckedBorderColor = colors.border,
-            ),
-        )
+        WorkspaceAction(
+            label = stringResource(if (checked) R.string.workspace_o2_on else R.string.workspace_o2_off),
+            contentDescription = description,
+            selected = checked,
+        ) { onCheckedChange(!checked) }
     }
 }
 

@@ -672,6 +672,8 @@
     <string name="workspace_mode_submit_hint">SUBMITS TO THE SELECTED LUOGU PROBLEM</string>
     <string name="workspace_language">LANGUAGE</string>
     <string name="workspace_o2">O2 OPTIMIZATION</string>
+    <string name="workspace_o2_on">O2 ON</string>
+    <string name="workspace_o2_off">O2 OFF</string>
     <string name="workspace_o2_cd">Toggle compiler O2 optimization for the next request</string>
     <string name="workspace_code">SOURCE CODE</string>
     <string name="workspace_code_hint">ENTER SOURCE CODE</string>

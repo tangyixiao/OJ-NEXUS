@@ -621,6 +621,8 @@
     <string name="workspace_mode_submit_hint">提交到当前洛谷题目进行评测</string>
     <string name="workspace_language">语言</string>
     <string name="workspace_o2">O2 优化</string>
+    <string name="workspace_o2_on">O2 开</string>
+    <string name="workspace_o2_off">O2 关</string>
     <string name="workspace_o2_cd">为下一次请求切换编译器 O2 优化</string>
     <string name="workspace_code">源代码</string>
     <string name="workspace_code_hint">输入源代码</string>
