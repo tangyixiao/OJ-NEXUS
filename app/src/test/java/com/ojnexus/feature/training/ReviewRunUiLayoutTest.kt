@@ -30,5 +30,20 @@ class ReviewRunUiLayoutTest {
         assertTrue(source.contains("ReviewResult.SKIP"))
         assertTrue(source.contains("animateContentSize"))
         assertTrue(source.contains("reduceMotion"))
+        assertTrue(source.contains("progressBarRangeInfo"))
+        assertTrue(source.contains("NexusSize.reviewRunRailHeight"))
+        assertTrue(source.contains("NexusSize.reviewRunActionHeight"))
+    }
+
+    @Test
+    fun `review run errors use the localized fallback and reset recording`() {
+        val source = Files.readString(
+            Path.of("src/main/java/com/ojnexus/feature/training/ReviewRunViewModel.kt"),
+        )
+
+        assertTrue(source.contains("localizedString(com.ojnexus.R.string.error_load_failed)"))
+        assertTrue(source.contains("catch (_: Throwable)"))
+        assertTrue(source.contains("isRecording = false"))
+        assertTrue(!source.contains("Review queue unavailable"))
     }
 }

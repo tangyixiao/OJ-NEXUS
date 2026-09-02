@@ -18,9 +18,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -54,7 +52,11 @@ class ReviewRunViewModelTest {
     fun `record advances through captured reviews and completes the run`() = runBlocking {
         val first = insertDueReview("1A", "Alpha", dueAt = 20L)
         val second = insertDueReview("1B", "Beta", dueAt = 10L)
-        val viewModel = ReviewRunViewModel(reviewRepository, clock)
+        val viewModel = ReviewRunViewModel(
+            reviewRepository = reviewRepository,
+            clock = clock,
+            localizedErrorMessage = { "LOAD FAILED" },
+        )
 
         awaitReady(viewModel) { it.total == 2 }
         assertEquals(second, awaitReady(viewModel) { it.active != null }.active?.problemId)
@@ -77,7 +79,11 @@ class ReviewRunViewModelTest {
     @Test
     fun `record failure keeps the current item visible`() = runBlocking {
         val problemId = insertDueReview("2A", "Gamma", dueAt = 10L)
-        val viewModel = ReviewRunViewModel(reviewRepository, clock)
+        val viewModel = ReviewRunViewModel(
+            reviewRepository = reviewRepository,
+            clock = clock,
+            localizedErrorMessage = { "LOAD FAILED" },
+        )
         awaitReady(viewModel) { it.active?.problemId == problemId }
 
         database.reviewDao().deleteByProblem(problemId)
@@ -85,7 +91,24 @@ class ReviewRunViewModelTest {
 
         val failed = awaitReady(viewModel) { it.error != null }
         assertEquals(problemId, failed.active?.problemId)
-        assertNotNull(failed.error)
+        assertEquals("LOAD FAILED", failed.error)
+    }
+
+    @Test
+    fun `record recovers when repository throws unexpectedly`() = runBlocking {
+        val problemId = insertDueReview("3A", "Delta", dueAt = 10L)
+        val viewModelWithFailure = ReviewRunViewModel(
+            reviewRepository = reviewRepository,
+            clock = clock,
+            localizedErrorMessage = { "LOAD FAILED" },
+            completeReview = { _, _ -> error("unexpected repository failure") },
+        )
+        awaitReady(viewModelWithFailure) { it.active?.problemId == problemId }
+        viewModelWithFailure.record(ReviewResult.FAIL)
+
+        val recovered = awaitReady(viewModelWithFailure) { it.error != null && !it.isRecording }
+        assertEquals(problemId, recovered.active?.problemId)
+        assertEquals("LOAD FAILED", recovered.error)
     }
 
     private suspend fun awaitReady(

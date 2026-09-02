@@ -27,7 +27,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -53,9 +55,6 @@ import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.labelRes
 import com.ojnexus.core.ui.tone
-
-private val ReviewRunRailHeight = 4.dp
-private val ReviewRunActionHeight = 48.dp
 
 @Composable
 fun ReviewRunScreen(onDone: () -> Unit) {
@@ -148,8 +147,11 @@ private fun ReviewRunContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(ReviewRunRailHeight)
-                    .background(colors.surface, NexusRadius.xs),
+                    .height(NexusSize.reviewRunRailHeight)
+                    .background(colors.surface, NexusRadius.xs)
+                    .semantics {
+                        progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
+                    },
             ) {
                 Box(
                     modifier = Modifier
@@ -284,7 +286,7 @@ private fun ReviewRunOutcomeButton(
     val label = stringResource(result.labelRes())
     Box(
         modifier = modifier
-            .height(ReviewRunActionHeight)
+            .height(NexusSize.reviewRunActionHeight)
             .background(colors.surface, NexusRadius.sm)
             .border(NexusSize.dividerThickness, foreground, NexusRadius.sm)
             .clickable(
@@ -376,7 +378,7 @@ private fun ReviewRunActionButton(
     val colors = NexusTheme.colors
     Box(
         modifier = Modifier
-            .height(ReviewRunActionHeight)
+            .height(NexusSize.reviewRunActionHeight)
             .background(colors.surface, NexusRadius.sm)
             .border(NexusSize.dividerThickness, colors.accent, NexusRadius.sm)
             .clickable(role = Role.Button, onClickLabel = description, onClick = onClick)

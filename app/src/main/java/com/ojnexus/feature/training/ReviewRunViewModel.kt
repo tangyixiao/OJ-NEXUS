@@ -4,10 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ojnexus.core.data.DataResult
 import com.ojnexus.core.data.repository.ReviewRepository
+import com.ojnexus.core.domain.ScheduledReview
 import com.ojnexus.core.model.ReviewQueueItem
 import com.ojnexus.core.model.ReviewResult
 import com.ojnexus.core.ui.Loadable
+import com.ojnexus.core.ui.localizedString
 import java.time.Clock
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +48,11 @@ private data class ReviewRunInternalState(
 class ReviewRunViewModel(
     private val reviewRepository: ReviewRepository,
     private val clock: Clock,
+    private val localizedErrorMessage: () -> String = {
+        localizedString(com.ojnexus.R.string.error_load_failed)
+    },
+    private val completeReview: suspend (Long, ReviewResult) -> DataResult<ScheduledReview> =
+        reviewRepository::completeReview,
 ) : ViewModel() {
 
     private val queue = MutableStateFlow<List<ReviewQueueItem>>(emptyList())
@@ -55,7 +63,7 @@ class ReviewRunViewModel(
         viewModelScope.launch {
             reviewRepository.observeQueue()
                 .catch { error ->
-                    internal.update { it.copy(error = error.message ?: "Review queue unavailable") }
+                    internal.update { it.copy(error = localizedErrorMessage()) }
                 }
                 .collect { items ->
                     queue.value = items
@@ -102,24 +110,30 @@ class ReviewRunViewModel(
 
         internal.update { it.copy(isRecording = true, error = null) }
         viewModelScope.launch {
-            when (val outcome = reviewRepository.completeReview(currentId, result)) {
-                is DataResult.Success -> internal.update {
-                    it.copy(
-                        completedIds = it.completedIds + currentId,
-                        completedItem = item,
-                        lastOutcome = ReviewOutcome(
-                            result = result,
-                            nextStage = outcome.value.stage,
-                            nextIntervalDays = outcome.value.intervalDays,
-                        ),
-                        error = null,
-                        isRecording = false,
-                    )
-                }
+            try {
+                when (val outcome = completeReview(currentId, result)) {
+                    is DataResult.Success -> internal.update {
+                        it.copy(
+                            completedIds = it.completedIds + currentId,
+                            completedItem = item,
+                            lastOutcome = ReviewOutcome(
+                                result = result,
+                                nextStage = outcome.value.stage,
+                                nextIntervalDays = outcome.value.intervalDays,
+                            ),
+                            error = null,
+                            isRecording = false,
+                        )
+                    }
 
-                is DataResult.Failure -> internal.update {
-                    it.copy(error = outcome.error.message, isRecording = false)
+                    is DataResult.Failure -> internal.update {
+                        it.copy(error = localizedErrorMessage(), isRecording = false)
+                    }
                 }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                internal.update { it.copy(error = localizedErrorMessage(), isRecording = false) }
             }
         }
     }
