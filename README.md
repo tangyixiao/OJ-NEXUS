@@ -25,6 +25,24 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Early development — **Phase 59 (Analytics Focus Lens)**: Analytics now opens with a local
+`ANALYTICS PULSE` for the selected 14D, 30D, or 90D activity window, covering solved, attempts,
+active days, and training time. The existing 365-day heatmap and all-time distributions remain
+unchanged, while the solve and training charts follow the selected window. The APK identity is
+aligned to `versionName=0.3.55`, `versionCode=55`. / 早期开发——**第 59 阶段（分析聚焦透镜）**：
+分析页现在以本地“分析脉冲”开场，可选择 14 天、30 天或 90 天活动窗口，展示已解决、尝试次数、活跃天数和训练时长。
+现有 365 天热力图与全量分布保持不变，解题趋势和训练图会随窗口切换。APK 版本身份同步为
+`versionName=0.3.55`、`versionCode=55`。
+
+Phase 59 is a local presentation and window-selection change. Summary values derive from the
+existing Room/Flow activity snapshot; no activity is fabricated and no stored data is rewritten.
+It adds no network fields, database migration, main-site passwords, Cookie, Session, CSRF state,
+cloud service, cross-device sync, local compiler, custom-input runner, background submission,
+or automatic POST retry. Earlier phases, commits, tags, and releases remain preserved. /
+第 59 阶段仅改变本地展示和活动窗口选择；摘要来自已有 Room/Flow 活动快照，不伪造活动，也不改写已存数据。
+不新增网络字段、数据库迁移、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、
+自定义输入运行器、后台提交或自动提交 POST 重试。此前阶段、commit、标签和 Release 均继续保留。
+
 Early development — **Phase 58 (Submission Control Tower)**: Submission Center now opens with a
 local `SUBMISSION PULSE` showing total, pending, ready, and failed request counts. Local status
 filters isolate actionable history, and `CLEAR FILTER` restores the full view without changing

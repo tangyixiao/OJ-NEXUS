@@ -3,6 +3,21 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 59 — Analytics Focus Lens / 分析聚焦透镜
+
+Analytics now opens with a local `ANALYTICS PULSE` for the selected 14D, 30D, or 90D activity
+window: solved, attempts, active days, and training time. The existing 365-day heatmap and
+all-time distributions remain unchanged; solve and training charts follow the selected window. /
+分析页现在以本地“分析脉冲”开场，可选择 14 天、30 天或 90 天活动窗口，展示已解决、尝试次数、活跃天数和训练时长。
+现有 365 天热力图与全量分布保持不变，解题趋势和训练图会随窗口切换。
+
+This phase is local-only and derives values from the existing Room/Flow activity snapshot. It
+does not fabricate activity or rewrite stored data, and adds no network field, database
+migration, credential flow, cloud service, cross-device sync, local compiler, custom-input
+runner, background submission, or automatic POST retry. / 本阶段仅限本地，数值来自已有 Room/Flow 活动快照，
+不伪造活动或改写已存数据；不新增网络字段、数据库迁移、凭据流程、云端服务、跨设备同步、本地编译器、
+自定义输入运行器、后台提交或自动提交重试。
+
 ## PHASE 58 — Submission Control Tower / 提交控制塔
 
 Submission Center now opens with a local `SUBMISSION PULSE` for total, pending, ready, and failed
