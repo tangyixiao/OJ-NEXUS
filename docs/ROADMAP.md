@@ -5,9 +5,16 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.62` and `versionCode=62`. It carries
-the Phase 64 Session Review Actions. / 当前 Android 安装包身份为 `versionName=0.3.62`、`versionCode=62`，
-对应第 64 阶段会话复习操作。
+The current Android package identity is `versionName=0.3.63` and `versionCode=63`. It carries
+the Phase 65 Review Run. / 当前 Android 安装包身份为 `versionName=0.3.63`、`versionCode=63`，
+对应第 65 阶段连续复习。
+
+## PHASE 65 — Review Run / 连续复习
+
+Training's due-review pulse now opens a no-argument `REVIEW RUN` route. The run captures due
+items once in due-time/problem-ID order, records PASS/HARD/FAIL/SKIP through the existing review
+transaction, shows a progress rail, and advances explicitly after each result. Completed rows
+never re-enter the current run, and errors keep the current item visible. / 训练页的到期复习脉冲现在打开无参数的“连续复习”路由；运行开始时按到期时间和题目 ID 固定候选顺序，通过现有复习事务记录 PASS/HARD/FAIL/SKIP，展示进度轨，并在每次结果后显式进入下一题。已完成题目不会重新进入当前运行，发生错误时当前题目仍保持可见。
 
 ## PHASE 64 — Session Review Actions / 会话复习操作
 

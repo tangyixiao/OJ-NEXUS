@@ -25,14 +25,14 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 64 (Session Review Actions)**: Terminal debriefs can now queue
-attention and pending problems into the local review ladder without overwriting existing review
-rows; reactive debrief rows switch to `OPEN REVIEW` after scheduling. The APK identity is aligned
-to `versionName=0.3.62`, `versionCode=62`. / 早期开发——**第 64 阶段（会话复习操作）**：终端复盘现在可以将需关注和待处理题目批量加入本地复习阶梯，不覆盖已有复习记录；排程后复盘行会实时切换为“打开复习”。APK 版本身份同步为
-`versionName=0.3.62`、`versionCode=62`。
+Early development — **Phase 65 (Review Run)**: Training's due-review pulse now opens a focused
+continuous run with stable due-item ordering, `DONE / LEFT / TOTAL` progress, explicit outcome
+recording, and a direct next-item flow. The APK identity is aligned to `versionName=0.3.63`,
+`versionCode=63`. / 早期开发——**第 65 阶段（连续复习）**：训练页的到期复习脉冲现在会打开连续复习专注页，按稳定顺序处理到期题目，展示“已完成 / 剩余 / 总数”进度，记录明确结果，并可直接进入下一题。APK 版本身份同步为
+`versionName=0.3.63`、`versionCode=63`。
 
-Phase 64 remains local-first: no database migration, network request, background work, compiler,
-credential storage, or new session state was added. / 第 64 阶段继续坚持本地优先：不新增数据库迁移、网络请求、后台任务、本地编译器、凭据存储或会话状态。
+Phase 65 remains local-first: no database migration, network request, background work, compiler,
+credential storage, or new review result was added. / 第 65 阶段继续坚持本地优先：不新增数据库迁移、网络请求、后台任务、本地编译器、凭据存储或复习结果类型。
 
 Phase 63 is a local read-only debrief and navigation surface. It adds no database migration,
 network request, background submission, compiler, credential storage, or new session state. / 第 63 阶段仅增加本地只读复盘与导航展示，

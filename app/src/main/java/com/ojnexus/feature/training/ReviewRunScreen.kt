@@ -38,6 +38,7 @@ import com.ojnexus.core.designsystem.NexusRadius
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.designsystem.NexusTone
+import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.component.NexusDivider
 import com.ojnexus.core.designsystem.component.NexusMetric
 import com.ojnexus.core.designsystem.component.NexusSection
@@ -285,7 +286,7 @@ private fun ReviewRunOutcomeButton(
         modifier = modifier
             .height(ReviewRunActionHeight)
             .background(colors.surface, NexusRadius.sm)
-            .border(1.dp, foreground, NexusRadius.sm)
+            .border(NexusSize.dividerThickness, foreground, NexusRadius.sm)
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
@@ -377,7 +378,7 @@ private fun ReviewRunActionButton(
         modifier = Modifier
             .height(ReviewRunActionHeight)
             .background(colors.surface, NexusRadius.sm)
-            .border(1.dp, colors.accent, NexusRadius.sm)
+            .border(NexusSize.dividerThickness, colors.accent, NexusRadius.sm)
             .clickable(role = Role.Button, onClickLabel = description, onClick = onClick)
             .semantics { contentDescription = description }
             .padding(horizontal = NexusSpacing.md),
