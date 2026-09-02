@@ -33,3 +33,9 @@ fun filterSessionDebrief(
 ): List<SessionProblem> = lane?.let { selected ->
     problems.filter { it.debriefLane() == selected }
 } ?: problems
+
+/** Problems the terminal debrief can add to the review ladder without changing existing rows. */
+fun sessionReviewCandidates(problems: List<SessionProblem>): List<SessionProblem> =
+    problems.filter { problem ->
+        problem.debriefLane() != SessionDebriefLane.SOLVED && !problem.inReview
+    }

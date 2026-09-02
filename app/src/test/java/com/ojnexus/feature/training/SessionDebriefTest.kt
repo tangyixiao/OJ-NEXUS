@@ -39,4 +39,18 @@ class SessionDebriefTest {
             filterSessionDebrief(problems, SessionDebriefLane.ATTENTION).map { it.problemId },
         )
     }
+
+    @Test
+    fun `review candidates keep attention and pending order while excluding solved and queued`() {
+        val candidates = sessionReviewCandidates(
+            listOf(
+                problems[2],
+                problems[1].copy(inReview = true),
+                problems[0],
+                problems[1],
+            ),
+        )
+
+        assertEquals(listOf(1L, 2L), candidates.map { it.problemId })
+    }
 }

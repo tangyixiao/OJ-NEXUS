@@ -76,6 +76,40 @@ class ReviewRepository(
         }
     }
 
+    /** Adds several problems to stage 0 without overwriting any existing review rows. */
+    suspend fun scheduleReviews(problemIds: List<Long>): DataResult<Int> {
+        val ids = problemIds.distinct()
+        if (ids.isEmpty()) return DataResult.Success(0)
+
+        val missingId = ids.firstOrNull { database.problemDao().findById(it) == null }
+        if (missingId != null) {
+            return DataResult.Failure(DataError.NotFound("problem $missingId"))
+        }
+
+        return dataResult {
+            val scheduled = ReviewScheduler.initialSchedule(clock.instant(), clock.zone)
+            val createdAt = clock.millis()
+            var insertedCount = 0
+            database.withTransaction {
+                ids.forEach { problemId ->
+                    if (reviewDao.findByProblem(problemId) == null) {
+                        reviewDao.upsert(
+                            ReviewEntity(
+                                problemId = problemId,
+                                stage = scheduled.stage,
+                                dueAt = scheduled.dueAt,
+                                dueDayIndex = scheduled.dueDayIndex,
+                                createdAt = createdAt,
+                            ),
+                        )
+                        insertedCount++
+                    }
+                }
+            }
+            insertedCount
+        }
+    }
+
     /** Removes the problem from the review system entirely. */
     suspend fun cancelReview(problemId: Long) {
         reviewDao.deleteByProblem(problemId)

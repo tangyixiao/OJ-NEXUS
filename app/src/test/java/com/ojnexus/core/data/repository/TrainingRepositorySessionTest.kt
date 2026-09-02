@@ -209,6 +209,38 @@ class TrainingRepositorySessionTest {
     }
 
     @Test
+    fun `batch review scheduling inserts every candidate in one result`() = runBlocking {
+        val firstProblem = insertProblem("2A", "Alpha", 800)
+        val secondProblem = insertProblem("2B", "Beta", 900)
+
+        val result = reviewRepository.scheduleReviews(listOf(firstProblem, secondProblem))
+
+        assertTrue(result is DataResult.Success)
+        assertEquals(2, (result as DataResult.Success).value)
+        assertTrue(reviewRepository.findByProblem(firstProblem) != null)
+        assertTrue(reviewRepository.findByProblem(secondProblem) != null)
+    }
+
+    @Test
+    fun `batch review scheduling is a no-op for empty input`() = runBlocking {
+        val result = reviewRepository.scheduleReviews(emptyList())
+
+        assertTrue(result is DataResult.Success)
+        assertEquals(0, (result as DataResult.Success).value)
+    }
+
+    @Test
+    fun `batch review scheduling validates all ids before writing`() = runBlocking {
+        val existingProblem = insertProblem("2C", "Gamma", 1000)
+
+        val result = reviewRepository.scheduleReviews(listOf(existingProblem, 999L))
+
+        assertTrue(result is DataResult.Failure)
+        assertTrue((result as DataResult.Failure).error is DataError.NotFound)
+        assertTrue(reviewRepository.findByProblem(existingProblem) == null)
+    }
+
+    @Test
     fun `session progress is empty when no problems are attached`() = runBlocking {
         val created = trainingRepository.createAndStartSession(
             TrainingType.PRACTICE,
