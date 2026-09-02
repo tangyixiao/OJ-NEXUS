@@ -25,6 +25,24 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Early development — **Phase 55 (Review triage)**: Training now opens with a local review pulse
+showing overdue, today, and later counts, three filters for all/due-now/upcoming items, and a
+real `START NEXT` action that opens the earliest due review. The queue keeps its existing rows,
+navigation, and empty states; reduced motion is respected. The APK identity is aligned to
+`versionName=0.3.50`, `versionCode=50`. / 早期开发——**第 55 阶段（复习分诊台）**：训练页新增本地复习脉冲，
+展示逾期、今天和稍后数量，提供全部、现在到期和即将到期三个筛选，并用真实的“开始下一题”打开最早到期的复习。
+队列继续保留原有行、导航和空状态，并遵守减少动效设置。APK 版本身份同步为
+`versionName=0.3.50`、`versionCode=50`。
+
+Phase 55 is a local presentation and navigation change. Counts and next-item selection are
+derived from existing Room/Flow state; no review record is created by the pulse. It adds no
+network fields, database migration, main-site passwords, Cookie, Session, CSRF state, cloud
+service, cross-device sync, local compiler, custom-input runner, background submission, or
+automatic POST retry. Earlier phases, commits, tags, and releases remain preserved. /
+第 55 阶段仅改变本地展示和导航；数量与下一题选择来自已有 Room/Flow 状态，脉冲不会创建复习记录。
+不新增网络字段、数据库迁移、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、
+本地编译器、自定义输入运行器、后台提交或自动提交 POST 重试。此前阶段、commit、标签和 Release 均继续保留。
+
 Early development — **Phase 54 (Dashboard command deck)**: Dashboard now opens with a compact
 local readout for due reviews, weekly solved count, the next contest countdown, and connected
 judges. Four accessible command cells open the existing Training, Review, Problems, and Submission

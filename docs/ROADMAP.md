@@ -3,6 +3,22 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 55 — Review triage / 复习分诊台
+
+Training now begins with a local review pulse for overdue, today, and later work. Three explicit
+filters keep the queue readable, while `START NEXT` opens the earliest due review through the
+existing problem route. Counts, empty states, and due highlighting remain honest to the current
+local Room/Flow snapshot; reduced motion is respected. / 训练页现在以本地复习脉冲开场，展示逾期、今天和稍后任务。
+三个明确筛选让队列保持可读；“START NEXT”通过现有题目路由打开最早到期的复习。数量、空状态和到期高亮均忠实于当前
+本地 Room/Flow 快照，并遵守减少动效设置。
+
+This phase is local-only and does not add network fields, database migrations, credential flow,
+main-site passwords, Cookie, Session, CSRF state, cloud service, cross-device sync, local
+compiler, custom-input runner, background submission, or automatic POST retry. Earlier phase
+notes and published Releases remain intact. / 本阶段仅限本地，不新增网络字段、数据库迁移、凭据流程、主站密码、
+Cookie、Session、CSRF 状态、云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试；此前阶段说明和
+已发布 Release 均保持不变。
+
 ## PHASE 54 — Dashboard command deck / Dashboard 指挥台
 
 Dashboard now starts with a compact local command readout for due reviews, solved problems this
