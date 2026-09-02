@@ -102,6 +102,8 @@ class TrainingRepository(
                     difficulty = row.difficulty,
                     solved = row.solved,
                     attempts = row.attempts,
+                    latestVerdict = row.latestVerdict?.let(com.ojnexus.core.model.Verdict::fromRaw),
+                    inReview = row.inReview,
                 )
             }
         }

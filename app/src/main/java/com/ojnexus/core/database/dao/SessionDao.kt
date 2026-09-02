@@ -20,6 +20,8 @@ data class SessionProblemProgressRow(
     val difficulty: Int?,
     val attempts: Int,
     val solved: Boolean,
+    @ColumnInfo(name = "latest_verdict") val latestVerdict: String?,
+    @ColumnInfo(name = "in_review") val inReview: Boolean,
 )
 
 @Dao
@@ -65,7 +67,19 @@ interface SessionDao {
                p.difficulty AS difficulty,
                COUNT(a.id) AS attempts,
                CASE WHEN MAX(CASE WHEN a.verdict = 'AC' THEN 1 ELSE 0 END) = 1
-                    THEN 1 ELSE 0 END AS solved
+                    THEN 1 ELSE 0 END AS solved,
+               (
+                   SELECT a2.verdict
+                   FROM attempts a2
+                   WHERE a2.problem_id = p.id
+                     AND a2.timestamp >= session.started_at
+                     AND (session.finished_at IS NULL OR a2.timestamp <= session.finished_at)
+                   ORDER BY a2.timestamp DESC, a2.id DESC
+                   LIMIT 1
+               ) AS latest_verdict,
+               EXISTS (
+                   SELECT 1 FROM reviews r WHERE r.problem_id = p.id
+               ) AS in_review
         FROM training_session_problems link
         JOIN training_sessions session ON session.id = link.session_id
         JOIN problems p ON p.id = link.problem_id
@@ -73,7 +87,7 @@ interface SessionDao {
             AND a.timestamp >= session.started_at
             AND (session.finished_at IS NULL OR a.timestamp <= session.finished_at)
         WHERE link.session_id = :sessionId
-        GROUP BY p.id, p.title, p.difficulty
+        GROUP BY p.id, p.judge, p.external_id, p.title, p.difficulty
         ORDER BY link.problem_id ASC
         """,
     )

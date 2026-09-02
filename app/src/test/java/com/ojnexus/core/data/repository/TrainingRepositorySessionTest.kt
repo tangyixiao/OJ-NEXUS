@@ -9,6 +9,7 @@ import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.database.entity.AttemptEntity
 import com.ojnexus.core.database.entity.ProblemEntity
 import com.ojnexus.core.model.TrainingType
+import com.ojnexus.core.model.Verdict
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -43,6 +44,7 @@ class TrainingRepositorySessionTest {
 
     private lateinit var database: OjNexusDatabase
     private lateinit var problemRepository: ProblemRepository
+    private lateinit var reviewRepository: ReviewRepository
     private lateinit var trainingRepository: TrainingRepository
 
     @Before
@@ -53,6 +55,7 @@ class TrainingRepositorySessionTest {
             .build()
         val clock = Clock.fixed(Instant.parse("2026-08-29T12:00:00Z"), ZoneId.of("UTC"))
         problemRepository = ProblemRepository(database, clock)
+        reviewRepository = ReviewRepository(database, clock)
         trainingRepository = TrainingRepository(database, clock)
     }
 
@@ -162,6 +165,50 @@ class TrainingRepositorySessionTest {
     }
 
     @Test
+    fun `session progress exposes latest in-window verdict and existing review`() = runBlocking {
+        val problemId = insertProblem("1D", "Delta", 1100)
+        assertTrue(reviewRepository.scheduleReview(problemId) is DataResult.Success)
+        val created = trainingRepository.createAndStartSession(
+            TrainingType.PRACTICE,
+            null,
+            null,
+            listOf(problemId),
+        ) as DataResult.Success
+        val startedAt = database.sessionDao().findById(created.value)!!.startedAt
+
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = problemId,
+                timestamp = startedAt - 1_000L,
+                dayIndex = 0L,
+                verdict = "WA",
+            ),
+        )
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = problemId,
+                timestamp = startedAt,
+                dayIndex = 0L,
+                verdict = "WA",
+            ),
+        )
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = problemId,
+                timestamp = startedAt,
+                dayIndex = 0L,
+                verdict = "AC",
+            ),
+        )
+
+        val row = trainingRepository.observeSessionProblems(created.value).first().single()
+
+        assertEquals(2, row.attempts)
+        assertEquals(Verdict.AC, row.latestVerdict)
+        assertTrue(row.inReview)
+    }
+
+    @Test
     fun `session progress is empty when no problems are attached`() = runBlocking {
         val created = trainingRepository.createAndStartSession(
             TrainingType.PRACTICE,
@@ -206,6 +253,7 @@ class TrainingRepositorySessionTest {
 
         assertEquals(1, row.attempts)
         assertTrue(!row.solved)
+        assertEquals(Verdict.WA, row.latestVerdict)
     }
 
     private suspend fun insertProblem(externalId: String, title: String, difficulty: Int): Long =
