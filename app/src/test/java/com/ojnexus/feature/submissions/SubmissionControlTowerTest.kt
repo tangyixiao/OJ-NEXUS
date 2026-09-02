@@ -74,4 +74,29 @@ class SubmissionControlTowerTest {
         assertNotSame(source, filterSubmissionJobs(source, SubmissionStatusFilter.ALL))
         assertEquals(listOf(pending, failed, unknown, ready), source)
     }
+
+    @Test
+    fun pendingRequestIdsRemoveBlanksAndDuplicatesInSourceOrder() {
+        val first = job(1, SubmissionJobStatus.PENDING.name).copy(requestId = "req-a")
+        val duplicate = job(2, SubmissionJobStatus.PENDING.name).copy(requestId = " req-a ")
+        val blank = job(3, SubmissionJobStatus.PENDING.name).copy(requestId = " ")
+        val ready = job(4, SubmissionJobStatus.READY.name).copy(requestId = "req-ready")
+
+        assertEquals(
+            listOf("req-a"),
+            pendingSubmissionRequestIds(listOf(first, duplicate, blank, ready)),
+        )
+    }
+
+    @Test
+    fun failedRequestIdsKeepOnlyFailedRowsInSourceOrder() {
+        val failedA = job(1, SubmissionJobStatus.FAILED.name).copy(requestId = "req-a")
+        val ready = job(2, SubmissionJobStatus.READY.name).copy(requestId = "req-ready")
+        val failedB = job(3, SubmissionJobStatus.FAILED.name).copy(requestId = "req-b")
+
+        assertEquals(
+            listOf("req-a", "req-b"),
+            failedSubmissionRequestIds(listOf(failedA, ready, failedB)),
+        )
+    }
 }

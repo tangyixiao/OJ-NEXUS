@@ -42,3 +42,18 @@ fun filterSubmissionJobs(
     SubmissionStatusFilter.READY -> jobs.filter { it.status == SubmissionJobStatus.READY.name }
     SubmissionStatusFilter.FAILED -> jobs.filter { it.status == SubmissionJobStatus.FAILED.name }
 }
+
+private fun submissionRequestIds(
+    jobs: List<SubmissionJobEntity>,
+    status: SubmissionJobStatus,
+): List<String> = jobs.asSequence()
+    .filter { it.status == status.name }
+    .mapNotNull { it.requestId.trim().takeIf(String::isNotEmpty) }
+    .distinct()
+    .toList()
+
+fun pendingSubmissionRequestIds(jobs: List<SubmissionJobEntity>): List<String> =
+    submissionRequestIds(jobs, SubmissionJobStatus.PENDING)
+
+fun failedSubmissionRequestIds(jobs: List<SubmissionJobEntity>): List<String> =
+    submissionRequestIds(jobs, SubmissionJobStatus.FAILED)
