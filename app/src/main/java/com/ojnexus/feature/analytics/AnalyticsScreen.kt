@@ -1,5 +1,9 @@
 package com.ojnexus.feature.analytics
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
@@ -22,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
 import com.ojnexus.core.designsystem.NexusRadius
+import com.ojnexus.core.designsystem.NexusMotion
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.designsystem.component.NexusDivider
@@ -124,22 +130,32 @@ private fun AnalyticsContent(state: AnalyticsUiState) {
         return
     }
 
+    var selectedWindow by rememberSaveable { mutableStateOf(AnalyticsWindow.DAYS_14) }
+    val activityDays = analyticsWindowDays(state.heatmapDays, selectedWindow)
+    val activitySummary = summarizeAnalyticsWindow(activityDays)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = NexusSpacing.screenHorizontal),
     ) {
-            Spacer(modifier = Modifier.height(NexusSpacing.md))
-            HeatmapSection(state)
-            SectionGap()
-            state.ratingHistories.forEach { (judge, history) ->
-                RatingSection(judge, history)
-                SectionGap()
-            }
-            TotalsSection(state)
+        Spacer(modifier = Modifier.height(NexusSpacing.md))
+        AnalyticsPulse(
+            summary = activitySummary,
+            selectedWindow = selectedWindow,
+            onSelectWindow = { selectedWindow = it },
+        )
         SectionGap()
-        TrendSection(state)
+        HeatmapSection(state)
+        SectionGap()
+        state.ratingHistories.forEach { (judge, history) ->
+            RatingSection(judge, history)
+            SectionGap()
+        }
+        TotalsSection(state)
+        SectionGap()
+        TrendSection(activityDays)
         SectionGap()
         VerdictSection(state.verdictCounts)
         SectionGap()
@@ -149,8 +165,120 @@ private fun AnalyticsContent(state: AnalyticsUiState) {
         SectionGap()
         DifficultySection(state.difficultyCounts)
         SectionGap()
-        TrainingTimeSection(state)
+        TrainingTimeSection(activityDays)
         Spacer(modifier = Modifier.height(NexusSpacing.xxl))
+    }
+}
+
+private data class AnalyticsWindowOption(
+    val window: AnalyticsWindow,
+    val labelRes: Int,
+    val descriptionRes: Int,
+)
+
+@Composable
+private fun AnalyticsPulse(
+    summary: AnalyticsWindowSummary,
+    selectedWindow: AnalyticsWindow,
+    onSelectWindow: (AnalyticsWindow) -> Unit,
+) {
+    NexusSection(label = stringResource(R.string.analytics_section_pulse)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AnalyticsPulseMetric(
+                label = stringResource(R.string.analytics_pulse_solved),
+                value = summary.solved,
+                modifier = Modifier.weight(1f),
+            )
+            MetricSeparator()
+            AnalyticsPulseMetric(
+                label = stringResource(R.string.analytics_pulse_attempts),
+                value = summary.attempts,
+                modifier = Modifier.weight(1f),
+            )
+            MetricSeparator()
+            AnalyticsPulseMetric(
+                label = stringResource(R.string.analytics_pulse_active_days),
+                value = summary.activeDays,
+                modifier = Modifier.weight(1f),
+            )
+            MetricSeparator()
+            NexusMetric(
+                label = stringResource(R.string.analytics_pulse_training),
+                value = formatDuration(summary.trainingMs / 60_000L),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
+        AnalyticsWindowControls(selectedWindow, onSelectWindow)
+    }
+}
+
+@Composable
+private fun AnalyticsPulseMetric(
+    label: String,
+    value: Int,
+    modifier: Modifier = Modifier,
+) {
+    val animatedValue by animateIntAsState(
+        targetValue = value,
+        animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+            NexusMotion.DURATION_NORMAL,
+            easing = NexusMotion.EasingStandard,
+        ),
+        label = "analytics pulse $label",
+    )
+    NexusMetric(
+        label = label,
+        value = formatCount(animatedValue),
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun AnalyticsWindowControls(
+    selectedWindow: AnalyticsWindow,
+    onSelectWindow: (AnalyticsWindow) -> Unit,
+) {
+    val options = listOf(
+        AnalyticsWindowOption(
+            AnalyticsWindow.DAYS_14,
+            R.string.analytics_window_14d,
+            R.string.analytics_window_14d_cd,
+        ),
+        AnalyticsWindowOption(
+            AnalyticsWindow.DAYS_30,
+            R.string.analytics_window_30d,
+            R.string.analytics_window_30d_cd,
+        ),
+        AnalyticsWindowOption(
+            AnalyticsWindow.DAYS_90,
+            R.string.analytics_window_90d,
+            R.string.analytics_window_90d_cd,
+        ),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+    ) {
+        options.forEach { option ->
+            val description = stringResource(option.descriptionRes)
+            NexusTag(
+                text = stringResource(option.labelRes),
+                tone = if (option.window == selectedWindow) NexusTone.Accent else NexusTone.Neutral,
+                selected = option.window == selectedWindow,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = description,
+                        onClick = { onSelectWindow(option.window) },
+                    )
+                    .semantics { contentDescription = description },
+            )
+        }
     }
 }
 
@@ -466,19 +594,25 @@ private fun TotalsSection(state: AnalyticsUiState) {
 }
 
 @Composable
-private fun TrendSection(state: AnalyticsUiState) {
+private fun TrendSection(days: List<DayActivity>) {
     val colors = NexusTheme.colors
     NexusSection(
         label = stringResource(R.string.analytics_section_trend),
+        modifier = Modifier.animateContentSize(
+            animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+                NexusMotion.DURATION_NORMAL,
+                easing = NexusMotion.EasingStandard,
+            ),
+        ),
         trailing = {
             Text(
-                text = formatCount(state.solveTrend.sumOf { it.solved }),
+                text = formatCount(days.sumOf { it.solved }),
                 style = NexusTheme.typography.dataLarge,
                 color = colors.textPrimary,
             )
         },
     ) {
-        val maxSolved = state.solveTrend.maxOfOrNull { it.solved } ?: 0
+        val maxSolved = days.maxOfOrNull { it.solved } ?: 0
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -486,7 +620,7 @@ private fun TrendSection(state: AnalyticsUiState) {
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
         ) {
-            state.solveTrend.forEach { day ->
+            days.forEach { day ->
                 val fraction = if (maxSolved <= 0) 0f else day.solved.toFloat() / maxSolved
                 Box(
                     modifier = Modifier
@@ -501,7 +635,7 @@ private fun TrendSection(state: AnalyticsUiState) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
         ) {
-            state.solveTrend.forEach { day ->
+            days.forEach { day ->
                 Text(
                     text = formatDate(day.dayIndex * 24L * 60 * 60 * 1000),
                     style = NexusTheme.typography.sectionLabel,
@@ -616,19 +750,25 @@ private fun DifficultySection(counts: List<Pair<Int?, Int>>) {
 }
 
 @Composable
-private fun TrainingTimeSection(state: AnalyticsUiState) {
+private fun TrainingTimeSection(days: List<DayActivity>) {
     val colors = NexusTheme.colors
     NexusSection(
         label = stringResource(R.string.analytics_section_training),
+        modifier = Modifier.animateContentSize(
+            animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+                NexusMotion.DURATION_NORMAL,
+                easing = NexusMotion.EasingStandard,
+            ),
+        ),
         trailing = {
             Text(
-                text = formatDuration(state.trainingMsTotal / 60_000),
+                text = formatDuration(days.sumOf { it.trainingMs } / 60_000L),
                 style = NexusTheme.typography.dataLarge,
                 color = colors.textPrimary,
             )
         },
     ) {
-        val maxMs = state.dailyTrainingMs.maxOfOrNull { it.trainingMs } ?: 0L
+        val maxMs = days.maxOfOrNull { it.trainingMs } ?: 0L
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -636,7 +776,7 @@ private fun TrainingTimeSection(state: AnalyticsUiState) {
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
         ) {
-            state.dailyTrainingMs.forEach { day ->
+            days.forEach { day ->
                 val fraction = if (maxMs <= 0) 0f else day.trainingMs.toFloat() / maxMs
                 Box(
                     modifier = Modifier

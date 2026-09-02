@@ -325,6 +325,17 @@
     <string name="area_search">搜索</string>
     <string name="area_construction">构造</string>
     <string name="area_game_theory">博弈论</string>
+    <string name="analytics_section_pulse">分析脉冲</string>
+    <string name="analytics_pulse_solved">已解决</string>
+    <string name="analytics_pulse_attempts">尝试次数</string>
+    <string name="analytics_pulse_active_days">活跃天数</string>
+    <string name="analytics_pulse_training">训练时长</string>
+    <string name="analytics_window_14d">14天</string>
+    <string name="analytics_window_30d">30天</string>
+    <string name="analytics_window_90d">90天</string>
+    <string name="analytics_window_14d_cd">显示最近 14 天</string>
+    <string name="analytics_window_30d_cd">显示最近 30 天</string>
+    <string name="analytics_window_90d_cd">显示最近 90 天</string>
     <string name="analytics_section_heatmap">活动热力图</string>
     <string name="analytics_heatmap_cd">活动热力图，每列代表一周，显示最近 12 个月</string>
     <string name="heatmap_legend_less">较少</string>
