@@ -96,6 +96,7 @@ fun SessionScreen(
                 sessionId = sessionId,
                 trainingRepository = it.trainingRepository,
                 problemRepository = it.problemRepository,
+                reviewRepository = it.reviewRepository,
             )
         },
     )
@@ -131,6 +132,8 @@ fun SessionScreen(
                         onDone = onDone,
                         onOpenProblem = onOpenProblem,
                         onOpenReview = onOpenReview,
+                        onScheduleReviews = { ids -> viewModel.scheduleReviews(ids) },
+                        actionError = surface.actionError,
                     )
                     else -> SessionRunningView(
                         session = surface.session,
@@ -360,6 +363,8 @@ private fun SessionSummaryView(
     onDone: () -> Unit,
     onOpenProblem: (Long) -> Unit,
     onOpenReview: (Long) -> Unit,
+    onScheduleReviews: (List<Long>) -> Unit,
+    actionError: SessionActionError?,
 ) {
     val colors = NexusTheme.colors
     Column(
@@ -458,10 +463,22 @@ private fun SessionSummaryView(
         }
 
         Spacer(modifier = Modifier.height(NexusSpacing.md))
+        if (actionError != null) {
+            Text(
+                text = when (actionError) {
+                    SessionActionError.ActiveExists -> stringResource(R.string.session_active_exists)
+                    is SessionActionError.Generic -> actionError.message
+                },
+                style = NexusTheme.typography.dataSmall,
+                color = colors.danger,
+            )
+            Spacer(modifier = Modifier.height(NexusSpacing.xs))
+        }
         SessionDebriefPanel(
             problems = problems,
             onOpenProblem = onOpenProblem,
             onOpenReview = onOpenReview,
+            onScheduleReviews = onScheduleReviews,
         )
 
         Spacer(modifier = Modifier.height(NexusSpacing.lg))
@@ -475,12 +492,15 @@ private fun SessionDebriefPanel(
     problems: List<SessionProblem>,
     onOpenProblem: (Long) -> Unit,
     onOpenReview: (Long) -> Unit,
+    onScheduleReviews: (List<Long>) -> Unit,
 ) {
     val colors = NexusTheme.colors
     val reduceMotion = NexusTheme.reduceMotion
     var selectedLane by rememberSaveable { mutableStateOf<SessionDebriefLane?>(null) }
     val pulse = deriveSessionDebriefPulse(problems)
     val visibleProblems = filterSessionDebrief(problems, selectedLane)
+    val reviewCandidates = sessionReviewCandidates(problems)
+    val queuedReviewCount = problems.count { it.inReview }
 
     NexusSection(label = stringResource(R.string.session_debrief_title)) {
         Row(
@@ -507,6 +527,40 @@ private fun SessionDebriefPanel(
                 selected = selectedLane == SessionDebriefLane.PENDING,
                 onClick = { selectedLane = SessionDebriefLane.PENDING },
             )
+        }
+        if (reviewCandidates.isNotEmpty() || queuedReviewCount > 0) {
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (reviewCandidates.isNotEmpty()) {
+                    Text(
+                        text = stringResource(
+                            R.string.session_debrief_review_candidates,
+                            reviewCandidates.size,
+                        ),
+                        style = NexusTheme.typography.dataSmall,
+                        color = colors.textSecondary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    ActionButton(
+                        label = stringResource(R.string.session_debrief_schedule_attention),
+                        accent = true,
+                        description = stringResource(
+                            R.string.session_debrief_schedule_attention_cd,
+                            reviewCandidates.size,
+                        ),
+                    ) {
+                        onScheduleReviews(reviewCandidates.map { it.problemId })
+                    }
+                } else {
+                    NexusStatus(
+                        label = stringResource(R.string.session_debrief_review_ready),
+                        tone = NexusTone.Accent,
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.height(NexusSpacing.sm))
         Row(
@@ -912,7 +966,13 @@ private fun LabeledInput(label: String, value: String, onValueChange: (String) -
 }
 
 @Composable
-private fun ActionButton(label: String, accent: Boolean, danger: Boolean = false, onClick: () -> Unit) {
+private fun ActionButton(
+    label: String,
+    accent: Boolean,
+    danger: Boolean = false,
+    description: String? = null,
+    onClick: () -> Unit,
+) {
     val colors = NexusTheme.colors
     val foreground = when {
         danger -> colors.danger
@@ -923,6 +983,9 @@ private fun ActionButton(label: String, accent: Boolean, danger: Boolean = false
         modifier = Modifier
             .background(colors.surface, NexusRadius.sm)
             .border(1.dp, foreground, NexusRadius.sm)
+            .semantics {
+                description?.let { contentDescription = it }
+            }
             .clickable(role = Role.Button) { onClick() }
             .padding(horizontal = NexusSpacing.md, vertical = NexusSpacing.xs),
     ) {

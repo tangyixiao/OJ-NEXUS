@@ -18,5 +18,9 @@ class SessionDebriefUiLayoutTest {
         assertTrue(summary.contains("SessionDebriefPanel"))
         assertTrue(summary.contains("onOpenReview"))
         assertTrue(summary.contains("onOpenProblem"))
+        assertTrue(summary.contains("onScheduleReviews"))
+        assertTrue(summary.contains("sessionReviewCandidates"))
+        assertTrue(summary.contains("session_debrief_schedule_attention"))
+        assertTrue(summary.contains("session_debrief_review_ready"))
     }
 }

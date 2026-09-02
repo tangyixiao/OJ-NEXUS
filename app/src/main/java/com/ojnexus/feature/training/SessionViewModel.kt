@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ojnexus.core.data.DataError
 import com.ojnexus.core.data.DataResult
 import com.ojnexus.core.data.repository.ProblemRepository
+import com.ojnexus.core.data.repository.ReviewRepository
 import com.ojnexus.core.data.repository.TrainingRepository
 import com.ojnexus.core.domain.SessionClock
 import com.ojnexus.core.model.Problem
@@ -69,6 +70,7 @@ class SessionViewModel(
     private val sessionId: Long?,
     private val trainingRepository: TrainingRepository,
     private val problemRepository: ProblemRepository,
+    private val reviewRepository: ReviewRepository,
 ) : ViewModel() {
 
     /**
@@ -186,6 +188,15 @@ class SessionViewModel(
     fun cancel(sessionId: Long) = launchAction { trainingRepository.cancelSession(sessionId) }
 
     fun finish(sessionId: Long) = launchAction { trainingRepository.finishSession(sessionId) }
+
+    fun scheduleReviews(problemIds: List<Long>) {
+        viewModelScope.launch {
+            when (val result = reviewRepository.scheduleReviews(problemIds)) {
+                is DataResult.Success -> actionError.value = null
+                is DataResult.Failure -> actionError.value = result.error.toActionError()
+            }
+        }
+    }
 
     private fun launchAction(block: suspend () -> DataResult<Unit>) {
         viewModelScope.launch {

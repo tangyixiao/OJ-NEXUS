@@ -352,6 +352,10 @@
     <string name="session_debrief_open">OPEN</string>
     <string name="session_debrief_open_review">OPEN REVIEW</string>
     <string name="session_debrief_open_cd">Open %1$s</string>
+    <string name="session_debrief_review_candidates">%1$d ITEMS READY FOR REVIEW</string>
+    <string name="session_debrief_schedule_attention">SCHEDULE ATTENTION</string>
+    <string name="session_debrief_schedule_attention_cd">Schedule %1$d session problems for review</string>
+    <string name="session_debrief_review_ready">REVIEW QUEUE READY</string>
 
     <!-- Training screen -->
     <string name="training_section_target">TODAY\'S TARGET</string>

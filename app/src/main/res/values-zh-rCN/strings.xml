@@ -317,6 +317,10 @@
     <string name="session_debrief_open">打开</string>
     <string name="session_debrief_open_review">打开复习</string>
     <string name="session_debrief_open_cd">打开 %1$s</string>
+    <string name="session_debrief_review_candidates">%1$d 道题待加入复习</string>
+    <string name="session_debrief_schedule_attention">安排需关注</string>
+    <string name="session_debrief_schedule_attention_cd">将 %1$d 道会话题目加入复习</string>
+    <string name="session_debrief_review_ready">复习队列已就绪</string>
     <string name="training_section_target">今天的目标</string>
     <string name="training_section_weak">薄弱领域</string>
     <string name="training_section_targets">训练目标</string>
