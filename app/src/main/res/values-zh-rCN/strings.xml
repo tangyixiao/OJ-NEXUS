@@ -275,6 +275,15 @@
     <string name="session_label_elapsed">已用时间</string>
     <string name="session_label_target">目标</string>
     <string name="session_label_problems">题目</string>
+    <string name="session_section_pulse">会话脉冲</string>
+    <string name="session_progress_solved">已解决</string>
+    <string name="session_progress_attempted">已尝试</string>
+    <string name="session_progress_pending">待处理</string>
+    <string name="session_progress_complete">%1$d / %2$d 已解决</string>
+    <string name="session_queue_title">题目队列</string>
+    <string name="session_queue_empty">未附加题目</string>
+    <string name="session_problem_open">打开</string>
+    <string name="session_problem_open_cd">打开题目详情</string>
     <string name="session_action_pause">暂停</string>
     <string name="session_action_resume">继续</string>
     <string name="session_action_finish">结束</string>

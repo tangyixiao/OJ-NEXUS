@@ -64,6 +64,8 @@ object NexusRoutes {
     const val WORKSPACE = "workspace/{pid}?title={title}&sampleInput={sampleInput}&sampleOutput={sampleOutput}"
     const val LUOGU_PROBLEM_DETAIL = "luogu-problem/{pid}"
 
+    fun problem(problemId: Long): String = "problem/$problemId"
+
     fun workspace(
         pid: String,
         title: String? = null,
@@ -332,6 +334,9 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         com.ojnexus.feature.training.SessionScreen(
                             sessionId = null,
                             onDone = { navController.popBackStack() },
+                            onOpenProblem = { problemId ->
+                                navController.navigate(NexusRoutes.problem(problemId))
+                            },
                         )
                     }
                     composable(
@@ -342,6 +347,9 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         com.ojnexus.feature.training.SessionScreen(
                             sessionId = sessionId,
                             onDone = { navController.popBackStack() },
+                            onOpenProblem = { problemId ->
+                                navController.navigate(NexusRoutes.problem(problemId))
+                            },
                         )
                     }
                 }

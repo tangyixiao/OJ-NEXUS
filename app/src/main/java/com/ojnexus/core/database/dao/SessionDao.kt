@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.Flow
 /** Aggregated attempt progress for one problem inside a persisted training-session window. */
 data class SessionProblemProgressRow(
     @ColumnInfo(name = "problem_id") val problemId: Long,
+    val judge: String,
+    @ColumnInfo(name = "external_id") val externalId: String,
     val title: String,
     val difficulty: Int?,
     val attempts: Int,
@@ -57,6 +59,8 @@ interface SessionDao {
     @Query(
         """
         SELECT p.id AS problem_id,
+               p.judge AS judge,
+               p.external_id AS external_id,
                p.title AS title,
                p.difficulty AS difficulty,
                COUNT(a.id) AS attempts,

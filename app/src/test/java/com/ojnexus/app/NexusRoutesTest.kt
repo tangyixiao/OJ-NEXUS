@@ -6,6 +6,11 @@ import org.junit.Test
 
 class NexusRoutesTest {
     @Test
+    fun `problem route carries the selected local id`() {
+        assertEquals("problem/42", NexusRoutes.problem(42L))
+    }
+
+    @Test
     fun `settings routes keep stable ids`() {
         assertEquals("settings", NexusRoutes.SETTINGS)
         assertEquals("settings/openapp", NexusRoutes.SETTINGS_OPENAPP)

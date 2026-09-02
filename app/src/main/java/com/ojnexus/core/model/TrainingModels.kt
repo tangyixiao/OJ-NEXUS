@@ -124,6 +124,8 @@ data class SessionProblem(
     val difficulty: Int?,
     val solved: Boolean,
     val attempts: Int,
+    val judge: String? = null,
+    val externalId: String? = null,
 )
 
 /** A training session with derived timing handled by SessionClock. */

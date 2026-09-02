@@ -27,4 +27,9 @@ class SessionProgressTest {
             deriveSessionProgressPulse(problems),
         )
     }
+
+    @Test
+    fun `empty pulse has no progress fraction`() {
+        assertEquals(0f, sessionProgressFraction(deriveSessionProgressPulse(emptyList())))
+    }
 }
