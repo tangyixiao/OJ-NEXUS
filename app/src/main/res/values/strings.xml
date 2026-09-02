@@ -341,6 +341,17 @@
     <string name="session_type_review">REVIEW</string>
     <string name="session_value_minutes">%d MIN</string>
     <string name="session_cancelled_note">CANCELLED</string>
+    <string name="session_debrief_title">SESSION DEBRIEF</string>
+    <string name="session_debrief_all">ALL</string>
+    <string name="session_debrief_solved">SOLVED</string>
+    <string name="session_debrief_attention">ATTENTION</string>
+    <string name="session_debrief_pending">PENDING</string>
+    <string name="session_debrief_empty">NO PROBLEMS IN THIS LANE</string>
+    <string name="session_debrief_latest">LATEST %1$s</string>
+    <string name="session_debrief_attempts">ATTEMPTS %1$d</string>
+    <string name="session_debrief_open">OPEN</string>
+    <string name="session_debrief_open_review">OPEN REVIEW</string>
+    <string name="session_debrief_open_cd">Open %1$s</string>
 
     <!-- Training screen -->
     <string name="training_section_target">TODAY\'S TARGET</string>

@@ -337,6 +337,9 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             onOpenProblem = { problemId ->
                                 navController.navigate(NexusRoutes.problem(problemId))
                             },
+                            onOpenReview = { problemId ->
+                                navController.navigate("review/$problemId")
+                            },
                         )
                     }
                     composable(
@@ -349,6 +352,9 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             onDone = { navController.popBackStack() },
                             onOpenProblem = { problemId ->
                                 navController.navigate(NexusRoutes.problem(problemId))
+                            },
+                            onOpenReview = { problemId ->
+                                navController.navigate("review/$problemId")
                             },
                         )
                     }
