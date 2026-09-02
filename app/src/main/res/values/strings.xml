@@ -260,6 +260,7 @@
     <string name="review_filter_overdue">OVERDUE</string>
     <string name="review_filter_upcoming">UPCOMING</string>
     <string name="review_queue_empty">QUEUE EMPTY</string>
+    <string name="review_filter_empty">NO ITEMS IN THIS VIEW</string>
     <string name="review_start">START REVIEW</string>
     <string name="review_session_title">REVIEW SESSION</string>
     <string name="review_prompt">RECALL THE CORE APPROACH, THEN RECORD THE OUTCOME.</string>
@@ -272,6 +273,20 @@
 
     <!-- Sessions -->
     <string name="training_section_session">SESSION</string>
+    <string name="training_section_pulse">TRAINING PULSE</string>
+    <string name="training_pulse_overdue">OVERDUE</string>
+    <string name="training_pulse_today">TODAY</string>
+    <string name="training_pulse_upcoming">LATER</string>
+    <string name="training_pulse_start_next">START NEXT</string>
+    <string name="training_pulse_nothing_due">NOTHING DUE</string>
+    <string name="training_pulse_start_next_cd">Start the earliest due review</string>
+    <string name="training_pulse_nothing_due_cd">No review is due</string>
+    <string name="training_filter_all">ALL</string>
+    <string name="training_filter_due_now">DUE NOW</string>
+    <string name="training_filter_upcoming">UPCOMING</string>
+    <string name="training_filter_all_cd">Show all review items</string>
+    <string name="training_filter_due_now_cd">Show overdue and today review items</string>
+    <string name="training_filter_upcoming_cd">Show upcoming review items</string>
     <string name="session_state_standby">STANDBY</string>
     <string name="session_no_active">NO ACTIVE SESSION</string>
     <string name="session_create">NEW SESSION</string>
