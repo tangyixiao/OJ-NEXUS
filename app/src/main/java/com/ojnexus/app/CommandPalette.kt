@@ -197,7 +197,7 @@ fun CommandPalette(
                                 role = Role.Button,
                                 onClickLabel = stringResource(R.string.command_palette_direct_query_cd),
                             ) { onSearchProblems(parsed) }
-                            .semantics { contentDescription = targetLabel }
+                            .semantics(mergeDescendants = true) { contentDescription = targetLabel }
                             .padding(NexusSpacing.sm),
                     ) {
                         Box(

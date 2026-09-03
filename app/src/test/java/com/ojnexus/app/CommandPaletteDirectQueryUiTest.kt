@@ -15,6 +15,7 @@ class CommandPaletteDirectQueryUiTest {
         assertTrue(source.contains("onSearchProblems"))
         assertTrue(source.contains("command_palette_direct_query"))
         assertTrue(source.contains("Role.Button"))
+        assertTrue(source.contains("mergeDescendants = true"))
         assertTrue(source.contains("animateContentSize"))
     }
 }
