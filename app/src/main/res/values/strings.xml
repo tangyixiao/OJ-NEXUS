@@ -155,8 +155,14 @@
     <string name="problems_clear_filters">CLEAR FILTERS</string>
     <string name="problems_clear_filters_cd">Clear problem filters and restore default sorting</string>
     <string name="problems_build_from_view">BUILD FROM VIEW</string>
-    <string name="problems_build_from_view_hint">%1$d PROBLEMS READY FOR TRAINING</string>
-    <string name="problems_build_from_view_cd">Build a training session from %1$d visible problems</string>
+    <plurals name="problems_build_from_view_hint">
+        <item quantity="one">%1$d PROBLEM READY FOR TRAINING</item>
+        <item quantity="other">%1$d PROBLEMS READY FOR TRAINING</item>
+    </plurals>
+    <plurals name="problems_build_from_view_cd">
+        <item quantity="one">Build a training session from %1$d visible problem</item>
+        <item quantity="other">Build a training session from %1$d visible problems</item>
+    </plurals>
     <string name="problems_favorite_on_cd">Remove problem from favorites</string>
     <string name="problems_favorite_off_cd">Add problem to favorites</string>
     <string name="problems_delete_cd">Delete problem</string>

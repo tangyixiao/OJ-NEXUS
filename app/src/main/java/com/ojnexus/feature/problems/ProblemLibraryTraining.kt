@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -40,7 +41,11 @@ internal fun LibraryTrainingActionRail(
     if (problemCount <= 0) return
 
     val colors = NexusTheme.colors
-    val actionDescription = stringResource(R.string.problems_build_from_view_cd, problemCount)
+    val actionDescription = pluralStringResource(
+        R.plurals.problems_build_from_view_cd,
+        problemCount,
+        problemCount,
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -80,7 +85,11 @@ internal fun LibraryTrainingActionRail(
                 color = colors.accent,
             )
             Text(
-                text = stringResource(R.string.problems_build_from_view_hint, problemCount),
+                text = pluralStringResource(
+                    R.plurals.problems_build_from_view_hint,
+                    problemCount,
+                    problemCount,
+                ),
                 style = NexusTheme.typography.dataSmall,
                 color = colors.textPrimary,
             )

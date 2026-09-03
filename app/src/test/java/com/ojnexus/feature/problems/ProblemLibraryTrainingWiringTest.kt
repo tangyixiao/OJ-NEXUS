@@ -23,6 +23,7 @@ class ProblemLibraryTrainingWiringTest {
         val source = Files.readString(Path.of("src/main/java/com/ojnexus/app/NexusApp.kt"))
 
         assertTrue(source.contains("pendingTrainingProblemIds"))
+        assertTrue(source.contains("var pendingTrainingProblemIds by rememberSaveable"))
         assertTrue(source.contains("navigateToTopLevel(NexusDestination.TRAINING.route)"))
     }
 }

@@ -120,7 +120,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
     val currentRoute = backStackEntry?.destination?.route
     var commandPaletteOpen by rememberSaveable { mutableStateOf(false) }
     var pendingProblemSearch by remember { mutableStateOf<PaletteQuery.SearchProblems?>(null) }
-    var pendingTrainingProblemIds by remember { mutableStateOf<List<Long>?>(null) }
+    var pendingTrainingProblemIds by rememberSaveable { mutableStateOf<List<Long>?>(null) }
     val reduceMotion = NexusTheme.reduceMotion
     val enterTransition = remember(reduceMotion) {
         if (reduceMotion) {
