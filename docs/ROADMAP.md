@@ -5,9 +5,23 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.65` and `versionCode=65`. It carries
-the Phase 67 Command Palette Direct Jump. / 当前 Android 安装包身份为 `versionName=0.3.65`、`versionCode=65`，
-对应第 67 阶段命令面板直达。
+The current Android package identity is `versionName=0.3.66` and `versionCode=66`. It carries
+the Phase 68 Problem Library to Training Handoff. / 当前 Android 安装包身份为 `versionName=0.3.66`、`versionCode=66`，
+对应第 68 阶段题库到训练会话。
+
+## PHASE 68 — Problem Library to Training Handoff / 题库到训练会话
+
+The local problem library now exposes `BUILD FROM VIEW` below the current pulse. It opens the
+existing Training form with the visible local problem IDs preselected, defaults to `PRACTICE`
+and the editable `LIBRARY VIEW` tag, and keeps the existing `START` transaction as the only
+session creator. Empty and remote views do not expose the action. / 本地题库现在在当前脉冲下方提供“从当前视图构建训练”，
+打开已有训练表单并预选当前显示的本地题目，默认类型为 `PRACTICE`，标签为可编辑的“题库视图”；现有“开始”事务仍是唯一的会话创建入口。
+空视图和远端视图不显示该操作。
+
+This phase uses a one-shot in-memory navigation handoff and reuses the existing session form,
+view model, repository, and transaction. It adds no network request, remote training flow,
+database migration, credential storage, background work, compiler, or new persisted state. /
+本阶段使用一次性内存导航上下文，复用现有会话表单、ViewModel、仓储和事务；不新增网络请求、远端训练流程、数据库迁移、凭据存储、后台任务、本地编译器或新的持久化状态。
 
 ## PHASE 67 — Command Palette Direct Jump / 命令面板直达
 

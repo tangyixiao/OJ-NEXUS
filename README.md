@@ -25,13 +25,17 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 67 (Command Palette Direct Jump)**: COMMANDS now accepts
-judge-prefixed local queries such as `cf 1029e`, `atcoder abc 242g`, and `luogu p4551`, plus
-`search <text>`. A blue-rail direct result opens the existing problem library with the judge and
-query prefilled. The APK identity is aligned to `versionName=0.3.65`, `versionCode=65`. /
-早期开发——**第 67 阶段（命令面板直达）**：命令面板现在支持 `cf 1029e`、`atcoder abc 242g`、
-`luogu p4551` 等带 OJ 的本地查询，也支持 `search <文本>`；蓝色侧轨直达结果会打开已有题库并预填 OJ 与搜索词。
-APK 版本身份同步为 `versionName=0.3.65`、`versionCode=65`。
+Early development — **Phase 68 (Problem Library to Training Handoff)**: the local problem library
+now exposes `BUILD FROM VIEW`, opening the existing training form with the currently visible
+problem IDs preselected. The form remains editable and creates nothing until `START`. The APK
+identity is aligned to `versionName=0.3.66`, `versionCode=66`. /
+早期开发——**第 68 阶段（题库到训练会话）**：本地题库现在提供“从当前视图构建训练”，打开已有训练表单并预选当前显示的题目。
+表单仍可编辑，只有点击“开始”才会创建会话。APK 版本身份同步为 `versionName=0.3.66`、`versionCode=66`。
+
+Phase 68 remains local-first: the visible local problem IDs are held only as one-shot navigation
+context and passed into the existing editable session form. No network, remote training,
+schema migration, credential storage, compiler, or new persisted data was added. / 第 68 阶段继续坚持本地优先：
+当前本地题目 ID 仅作为一次性导航上下文传入已有可编辑会话表单；不新增网络、远端训练、数据库迁移、凭据存储、本地编译器或持久化数据。
 
 Phase 67 remains local-first: direct queries reuse the existing Problems filter and are consumed
 once by the library screen. No network, remote catalog, schema migration, credential storage,
