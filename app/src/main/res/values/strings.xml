@@ -357,6 +357,9 @@
     <string name="session_progress_complete">%1$d OF %2$d SOLVED</string>
     <string name="session_queue_title">PROBLEM QUEUE</string>
     <string name="session_queue_empty">NO PROBLEMS ATTACHED</string>
+    <string name="session_quick_log_result">LOG RESULT</string>
+    <string name="session_quick_selected">SELECTED · %1$s</string>
+    <string name="session_quick_verdict_cd">Log %1$s for %2$s</string>
     <string name="session_problem_open">OPEN</string>
     <string name="session_problem_open_cd">Open problem details</string>
     <string name="session_action_pause">PAUSE</string>
