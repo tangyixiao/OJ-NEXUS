@@ -25,11 +25,17 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 66 (Focus Sprint)**: Training now derives a deterministic local focus
-plan from due reviews and ranked targets. `BUILD SPRINT` opens the existing session form with
-`FOCUS`, a 25-minute target, and up to five selected problems ready to edit. The APK identity is
-aligned to `versionName=0.3.64`, `versionCode=64`. / 早期开发——**第 66 阶段（专注冲刺）**：训练页现在会从到期复习和排序后的训练目标中生成确定性的本地专注计划。“构建冲刺”会打开已有会话表单，并预填“专注”、25 分钟和最多 5 道题，用户仍可编辑。APK 版本身份同步为
-`versionName=0.3.64`、`versionCode=64`。
+Early development — **Phase 67 (Command Palette Direct Jump)**: COMMANDS now accepts
+judge-prefixed local queries such as `cf 1029e`, `atcoder abc 242g`, and `luogu p4551`, plus
+`search <text>`. A blue-rail direct result opens the existing problem library with the judge and
+query prefilled. The APK identity is aligned to `versionName=0.3.65`, `versionCode=65`. /
+早期开发——**第 67 阶段（命令面板直达）**：命令面板现在支持 `cf 1029e`、`atcoder abc 242g`、
+`luogu p4551` 等带 OJ 的本地查询，也支持 `search <文本>`；蓝色侧轨直达结果会打开已有题库并预填 OJ 与搜索词。
+APK 版本身份同步为 `versionName=0.3.65`、`versionCode=65`。
+
+Phase 67 remains local-first: direct queries reuse the existing Problems filter and are consumed
+once by the library screen. No network, remote catalog, schema migration, credential storage,
+compiler, or new persisted data was added. / 第 67 阶段继续坚持本地优先：直达查询复用已有题库筛选，并由题库页面一次性消费；不新增网络、远端题库、数据库迁移、凭据存储、本地编译器或持久化数据。
 
 Phase 66 remains local-first: the plan is a snapshot and only the existing session transaction
 creates data after confirmation; no migration, network request, background work, compiler,

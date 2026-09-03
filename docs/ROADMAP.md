@@ -5,9 +5,22 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.64` and `versionCode=64`. It carries
-the Phase 66 Focus Sprint. / 当前 Android 安装包身份为 `versionName=0.3.64`、`versionCode=64`，
-对应第 66 阶段专注冲刺。
+The current Android package identity is `versionName=0.3.65` and `versionCode=65`. It carries
+the Phase 67 Command Palette Direct Jump. / 当前 Android 安装包身份为 `versionName=0.3.65`、`versionCode=65`，
+对应第 67 阶段命令面板直达。
+
+## PHASE 67 — Command Palette Direct Jump / 命令面板直达
+
+COMMANDS now recognizes deterministic local query forms such as `cf 1029e`, `atcoder abc 242g`,
+`luogu p4551`, and `search segment tree`. A highlighted `DIRECT QUERY` result opens the existing
+Problems library with the parsed judge and query prefilled; ordinary route commands and the
+existing no-match state remain intact. / 命令面板现在识别 `cf 1029e`、`atcoder abc 242g`、
+`luogu p4551` 和 `search segment tree` 等确定性的本地查询。“直达查询”结果会打开已有题库并预填解析出的 OJ 与搜索词，
+普通页面命令和原有的无匹配状态保持不变。
+
+This phase is local-only and one-shot. It reuses the existing Problems filter, adds no network
+request, remote catalog access, schema migration, credential flow, compiler, or persisted search
+state. / 本阶段仅限本地且一次性消费；复用已有题库筛选，不新增网络请求、远端题库访问、数据库迁移、凭据流程、本地编译器或持久化搜索状态。
 
 ## PHASE 66 — Focus Sprint / 专注冲刺
 
