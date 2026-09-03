@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-class ProblemSearchPrefillTest {
+class ProblemSearchLaunchTest {
 
     @Test
     fun `direct search carries query and judge into the library filter`() {
