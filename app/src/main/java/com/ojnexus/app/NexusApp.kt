@@ -119,6 +119,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     var commandPaletteOpen by rememberSaveable { mutableStateOf(false) }
+    var pendingProblemSearch by remember { mutableStateOf<PaletteQuery.SearchProblems?>(null) }
     val reduceMotion = NexusTheme.reduceMotion
     val enterTransition = remember(reduceMotion) {
         if (reduceMotion) {
@@ -184,6 +185,9 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             onOpenLuoguDetail = { pid ->
                                 navController.navigate("luogu-problem/${android.net.Uri.encode(pid)}")
                             },
+                            initialQuery = pendingProblemSearch?.query,
+                            initialJudge = pendingProblemSearch?.judge,
+                            onInitialSearchConsumed = { pendingProblemSearch = null },
                         )
                     }
                     composable(NexusDestination.TRAINING.route) {
@@ -393,6 +397,11 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         "add_problem" -> navController.navigate(NexusRoutes.PROBLEM_ADD)
                         "settings" -> navController.navigate(NexusRoutes.SETTINGS)
                     }
+                },
+                onSearchProblems = { search ->
+                    pendingProblemSearch = search
+                    commandPaletteOpen = false
+                    navController.navigateToTopLevel(NexusDestination.PROBLEMS.route)
                 },
             )
         }

@@ -10,6 +10,11 @@
     <string name="command_palette_title">命令面板</string>
     <string name="command_palette_hint">搜索命令</string>
     <string name="command_palette_empty">没有匹配的命令</string>
+    <string name="command_palette_direct_query">直达查询</string>
+    <string name="command_palette_direct_query_target">在 %1$s 中搜索 %2$s</string>
+    <string name="command_palette_direct_query_hint">打开本地题库</string>
+    <string name="command_palette_direct_query_cd">打开本地题目搜索</string>
+    <string name="command_palette_any_judge">全部 OJ</string>
     <string name="command_open_dashboard">打开首页概览</string>
     <string name="command_open_problems">打开本地题库</string>
     <string name="command_open_training">打开训练和复习队列</string>

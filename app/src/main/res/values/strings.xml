@@ -13,6 +13,11 @@
     <string name="command_palette_title">COMMAND PALETTE</string>
     <string name="command_palette_hint">SEARCH COMMANDS</string>
     <string name="command_palette_empty">NO MATCHING COMMANDS</string>
+    <string name="command_palette_direct_query">DIRECT QUERY</string>
+    <string name="command_palette_direct_query_target">SEARCH %1$s FOR %2$s</string>
+    <string name="command_palette_direct_query_hint">OPEN LOCAL PROBLEM LIBRARY</string>
+    <string name="command_palette_direct_query_cd">Open local problem search</string>
+    <string name="command_palette_any_judge">ALL JUDGES</string>
     <string name="command_open_dashboard">OPEN DASHBOARD OVERVIEW</string>
     <string name="command_open_problems">OPEN LOCAL PROBLEM LIBRARY</string>
     <string name="command_open_training">OPEN TRAINING AND REVIEW QUEUE</string>

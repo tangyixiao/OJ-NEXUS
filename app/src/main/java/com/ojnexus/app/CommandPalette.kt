@@ -1,5 +1,8 @@
 package com.ojnexus.app
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,8 +11,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Surface
@@ -24,8 +29,11 @@ import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.window.Dialog
 import com.ojnexus.R
+import com.ojnexus.core.designsystem.NexusMotion
 import com.ojnexus.core.designsystem.NexusRadius
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
@@ -117,15 +125,30 @@ internal fun filterCommands(commands: List<PaletteCommand>, query: String): List
 }
 
 @Composable
-fun CommandPalette(onDismiss: () -> Unit, onExecute: (String) -> Unit) {
+fun CommandPalette(
+    onDismiss: () -> Unit,
+    onExecute: (String) -> Unit,
+    onSearchProblems: (PaletteQuery.SearchProblems) -> Unit,
+) {
     var query by remember { mutableStateOf("") }
     val commands = commandList()
     val filtered = remember(commands, query) { filterCommands(commands, query) }
+    val directQuery = remember(query) { parsePaletteQuery(query) as? PaletteQuery.SearchProblems }
     val colors = NexusTheme.colors
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(color = colors.surface, shape = NexusRadius.lg) {
-            Column(Modifier.fillMaxWidth().padding(NexusSpacing.md)) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(NexusSpacing.md)
+                    .animateContentSize(
+                        animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+                            NexusMotion.DURATION_NORMAL,
+                            easing = NexusMotion.EasingStandard,
+                        ),
+                    ),
+            ) {
                 Text(
                     text = stringResource(R.string.command_palette_title),
                     style = NexusTheme.typography.title,
@@ -157,7 +180,54 @@ fun CommandPalette(onDismiss: () -> Unit, onExecute: (String) -> Unit) {
                         },
                     )
                 }
-                if (filtered.isEmpty()) {
+                directQuery?.let { parsed ->
+                    val judgeLabel = parsed.judge?.displayName
+                        ?: stringResource(R.string.command_palette_any_judge)
+                    val targetLabel = stringResource(
+                        R.string.command_palette_direct_query_target,
+                        judgeLabel,
+                        parsed.query,
+                    )
+                    Row(
+                        modifier = Modifier
+                            .padding(top = NexusSpacing.sm)
+                            .fillMaxWidth()
+                            .background(colors.background, NexusRadius.sm)
+                            .clickable(
+                                role = Role.Button,
+                                onClickLabel = stringResource(R.string.command_palette_direct_query_cd),
+                            ) { onSearchProblems(parsed) }
+                            .semantics { contentDescription = targetLabel }
+                            .padding(NexusSpacing.sm),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(NexusSize.commandPaletteRailWidth)
+                                .height(NexusSize.commandPaletteRailHeight)
+                                .background(colors.accent, NexusRadius.xs),
+                        )
+                        Column(
+                            modifier = Modifier.padding(start = NexusSpacing.sm),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.command_palette_direct_query),
+                                style = NexusTheme.typography.sectionLabel,
+                                color = colors.accent,
+                            )
+                            Text(
+                                text = targetLabel,
+                                style = NexusTheme.typography.dataSmall,
+                                color = colors.textPrimary,
+                            )
+                            Text(
+                                text = stringResource(R.string.command_palette_direct_query_hint),
+                                style = NexusTheme.typography.dataSmall,
+                                color = colors.textTertiary,
+                            )
+                        }
+                    }
+                }
+                if (filtered.isEmpty() && directQuery == null) {
                     Text(
                         text = stringResource(R.string.command_palette_empty),
                         style = NexusTheme.typography.dataSmall,

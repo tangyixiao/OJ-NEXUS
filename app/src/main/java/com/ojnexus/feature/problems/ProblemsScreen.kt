@@ -27,6 +27,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateContentSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,6 +80,13 @@ private val ProblemStatusRailWidth = 3.dp
 
 internal enum class ProblemScope { LIBRARY, REMOTE }
 
+internal fun problemSearchPrefill(query: String?, judge: JudgeId?): ProblemFilter? =
+    if (query == null && judge == null) {
+        null
+    } else {
+        ProblemFilter(query = query.orEmpty(), judge = judge)
+    }
+
 internal fun shouldSwitchProblemScope(selected: ProblemScope, target: ProblemScope): Boolean =
     selected != target
 
@@ -88,6 +96,9 @@ fun ProblemsScreen(
     onAddProblem: () -> Unit,
     onOpenWorkspace: (String) -> Unit = {},
     onOpenLuoguDetail: (String) -> Unit = {},
+    initialQuery: String? = null,
+    initialJudge: JudgeId? = null,
+    onInitialSearchConsumed: () -> Unit = {},
 ) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<ProblemsViewModel>(
@@ -100,6 +111,13 @@ fun ProblemsScreen(
             )
         },
     )
+    LaunchedEffect(initialQuery, initialJudge) {
+        problemSearchPrefill(initialQuery, initialJudge)?.let { prefill ->
+            viewModel.setJudge(prefill.judge)
+            viewModel.setQuery(prefill.query)
+            onInitialSearchConsumed()
+        }
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val remoteState by viewModel.remoteState.collectAsStateWithLifecycle()
     val context = LocalContext.current
