@@ -154,6 +154,9 @@
     <string name="problems_pulse_review">REVIEW</string>
     <string name="problems_clear_filters">CLEAR FILTERS</string>
     <string name="problems_clear_filters_cd">Clear problem filters and restore default sorting</string>
+    <string name="problems_build_from_view">BUILD FROM VIEW</string>
+    <string name="problems_build_from_view_hint">%1$d PROBLEMS READY FOR TRAINING</string>
+    <string name="problems_build_from_view_cd">Build a training session from %1$d visible problems</string>
     <string name="problems_favorite_on_cd">Remove problem from favorites</string>
     <string name="problems_favorite_off_cd">Add problem to favorites</string>
     <string name="problems_delete_cd">Delete problem</string>
@@ -327,6 +330,7 @@
     <string name="training_focus_sprint_launch">BUILD SPRINT</string>
     <string name="training_focus_sprint_launch_cd">Build an editable focus sprint from local targets</string>
     <string name="training_focus_sprint_tag">FOCUS SPRINT</string>
+    <string name="training_library_view_tag">LIBRARY VIEW</string>
     <string name="training_focus_sprint_more">+%d MORE TARGETS</string>
     <string name="training_focus_sprint_due_source">DUE</string>
     <string name="training_focus_sprint_target_source">TARGET</string>

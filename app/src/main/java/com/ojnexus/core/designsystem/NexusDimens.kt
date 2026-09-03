@@ -37,6 +37,8 @@ object NexusSize {
     val commandPaletteMaxHeight = 360.dp
     val commandPaletteRailWidth = 3.dp
     val commandPaletteRailHeight = 40.dp
+    val libraryActionRailWidth = 3.dp
+    val libraryActionRailHeight = 48.dp
     val bottomBarIndicatorWidth = 16.dp
     val bottomBarIndicatorHeight = 2.dp
     val navIcon = 20.dp

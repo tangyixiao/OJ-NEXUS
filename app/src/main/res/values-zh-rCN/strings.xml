@@ -133,6 +133,9 @@
     <string name="problems_pulse_review">复习中</string>
     <string name="problems_clear_filters">清除筛选</string>
     <string name="problems_clear_filters_cd">清除题库筛选并恢复默认排序</string>
+    <string name="problems_build_from_view">从当前视图构建训练</string>
+    <string name="problems_build_from_view_hint">%1$d 道题目已准备好训练</string>
+    <string name="problems_build_from_view_cd">使用当前显示的 %1$d 道题目构建训练会话</string>
     <string name="problems_favorite_on_cd">取消收藏题目</string>
     <string name="problems_favorite_off_cd">收藏题目</string>
     <string name="problems_delete_cd">删除题目</string>
@@ -292,6 +295,7 @@
     <string name="training_focus_sprint_launch">构建冲刺</string>
     <string name="training_focus_sprint_launch_cd">根据本地训练目标构建可编辑的专注冲刺</string>
     <string name="training_focus_sprint_tag">专注冲刺</string>
+    <string name="training_library_view_tag">题库视图</string>
     <string name="training_focus_sprint_more">还有 %d 个目标</string>
     <string name="training_focus_sprint_due_source">待复习</string>
     <string name="training_focus_sprint_target_source">目标</string>
