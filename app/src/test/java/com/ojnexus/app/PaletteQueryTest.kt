@@ -33,6 +33,10 @@ class PaletteQueryTest {
             PaletteQuery.SearchProblems(null, "segment tree"),
             parsePaletteQuery("search segment tree"),
         )
+        assertEquals(
+            PaletteQuery.SearchProblems(null, "segment tree"),
+            parsePaletteQuery("  search\t segment   tree  "),
+        )
     }
 
     @Test

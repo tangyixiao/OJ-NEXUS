@@ -10,17 +10,23 @@ class ProblemSearchPrefillTest {
     @Test
     fun `direct search carries query and judge into the library filter`() {
         assertEquals(
-            ProblemFilter(query = "1029e", judge = JudgeId.CODEFORCES),
-            problemSearchPrefill("1029e", JudgeId.CODEFORCES),
+            ProblemSearchLaunch(
+                filter = ProblemFilter(query = "1029e", judge = JudgeId.CODEFORCES),
+                scope = ProblemScope.LIBRARY,
+            ),
+            problemSearchLaunch("1029e", JudgeId.CODEFORCES),
         )
         assertEquals(
-            ProblemFilter(query = "segment tree", judge = null),
-            problemSearchPrefill("segment tree", null),
+            ProblemSearchLaunch(
+                filter = ProblemFilter(query = "segment tree", judge = null),
+                scope = ProblemScope.LIBRARY,
+            ),
+            problemSearchLaunch("segment tree", null),
         )
     }
 
     @Test
     fun `missing direct search remains unconfigured`() {
-        assertNull(problemSearchPrefill(null, null))
+        assertNull(problemSearchLaunch(null, null))
     }
 }

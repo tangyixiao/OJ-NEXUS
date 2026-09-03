@@ -80,11 +80,19 @@ private val ProblemStatusRailWidth = 3.dp
 
 internal enum class ProblemScope { LIBRARY, REMOTE }
 
-internal fun problemSearchPrefill(query: String?, judge: JudgeId?): ProblemFilter? =
+internal data class ProblemSearchLaunch(
+    val filter: ProblemFilter,
+    val scope: ProblemScope,
+)
+
+internal fun problemSearchLaunch(query: String?, judge: JudgeId?): ProblemSearchLaunch? =
     if (query == null && judge == null) {
         null
     } else {
-        ProblemFilter(query = query.orEmpty(), judge = judge)
+        ProblemSearchLaunch(
+            filter = ProblemFilter(query = query.orEmpty(), judge = judge),
+            scope = ProblemScope.LIBRARY,
+        )
     }
 
 internal fun shouldSwitchProblemScope(selected: ProblemScope, target: ProblemScope): Boolean =
@@ -111,17 +119,18 @@ fun ProblemsScreen(
             )
         },
     )
+    var scope by rememberSaveable { mutableStateOf(ProblemScope.LIBRARY) }
     LaunchedEffect(initialQuery, initialJudge) {
-        problemSearchPrefill(initialQuery, initialJudge)?.let { prefill ->
-            viewModel.setJudge(prefill.judge)
-            viewModel.setQuery(prefill.query)
+        problemSearchLaunch(initialQuery, initialJudge)?.let { launch ->
+            scope = launch.scope
+            viewModel.setJudge(launch.filter.judge)
+            viewModel.setQuery(launch.filter.query)
             onInitialSearchConsumed()
         }
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val remoteState by viewModel.remoteState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var scope by rememberSaveable { mutableStateOf(ProblemScope.LIBRARY) }
 
     Column(
         modifier = Modifier

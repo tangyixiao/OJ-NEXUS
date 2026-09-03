@@ -20,7 +20,13 @@ fun parsePaletteQuery(raw: String): PaletteQuery? {
     val parts = raw.trim().split(Regex("\\s+"), limit = 2)
     if (parts.size != 2) return null
     val prefix = parts[0].lowercase()
-    val query = parts[1].trim().lowercase().takeIf { it.isNotEmpty() } ?: return null
+    val query = parts[1]
+        .trim()
+        .split(Regex("\\s+"))
+        .joinToString(" ")
+        .lowercase()
+        .takeIf { it.isNotEmpty() }
+        ?: return null
     val judge = when (prefix) {
         "cf", "codeforces" -> JudgeId.CODEFORCES
         "ac", "atcoder" -> JudgeId.ATCODER
