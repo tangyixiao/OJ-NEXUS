@@ -120,6 +120,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
     val currentRoute = backStackEntry?.destination?.route
     var commandPaletteOpen by rememberSaveable { mutableStateOf(false) }
     var pendingProblemSearch by remember { mutableStateOf<PaletteQuery.SearchProblems?>(null) }
+    var pendingTrainingProblemIds by remember { mutableStateOf<List<Long>?>(null) }
     val reduceMotion = NexusTheme.reduceMotion
     val enterTransition = remember(reduceMotion) {
         if (reduceMotion) {
@@ -179,6 +180,10 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         ProblemsScreen(
                             onOpenProblem = { id -> navController.navigate("problem/$id") },
                             onAddProblem = { navController.navigate(NexusRoutes.PROBLEM_ADD) },
+                            onBuildTraining = { problemIds ->
+                                pendingTrainingProblemIds = problemIds
+                                navController.navigateToTopLevel(NexusDestination.TRAINING.route)
+                            },
                             onOpenWorkspace = { pid ->
                                 navController.navigate(NexusRoutes.workspace(pid))
                             },
@@ -200,6 +205,8 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             },
                             onOpenReview = { id -> navController.navigate("review/$id") },
                             onOpenReviewRun = { navController.navigate(NexusRoutes.REVIEW_RUN) },
+                            initialProblemIds = pendingTrainingProblemIds.orEmpty(),
+                            onInitialProblemIdsConsumed = { pendingTrainingProblemIds = null },
                         )
                     }
                     composable(NexusDestination.ANALYTICS.route) { AnalyticsScreen() }

@@ -102,6 +102,7 @@ internal fun shouldSwitchProblemScope(selected: ProblemScope, target: ProblemSco
 fun ProblemsScreen(
     onOpenProblem: (Long) -> Unit,
     onAddProblem: () -> Unit,
+    onBuildTraining: (List<Long>) -> Unit = {},
     onOpenWorkspace: (String) -> Unit = {},
     onOpenLuoguDetail: (String) -> Unit = {},
     initialQuery: String? = null,
@@ -159,6 +160,7 @@ fun ProblemsScreen(
                     viewModel = viewModel,
                     onOpenProblem = onOpenProblem,
                     onAddProblem = onAddProblem,
+                    onBuildTraining = onBuildTraining,
                     onInsertDemo = { viewModel.insertDemoData() },
                     onClearDemo = { viewModel.clearDemoData() },
                     onOpenRemote = {
@@ -215,6 +217,7 @@ private fun LibraryContent(
     viewModel: ProblemsViewModel,
     onOpenProblem: (Long) -> Unit,
     onAddProblem: () -> Unit,
+    onBuildTraining: (List<Long>) -> Unit,
     onInsertDemo: () -> Unit,
     onClearDemo: () -> Unit,
     onOpenRemote: () -> Unit,
@@ -243,6 +246,13 @@ private fun LibraryContent(
                     showClear = !isProblemLibraryDefaultView(uiState.filter, uiState.sort),
                     onClear = viewModel::clearFilter,
                 )
+                if (uiState.problems.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(NexusSpacing.xs))
+                    LibraryTrainingActionRail(
+                        problemCount = uiState.problems.size,
+                        onClick = { onBuildTraining(buildTrainingProblemIds(uiState.problems)) },
+                    )
+                }
                 if (BuildConfig.DEBUG) {
                     Spacer(modifier = Modifier.height(NexusSpacing.xs))
                     Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {

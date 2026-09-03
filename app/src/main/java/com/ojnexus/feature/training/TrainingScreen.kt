@@ -72,6 +72,8 @@ fun TrainingScreen(
     onOpenReview: (Long) -> Unit,
     onOpenReviewRun: () -> Unit,
     onOpenProblem: (Long) -> Unit,
+    initialProblemIds: List<Long> = emptyList(),
+    onInitialProblemIdsConsumed: () -> Unit = {},
 ) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<TrainingViewModel>(
@@ -107,10 +109,18 @@ fun TrainingScreen(
                 onOpenReviewRun = onOpenReviewRun,
                 onOpenProblem = onOpenProblem,
                 sessionStartState = sessionStartState,
+                initialProblemIds = initialProblemIds,
+                onInitialProblemIdsConsumed = onInitialProblemIdsConsumed,
             )
         }
     }
 }
+
+internal fun trainingDialogInitialProblemIds(
+    focusSprintMode: Boolean,
+    focusSprintIds: List<Long>,
+    libraryProblemIds: List<Long>,
+): List<Long> = if (focusSprintMode) focusSprintIds else libraryProblemIds
 
 @Composable
 private fun CenteredError(message: String) {
@@ -133,11 +143,14 @@ private fun TrainingContent(
     onOpenReviewRun: () -> Unit,
     onOpenProblem: (Long) -> Unit,
     sessionStartState: TrainingSessionStartState,
+    initialProblemIds: List<Long>,
+    onInitialProblemIdsConsumed: () -> Unit,
 ) {
     var showTaskDialog by rememberSaveable { mutableStateOf(false) }
     var showSessionDialog by rememberSaveable { mutableStateOf(false) }
     var focusSprintMode by rememberSaveable { mutableStateOf(false) }
     var focusSprintIds by rememberSaveable { mutableStateOf(emptyList<Long>()) }
+    var libraryProblemIds by rememberSaveable { mutableStateOf(emptyList<Long>()) }
     var showTaskProblemPicker by rememberSaveable { mutableStateOf(false) }
     var reviewFilter by rememberSaveable { mutableStateOf(ReviewQueueFilter.ALL) }
     val reduceMotion = NexusTheme.reduceMotion
@@ -150,8 +163,20 @@ private fun TrainingContent(
             showSessionDialog = false
             focusSprintMode = false
             focusSprintIds = emptyList()
+            libraryProblemIds = emptyList()
             viewModel.clearSessionStartState()
             onOpenSession(null)
+        }
+    }
+
+    LaunchedEffect(initialProblemIds) {
+        if (initialProblemIds.isNotEmpty()) {
+            viewModel.clearSessionStartState()
+            focusSprintMode = false
+            focusSprintIds = emptyList()
+            libraryProblemIds = initialProblemIds
+            showSessionDialog = true
+            onInitialProblemIdsConsumed()
         }
     }
 
@@ -172,11 +197,13 @@ private fun TrainingContent(
                 viewModel.clearSessionStartState()
                 focusSprintMode = false
                 focusSprintIds = emptyList()
+                libraryProblemIds = emptyList()
                 showSessionDialog = true
             },
             onFocusSprint = {
                 viewModel.clearSessionStartState()
                 focusSprintIds = focusSprintPlan.ids
+                libraryProblemIds = emptyList()
                 focusSprintMode = true
                 showSessionDialog = true
             },
@@ -324,8 +351,16 @@ private fun TrainingContent(
             problems = problems,
             initialType = if (focusSprintMode) TrainingType.FOCUS else TrainingType.PRACTICE,
             initialDuration = if (focusSprintMode) "25" else "",
-            initialTag = if (focusSprintMode) stringResource(R.string.training_focus_sprint_tag) else "",
-            initialSelectedIds = if (focusSprintMode) focusSprintIds else emptyList(),
+            initialTag = when {
+                focusSprintMode -> stringResource(R.string.training_focus_sprint_tag)
+                libraryProblemIds.isNotEmpty() -> stringResource(R.string.training_library_view_tag)
+                else -> ""
+            },
+            initialSelectedIds = trainingDialogInitialProblemIds(
+                focusSprintMode = focusSprintMode,
+                focusSprintIds = focusSprintIds,
+                libraryProblemIds = libraryProblemIds,
+            ),
             startState = sessionStartState,
             onConfirm = { type, duration, tag, problemIds ->
                 viewModel.startSession(type, duration, tag, problemIds)
@@ -334,6 +369,7 @@ private fun TrainingContent(
                 showSessionDialog = false
                 focusSprintMode = false
                 focusSprintIds = emptyList()
+                libraryProblemIds = emptyList()
                 viewModel.clearSessionStartState()
             },
         )
