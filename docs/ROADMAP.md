@@ -5,9 +5,19 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.69` and `versionCode=69`. It carries
-the Phase 71 OJ Connector Center. / 当前 Android 安装包身份为 `versionName=0.3.69`、`versionCode=69`，
-对应第 71 阶段 OJ 连接中心。
+The current Android package identity is `versionName=0.3.70` and `versionCode=70`. It carries
+the Phase 72 Dashboard Command Surface. / 当前 Android 安装包身份为 `versionName=0.3.70`、`versionCode=70`，
+对应第 72 阶段 Dashboard 指挥面。
+
+## PHASE 72 — Dashboard Command Surface / Dashboard 指挥面
+
+Dashboard now opens with a local `NOW / NEXT / SIGNAL` surface beneath the existing command deck.
+`NOW` selects the first incomplete task, `NEXT` selects the due review before an upcoming contest,
+and `SIGNAL` reports sync attention, linked OJs, or local-ready state. Each actionable cell uses
+an existing navigation callback; an empty next slot remains visibly non-actionable. / Dashboard 现在在已有指挥台下方展示本地“当前 / 下一步 / 信号”指挥面。“当前”选择第一项未完成任务，“下一步”优先选择到期复习，其次选择即将开始的竞赛，“信号”报告同步异常、已连接 OJ 或本地就绪状态。每个可操作单元都复用已有导航回调；没有下一步时仍明确显示不可操作状态。
+
+The projection is derived from existing Room-backed state and adds no network request, fake
+metric, credential flow, database migration, automatic submission, or looping animation. / 该投影依据已有 Room 状态生成，不新增网络请求、虚假指标、凭据流程、数据库迁移、自动提交或循环动画。
 
 ## PHASE 71 — OJ Connector Center / OJ 连接中心
 

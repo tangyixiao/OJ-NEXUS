@@ -25,12 +25,16 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 71 (OJ Connector Center)**: Settings now exposes a consolidated
-connector surface for every registered judge, with honest connection state, sync receipt coverage,
-last-success age, active stage, and an explicit `SYNC ALL` action. The action reuses the real
-Room-backed WorkManager sync path and skips disconnected or unsupported judges. The APK identity
-is aligned to `versionName=0.3.69`, `versionCode=69`. / 早期开发——**第 71 阶段（OJ 连接中心）**：设置页现在为每个已注册 OJ 提供统一连接中心，展示真实连接状态、同步回执覆盖、最近成功时间、当前阶段，并提供明确的“全部同步”操作。
-该操作复用真实的 Room + WorkManager 同步链路，跳过未连接或不支持同步的 OJ。APK 版本身份同步为 `versionName=0.3.69`、`versionCode=69`。
+Early development — **Phase 72 (Dashboard Command Surface)**: the dashboard now derives a
+clickable `NOW / NEXT / SIGNAL` surface from real local tasks, review queue, contests, and OJ sync
+state. It routes the current command to training, the next due item to review or contests, and
+sync attention or connection setup to Settings. The APK identity is aligned to `versionName=0.3.70`,
+`versionCode=70`. / 早期开发——**第 72 阶段（Dashboard 指挥面）**：Dashboard 现在依据真实的本地任务、复习队列、竞赛和 OJ 同步状态生成可点击的“当前 / 下一步 / 信号”指挥面。
+它会将当前指令路由到训练，将下一项待办路由到复习或竞赛，并将同步异常或连接设置路由到设置页。APK 版本身份同步为 `versionName=0.3.70`、`versionCode=70`。
+
+Phase 72 remains local-first: the surface is a projection over existing Room-backed dashboard
+state and existing navigation callbacks. It adds no network, credentials, database migration,
+automatic submission, or looping animation. / 第 72 阶段继续坚持本地优先：指挥面只是已有 Room Dashboard 状态和导航回调的投影；不新增网络、凭据、数据库迁移、自动提交或循环动画。
 
 Phase 71 keeps user control explicit: `SYNC ALL` only queues the existing foreground worker for
 connected adapters that advertise `BACKGROUND_SYNC`; it does not add passwords, cookies, main-site
