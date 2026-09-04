@@ -90,7 +90,18 @@ class SessionViewModel(
         else -> trainingRepository.observeSession(sessionId)
     }
 
-    private val actionError = MutableStateFlow<SessionActionError?>(null)
+    private val _actionError = MutableStateFlow<SessionActionError?>(null)
+    private val _lastLoggedProblemId = MutableStateFlow<Long?>(null)
+    private val _actionInFlight = MutableStateFlow(false)
+
+    /** Latest local session action error, or null after a successful action. */
+    val actionError: StateFlow<SessionActionError?> = _actionError.asStateFlow()
+
+    /** Problem id for the most recent successful local verdict action. */
+    val lastLoggedProblemId: StateFlow<Long?> = _lastLoggedProblemId.asStateFlow()
+
+    /** True while the local verdict transaction is running. */
+    val actionInFlight: StateFlow<Boolean> = _actionInFlight.asStateFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val sessionProblems: StateFlow<List<SessionProblem>> = sessionFlow
@@ -142,7 +153,7 @@ class SessionViewModel(
         sessionFlow,
         liveProblemCount,
         finishedSummary,
-        actionError.asStateFlow(),
+        actionError,
         sessionProblems,
     ) { session, liveCount, summary, error, problems ->
         Loadable.Ready(
@@ -176,17 +187,25 @@ class SessionViewModel(
     fun createSession(type: TrainingType, targetDurationMin: Int?, targetTag: String?, problemIds: List<Long>) {
         viewModelScope.launch {
             when (val result = trainingRepository.createAndStartSession(type, targetDurationMin, targetTag, problemIds)) {
-                is DataResult.Success -> actionError.value = null
-                is DataResult.Failure -> actionError.value = result.error.toActionError()
+                is DataResult.Success -> _actionError.value = null
+                is DataResult.Failure -> _actionError.value = result.error.toActionError()
             }
         }
     }
 
     fun logAttempt(problemId: Long, verdict: Verdict) {
+        if (!_actionInFlight.compareAndSet(expect = false, update = true)) return
         viewModelScope.launch {
-            when (val result = problemRepository.addAttempt(problemId, verdict)) {
-                is DataResult.Success -> actionError.value = null
-                is DataResult.Failure -> actionError.value = result.error.toActionError()
+            try {
+                when (val result = problemRepository.addAttempt(problemId, verdict)) {
+                    is DataResult.Success -> {
+                        _actionError.value = null
+                        _lastLoggedProblemId.value = problemId
+                    }
+                    is DataResult.Failure -> _actionError.value = result.error.toActionError()
+                }
+            } finally {
+                _actionInFlight.value = false
             }
         }
     }
@@ -202,8 +221,8 @@ class SessionViewModel(
     fun scheduleReviews(problemIds: List<Long>) {
         viewModelScope.launch {
             when (val result = reviewRepository.scheduleReviews(problemIds)) {
-                is DataResult.Success -> actionError.value = null
-                is DataResult.Failure -> actionError.value = result.error.toActionError()
+                is DataResult.Success -> _actionError.value = null
+                is DataResult.Failure -> _actionError.value = result.error.toActionError()
             }
         }
     }
@@ -211,8 +230,8 @@ class SessionViewModel(
     private fun launchAction(block: suspend () -> DataResult<Unit>) {
         viewModelScope.launch {
             when (val result = block()) {
-                is DataResult.Success -> actionError.value = null
-                is DataResult.Failure -> actionError.value = result.error.toActionError()
+                is DataResult.Success -> _actionError.value = null
+                is DataResult.Failure -> _actionError.value = result.error.toActionError()
             }
         }
     }
