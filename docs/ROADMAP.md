@@ -5,9 +5,21 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.68` and `versionCode=68`. It carries
-the Phase 70 Session Momentum surface. / 当前 Android 安装包身份为 `versionName=0.3.68`、`versionCode=68`，
-对应第 70 阶段训练节奏界面。
+The current Android package identity is `versionName=0.3.69` and `versionCode=69`. It carries
+the Phase 71 OJ Connector Center. / 当前 Android 安装包身份为 `versionName=0.3.69`、`versionCode=69`，
+对应第 71 阶段 OJ 连接中心。
+
+## PHASE 71 — OJ Connector Center / OJ 连接中心
+
+Settings now starts with a consolidated connector surface for every registered judge. Each row
+shows whether a public handle is connected, its persisted sync phase, receipt coverage, last
+successful sync age, and active stage. `SYNC ALL` queues one explicit manual refresh per connected
+judge that advertises `BACKGROUND_SYNC`; duplicate taps are ignored while the queue operation is
+in flight. / 设置页现在首先展示每个已注册 OJ 的统一连接中心。每行显示公开用户名是否已连接、持久化同步阶段、回执覆盖、最近成功同步时间和当前阶段。“全部同步”会为每个声明支持 `BACKGROUND_SYNC` 的已连接 OJ 明确排队一次手动刷新；排队期间的重复点击会被忽略。
+
+The center is a projection over existing Room data and the existing `JudgeSyncWorker` path. It
+does not add credentials, cookies, main-site sessions, automatic submission, database migrations,
+or background work beyond the already registered periodic worker. / 连接中心只是对已有 Room 数据和 `JudgeSyncWorker` 链路的投影，不新增凭据、Cookie、主站会话、自动提交、数据库迁移，也不增加已有周期 worker 之外的后台任务。
 
 ## PHASE 70 — Session Momentum / 训练节奏
 

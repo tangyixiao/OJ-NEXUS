@@ -25,13 +25,16 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 70 (Session Momentum)**: an active training session now moves from
-local result logging to a deterministic `NOW / NEXT / LEFT` command loop. The momentum rail
-advances ephemeral selection, exposes `OPEN NEXT`, and reports an honest all-resolved state from
-the existing Room-backed queue. The APK identity is aligned to `versionName=0.3.68`,
-`versionCode=68`. / 早期开发——**第 70 阶段（训练节奏）**：活动训练会话现在可以从本地记录结果进入确定性的“当前 / 下一题 / 剩余”指挥闭环。
-训练节奏栏推进临时选中状态，提供“打开下一题”，并依据已有 Room 题目队列展示真实的全部解决状态。
-APK 版本身份同步为 `versionName=0.3.68`、`versionCode=68`。
+Early development — **Phase 71 (OJ Connector Center)**: Settings now exposes a consolidated
+connector surface for every registered judge, with honest connection state, sync receipt coverage,
+last-success age, active stage, and an explicit `SYNC ALL` action. The action reuses the real
+Room-backed WorkManager sync path and skips disconnected or unsupported judges. The APK identity
+is aligned to `versionName=0.3.69`, `versionCode=69`. / 早期开发——**第 71 阶段（OJ 连接中心）**：设置页现在为每个已注册 OJ 提供统一连接中心，展示真实连接状态、同步回执覆盖、最近成功时间、当前阶段，并提供明确的“全部同步”操作。
+该操作复用真实的 Room + WorkManager 同步链路，跳过未连接或不支持同步的 OJ。APK 版本身份同步为 `versionName=0.3.69`、`versionCode=69`。
+
+Phase 71 keeps user control explicit: `SYNC ALL` only queues the existing foreground worker for
+connected adapters that advertise `BACKGROUND_SYNC`; it does not add passwords, cookies, main-site
+sessions, automatic submissions, or new persistence. / 第 71 阶段继续保持明确的用户控制：“全部同步”只为已连接且声明支持后台同步的适配器排队现有前台 worker；不新增密码、Cookie、主站会话、自动提交或持久化结构。
 
 Phase 70 remains local-first: quick verdicts are existing local attempt records, not automatic
 OJ submissions. No network, credentials, database migration, new session state, or persisted
