@@ -5,9 +5,25 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.66` and `versionCode=66`. It carries
-the Phase 68 Problem Library to Training Handoff. / 当前 Android 安装包身份为 `versionName=0.3.66`、`versionCode=66`，
-对应第 68 阶段题库到训练会话。
+The current Android package identity is `versionName=0.3.67` and `versionCode=67`. It carries
+the Phase 69 Session Command Deck. / 当前 Android 安装包身份为 `versionName=0.3.67`、`versionCode=67`，
+对应第 69 阶段训练会话指挥台。
+
+## PHASE 69 — Session Command Deck / 训练会话指挥台
+
+An active training session now lets the user select one problem in `PROBLEM QUEUE` and expose a
+`LOG RESULT` rail for the existing AC/WA/TLE/MLE/RE/CE/PE/OTHER verdicts. Each action is visibly
+labeled and accessible; the selected row has an accent border and selection text, while `OPEN`
+remains available as a separate route to local problem details. / 活动训练会话现在可以在“题目队列”中选中一道题，并显示已有
+AC/WA/TLE/MLE/RE/CE/PE/OTHER verdict 的“记录结果”操作栏。每个操作都有可见文字和无障碍描述；选中行使用强调边框和选中说明，
+“打开”仍然作为独立入口进入本地题目详情。
+
+Verdicts reuse `ProblemRepository.addAttempt`, so Room remains the source of truth for attempt
+counts, latest verdict, solved state, and the session progress pulse. The selection is ephemeral
+and disappears with the running screen. This phase adds no automatic OJ submission, network
+request, credential flow, schema migration, new session state, or persisted selection. /
+verdict 复用 `ProblemRepository.addAttempt`，因此 Room 仍是尝试次数、最近 verdict、解决状态和会话进度脉冲的唯一数据源。
+选中状态是临时的，离开活动会话页面即消失。本阶段不新增自动 OJ 提交、网络请求、凭据流程、数据库迁移、会话状态或持久化选中状态。
 
 ## PHASE 68 — Problem Library to Training Handoff / 题库到训练会话
 

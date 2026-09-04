@@ -47,6 +47,7 @@ object NexusSize {
     val focusSprintRailHeight = 48.dp
     val reviewRunRailHeight = 4.dp
     val reviewRunActionHeight = 48.dp
+    val sessionQuickActionHeight = 48.dp
     val dividerThickness = 1.dp
     val statusDot = 6.dp
 }

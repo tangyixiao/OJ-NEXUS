@@ -25,12 +25,17 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 68 (Problem Library to Training Handoff)**: the local problem library
-now exposes `BUILD FROM VIEW`, opening the existing training form with the currently visible
-problem IDs preselected. The form remains editable and creates nothing until `START`. The APK
-identity is aligned to `versionName=0.3.66`, `versionCode=66`. /
-早期开发——**第 68 阶段（题库到训练会话）**：本地题库现在提供“从当前视图构建训练”，打开已有训练表单并预选当前显示的题目。
-表单仍可编辑，只有点击“开始”才会创建会话。APK 版本身份同步为 `versionName=0.3.66`、`versionCode=66`。
+Early development — **Phase 69 (Session Command Deck)**: an active training session now lets the
+user select a queue row and log an existing local verdict directly from a `LOG RESULT` rail.
+The queue and progress pulse refresh from the existing Room transaction, while `OPEN`, lifecycle
+controls, and finished-session behavior remain unchanged. The APK identity is aligned to
+`versionName=0.3.67`, `versionCode=67`. / 早期开发——**第 69 阶段（训练会话指挥台）**：活动训练会话现在可以选中队列题目，
+直接通过“记录结果”操作栏记录已有的本地 verdict。题目队列和进度脉冲继续由已有 Room 事务刷新，“打开”、会话生命周期操作和已结束会话行为保持不变。
+APK 版本身份同步为 `versionName=0.3.67`、`versionCode=67`。
+
+Phase 69 remains local-first: quick verdicts are existing local attempt records, not automatic
+OJ submissions. No network, credentials, database migration, new session state, or persisted
+selection was added. / 第 69 阶段继续坚持本地优先：快速 verdict 只是已有的本地尝试记录，不是自动提交到 OJ；不新增网络、凭据、数据库迁移、会话状态或持久化选中状态。
 
 Phase 68 remains local-first: the visible local problem IDs are held only as one-shot navigation
 context and passed into the existing editable session form. No network, remote training,

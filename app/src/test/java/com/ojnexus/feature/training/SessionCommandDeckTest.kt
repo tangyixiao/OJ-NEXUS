@@ -1,8 +1,11 @@
 package com.ojnexus.feature.training
 
 import com.ojnexus.core.model.SessionProblem
+import java.nio.file.Files
+import java.nio.file.Path
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SessionCommandDeckTest {
@@ -20,6 +23,23 @@ class SessionCommandDeckTest {
     @Test
     fun removedSelectionIsCleared() {
         assertNull(normalizeSessionSelection(9L, listOf(sessionProblem(2L))))
+    }
+
+    @Test
+    fun viewModelWiresQuickResultToProblemRepository() {
+        val source = Files.readString(Path.of("src/main/java/com/ojnexus/feature/training/SessionViewModel.kt"))
+
+        assertTrue(source.contains("fun logAttempt(problemId: Long, verdict: Verdict)"))
+        assertTrue(source.contains("problemRepository.addAttempt(problemId, verdict)"))
+    }
+
+    @Test
+    fun runningSessionWiresSelectionToQuickActions() {
+        val source = Files.readString(Path.of("src/main/java/com/ojnexus/feature/training/SessionScreen.kt"))
+
+        assertTrue(source.contains("SessionQuickActions"))
+        assertTrue(source.contains("normalizeSessionSelection"))
+        assertTrue(source.contains("selectedProblemId"))
     }
 
     private fun sessionProblem(id: Long) = SessionProblem(

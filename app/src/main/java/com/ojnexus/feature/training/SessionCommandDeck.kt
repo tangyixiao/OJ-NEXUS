@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +21,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import com.ojnexus.R
 import com.ojnexus.core.designsystem.NexusMotion
+import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.designsystem.NexusTone
@@ -75,18 +77,22 @@ internal fun SessionQuickActions(
                             label,
                             identity,
                         )
-                        NexusTag(
-                            text = label,
-                            tone = verdict.tone(),
-                            selected = verdict == Verdict.AC,
+                        Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .semantics { contentDescription = description }
+                                .height(NexusSize.sessionQuickActionHeight)
                                 .clickable(
                                     role = Role.Button,
                                     onClickLabel = description,
-                                ) { onLogResult(verdict) },
-                        )
+                                ) { onLogResult(verdict) }
+                                .semantics(mergeDescendants = true) { contentDescription = description },
+                        ) {
+                            NexusTag(
+                                text = label,
+                                tone = verdict.tone(),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
                 if (index != Verdict.entries.chunked(4).lastIndex) {

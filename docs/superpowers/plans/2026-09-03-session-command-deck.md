@@ -126,7 +126,7 @@ git commit -m "feat: wire session quick result logging"
 
 **Interfaces:**
 - The isolated Compose test renders a selected `SessionProblem` in `NexusTheme`, verifies identity and all verdict labels, clicks a verdict, and verifies the callback.
-- The real Activity test seeds demo data, starts a library-created session, selects the first queue row, logs `WA`, and verifies the queue refreshes from 3 to 4 attempts while the `OPEN` action remains available.
+- The real Activity test seeds demo data, starts a library-created session, selects the first queue row, logs `WA`, and verifies the session-scoped queue refreshes from 0 to 1 attempt while the `OPEN` action remains available. The three pre-session demo attempts remain part of the problem's library history, not this session's progress.
 
 - [ ] **Step 1: Write the isolated Compose test** for the command rail and selected problem semantics, including reduced-motion composition and empty-queue absence.
 
@@ -136,7 +136,7 @@ Run `./gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentation
 
 - [ ] **Step 3: Extend the real Activity flow**
 
-After the existing library handoff assertions, start the session, wait for `PROBLEM QUEUE`, select `CODEFORCES 1029E`, click the accessible `LOG RESULT` rail, click `WA`, and assert the first row contains `ATTEMPTS 4` plus `OPEN`.
+After the existing library handoff assertions, start the session, wait for `PROBLEM QUEUE`, select `CODEFORCES 1029E`, click the accessible `LOG RESULT` rail, click `WA`, and assert the first row contains `ATTEMPTS 1` plus `OPEN`.
 
 - [ ] **Step 4: Run the full connected test suite** and require all tests to pass.
 

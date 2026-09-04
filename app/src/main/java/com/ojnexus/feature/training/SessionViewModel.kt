@@ -12,6 +12,7 @@ import com.ojnexus.core.model.Problem
 import com.ojnexus.core.model.SessionProblem
 import com.ojnexus.core.model.TrainingSession
 import com.ojnexus.core.model.TrainingType
+import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.ui.Loadable
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -175,6 +176,15 @@ class SessionViewModel(
     fun createSession(type: TrainingType, targetDurationMin: Int?, targetTag: String?, problemIds: List<Long>) {
         viewModelScope.launch {
             when (val result = trainingRepository.createAndStartSession(type, targetDurationMin, targetTag, problemIds)) {
+                is DataResult.Success -> actionError.value = null
+                is DataResult.Failure -> actionError.value = result.error.toActionError()
+            }
+        }
+    }
+
+    fun logAttempt(problemId: Long, verdict: Verdict) {
+        viewModelScope.launch {
+            when (val result = problemRepository.addAttempt(problemId, verdict)) {
                 is DataResult.Success -> actionError.value = null
                 is DataResult.Failure -> actionError.value = result.error.toActionError()
             }

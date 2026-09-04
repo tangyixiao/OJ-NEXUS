@@ -26,6 +26,7 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -272,6 +273,14 @@ private fun SessionRunningView(
 ) {
     val colors = NexusTheme.colors
     val paused = session.pausedAt != null
+    var selectedProblemId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val normalizedSelection = normalizeSessionSelection(selectedProblemId, problems)
+    val selectedProblem = problems.firstOrNull { it.problemId == normalizedSelection }
+    LaunchedEffect(problems, selectedProblemId) {
+        if (selectedProblemId != normalizedSelection) {
+            selectedProblemId = normalizedSelection
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -320,7 +329,20 @@ private fun SessionRunningView(
         }
 
         Spacer(modifier = Modifier.height(NexusSpacing.md))
-        SessionProgressBoard(problems = problems, onOpenProblem = onOpenProblem)
+        SessionProgressBoard(
+            problems = problems,
+            selectedProblemId = normalizedSelection,
+            onSelectProblem = { selectedProblemId = it },
+            onOpenProblem = onOpenProblem,
+        )
+
+        selectedProblem?.let { problem ->
+            Spacer(modifier = Modifier.height(NexusSpacing.md))
+            SessionQuickActions(
+                selectedProblem = problem,
+                onLogResult = { verdict -> viewModel.logAttempt(problem.problemId, verdict) },
+            )
+        }
 
         Spacer(modifier = Modifier.height(NexusSpacing.md))
         if (actionError != null) {
@@ -738,6 +760,8 @@ private fun SessionDebriefRow(
 @Composable
 private fun SessionProgressBoard(
     problems: List<SessionProblem>,
+    selectedProblemId: Long?,
+    onSelectProblem: (Long) -> Unit,
     onOpenProblem: (Long) -> Unit,
 ) {
     val colors = NexusTheme.colors
@@ -818,7 +842,12 @@ private fun SessionProgressBoard(
                 ),
             ) {
                 problems.forEachIndexed { index, problem ->
-                    SessionProblemQueueRow(problem = problem, onOpenProblem = onOpenProblem)
+                    SessionProblemQueueRow(
+                        problem = problem,
+                        selected = problem.problemId == selectedProblemId,
+                        onSelect = { onSelectProblem(problem.problemId) },
+                        onOpenProblem = onOpenProblem,
+                    )
                     if (index != problems.lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
                 }
             }
@@ -829,10 +858,13 @@ private fun SessionProgressBoard(
 @Composable
 private fun SessionProblemQueueRow(
     problem: SessionProblem,
+    selected: Boolean,
+    onSelect: () -> Unit,
     onOpenProblem: (Long) -> Unit,
 ) {
     val colors = NexusTheme.colors
     val openDescription = stringResource(R.string.session_problem_open_cd)
+    val selectedDescription = stringResource(R.string.session_problem_selected)
     val statusTone = when {
         problem.solved -> NexusTone.Success
         problem.attempts > 0 -> NexusTone.Warning
@@ -846,6 +878,10 @@ private fun SessionProblemQueueRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(
+                if (selected) Modifier.border(NexusSize.dividerThickness, colors.accent, NexusRadius.sm)
+                else Modifier,
+            )
             .padding(vertical = NexusSpacing.xxs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -856,7 +892,14 @@ private fun SessionProblemQueueRow(
                 .background(statusTone.foregroundColor(colors), NexusRadius.xs),
         )
         Spacer(modifier = Modifier.width(NexusSpacing.xs))
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .semantics {
+                    if (selected) contentDescription = selectedDescription
+                }
+                .clickable(role = Role.Button, onClick = onSelect),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = problem.judge?.uppercase().orEmpty(),

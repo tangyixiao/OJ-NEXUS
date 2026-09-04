@@ -165,6 +165,24 @@ class TrainingRepositorySessionTest {
     }
 
     @Test
+    fun `repository attempt refreshes active session progress`() = runBlocking {
+        val problemId = insertProblem("1C", "Gamma", 1000)
+        val created = trainingRepository.createAndStartSession(
+            TrainingType.PRACTICE,
+            null,
+            null,
+            listOf(problemId),
+        ) as DataResult.Success
+
+        assertEquals(0, trainingRepository.observeSessionProblems(created.value).first().single().attempts)
+        assertTrue(problemRepository.addAttempt(problemId, Verdict.WA) is DataResult.Success)
+
+        val refreshed = trainingRepository.observeSessionProblems(created.value)
+            .first { rows -> rows.single().attempts == 1 }
+        assertEquals(Verdict.WA, refreshed.single().latestVerdict)
+    }
+
+    @Test
     fun `session progress exposes latest in-window verdict and existing review`() = runBlocking {
         val problemId = insertProblem("1D", "Delta", 1100)
         assertTrue(reviewRepository.scheduleReview(problemId) is DataResult.Success)
