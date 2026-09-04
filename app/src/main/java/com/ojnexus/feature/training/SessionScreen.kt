@@ -274,11 +274,21 @@ private fun SessionRunningView(
     val colors = NexusTheme.colors
     val paused = session.pausedAt != null
     var selectedProblemId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val lastLoggedProblemId by viewModel.lastLoggedProblemId.collectAsStateWithLifecycle()
+    val lastLoggedSequence by viewModel.lastLoggedSequence.collectAsStateWithLifecycle()
     val normalizedSelection = normalizeSessionSelection(selectedProblemId, problems)
     val selectedProblem = problems.firstOrNull { it.problemId == normalizedSelection }
     LaunchedEffect(problems, selectedProblemId) {
         if (selectedProblemId != normalizedSelection) {
             selectedProblemId = normalizedSelection
+        }
+    }
+    LaunchedEffect(lastLoggedSequence, lastLoggedProblemId) {
+        if (lastLoggedSequence > 0L && lastLoggedProblemId != null) {
+            val next = problems.firstOrNull {
+                !it.solved && it.problemId != lastLoggedProblemId
+            } ?: problems.firstOrNull { !it.solved }
+            selectedProblemId = next?.problemId ?: lastLoggedProblemId
         }
     }
     Column(
@@ -334,6 +344,18 @@ private fun SessionRunningView(
             selectedProblemId = normalizedSelection,
             onSelectProblem = { selectedProblemId = it },
             onOpenProblem = onOpenProblem,
+        )
+
+        Spacer(modifier = Modifier.height(NexusSpacing.md))
+        SessionMomentumRail(
+            session = session,
+            problems = problems,
+            selectedProblemId = normalizedSelection,
+            elapsedFlow = viewModel.elapsedMs,
+            onOpenNext = { problemId ->
+                selectedProblemId = problemId
+                onOpenProblem(problemId)
+            },
         )
 
         selectedProblem?.let { problem ->

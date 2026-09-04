@@ -328,6 +328,16 @@
     <string name="session_problem_selected">已选择，可快速记录结果</string>
     <string name="session_problem_open">打开</string>
     <string name="session_problem_open_cd">打开题目详情</string>
+    <string name="session_momentum_title">训练节奏</string>
+    <string name="session_momentum_now">当前</string>
+    <string name="session_momentum_next">下一题</string>
+    <string name="session_momentum_left">剩余</string>
+    <string name="session_momentum_pending">待处理 %d 道</string>
+    <string name="session_momentum_remaining_minutes">%d 分钟</string>
+    <string name="session_momentum_less_than_minute">少于 1 分钟</string>
+    <string name="session_momentum_complete">全部题目已解决</string>
+    <string name="session_momentum_open_next">打开下一题</string>
+    <string name="session_momentum_open_next_cd">打开下一题 %1$s</string>
     <string name="session_action_pause">暂停</string>
     <string name="session_action_resume">继续</string>
     <string name="session_action_finish">结束</string>

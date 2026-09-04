@@ -363,6 +363,16 @@
     <string name="session_problem_selected">Selected for quick result logging</string>
     <string name="session_problem_open">OPEN</string>
     <string name="session_problem_open_cd">Open problem details</string>
+    <string name="session_momentum_title">SESSION MOMENTUM</string>
+    <string name="session_momentum_now">NOW</string>
+    <string name="session_momentum_next">NEXT</string>
+    <string name="session_momentum_left">LEFT</string>
+    <string name="session_momentum_pending">%d PENDING</string>
+    <string name="session_momentum_remaining_minutes">%d MIN</string>
+    <string name="session_momentum_less_than_minute">&lt;1 MIN</string>
+    <string name="session_momentum_complete">ALL PROBLEMS RESOLVED</string>
+    <string name="session_momentum_open_next">OPEN NEXT</string>
+    <string name="session_momentum_open_next_cd">Open next problem %1$s</string>
     <string name="session_action_pause">PAUSE</string>
     <string name="session_action_resume">RESUME</string>
     <string name="session_action_finish">FINISH</string>

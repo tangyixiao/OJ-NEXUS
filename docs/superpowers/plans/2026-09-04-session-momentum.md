@@ -125,7 +125,7 @@
 
 - [ ] **Step 2: Run the isolated instrumentation test and verify it fails.**
 
-  Run: `.\gradlew.bat :app:connectedDebugAndroidTest --tests com.ojnexus.feature.training.SessionMomentumComposeTest --no-daemon --console=plain`.
+  Run: `.\gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.ojnexus.feature.training.SessionMomentumComposeTest" --no-daemon --console=plain`.
 
   Expected: compilation or assertion failure because the rail is not yet present.
 
@@ -144,7 +144,7 @@
 
 - [ ] **Step 5: Run the isolated Compose test and the existing command-deck test.**
 
-  Run both focused commands from Steps 2 and Task 1; expected result is PASS with reduced-motion
+  Run the runner-filtered connected command above and the Task 1 unit command; expected result is PASS with reduced-motion
   content and accessibility semantics intact.
 
 - [ ] **Step 6: Commit the UI slice.**

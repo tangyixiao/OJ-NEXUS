@@ -92,6 +92,7 @@ class SessionViewModel(
 
     private val _actionError = MutableStateFlow<SessionActionError?>(null)
     private val _lastLoggedProblemId = MutableStateFlow<Long?>(null)
+    private val _lastLoggedSequence = MutableStateFlow(0L)
     private val _actionInFlight = MutableStateFlow(false)
 
     /** Latest local session action error, or null after a successful action. */
@@ -99,6 +100,9 @@ class SessionViewModel(
 
     /** Problem id for the most recent successful local verdict action. */
     val lastLoggedProblemId: StateFlow<Long?> = _lastLoggedProblemId.asStateFlow()
+
+    /** Monotonic success token so repeated results for the same problem remain observable. */
+    val lastLoggedSequence: StateFlow<Long> = _lastLoggedSequence.asStateFlow()
 
     /** True while the local verdict transaction is running. */
     val actionInFlight: StateFlow<Boolean> = _actionInFlight.asStateFlow()
@@ -201,6 +205,7 @@ class SessionViewModel(
                     is DataResult.Success -> {
                         _actionError.value = null
                         _lastLoggedProblemId.value = problemId
+                        _lastLoggedSequence.value += 1L
                     }
                     is DataResult.Failure -> _actionError.value = result.error.toActionError()
                 }
