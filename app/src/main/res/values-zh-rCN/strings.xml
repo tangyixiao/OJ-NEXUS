@@ -47,6 +47,16 @@
     <string name="dash_section_recent">最近活动</string>
     <string name="dash_section_load">训练负荷</string>
     <string name="dash_section_command">指挥台</string>
+    <string name="dash_surface_title">指挥信号</string>
+    <string name="dash_surface_now">当前</string>
+    <string name="dash_surface_next">下一步</string>
+    <string name="dash_surface_signal">信号</string>
+    <string name="dash_surface_no_active">暂无活动指令</string>
+    <string name="dash_surface_no_next">暂无下一步指令</string>
+    <string name="dash_surface_local_ready">本地模式——就绪</string>
+    <string name="dash_surface_oj_linked">OJ 已连接</string>
+    <string name="dash_surface_sync_attention">需要处理同步</string>
+    <string name="dash_surface_cell_cd">打开%1$s指令：%2$s</string>
     <string name="dash_summary_due">待复习</string>
     <string name="dash_summary_solved">本周 AC</string>
     <string name="dash_summary_next">下场竞赛</string>

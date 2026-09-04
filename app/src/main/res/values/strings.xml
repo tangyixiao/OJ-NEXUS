@@ -56,6 +56,16 @@
     <string name="dash_section_recent">RECENT ACTIVITY</string>
     <string name="dash_section_load">TRAINING LOAD</string>
     <string name="dash_section_command">COMMAND DECK</string>
+    <string name="dash_surface_title">COMMAND SIGNAL</string>
+    <string name="dash_surface_now">NOW</string>
+    <string name="dash_surface_next">NEXT</string>
+    <string name="dash_surface_signal">SIGNAL</string>
+    <string name="dash_surface_no_active">NO ACTIVE COMMAND</string>
+    <string name="dash_surface_no_next">NO NEXT COMMAND</string>
+    <string name="dash_surface_local_ready">LOCAL MODE — READY</string>
+    <string name="dash_surface_oj_linked">OJ LINKED</string>
+    <string name="dash_surface_sync_attention">SYNC ATTENTION</string>
+    <string name="dash_surface_cell_cd">Open %1$s command: %2$s</string>
     <string name="dash_summary_due">DUE</string>
     <string name="dash_summary_solved">AC WEEK</string>
     <string name="dash_summary_next">NEXT</string>

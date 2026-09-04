@@ -231,6 +231,21 @@ private fun DashboardContent(
 
         SectionGap()
 
+        DashboardCommandSurfaceSection(
+            surface = deriveDashboardCommandSurface(state),
+            onTarget = { target ->
+                when (target) {
+                    DashboardSurfaceTarget.TRAINING -> onOpenTraining()
+                    DashboardSurfaceTarget.REVIEW -> onOpenReview()
+                    DashboardSurfaceTarget.CONTESTS -> onOpenContests()
+                    DashboardSurfaceTarget.SETTINGS -> onOpenSettings()
+                    DashboardSurfaceTarget.NONE -> Unit
+                }
+            },
+        )
+
+        SectionGap()
+
         // SYSTEM STATUS — honest connection state; rating only from a real synced profile.
         NexusSection(
             label = stringResource(R.string.dash_section_system),
