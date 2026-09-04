@@ -25,17 +25,17 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 69 (Session Command Deck)**: an active training session now lets the
-user select a queue row and log an existing local verdict directly from a `LOG RESULT` rail.
-The queue and progress pulse refresh from the existing Room transaction, while `OPEN`, lifecycle
-controls, and finished-session behavior remain unchanged. The APK identity is aligned to
-`versionName=0.3.67`, `versionCode=67`. / 早期开发——**第 69 阶段（训练会话指挥台）**：活动训练会话现在可以选中队列题目，
-直接通过“记录结果”操作栏记录已有的本地 verdict。题目队列和进度脉冲继续由已有 Room 事务刷新，“打开”、会话生命周期操作和已结束会话行为保持不变。
-APK 版本身份同步为 `versionName=0.3.67`、`versionCode=67`。
+Early development — **Phase 70 (Session Momentum)**: an active training session now moves from
+local result logging to a deterministic `NOW / NEXT / LEFT` command loop. The momentum rail
+advances ephemeral selection, exposes `OPEN NEXT`, and reports an honest all-resolved state from
+the existing Room-backed queue. The APK identity is aligned to `versionName=0.3.68`,
+`versionCode=68`. / 早期开发——**第 70 阶段（训练节奏）**：活动训练会话现在可以从本地记录结果进入确定性的“当前 / 下一题 / 剩余”指挥闭环。
+训练节奏栏推进临时选中状态，提供“打开下一题”，并依据已有 Room 题目队列展示真实的全部解决状态。
+APK 版本身份同步为 `versionName=0.3.68`、`versionCode=68`。
 
-Phase 69 remains local-first: quick verdicts are existing local attempt records, not automatic
+Phase 70 remains local-first: quick verdicts are existing local attempt records, not automatic
 OJ submissions. No network, credentials, database migration, new session state, or persisted
-selection was added. / 第 69 阶段继续坚持本地优先：快速 verdict 只是已有的本地尝试记录，不是自动提交到 OJ；不新增网络、凭据、数据库迁移、会话状态或持久化选中状态。
+selection was added. / 第 70 阶段继续坚持本地优先：快速 verdict 只是已有的本地尝试记录，不是自动提交到 OJ；不新增网络、凭据、数据库迁移、会话状态或持久化选中状态。
 
 Phase 68 remains local-first: the visible local problem IDs are held only as one-shot navigation
 context and passed into the existing editable session form. No network, remote training,

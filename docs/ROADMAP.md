@@ -5,9 +5,22 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.67` and `versionCode=67`. It carries
-the Phase 69 Session Command Deck. / 当前 Android 安装包身份为 `versionName=0.3.67`、`versionCode=67`，
-对应第 69 阶段训练会话指挥台。
+The current Android package identity is `versionName=0.3.68` and `versionCode=68`. It carries
+the Phase 70 Session Momentum surface. / 当前 Android 安装包身份为 `versionName=0.3.68`、`versionCode=68`，
+对应第 70 阶段训练节奏界面。
+
+## PHASE 70 — Session Momentum / 训练节奏
+
+An active training session now exposes a local `NOW / NEXT / LEFT` momentum rail. Recording a
+verdict advances the ephemeral selection to the next pending queue row when one exists; `OPEN
+NEXT` routes through the existing local problem detail action, and an all-resolved queue reports
+completion without inventing a next item. / 活动训练会话现在提供本地“当前 / 下一题 / 剩余”训练节奏栏。记录 verdict 后，若仍有待处理题目，临时选中状态会推进到下一题；“打开下一题”复用已有的本地题目详情入口，全部解决时展示完成状态而不虚构下一题。
+
+The projection and action guard use existing Room-backed flows and `ProblemRepository.addAttempt`.
+Target time has a zero floor, failed actions keep the current selection visible, and repeated
+actions are ignored while a local transaction is in flight. This phase adds no network request,
+database migration, persisted selection, automatic OJ submission, credential flow, or background
+work. / 训练节奏投影和动作保护复用已有 Room 流与 `ProblemRepository.addAttempt`。剩余时间不会低于零，失败动作会保留当前选中题目，本地事务进行中会忽略重复动作。本阶段不新增网络请求、数据库迁移、持久化选中状态、自动 OJ 提交、凭据流程或后台任务。
 
 ## PHASE 69 — Session Command Deck / 训练会话指挥台
 
