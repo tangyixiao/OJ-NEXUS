@@ -28,14 +28,15 @@
 
 **Interfaces:**
 - Consumes: `TrainingSession?`, `List<SessionProblem>`, `Long elapsedMs`, and `Long? selectedProblemId`.
-- Produces: `SessionMomentumState(now: SessionProblem?, next: SessionProblem?, pendingCount: Int, isComplete: Boolean, selectedProblemId: Long?)` and `deriveSessionMomentum(...)`.
+- Produces: `SessionMomentumState(now: SessionProblem?, next: SessionProblem?, pendingCount: Int, isComplete: Boolean, selectedProblemId: Long?, remainingTargetMs: Long?)` and `deriveSessionMomentum(...)`.
 
 - [ ] **Step 1: Write failing tests for ordering and completion.**
 
   Cover an ordered list with solved, attempted, and pending rows; assert that `next` is the first
   unsolved row in session order, `pendingCount` counts unsolved rows, `isComplete` is true only
-  when the list is non-empty and every row is solved, and a removed selection is normalized to
-  null. Also cover a null/empty session and an empty problem list.
+  when the list is non-empty and every row is solved, a removed selection is normalized to null,
+  and a target duration returns a non-negative remaining time. Also cover a null/empty session and
+  an empty problem list.
 
 - [ ] **Step 2: Run the focused test and verify it fails for the missing projection.**
 
@@ -46,8 +47,9 @@
 - [ ] **Step 3: Implement the minimal pure projection.**
 
   Normalize selection against the supplied list, use the first `!solved` row as `next`, count
-  `!solved`, and mark completion only for a non-empty all-solved list. Do not inspect network,
-  attempt timestamps, or global library data.
+  `!solved`, mark completion only for a non-empty all-solved list, and derive remaining target
+  time from `targetDurationMin` and `elapsedMs` with a zero floor. Do not inspect network, attempt
+  timestamps, or global library data.
 
 - [ ] **Step 4: Run the focused test and verify it passes.**
 
