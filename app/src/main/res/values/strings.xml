@@ -531,6 +531,21 @@
     <!-- Settings / connected judges -->
     <string name="settings_title">SETTINGS</string>
     <string name="action_back">BACK</string>
+    <string name="settings_connector_center_title">OJ CONNECTOR CENTER</string>
+    <string name="settings_connector_count">%1$d/%2$d CONNECTED</string>
+    <string name="settings_connector_empty">NO JUDGE ADAPTERS REGISTERED</string>
+    <string name="settings_connector_receipts">%1$d/%2$d RECEIPTS</string>
+    <string name="settings_connector_last_sync">LAST SYNC: %1$s</string>
+    <string name="settings_connector_stage">STAGE: %1$s</string>
+    <string name="settings_connector_sync_all">SYNC ALL</string>
+    <string name="settings_connector_syncing_all">SYNCING…</string>
+    <string name="settings_connector_sync_all_cd">Queue a foreground refresh for every connected judge</string>
+    <string name="settings_connector_disconnected">DISCONNECTED</string>
+    <string name="settings_connector_queued">QUEUED</string>
+    <string name="settings_connector_syncing">SYNCING</string>
+    <string name="settings_connector_partial">PARTIAL</string>
+    <string name="settings_connector_failed">FAILED</string>
+    <string name="settings_connector_connected">CONNECTED</string>
     <string name="settings_section_judges">CONNECTED JUDGES</string>
     <string name="settings_codeforces">CODEFORCES</string>
     <string name="settings_public_handle_hint">PUBLIC HANDLE ONLY — NO PASSWORD REQUIRED</string>

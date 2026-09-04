@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 data class JudgeConnectionUi(
     val judge: JudgeId,
@@ -81,6 +82,14 @@ class SettingsViewModel(
     private val openAppCredentialStore: OpenAppCredentialStore? = null,
     private val openAppQuotaReader: LuoguOpenQuotaReader? = null,
     private val openAppCredentialVerifier: LuoguOpenCredentialVerifier? = null,
+    private val manualSyncEnqueuer: (JudgeId, Long) -> Unit = { judge, accountId ->
+        JudgeSyncWorker.enqueueManual(
+            com.ojnexus.core.ui.GlobalContext.application,
+            judge,
+            accountId,
+            true,
+        )
+    },
 ) : ViewModel() {
     private val judges = registry.supportedJudges().sortedBy { it.ordinal }
 
@@ -117,6 +126,9 @@ class SettingsViewModel(
     val errors: StateFlow<Map<JudgeId, ConnectError>> = connectErrors.asStateFlow()
     private val connectingJudges = MutableStateFlow<Set<JudgeId>>(emptySet())
     val connecting: StateFlow<Set<JudgeId>> = connectingJudges.asStateFlow()
+    private val syncAllInFlightFlag = AtomicBoolean(false)
+    private val _syncAllInFlight = MutableStateFlow(false)
+    val syncAllInFlight: StateFlow<Boolean> = _syncAllInFlight.asStateFlow()
     private val backupResult = MutableStateFlow<BackupResult?>(null)
     val backup: StateFlow<BackupResult?> = backupResult.asStateFlow()
     val preferences: StateFlow<UserPreferences> = preferencesRepository.preferences.stateIn(
@@ -391,14 +403,40 @@ class SettingsViewModel(
         val judge = JudgeId.fromId(account.judge) ?: return
         if (!shouldScheduleJudgeSync(registry.adapter(judge).capabilities)) return
         viewModelScope.launch {
-            dataRepository.markSyncQueued(judge, account.id)
-            JudgeSyncWorker.enqueueManual(
-                com.ojnexus.core.ui.GlobalContext.application,
-                judge,
-                account.id,
-                true,
-            )
+            queueManualSync(judge, account.id)
         }
+    }
+
+    fun syncAll() {
+        syncAll(state.value.connections)
+    }
+
+    internal fun syncAll(connections: List<JudgeConnectionUi>) {
+        if (!syncAllInFlightFlag.compareAndSet(false, true)) return
+        _syncAllInFlight.value = true
+        val targets = eligibleConnectorSyncRows(connections).mapNotNull { row ->
+            connections.firstOrNull { it.judge == row.judge }?.account?.let { account ->
+                row.judge to account.id
+            }
+        }
+        if (targets.isEmpty()) {
+            syncAllInFlightFlag.set(false)
+            _syncAllInFlight.value = false
+            return
+        }
+        viewModelScope.launch {
+            try {
+                targets.forEach { (judge, accountId) -> queueManualSync(judge, accountId) }
+            } finally {
+                syncAllInFlightFlag.set(false)
+                _syncAllInFlight.value = false
+            }
+        }
+    }
+
+    private suspend fun queueManualSync(judge: JudgeId, accountId: Long) {
+        dataRepository.markSyncQueued(judge, accountId)
+        manualSyncEnqueuer(judge, accountId)
     }
 
     fun syncPhaseLabel(syncState: SyncStateEntity?): SyncPhase? =

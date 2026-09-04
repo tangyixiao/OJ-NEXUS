@@ -88,6 +88,7 @@ fun SettingsScreen(
     val backupResult by viewModel.backup.collectAsStateWithLifecycle()
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
     val openAppState by viewModel.openApp.collectAsStateWithLifecycle()
+    val syncAllInFlight by viewModel.syncAllInFlight.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
@@ -163,6 +164,12 @@ fun SettingsScreen(
                 .padding(horizontal = NexusSpacing.screenHorizontal),
         ) {
             Spacer(Modifier.height(NexusSpacing.md))
+            ConnectorCenterSection(
+                summary = deriveConnectorCenter(state.connections),
+                syncAllInFlight = syncAllInFlight,
+                onSyncAll = viewModel::syncAll,
+            )
+            Spacer(Modifier.height(NexusSpacing.xl))
             NexusSection(label = stringResource(R.string.settings_section_judges)) {
                 state.connections.forEachIndexed { index, connection ->
                     if (index > 0) Spacer(Modifier.height(NexusSpacing.sm))
