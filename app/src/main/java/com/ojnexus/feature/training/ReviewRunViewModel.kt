@@ -9,6 +9,8 @@ import com.ojnexus.core.model.ReviewQueueItem
 import com.ojnexus.core.model.ReviewResult
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.localizedString
+import com.ojnexus.core.time.LocalDaySource
+import com.ojnexus.core.time.SystemLocalDaySource
 import java.time.Clock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,11 +55,16 @@ class ReviewRunViewModel(
     },
     private val completeReview: suspend (Long, ReviewResult) -> DataResult<ScheduledReview> =
         reviewRepository::completeReview,
+    private val localDaySource: LocalDaySource = SystemLocalDaySource(clock),
 ) : ViewModel() {
 
     private val queue = MutableStateFlow<List<ReviewQueueItem>>(emptyList())
     private val internal = MutableStateFlow(ReviewRunInternalState())
-    private val todayEpochDay = clock.instant().atZone(clock.zone).toLocalDate().toEpochDay()
+    private val todayEpochDay = localDaySource.day.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        clock.instant().atZone(clock.zone).toLocalDate().toEpochDay(),
+    )
 
     init {
         viewModelScope.launch {
@@ -68,7 +75,7 @@ class ReviewRunViewModel(
                 .collect { items ->
                     queue.value = items
                     if (internal.value.captured == null) {
-                        val captured = captureReviewRunQueue(items, todayEpochDay)
+                        val captured = captureReviewRunQueue(items, todayEpochDay.value)
                         internal.update {
                             it.copy(
                                 captured = captured,

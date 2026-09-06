@@ -5,9 +5,14 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.71` and `versionCode=71`. It carries
-the Phase 73 Safe Restore release. / 当前 Android 安装包身份为 `versionName=0.3.71`、`versionCode=71`，
-对应第 73 阶段安全恢复版本。
+The current Android package identity is `versionName=0.3.72` and `versionCode=72`. It carries
+the Phase 74 Action Continuity release. / 当前 Android 安装包身份为 `versionName=0.3.72`、`versionCode=72`，
+对应第 74 阶段动作连续性版本。
+
+Phase 74 keeps date-sensitive streams current across local midnight and app resume. Dashboard
+commands now carry exact stable identifiers for sessions, tasks, reviews, submissions, and
+contests; a submission request can be handed to the Submission Center as one-shot focus context.
+Cells use minimum sizing so large text remains readable. / 第 74 阶段保证日期敏感数据在本地跨日和应用恢复后保持最新；Dashboard 动作携带会话、任务、复习、提交和竞赛的稳定标识，提交请求可通过一次性上下文交给提交中心聚焦；单元格使用最小尺寸，保证大字体仍可读。
 
 ## PHASE 73 — Safe Restore / 安全恢复
 

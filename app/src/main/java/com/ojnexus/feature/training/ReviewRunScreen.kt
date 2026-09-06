@@ -65,6 +65,7 @@ fun ReviewRunScreen(onDone: () -> Unit) {
             ReviewRunViewModel(
                 reviewRepository = it.reviewRepository,
                 clock = it.clock,
+                localDaySource = it.localDaySource,
             )
         },
     )

@@ -6,6 +6,13 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ojnexus.core.data.sync.SyncPhase
 import com.ojnexus.core.database.entity.JudgeAccountEntity
@@ -75,6 +82,35 @@ class DashboardCommandSurfaceComposeTest {
                 ),
                 targets,
             )
+        }
+    }
+
+    @Test
+    fun commandSurfaceKeepsActionTextVisibleAtNarrowLargeFont() {
+        val actions = mutableListOf<DashboardAction>()
+        val surface = deriveDashboardCommandSurface(
+            state(todayTasks = listOf(task())),
+        )
+
+        composeRule.setContent {
+            NexusTheme(reduceMotion = true) {
+                CompositionLocalProvider(LocalDensity provides Density(1f, 2f)) {
+                    Box(Modifier.width(360.dp)) {
+                        DashboardCommandSurfaceSection(
+                            surface = surface,
+                            onAction = { actions += it },
+                            onTarget = {},
+                        )
+                    }
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("COMMAND SIGNAL").assertIsDisplayed()
+        composeRule.onNodeWithText("P1001").assertIsDisplayed()
+        composeRule.onNodeWithText("NO NEXT COMMAND").assertIsDisplayed()
+        composeRule.runOnIdle {
+            assertEquals(emptyList<DashboardAction>(), actions)
         }
     }
 

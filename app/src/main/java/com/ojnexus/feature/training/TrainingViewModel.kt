@@ -16,14 +16,17 @@ import com.ojnexus.core.domain.TrainingCandidate
 import com.ojnexus.core.domain.TrainingPlanner
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.localizedString
+import com.ojnexus.core.time.LocalDaySource
+import com.ojnexus.core.time.SystemLocalDaySource
 import java.time.Clock
 import kotlinx.coroutines.CancellationException
-import java.time.LocalDate
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -53,6 +56,7 @@ fun trainingSessionStartState(
 fun canDismissSessionDialog(startState: TrainingSessionStartState): Boolean =
     startState !is TrainingSessionStartState.Starting
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class TrainingViewModel(
     private val trainingRepository: TrainingRepository,
     private val reviewRepository: ReviewRepository,
@@ -60,13 +64,14 @@ class TrainingViewModel(
     private val knowledgeRepository: com.ojnexus.core.data.repository.KnowledgeRepository,
     private val clock: Clock,
     private val errorMessage: () -> String = { localizedString(R.string.error_load_failed) },
+    private val localDaySource: LocalDaySource = SystemLocalDaySource(clock),
 ) : ViewModel() {
 
-    /**
-     * Fixed at ViewModel creation: the TODAY list belongs to the calendar day the user opened
-     * the screen. A day rollover is picked up on the next app launch (documented limitation).
-     */
-    private val todayEpochDay: Long = clock.instant().atZone(clock.zone).toLocalDate().toEpochDay()
+    private val todayEpochDay = localDaySource.day.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        clock.instant().atZone(clock.zone).toLocalDate().toEpochDay(),
+    )
 
     /** Manual re-sync trigger for flows whose sources change outside Room (none currently). */
     private val refresh = MutableStateFlow(0)
@@ -79,50 +84,52 @@ class TrainingViewModel(
         val candidates: List<com.ojnexus.core.database.dao.TrainingCandidateRow>,
     )
 
-    val state: StateFlow<Loadable<TrainingUiState>> = combine(
-        reviewRepository.observeQueue(),
-        trainingRepository.observeTasks(todayEpochDay),
-        trainingRepository.observeActiveSession(),
-        trainingRepository.observeHistory(limit = 10),
+    val state: StateFlow<Loadable<TrainingUiState>> = todayEpochDay.flatMapLatest { today ->
         combine(
-            knowledgeRepository.observeMastery(),
-            trainingRepository.observeCandidateRows(todayEpochDay),
-            refresh,
-        ) { knowledge, candidates, _ -> TrainingSignals(knowledge, candidates) },
-    ) { queue, tasks, activeSession, history, signals ->
-        Loadable.Ready(
-            TrainingUiState(
-                todayEpochDay = todayEpochDay,
-                tasks = tasks,
-                reviews = bucketReviews(todayEpochDay, queue),
-                activeSession = activeSession,
-                history = history,
-                knowledge = signals.knowledge,
-                recommendations = signals.candidates
-                    .map { row ->
-                        val priority = TrainingPlanner.rank(
-                            TrainingCandidate(
-                                solved = row.solved,
-                                attemptCount = row.attemptCount,
-                                failureCount = row.failureCount,
-                                reviewDue = row.reviewDue,
-                                difficulty = row.difficulty,
-                                targetDifficulty = null,
-                                coverageValue = row.coverageValue,
-                            ),
-                        )
-                        TrainingRecommendation(
-                            problemId = row.id,
-                            judge = row.judge,
-                            externalId = row.externalId,
-                            title = row.title,
-                            priority = priority.priority,
-                            reasons = priority.reasons,
-                        )
-                    }
-                    .sortedWith(compareByDescending<TrainingRecommendation> { it.priority }.thenBy { it.problemId }),
-            ),
-        )
+            reviewRepository.observeQueue(),
+            trainingRepository.observeTasks(today),
+            trainingRepository.observeActiveSession(),
+            trainingRepository.observeHistory(limit = 10),
+            combine(
+                knowledgeRepository.observeMastery(),
+                trainingRepository.observeCandidateRows(today),
+                refresh,
+            ) { knowledge, candidates, _ -> TrainingSignals(knowledge, candidates) },
+        ) { queue, tasks, activeSession, history, signals ->
+            Loadable.Ready(
+                TrainingUiState(
+                    todayEpochDay = today,
+                    tasks = tasks,
+                    reviews = bucketReviews(today, queue),
+                    activeSession = activeSession,
+                    history = history,
+                    knowledge = signals.knowledge,
+                    recommendations = signals.candidates
+                        .map { row ->
+                            val priority = TrainingPlanner.rank(
+                                TrainingCandidate(
+                                    solved = row.solved,
+                                    attemptCount = row.attemptCount,
+                                    failureCount = row.failureCount,
+                                    reviewDue = row.reviewDue,
+                                    difficulty = row.difficulty,
+                                    targetDifficulty = null,
+                                    coverageValue = row.coverageValue,
+                                ),
+                            )
+                            TrainingRecommendation(
+                                problemId = row.id,
+                                judge = row.judge,
+                                externalId = row.externalId,
+                                title = row.title,
+                                priority = priority.priority,
+                                reasons = priority.reasons,
+                            )
+                        }
+                        .sortedWith(compareByDescending<TrainingRecommendation> { it.priority }.thenBy { it.problemId }),
+                ),
+            )
+        }
     }
         .catch<Loadable<TrainingUiState>> {
             emit(Loadable.Failed(it.message ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_load_failed)))
@@ -144,7 +151,7 @@ class TrainingViewModel(
     fun addTask(type: TaskType, problemId: Long?, title: String?) {
         viewModelScope.launch {
             trainingRepository.addTask(
-                dateEpochDay = todayEpochDay,
+                dateEpochDay = todayEpochDay.value,
                 type = type,
                 problemId = problemId,
                 title = title?.takeIf { it.isNotBlank() },
@@ -162,7 +169,7 @@ class TrainingViewModel(
     }
 
     fun clearCompleted() {
-        viewModelScope.launch { trainingRepository.clearCompletedTasks(todayEpochDay) }
+        viewModelScope.launch { trainingRepository.clearCompletedTasks(todayEpochDay.value) }
     }
 
     fun startSession(

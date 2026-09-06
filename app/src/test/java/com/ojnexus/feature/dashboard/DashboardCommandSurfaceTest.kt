@@ -9,6 +9,8 @@ import com.ojnexus.core.model.ReviewQueueItem
 import com.ojnexus.core.model.ReviewResult
 import com.ojnexus.core.model.TaskType
 import com.ojnexus.core.model.TrainingTask
+import com.ojnexus.core.model.SessionState
+import com.ojnexus.core.model.TrainingSession
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -33,6 +35,30 @@ class DashboardCommandSurfaceTest {
             DashboardSurfaceValue.Message(DashboardSurfaceMessage.LOCAL_READY),
             surface.signal.value,
         )
+    }
+
+    @Test
+    fun `now displays the active session command before tasks`() {
+        val surface = deriveDashboardCommandSurface(
+            state(
+                todayTasks = listOf(task(2L, problemTitle = "P1001", title = "A+B")),
+                activeSession = TrainingSession(
+                    id = 42L,
+                    type = com.ojnexus.core.model.TrainingType.PRACTICE,
+                    state = SessionState.RUNNING,
+                    startedAt = 1L,
+                    pausedAt = null,
+                    totalPausedMs = 0L,
+                    finishedAt = null,
+                    targetDurationMin = null,
+                    targetTag = null,
+                    note = null,
+                ),
+            ),
+        )
+
+        assertEquals(DashboardSurfaceValue.Data("SESSION 42"), surface.now.value)
+        assertEquals(DashboardAction.ResumeSession(42L), surface.now.action)
     }
 
     @Test
@@ -101,6 +127,7 @@ class DashboardCommandSurfaceTest {
         nextReview: ReviewQueueItem? = null,
         nextContest: ContestEntity? = null,
         judgeConnections: List<JudgeDashboardConnection> = emptyList(),
+        activeSession: TrainingSession? = null,
     ) = DashboardUiState(
         todayTasks = todayTasks,
         week = WeekSummary(0, 0, 0L),
@@ -113,6 +140,7 @@ class DashboardCommandSurfaceTest {
         judgeConnections = judgeConnections,
         nextContest = nextContest,
         nowSeconds = 0L,
+        activeSession = activeSession,
     )
 
     private fun task(

@@ -27,4 +27,11 @@ interface SubmissionJobDao {
 
     @Query("SELECT * FROM submission_jobs ORDER BY updated_at DESC, id DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<SubmissionJobEntity>>
+
+    @Query(
+        "SELECT * FROM submission_jobs " +
+            "WHERE status IN ('PENDING', 'FAILED') " +
+            "ORDER BY CASE WHEN status = 'PENDING' THEN 0 ELSE 1 END, updated_at ASC, id ASC LIMIT 1",
+    )
+    fun observeActionable(): Flow<SubmissionJobEntity?>
 }

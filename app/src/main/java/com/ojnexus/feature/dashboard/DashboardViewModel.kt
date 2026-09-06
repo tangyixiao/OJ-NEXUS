@@ -8,17 +8,22 @@ import com.ojnexus.core.data.repository.ReviewRepository
 import com.ojnexus.core.data.repository.TrainingRepository
 import com.ojnexus.core.domain.ActivityScorer
 import com.ojnexus.core.model.ReviewQueueItem
+import com.ojnexus.core.database.entity.SubmissionJobEntity
+import com.ojnexus.core.model.TrainingSession
 import com.ojnexus.core.model.TrainingTask
 import com.ojnexus.core.ui.Loadable
+import com.ojnexus.core.time.LocalDaySource
+import com.ojnexus.core.time.SystemLocalDaySource
 import java.time.Clock
-import java.time.LocalDate
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 
@@ -47,6 +52,9 @@ data class DashboardUiState(
     /** Earliest upcoming contest with an announced start time. */
     val nextContest: com.ojnexus.core.database.entity.ContestEntity? = null,
     val nowSeconds: Long,
+    val activeSession: TrainingSession? = null,
+    val actionableSubmission: SubmissionJobEntity? = null,
+    val syncAttention: Boolean = false,
 )
 
 data class JudgeDashboardConnection(
@@ -59,18 +67,20 @@ data class JudgeDashboardConnection(
  * Dashboard over local data only. There is deliberately no rating: no OJ is connected in
  * Phase 1, and fake numbers are forbidden. OJ CONNECTION renders NOT CONNECTED.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModel(
     trainingRepository: TrainingRepository,
     reviewRepository: ReviewRepository,
     analyticsRepository: AnalyticsRepository,
     private val clock: Clock,
     private val judgeDataRepository: com.ojnexus.core.data.repository.JudgeDataRepository,
+    private val actionableSubmission: kotlinx.coroutines.flow.Flow<SubmissionJobEntity?> = kotlinx.coroutines.flow.flowOf(null),
+    private val localDaySource: LocalDaySource = SystemLocalDaySource(clock),
 ) : ViewModel() {
-
-    private val todayEpochDay: Long = clock.instant().atZone(clock.zone).toLocalDate().toEpochDay()
 
     /** Local-only snapshot feeding the outer combine. */
     private data class LocalSnapshot(
+        val todayEpochDay: Long,
         val tasks: List<TrainingTask>,
         val week: List<com.ojnexus.core.domain.DayActivity>,
         val streaks: com.ojnexus.core.data.repository.Streaks,
@@ -78,14 +88,16 @@ class DashboardViewModel(
         val recent: List<com.ojnexus.core.model.RecentAttempt>,
     )
 
-    private val localSnapshot = combine(
-        trainingRepository.observeTasks(todayEpochDay),
-        analyticsRepository.observeDailyActivity(7),
-        analyticsRepository.observeStreaks(days = 365),
-        reviewRepository.observeQueue(),
-        analyticsRepository.observeRecentAttempts(limit = 6),
-    ) { tasks, week, streaks, queue, recent ->
-        LocalSnapshot(tasks, week, streaks, queue, recent)
+    private val localSnapshot = localDaySource.day.flatMapLatest { todayEpochDay ->
+        combine(
+            trainingRepository.observeTasks(todayEpochDay),
+            analyticsRepository.observeDailyActivity(7, todayEpochDay),
+            analyticsRepository.observeStreaks(days = 365, todayEpochDay = todayEpochDay),
+            reviewRepository.observeQueue(),
+            analyticsRepository.observeRecentAttempts(limit = 6),
+        ) { tasks, week, streaks, queue, recent ->
+            LocalSnapshot(todayEpochDay, tasks, week, streaks, queue, recent)
+        }
     }
 
     private val clockTicks = flow {
@@ -95,25 +107,37 @@ class DashboardViewModel(
         }
     }
 
+    private val actionInputs = combine(
+        trainingRepository.observeActiveSession(),
+        actionableSubmission,
+    ) { activeSession, submission -> activeSession to submission }
+
     val state: StateFlow<Loadable<DashboardUiState>> = combine(
         localSnapshot,
         judgeDataRepository.observeConnections(),
         judgeDataRepository.observeContests(),
+        actionInputs,
         clockTicks,
-    ) { local, connections, contests, now ->
+    ) { local, connections, contests, actions, now ->
+        val activeSession = actions.first
+        val submission = actions.second
         val cfAccount = connections.accounts[com.ojnexus.core.model.JudgeId.CODEFORCES]
         val week = WeekSummary(
             solved = local.week.sumOf { it.solved },
             attempts = local.week.sumOf { it.attempts },
             trainingMs = local.week.sumOf { it.trainingMs },
         )
-        val dueReviews = local.queue.filter { it.dueDayIndex <= todayEpochDay }
+        val dueReviews = local.queue.filter { it.dueDayIndex <= local.todayEpochDay }
         val judgeConnections = connections.accounts.mapNotNull { (judge, account) ->
             if (!account.enabled) null else JudgeDashboardConnection(judge, account, connections.syncStates[judge])
         }.sortedBy { it.judge.ordinal }
         val nextContest = contests
             .filter { (it.startTimeSeconds ?: 0L) > now }
             .minByOrNull { it.startTimeSeconds ?: Long.MAX_VALUE }
+        val syncAttention = connections.syncStates.values.any { syncState ->
+            syncState.state == com.ojnexus.core.data.sync.SyncPhase.PARTIAL.name ||
+                syncState.state == com.ojnexus.core.data.sync.SyncPhase.ERROR.name
+        }
         Loadable.Ready(
             DashboardUiState(
                 todayTasks = local.tasks,
@@ -125,7 +149,7 @@ class DashboardViewModel(
                 loadWeek = local.week.sortedBy { it.dayIndex }.map { ActivityScorer.intensity(it) },
                 summary = deriveDashboardSummary(
                     reviews = local.queue,
-                    todayEpochDay = todayEpochDay,
+                    todayEpochDay = local.todayEpochDay,
                     enabledJudgeCount = judgeConnections.size,
                     solvedThisWeek = week.solved,
                     contests = contests,
@@ -137,6 +161,9 @@ class DashboardViewModel(
                 cfSyncState = connections.syncStates[com.ojnexus.core.model.JudgeId.CODEFORCES],
                 nextContest = nextContest,
                 nowSeconds = now,
+                activeSession = activeSession,
+                actionableSubmission = submission,
+                syncAttention = syncAttention,
             ),
         )
     }

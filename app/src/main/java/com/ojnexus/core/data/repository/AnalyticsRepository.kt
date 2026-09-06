@@ -24,14 +24,14 @@ class AnalyticsRepository(
     private val analyticsDao = database.analyticsDao()
 
     /** Daily activity for the last [days] local days (missing days come back as zero rows). */
-    fun observeDailyActivity(days: Int): Flow<List<DayActivity>> {
-        val fromDay = clock.dayIndex() - (days - 1)
+    fun observeDailyActivity(days: Int, todayEpochDay: Long = clock.dayIndex()): Flow<List<DayActivity>> {
+        val fromDay = todayEpochDay - (days - 1)
         return combine(
             analyticsDao.observeDailyAttempts(fromDay),
             analyticsDao.observeDailyReviews(fromDay),
             analyticsDao.observeDailyTraining(fromDay),
         ) { attempts, reviews, training ->
-            mergeDailyActivity(days, attempts, reviews, training)
+            mergeDailyActivity(days, todayEpochDay, attempts, reviews, training)
         }
     }
 
@@ -71,11 +71,11 @@ class AnalyticsRepository(
     }
 
     /** Current/longest streak over the combined activity window, plus active-day count. */
-    fun observeStreaks(days: Int = 365): Flow<Streaks> =
-        observeDailyActivity(days).map { daily ->
+    fun observeStreaks(days: Int = 365, todayEpochDay: Long = clock.dayIndex()): Flow<Streaks> =
+        observeDailyActivity(days, todayEpochDay).map { daily ->
             val active = StreakCalculator.activeDayIndexes(daily)
             Streaks(
-                current = StreakCalculator.currentStreak(active, clock.dayIndex()),
+                current = StreakCalculator.currentStreak(active, todayEpochDay),
                 longest = StreakCalculator.longestStreak(active),
                 activeDays = active.size,
             )
@@ -83,16 +83,16 @@ class AnalyticsRepository(
 
     private fun mergeDailyActivity(
         days: Int,
+        todayEpochDay: Long,
         attempts: List<DailyAttemptRow>,
         reviews: List<DailyReviewRow>,
         training: List<DailyTrainingRow>,
     ): List<DayActivity> {
-        val today = clock.dayIndex()
         val attemptByDay = attempts.associateBy { it.dayIndex }
         val reviewByDay = reviews.associateBy { it.dayIndex }
         val trainingByDay = training.associateBy { it.dayIndex }
         return (0 until days).map { offset ->
-            val day = today - offset
+            val day = todayEpochDay - offset
             val a = attemptByDay[day]
             val r = reviewByDay[day]
             val t = trainingByDay[day]

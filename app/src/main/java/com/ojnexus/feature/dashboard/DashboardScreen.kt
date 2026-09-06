@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -51,6 +52,7 @@ import com.ojnexus.core.model.ReviewQueueItem
 import com.ojnexus.core.model.TaskType
 import com.ojnexus.core.model.TrainingTask
 import com.ojnexus.core.model.Verdict
+import com.ojnexus.core.database.entity.SubmissionJobEntity
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.formatCount
 import com.ojnexus.core.ui.formatDate
@@ -77,6 +79,7 @@ fun DashboardScreen(
     onOpenReview: () -> Unit = {},
     onOpenProblems: () -> Unit = {},
     onOpenSubmissions: () -> Unit = {},
+    onOpenAction: ((DashboardAction) -> Unit)? = null,
 ) {
     val container = com.ojnexus.core.ui.LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<DashboardViewModel>(
@@ -87,6 +90,8 @@ fun DashboardScreen(
                 analyticsRepository = it.analyticsRepository,
                 clock = it.clock,
                 judgeDataRepository = it.judgeDataRepository,
+                actionableSubmission = it.luoguSubmissionRepository.observeActionableJob(),
+                localDaySource = it.localDaySource,
             )
         },
     )
@@ -116,6 +121,7 @@ fun DashboardScreen(
                 onOpenReview = onOpenReview,
                 onOpenProblems = onOpenProblems,
                 onOpenSubmissions = onOpenSubmissions,
+                onOpenAction = onOpenAction,
             )
         }
     }
@@ -131,6 +137,7 @@ private fun DashboardContent(
     onOpenReview: () -> Unit,
     onOpenProblems: () -> Unit,
     onOpenSubmissions: () -> Unit,
+    onOpenAction: ((DashboardAction) -> Unit)?,
 ) {
     val colors = NexusTheme.colors
     val reduceMotion = NexusTheme.reduceMotion
@@ -238,10 +245,12 @@ private fun DashboardContent(
                     DashboardSurfaceTarget.TRAINING -> onOpenTraining()
                     DashboardSurfaceTarget.REVIEW -> onOpenReview()
                     DashboardSurfaceTarget.CONTESTS -> onOpenContests()
+                    DashboardSurfaceTarget.SUBMISSIONS -> onOpenSubmissions()
                     DashboardSurfaceTarget.SETTINGS -> onOpenSettings()
                     DashboardSurfaceTarget.NONE -> Unit
                 }
             },
+            onAction = onOpenAction,
         )
 
         SectionGap()
@@ -645,7 +654,7 @@ private fun CommandCell(
         color = colors.textPrimary,
         modifier = modifier
             .fillMaxWidth()
-            .height(CommandCellHeight)
+            .heightIn(min = CommandCellHeight)
             .background(colors.surface, NexusRadius.sm)
             .border(NexusSize.dividerThickness, colors.borderStrong, NexusRadius.sm)
             .clickable(role = Role.Button, onClick = onClick)

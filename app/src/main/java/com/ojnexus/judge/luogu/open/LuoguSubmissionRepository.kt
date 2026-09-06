@@ -9,6 +9,7 @@ import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.model.Verdict
 import java.time.Clock
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import com.ojnexus.judge.luogu.LuoguUrls
 
 enum class SubmissionJobKind { RUN, PROBLEM }
@@ -21,6 +22,7 @@ interface LuoguSubmissionHistory {
 
 interface LuoguSubmissionCenter : LuoguSubmissionHistory, LuoguOpenResultSignal {
     fun observeRecentJobs(limit: Int): Flow<List<SubmissionJobEntity>>
+    fun observeActionableJob(): Flow<SubmissionJobEntity?> = flowOf(null)
     suspend fun refreshResult(requestId: String): LuoguOpenResult
 }
 
@@ -44,6 +46,8 @@ class LuoguSubmissionRepository(
 
     override fun observeRecentJobs(limit: Int): Flow<List<SubmissionJobEntity>> =
         dao.observeRecent(limit)
+
+    override fun observeActionableJob(): Flow<SubmissionJobEntity?> = dao.observeActionable()
 
     override suspend fun refreshResult(requestId: String): LuoguOpenResult =
         fetchResult(requestId)

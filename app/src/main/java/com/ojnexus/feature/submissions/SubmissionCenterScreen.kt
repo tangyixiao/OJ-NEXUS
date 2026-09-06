@@ -19,6 +19,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -66,6 +67,8 @@ internal fun submissionWorkspaceContext(pid: String, title: String?): Submission
 fun SubmissionCenterScreen(
     onBack: () -> Unit,
     onOpenWorkspace: (String, String?) -> Unit,
+    initialRequestId: String? = null,
+    onInitialRequestConsumed: () -> Unit = {},
 ) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<SubmissionCenterViewModel>(
@@ -77,6 +80,9 @@ fun SubmissionCenterScreen(
         },
     )
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    LaunchedEffect(initialRequestId) {
+        if (initialRequestId != null) onInitialRequestConsumed()
+    }
 
     Column(
         modifier = Modifier
@@ -102,6 +108,7 @@ fun SubmissionCenterScreen(
             )
             is Loadable.Ready -> SubmissionCenterContent(
                 state = state.value,
+                initialRequestId = initialRequestId,
                 onCheckResult = viewModel::checkResult,
                 onQueueRecovery = viewModel::queueRecovery,
                 onCheckPending = viewModel::checkPending,
@@ -115,6 +122,7 @@ fun SubmissionCenterScreen(
 @Composable
 private fun SubmissionCenterContent(
     state: SubmissionCenterUiState,
+    initialRequestId: String?,
     onCheckResult: (String) -> Unit,
     onQueueRecovery: (String) -> Unit,
     onCheckPending: () -> Unit,
@@ -123,7 +131,10 @@ private fun SubmissionCenterContent(
 ) {
     var statusFilter by rememberSaveable { mutableStateOf(SubmissionStatusFilter.ALL) }
     val summary = summarizeSubmissionCenter(state.jobs)
-    val visibleJobs = filterSubmissionJobs(state.jobs, statusFilter)
+    var focusedRequestId by rememberSaveable { mutableStateOf(initialRequestId) }
+    val visibleJobs = focusedRequestId?.let { requestId ->
+        state.jobs.filter { it.requestId == requestId }
+    } ?: filterSubmissionJobs(state.jobs, statusFilter)
 
     Column(
         modifier = Modifier

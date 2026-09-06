@@ -18,6 +18,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  */
 class MainActivity : AppCompatActivity() {
 
+    override fun onResume() {
+        super.onResume()
+        (application as OjNexusApplication).container.localDaySource.refresh()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as OjNexusApplication

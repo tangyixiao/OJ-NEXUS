@@ -5,6 +5,8 @@ import com.ojnexus.core.data.repository.AnalyticsRepository
 import com.ojnexus.core.data.repository.BackupRepository
 import com.ojnexus.core.data.restore.DatabaseRestoreCoordinator
 import com.ojnexus.core.data.restore.RestoreOutcome
+import com.ojnexus.core.time.LocalDaySource
+import com.ojnexus.core.time.SystemLocalDaySource
 import com.ojnexus.core.data.repository.ContestFocusRepository
 import com.ojnexus.core.data.repository.DemoDataSeeder
 import com.ojnexus.core.data.repository.JudgeAccountRepository
@@ -79,6 +81,7 @@ class AppContainer(context: android.content.Context) {
     fun currentDataGeneration(): String = restoreCoordinator.currentDataGeneration()
 
     val clock: Clock = Clock.systemDefaultZone()
+    val localDaySource: LocalDaySource = SystemLocalDaySource(clock)
 
     val database: OjNexusDatabase = OjNexusDatabase.build(context)
 

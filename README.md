@@ -25,13 +25,17 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 73 (Safe Restore)**: database imports are now validated against the
-current schema and required Room tables, staged privately, and applied with a journaled,
-same-directory replacement that can restore the previous database after an interrupted or failed
-swap. WorkManager sync/result jobs carry a data generation and exit as stale before remote access
-when a restore replaces local identity. Settings reports a localized applied, rolled-back, or
-rejected restore status. The APK identity is aligned to `versionName=0.3.71`, `versionCode=71`. /
-早期开发——**第 73 阶段（安全恢复）**：数据库导入现在会针对当前 schema 和 Room 必需表进行验证，先私有暂存，再通过带日志的同目录替换安全应用；替换中断或失败时可以恢复原数据库。WorkManager 同步/结果任务携带数据代际，恢复替换本地身份后会在访问远端前退出为过时代际。设置页显示本地化的已应用、已回滚或已拒绝恢复状态。APK 版本身份同步为 `versionName=0.3.71`、`versionCode=71`。
+Early development — **Phase 74 (Action Continuity)**: date-sensitive Dashboard, Training, Review
+Run, and analytics streams refresh across local midnight and app resume. Dashboard command cells now
+project exact session, task, review, submission request, contest, or settings actions; the
+submission center can focus a one-shot request context. The APK identity is aligned to
+`versionName=0.3.72`, `versionCode=72`. /
+早期开发——**第 74 阶段（动作连续性）**：Dashboard、训练、连续复习和分析数据流会在本地跨日及应用恢复后刷新。Dashboard 指挥单元现在会投影到精确的会话、任务、复习、提交请求、竞赛或设置动作；提交中心可以聚焦一次性请求上下文。APK 版本身份同步为 `versionName=0.3.72`、`versionCode=72`。
+
+Phase 73 remains protected: database imports are validated against the current schema and required
+Room tables, staged privately, and applied with a journaled same-directory replacement that can
+restore the previous database after an interrupted or failed swap. /
+第 73 阶段继续受保护：数据库导入会针对当前 schema 和 Room 必需表验证，私有暂存后通过带日志的同目录替换应用，替换中断或失败时可以恢复原数据库。
 
 Phase 73 keeps restore local-first: no passwords, cookies, OpenApp secrets, source code, or custom
 input are stored in the restore journal or generation marker. Invalid SQLite, schema mismatch,

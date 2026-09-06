@@ -35,6 +35,7 @@ import com.ojnexus.feature.analytics.AnalyticsScreen
 import com.ojnexus.feature.contests.ContestCenterScreen
 import com.ojnexus.feature.contests.ContestFocusScreen
 import com.ojnexus.feature.dashboard.DashboardScreen
+import com.ojnexus.feature.dashboard.DashboardAction
 import com.ojnexus.feature.profile.ProfileScreen
 import com.ojnexus.feature.problems.ProblemDetailScreen
 import com.ojnexus.feature.problems.ProblemFormScreen
@@ -108,6 +109,21 @@ internal fun dashboardCommandRoute(command: DashboardCommand): String = when (co
     DashboardCommand.SUBMISSIONS -> NexusRoutes.SUBMISSIONS
 }
 
+internal fun dashboardActionRoute(action: DashboardAction): String? = when (action) {
+    is DashboardAction.ResumeSession -> "session/${action.sessionId}"
+    is DashboardAction.OpenTask -> action.problemId?.let(NexusRoutes::problem)
+        ?: NexusDestination.TRAINING.route
+    is DashboardAction.OpenReview -> NexusRoutes.review(action.problemId)
+    is DashboardAction.OpenSubmission -> NexusRoutes.SUBMISSIONS
+    is DashboardAction.OpenContest ->
+        "contest-focus/${encodeDashboardRouteValue(action.judge)}/${encodeDashboardRouteValue(action.contestId)}"
+    DashboardAction.OpenSettings -> NexusRoutes.SETTINGS
+    DashboardAction.NoAction -> null
+}
+
+private fun encodeDashboardRouteValue(value: String): String =
+    URLEncoder.encode(value, StandardCharsets.UTF_8.toString()).replace("+", "%20")
+
 /**
  * Application shell: dark background, top-level NavHost and the flat bottom bar.
  * Status bar inset is consumed once here; screens lay out below it.
@@ -121,6 +137,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
     var commandPaletteOpen by rememberSaveable { mutableStateOf(false) }
     var pendingProblemSearch by remember { mutableStateOf<PaletteQuery.SearchProblems?>(null) }
     var pendingTrainingProblemIds by rememberSaveable { mutableStateOf<List<Long>?>(null) }
+    var pendingSubmissionRequestId by rememberSaveable { mutableStateOf<String?>(null) }
     val reduceMotion = NexusTheme.reduceMotion
     val enterTransition = remember(reduceMotion) {
         if (reduceMotion) {
@@ -173,6 +190,13 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             },
                             onOpenSubmissions = {
                                 navController.navigate(dashboardCommandRoute(DashboardCommand.SUBMISSIONS))
+                            },
+                            onOpenAction = { action ->
+                                val route = dashboardActionRoute(action) ?: return@DashboardScreen
+                                if (action is DashboardAction.OpenSubmission) {
+                                    pendingSubmissionRequestId = action.requestId
+                                }
+                                navController.navigate(route)
                             },
                         )
                     }
@@ -258,6 +282,8 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     composable(route = NexusRoutes.SUBMISSIONS) {
                         SubmissionCenterScreen(
                             onBack = { navController.popBackStack() },
+                            initialRequestId = pendingSubmissionRequestId,
+                            onInitialRequestConsumed = { pendingSubmissionRequestId = null },
                             onOpenWorkspace = { pid, title ->
                                 navController.navigate(NexusRoutes.workspace(pid, title))
                             },

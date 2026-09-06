@@ -84,6 +84,7 @@ fun TrainingScreen(
                 problemRepository = it.problemRepository,
                 knowledgeRepository = it.knowledgeRepository,
                 clock = it.clock,
+                localDaySource = it.localDaySource,
             )
         },
     )
