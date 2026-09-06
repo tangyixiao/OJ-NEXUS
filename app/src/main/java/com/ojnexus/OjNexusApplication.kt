@@ -3,6 +3,8 @@ package com.ojnexus
 import android.app.Application
 import com.ojnexus.core.data.repository.AnalyticsRepository
 import com.ojnexus.core.data.repository.BackupRepository
+import com.ojnexus.core.data.restore.DatabaseRestoreCoordinator
+import com.ojnexus.core.data.restore.RestoreOutcome
 import com.ojnexus.core.data.repository.ContestFocusRepository
 import com.ojnexus.core.data.repository.DemoDataSeeder
 import com.ojnexus.core.data.repository.JudgeAccountRepository
@@ -70,10 +72,11 @@ import kotlinx.coroutines.launch
  * framework dogma (see AGENTS.md / docs/ARCHITECTURE.md). Revisit when the graph grows.
  */
 class AppContainer(context: android.content.Context) {
+    /** Recovery must converge before any Room property below is initialized. */
+    private val restoreCoordinator = DatabaseRestoreCoordinator(context.applicationContext)
+    val restoreOutcome: RestoreOutcome = restoreCoordinator.restoreBeforeRoomOpen()
 
-    init {
-        BackupRepository.restorePending(context)
-    }
+    fun currentDataGeneration(): String = restoreCoordinator.currentDataGeneration()
 
     val clock: Clock = Clock.systemDefaultZone()
 
@@ -243,6 +246,7 @@ class OjNexusApplication : Application() {
             LuoguResultWorkBootstrap(
                 submissionJobDao = container.database.submissionJobDao(),
                 scheduler = container.luoguResultWorkScheduler,
+                currentDataGeneration = container::currentDataGeneration,
             ).reconcilePending()
         }
     }

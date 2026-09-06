@@ -25,12 +25,18 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 72 (Dashboard Command Surface)**: the dashboard now derives a
-clickable `NOW / NEXT / SIGNAL` surface from real local tasks, review queue, contests, and OJ sync
-state. It routes the current command to training, the next due item to review or contests, and
-sync attention or connection setup to Settings. The APK identity is aligned to `versionName=0.3.70`,
-`versionCode=70`. / 早期开发——**第 72 阶段（Dashboard 指挥面）**：Dashboard 现在依据真实的本地任务、复习队列、竞赛和 OJ 同步状态生成可点击的“当前 / 下一步 / 信号”指挥面。
-它会将当前指令路由到训练，将下一项待办路由到复习或竞赛，并将同步异常或连接设置路由到设置页。APK 版本身份同步为 `versionName=0.3.70`、`versionCode=70`。
+Early development — **Phase 73 (Safe Restore)**: database imports are now validated against the
+current schema and required Room tables, staged privately, and applied with a journaled,
+same-directory replacement that can restore the previous database after an interrupted or failed
+swap. WorkManager sync/result jobs carry a data generation and exit as stale before remote access
+when a restore replaces local identity. Settings reports a localized applied, rolled-back, or
+rejected restore status. The APK identity is aligned to `versionName=0.3.71`, `versionCode=71`. /
+早期开发——**第 73 阶段（安全恢复）**：数据库导入现在会针对当前 schema 和 Room 必需表进行验证，先私有暂存，再通过带日志的同目录替换安全应用；替换中断或失败时可以恢复原数据库。WorkManager 同步/结果任务携带数据代际，恢复替换本地身份后会在访问远端前退出为过时代际。设置页显示本地化的已应用、已回滚或已拒绝恢复状态。APK 版本身份同步为 `versionName=0.3.71`、`versionCode=71`。
+
+Phase 73 keeps restore local-first: no passwords, cookies, OpenApp secrets, source code, or custom
+input are stored in the restore journal or generation marker. Invalid SQLite, schema mismatch,
+missing tables, integrity failure, and replacement failure remain typed outcomes; the active Room
+database is not opened until startup recovery converges. / 第 73 阶段继续坚持本地优先：恢复日志和代际标记不保存密码、Cookie、OpenApp 密钥、源代码或自定义输入。无效 SQLite、schema 不匹配、缺少数据表、完整性失败和替换失败都会转为类型化结果；启动恢复收敛前不会打开活动 Room 数据库。
 
 Phase 72 remains local-first: the surface is a projection over existing Room-backed dashboard
 state and existing navigation callbacks. It adds no network, credentials, database migration,

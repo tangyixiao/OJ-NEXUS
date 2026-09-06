@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ojnexus.core.data.preferences.UserPreferences
 import com.ojnexus.core.data.preferences.UserPreferencesRepository
+import com.ojnexus.core.data.restore.RestoreOutcome
 import com.ojnexus.core.designsystem.NexusThemeSlot
 import com.ojnexus.core.data.repository.BackupRepository
 import com.ojnexus.core.data.repository.JudgeAccountRepository
@@ -51,6 +52,15 @@ enum class BackupOperation { EXPORT, IMPORT }
 
 data class BackupResult(val operation: BackupOperation, val success: Boolean)
 
+enum class RestoreStatus { APPLIED, ROLLED_BACK, REJECTED }
+
+internal fun restoreStatusFor(outcome: RestoreOutcome?): RestoreStatus? = when (outcome) {
+    is RestoreOutcome.Applied -> RestoreStatus.APPLIED
+    is RestoreOutcome.RolledBack -> RestoreStatus.ROLLED_BACK
+    is RestoreOutcome.Rejected -> RestoreStatus.REJECTED
+    else -> null
+}
+
 data class OpenAppUiState(
     val configured: Boolean = false,
     val editing: Boolean = false,
@@ -90,6 +100,7 @@ class SettingsViewModel(
             true,
         )
     },
+    restoreOutcome: RestoreOutcome? = null,
 ) : ViewModel() {
     private val judges = registry.supportedJudges().sortedBy { it.ordinal }
 
@@ -131,6 +142,8 @@ class SettingsViewModel(
     val syncAllInFlight: StateFlow<Boolean> = _syncAllInFlight.asStateFlow()
     private val backupResult = MutableStateFlow<BackupResult?>(null)
     val backup: StateFlow<BackupResult?> = backupResult.asStateFlow()
+    private val restoreStatus = MutableStateFlow(restoreStatusFor(restoreOutcome))
+    val restore: StateFlow<RestoreStatus?> = restoreStatus.asStateFlow()
     val preferences: StateFlow<UserPreferences> = preferencesRepository.preferences.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -340,6 +353,10 @@ class SettingsViewModel(
                 success = backupRepository.importFrom(resolver, source),
             )
         }
+    }
+
+    fun dismissRestoreStatus() {
+        restoreStatus.value = null
     }
 
     fun setReduceMotion(enabled: Boolean) {

@@ -95,7 +95,7 @@ class BackupRepositoryTest {
         assertTrue(repository.importFrom(context.contentResolver, Uri.fromFile(output)))
 
         database.close()
-        assertTrue(BackupRepository.restorePending(context))
+        assertTrue("restore outcome was not applied", BackupRepository.restorePending(context))
         SQLiteDatabase.openDatabase(
             context.getDatabasePath("oj-nexus.db").path,
             null,

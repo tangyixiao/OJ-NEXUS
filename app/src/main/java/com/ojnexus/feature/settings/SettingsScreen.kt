@@ -79,6 +79,7 @@ fun SettingsScreen(
                     it.luoguOpenCredentialStore,
                     it.luoguOpenClient,
                     it.luoguOpenClient,
+                    restoreOutcome = it.restoreOutcome,
                 )
         },
     )
@@ -86,6 +87,7 @@ fun SettingsScreen(
     val errors by viewModel.errors.collectAsStateWithLifecycle()
     val connecting by viewModel.connecting.collectAsStateWithLifecycle()
     val backupResult by viewModel.backup.collectAsStateWithLifecycle()
+    val restoreStatus by viewModel.restore.collectAsStateWithLifecycle()
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
     val openAppState by viewModel.openApp.collectAsStateWithLifecycle()
     val syncAllInFlight by viewModel.syncAllInFlight.collectAsStateWithLifecycle()
@@ -193,6 +195,24 @@ fun SettingsScreen(
             }
             Spacer(Modifier.height(NexusSpacing.xl))
             NexusSection(label = stringResource(R.string.settings_section_data)) {
+                restoreStatus?.let { status ->
+                    Text(
+                        text = stringResource(
+                            when (status) {
+                                RestoreStatus.APPLIED -> R.string.settings_restore_applied
+                                RestoreStatus.ROLLED_BACK -> R.string.settings_restore_rolled_back
+                                RestoreStatus.REJECTED -> R.string.settings_restore_rejected
+                            },
+                        ),
+                        style = NexusTheme.typography.data,
+                        color = when (status) {
+                            RestoreStatus.APPLIED -> NexusTheme.colors.success
+                            RestoreStatus.ROLLED_BACK, RestoreStatus.REJECTED -> NexusTheme.colors.danger
+                        },
+                        modifier = Modifier.clickable(onClick = viewModel::dismissRestoreStatus),
+                    )
+                    Spacer(Modifier.height(NexusSpacing.xs))
+                }
                 Text(
                     text = stringResource(R.string.settings_backup_hint),
                     style = NexusTheme.typography.dataSmall,

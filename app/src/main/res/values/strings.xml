@@ -615,6 +615,9 @@
     <string name="settings_backup_success">BACKUP EXPORTED</string>
     <string name="settings_backup_import_success">BACKUP VERIFIED — RESTART APP TO RESTORE</string>
     <string name="settings_backup_failed">BACKUP EXPORT FAILED</string>
+    <string name="settings_restore_applied">RESTORE APPLIED — TAP TO DISMISS</string>
+    <string name="settings_restore_rolled_back">RESTORE ROLLED BACK — TAP TO DISMISS</string>
+    <string name="settings_restore_rejected">RESTORE REJECTED — TAP TO DISMISS</string>
     <string name="settings_section_interaction">INTERACTION</string>
     <string name="settings_reduce_motion">REDUCE MOTION</string>
     <string name="settings_reduce_motion_desc">REMOVE NAVIGATION FADE TRANSITIONS</string>

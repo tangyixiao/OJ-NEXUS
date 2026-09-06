@@ -570,6 +570,9 @@
     <string name="settings_backup_success">备份已导出</string>
     <string name="settings_backup_import_success">备份已验证——重启应用后恢复</string>
     <string name="settings_backup_failed">备份导出失败</string>
+    <string name="settings_restore_applied">已恢复备份——点击关闭</string>
+    <string name="settings_restore_rolled_back">恢复已回滚——点击关闭</string>
+    <string name="settings_restore_rejected">恢复已拒绝——点击关闭</string>
     <string name="settings_section_interaction">交互</string>
     <string name="settings_reduce_motion">减少动效</string>
     <string name="settings_reduce_motion_desc">移除导航淡入淡出效果</string>

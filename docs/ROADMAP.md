@@ -5,9 +5,22 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.70` and `versionCode=70`. It carries
-the Phase 72 Dashboard Command Surface. / 当前 Android 安装包身份为 `versionName=0.3.70`、`versionCode=70`，
-对应第 72 阶段 Dashboard 指挥面。
+The current Android package identity is `versionName=0.3.71` and `versionCode=71`. It carries
+the Phase 73 Safe Restore release. / 当前 Android 安装包身份为 `versionName=0.3.71`、`versionCode=71`，
+对应第 73 阶段安全恢复版本。
+
+## PHASE 73 — Safe Restore / 安全恢复
+
+Database imports are validated against the current Room schema, SQLite quick/integrity checks,
+and every required application table before staging. Startup recovery runs before Room opens,
+uses a journaled same-directory replacement, retains WAL/SHM rollback companions, and converges
+back to the old database when validation or replacement fails. Sync and Luogu result work carries
+the local data generation and exits before adapter/OpenApp access when stale. Settings exposes a
+dismissible localized restore outcome. / 数据库导入会在暂存前校验当前 Room schema、SQLite quick/integrity 检查以及所有必需应用表；启动恢复在 Room 打开前运行，通过带日志的同目录替换并保留 WAL/SHM 回滚副本，在验证或替换失败时回到旧数据库。同步和洛谷结果任务携带本地数据代际，过期时会在访问适配器/OpenApp 前退出；设置页显示可关闭的本地化恢复结果。
+
+The release adds no credential or problem-content fields to backup metadata. Invalid SQLite,
+schema, missing-table, integrity, replacement, and rollback failures remain stable categories. /
+本版本不向备份元数据增加凭据或题面内容字段；SQLite、schema、缺表、完整性、替换和回滚失败均保持为稳定分类。
 
 ## PHASE 72 — Dashboard Command Surface / Dashboard 指挥面
 

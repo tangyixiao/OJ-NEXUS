@@ -80,4 +80,13 @@ class LuoguOpenResultWorkerTest {
         assertEquals("req-42", workSpec.input.getString(LuoguResultWorkRequestFactory.REQUEST_ID_KEY))
         assertEquals(1, workSpec.input.size())
     }
+
+    @Test
+    fun `generation is carried only when supplied`() {
+        val spec = requireNotNull(LuoguResultWorkRequestFactory.spec("req-42", "generation-2"))
+
+        assertEquals("generation-2", spec.inputData[LuoguResultWorkRequestFactory.DATA_GENERATION_KEY])
+        assertEquals("generation-2", LuoguResultWorkRequestFactory.request(spec)
+            .workSpec.input.getString(LuoguResultWorkRequestFactory.DATA_GENERATION_KEY))
+    }
 }
