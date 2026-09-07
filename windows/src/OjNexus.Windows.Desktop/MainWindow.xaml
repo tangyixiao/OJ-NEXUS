@@ -1,0 +1,13 @@
+<Window x:Class="OjNexus.Windows.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="OJ NEXUS"
+        Height="450"
+        Width="800">
+  <Grid>
+    <TextBlock HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               Text="OJ NEXUS WINDOWS SHELL"
+               FontSize="20" />
+  </Grid>
+</Window>
