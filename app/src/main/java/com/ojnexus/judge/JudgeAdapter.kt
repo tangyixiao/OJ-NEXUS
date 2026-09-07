@@ -14,6 +14,7 @@ enum class JudgeCapability {
     CONTESTS,
     BACKGROUND_SYNC,
     INCREMENTAL_SYNC,
+    SAFE_STAGE_RETRY,
 }
 
 /** Provenance and stability of the adapter's primary data source. */

@@ -25,12 +25,15 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 75 (Training Calibration)**: optional default and per-judge
-difficulty targets, localized Focus Sprint calibration, and a bounded explainable candidate pool
-covering due reviews, recent unsolved problems, failures, and weak knowledge areas. Missing
-ratings never become inferred targets. The APK identity is aligned to `versionName=0.3.73`,
-`versionCode=73`. /
-早期开发——**第 75 阶段（训练校准）**：支持可选的默认及按 OJ 难度目标、本地化 Focus Sprint 校准，以及覆盖到期复习、近期未解决题、失败历史和薄弱知识区的有界可解释候选池。缺失的 rating 不会被推断为训练目标。APK 版本身份同步为 `versionName=0.3.73`、`versionCode=73`。
+Early development — **Phase 76 (Sync Operations Ledger)**: bounded per-operation sync history,
+module outcomes, stale-generation protection, and capability-gated retry actions in the connector
+center. The APK identity is aligned to `versionName=0.3.74`, `versionCode=74`. /
+早期开发——**第 76 阶段（同步操作账本）**：连接中心提供有界的逐次同步历史、模块结果、过时代际保护及按能力门控的重试操作。APK 版本身份同步为 `versionName=0.3.74`、`versionCode=74`。
+
+Phase 75 remains available: optional default and per-judge difficulty targets, localized Focus
+Sprint calibration, and a bounded explainable candidate pool covering due reviews, recent unsolved
+problems, failures, and weak knowledge areas. Missing ratings never become inferred targets. /
+第 75 阶段继续保留：支持可选的默认及按 OJ 难度目标、本地化 Focus Sprint 校准，以及覆盖到期复习、近期未解决题、失败历史和薄弱知识区的有界可解释候选池。缺失的 rating 不会被推断为训练目标。
 
 Phase 73 remains protected: database imports are validated against the current schema and required
 Room tables, staged privately, and applied with a journaled same-directory replacement that can

@@ -524,6 +524,12 @@
     <string name="settings_connector_partial">部分完成</string>
     <string name="settings_connector_failed">失败</string>
     <string name="settings_connector_connected">已连接</string>
+    <string name="settings_sync_history_title">最近同步历史</string>
+    <string name="settings_sync_history_empty">暂无同步记录</string>
+    <string name="settings_sync_history_run">运行 #%1$d</string>
+    <string name="settings_sync_history_module">%1$s %2$s %3$d/%4$d 已导入 · %5$d 已更新</string>
+    <string name="settings_sync_history_retry_stage">重试失败阶段</string>
+    <string name="settings_sync_history_retry_full">重试完整同步</string>
     <string name="settings_section_judges">已连接的 OJ</string>
     <string name="settings_codeforces">CODEFORCES</string>
     <string name="settings_public_handle_hint">仅需公开用户名——无需密码</string>

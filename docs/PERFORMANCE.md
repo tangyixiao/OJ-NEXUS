@@ -33,3 +33,10 @@ buckets, warms up the merge ten times, then measures 100 merges into the bounded
 
 This benchmark isolates deterministic pool merge/dedup work; Room query correctness is covered by
 `OjNexusDatabaseTest` and the repository pool tests.
+
+## Sync operation history — Phase 76
+
+The connector history query is bounded to the newest 10 completed operations per judge, while
+active operations remain visible until they close. The UI projects at most five rows per connector,
+and module outcomes are sorted deterministically before rendering. This keeps history work local,
+bounded, and independent of remote response volume.

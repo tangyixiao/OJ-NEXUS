@@ -20,6 +20,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.ojnexus.R
 import com.ojnexus.core.data.sync.SyncPhase
+import com.ojnexus.core.data.sync.SyncRetryRequest
+import com.ojnexus.core.database.dao.SyncOperationWithModules
 import com.ojnexus.core.designsystem.NexusRadius
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
@@ -91,6 +93,10 @@ internal fun ConnectorCenterSection(
     summary: ConnectorCenterSummary,
     syncAllInFlight: Boolean,
     onSyncAll: () -> Unit,
+    historyByJudge: Map<JudgeId, List<SyncOperationWithModules>> = emptyMap(),
+    capabilitiesByJudge: Map<JudgeId, Set<JudgeCapability>> = emptyMap(),
+    retryingOperationId: Long? = null,
+    onRetry: (SyncRetryRequest) -> Unit = {},
 ) {
     val colors = NexusTheme.colors
     NexusSection(
@@ -117,6 +123,16 @@ internal fun ConnectorCenterSection(
             summary.rows.forEachIndexed { index, row ->
                 if (index > 0) Spacer(Modifier.height(NexusSpacing.xs))
                 ConnectorCenterRow(row)
+                if (row.connected) {
+                    Spacer(Modifier.height(NexusSpacing.xs))
+                    SyncOperationHistorySection(
+                        judge = row.judge,
+                        operations = historyByJudge[row.judge].orEmpty(),
+                        capabilities = capabilitiesByJudge[row.judge].orEmpty(),
+                        retryingOperationId = retryingOperationId,
+                        onRetry = onRetry,
+                    )
+                }
             }
         }
         Spacer(Modifier.height(NexusSpacing.sm))

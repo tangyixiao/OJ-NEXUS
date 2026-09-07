@@ -5,9 +5,18 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.73` and `versionCode=73`. It carries
-the Phase 75 Training Calibration release. / 当前 Android 安装包身份为 `versionName=0.3.73`、`versionCode=73`，
-对应第 75 阶段训练校准版本。
+The current Android package identity is `versionName=0.3.74` and `versionCode=74`. It carries
+the Phase 76 Sync Operations Ledger release. / 当前 Android 安装包身份为 `versionName=0.3.74`、`versionCode=74`，
+对应第 76 阶段同步操作账本版本。
+
+## PHASE 76 — Sync Operations Ledger / 同步操作账本
+
+The connector center now projects a bounded recent history from Room, including per-module
+outcomes and text status semantics. Failed stages expose an explicit retry action; adapters without
+safe stage retry capability fall back to a full sync. Data-generation mismatches are recorded as
+stale operations and cannot be retried against the current local dataset. CI now runs unit tests,
+debug lint, release assembly, and the committed connected Android suite in a separate emulator job.
+/ 连接中心现在从 Room 投影有界的近期历史，包含逐模块结果和文本状态语义；失败阶段提供明确的重试操作，不支持安全阶段重试的适配器回退到完整同步。数据代际不匹配会记录为过时操作，不能针对当前本地数据集重试。CI 现在运行单元测试、debug lint、release 构建，并在独立模拟器任务中运行已提交的连接测试套件。
 
 Phase 75 stores optional default and per-judge difficulty targets, exposes localized calibration
 controls near Focus Sprint, and ranks a bounded candidate pool from due reviews, recent unsolved

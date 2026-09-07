@@ -12,6 +12,10 @@ import com.ojnexus.core.data.repository.BackupRepository
 import com.ojnexus.core.data.repository.JudgeAccountRepository
 import com.ojnexus.core.data.repository.JudgeDataRepository
 import com.ojnexus.core.data.sync.SyncPhase
+import com.ojnexus.core.data.sync.SyncReport
+import com.ojnexus.core.data.sync.SyncRetryRequest
+import com.ojnexus.core.database.dao.SyncOperationDao
+import com.ojnexus.core.database.dao.SyncOperationWithModules
 import com.ojnexus.core.database.entity.JudgeAccountEntity
 import com.ojnexus.core.database.entity.JudgeProfileEntity
 import com.ojnexus.core.database.entity.SyncStateEntity
@@ -30,7 +34,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CancellationException
@@ -44,6 +49,7 @@ data class JudgeConnectionUi(
     val syncState: SyncStateEntity?,
     val capabilities: Set<JudgeCapability>,
     val reliability: DataSourceReliability,
+    val syncOperations: List<SyncOperationWithModules> = emptyList(),
 )
 
 data class SettingsUiState(val connections: List<JudgeConnectionUi>)
@@ -101,10 +107,20 @@ class SettingsViewModel(
         )
     },
     restoreOutcome: RestoreOutcome? = null,
+    private val syncOperationDao: SyncOperationDao? = null,
+    private val syncRetryDispatcher: suspend (SyncRetryRequest) -> SyncReport? = { null },
 ) : ViewModel() {
     private val judges = registry.supportedJudges().sortedBy { it.ordinal }
+    private val recentOperations = syncOperationDao?.let { dao ->
+        combine(judges.map { judge -> dao.observeRecentByJudge(judge.id, limit = 10) }) { rows ->
+            judges.zip(rows).toMap()
+        }
+    } ?: flowOf(emptyMap<JudgeId, List<SyncOperationWithModules>>())
 
-    val state: StateFlow<SettingsUiState> = dataRepository.observeConnections().map { snapshot ->
+    val state: StateFlow<SettingsUiState> = combine(
+        dataRepository.observeConnections(),
+        recentOperations,
+    ) { snapshot, histories ->
         SettingsUiState(
             judges.map { judge ->
                 val adapter = registry.adapter(judge)
@@ -115,6 +131,7 @@ class SettingsViewModel(
                     syncState = snapshot.syncStates[judge],
                     capabilities = adapter.capabilities,
                     reliability = adapter.reliability,
+                    syncOperations = histories[judge].orEmpty(),
                 )
             },
         )
@@ -140,6 +157,9 @@ class SettingsViewModel(
     private val syncAllInFlightFlag = AtomicBoolean(false)
     private val _syncAllInFlight = MutableStateFlow(false)
     val syncAllInFlight: StateFlow<Boolean> = _syncAllInFlight.asStateFlow()
+    private val retryInFlightFlag = AtomicBoolean(false)
+    private val _retryingOperationId = MutableStateFlow<Long?>(null)
+    val retryingOperationId: StateFlow<Long?> = _retryingOperationId.asStateFlow()
     private val backupResult = MutableStateFlow<BackupResult?>(null)
     val backup: StateFlow<BackupResult?> = backupResult.asStateFlow()
     private val restoreStatus = MutableStateFlow(restoreStatusFor(restoreOutcome))
@@ -426,6 +446,19 @@ class SettingsViewModel(
 
     fun syncAll() {
         syncAll(state.value.connections)
+    }
+
+    fun retrySync(request: SyncRetryRequest) {
+        if (!retryInFlightFlag.compareAndSet(false, true)) return
+        _retryingOperationId.value = request.operationId
+        viewModelScope.launch {
+            try {
+                syncRetryDispatcher(request)
+            } finally {
+                _retryingOperationId.value = null
+                retryInFlightFlag.set(false)
+            }
+        }
     }
 
     internal fun syncAll(connections: List<JudgeConnectionUi>) {

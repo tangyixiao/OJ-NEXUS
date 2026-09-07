@@ -569,6 +569,12 @@
     <string name="settings_connector_partial">PARTIAL</string>
     <string name="settings_connector_failed">FAILED</string>
     <string name="settings_connector_connected">CONNECTED</string>
+    <string name="settings_sync_history_title">RECENT SYNC HISTORY</string>
+    <string name="settings_sync_history_empty">NO RECORDED SYNC RUNS</string>
+    <string name="settings_sync_history_run">RUN #%1$d</string>
+    <string name="settings_sync_history_module">%1$s %2$s %3$d/%4$d IMPORTED · %5$d UPDATED</string>
+    <string name="settings_sync_history_retry_stage">RETRY FAILED STAGE</string>
+    <string name="settings_sync_history_retry_full">RETRY FULL SYNC</string>
     <string name="settings_section_judges">CONNECTED JUDGES</string>
     <string name="settings_codeforces">CODEFORCES</string>
     <string name="settings_public_handle_hint">PUBLIC HANDLE ONLY — NO PASSWORD REQUIRED</string>
