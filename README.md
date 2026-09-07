@@ -25,12 +25,12 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 74 (Action Continuity)**: date-sensitive Dashboard, Training, Review
-Run, and analytics streams refresh across local midnight and app resume. Dashboard command cells now
-project exact session, task, review, submission request, contest, or settings actions; the
-submission center can focus a one-shot request context. The APK identity is aligned to
-`versionName=0.3.72`, `versionCode=72`. /
-早期开发——**第 74 阶段（动作连续性）**：Dashboard、训练、连续复习和分析数据流会在本地跨日及应用恢复后刷新。Dashboard 指挥单元现在会投影到精确的会话、任务、复习、提交请求、竞赛或设置动作；提交中心可以聚焦一次性请求上下文。APK 版本身份同步为 `versionName=0.3.72`、`versionCode=72`。
+Early development — **Phase 75 (Training Calibration)**: optional default and per-judge
+difficulty targets, localized Focus Sprint calibration, and a bounded explainable candidate pool
+covering due reviews, recent unsolved problems, failures, and weak knowledge areas. Missing
+ratings never become inferred targets. The APK identity is aligned to `versionName=0.3.73`,
+`versionCode=73`. /
+早期开发——**第 75 阶段（训练校准）**：支持可选的默认及按 OJ 难度目标、本地化 Focus Sprint 校准，以及覆盖到期复习、近期未解决题、失败历史和薄弱知识区的有界可解释候选池。缺失的 rating 不会被推断为训练目标。APK 版本身份同步为 `versionName=0.3.73`、`versionCode=73`。
 
 Phase 73 remains protected: database imports are validated against the current schema and required
 Room tables, staged privately, and applied with a journaled same-directory replacement that can

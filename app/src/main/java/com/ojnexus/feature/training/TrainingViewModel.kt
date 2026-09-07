@@ -12,6 +12,10 @@ import com.ojnexus.core.model.Problem
 import com.ojnexus.core.model.ReviewQueueItem
 import com.ojnexus.core.model.TaskType
 import com.ojnexus.core.model.TrainingType
+import com.ojnexus.core.model.TrainingTarget
+import com.ojnexus.core.model.selectTrainingTarget
+import com.ojnexus.core.model.KnowledgeArea
+import com.ojnexus.core.data.preferences.UserPreferencesRepository
 import com.ojnexus.core.domain.TrainingCandidate
 import com.ojnexus.core.domain.TrainingPlanner
 import com.ojnexus.core.ui.Loadable
@@ -27,6 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -56,6 +61,40 @@ fun trainingSessionStartState(
 fun canDismissSessionDialog(startState: TrainingSessionStartState): Boolean =
     startState !is TrainingSessionStartState.Starting
 
+internal fun projectTrainingRecommendation(
+    row: com.ojnexus.core.database.dao.TrainingCandidateRow,
+    targets: List<com.ojnexus.core.model.TrainingTarget>,
+    masteryScores: Map<KnowledgeArea, Int>,
+): TrainingRecommendation {
+    val judge = com.ojnexus.core.model.JudgeId.entries.firstOrNull { it.id == row.judge }
+    val target = judge?.let { selectTrainingTarget(targets, it) }
+    val linkedAreas = row.knowledgeAreas.orEmpty()
+        .split(',')
+        .mapNotNull { value -> KnowledgeArea.entries.firstOrNull { it.name == value } }
+        .toSet()
+    val priority = TrainingPlanner.rank(
+        TrainingCandidate(
+            solved = row.solved,
+            attemptCount = row.attemptCount,
+            failureCount = row.failureCount,
+            reviewDue = row.reviewDue,
+            difficulty = row.difficulty,
+            targetDifficulty = target?.center,
+            targetTolerance = target?.tolerance,
+            linkedAreas = linkedAreas,
+            weaknessScore = TrainingPlanner.weaknessScore(linkedAreas, masteryScores),
+        ),
+    )
+    return TrainingRecommendation(
+        problemId = row.id,
+        judge = row.judge,
+        externalId = row.externalId,
+        title = row.title,
+        priority = priority.priority,
+        reasons = priority.reasons,
+    )
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class TrainingViewModel(
     private val trainingRepository: TrainingRepository,
@@ -65,6 +104,7 @@ class TrainingViewModel(
     private val clock: Clock,
     private val errorMessage: () -> String = { localizedString(R.string.error_load_failed) },
     private val localDaySource: LocalDaySource = SystemLocalDaySource(clock),
+    private val preferencesRepository: UserPreferencesRepository? = null,
 ) : ViewModel() {
 
     private val todayEpochDay = localDaySource.day.stateIn(
@@ -82,7 +122,10 @@ class TrainingViewModel(
     private data class TrainingSignals(
         val knowledge: List<com.ojnexus.core.data.repository.KnowledgeAreaState>,
         val candidates: List<com.ojnexus.core.database.dao.TrainingCandidateRow>,
+        val targets: List<TrainingTarget>,
     )
+
+    private val targetFlow = preferencesRepository?.trainingTargets ?: flowOf(emptyList())
 
     val state: StateFlow<Loadable<TrainingUiState>> = todayEpochDay.flatMapLatest { today ->
         combine(
@@ -93,9 +136,11 @@ class TrainingViewModel(
             combine(
                 knowledgeRepository.observeMastery(),
                 trainingRepository.observeCandidateRows(today),
+                targetFlow,
                 refresh,
-            ) { knowledge, candidates, _ -> TrainingSignals(knowledge, candidates) },
+            ) { knowledge, candidates, targets, _ -> TrainingSignals(knowledge, candidates, targets) },
         ) { queue, tasks, activeSession, history, signals ->
+            val masteryScores = signals.knowledge.associate { it.area to it.score }
             Loadable.Ready(
                 TrainingUiState(
                     todayEpochDay = today,
@@ -104,26 +149,13 @@ class TrainingViewModel(
                     activeSession = activeSession,
                     history = history,
                     knowledge = signals.knowledge,
+                    trainingTargets = signals.targets,
                     recommendations = signals.candidates
                         .map { row ->
-                            val priority = TrainingPlanner.rank(
-                                TrainingCandidate(
-                                    solved = row.solved,
-                                    attemptCount = row.attemptCount,
-                                    failureCount = row.failureCount,
-                                    reviewDue = row.reviewDue,
-                                    difficulty = row.difficulty,
-                                    targetDifficulty = null,
-                                    coverageValue = row.coverageValue,
-                                ),
-                            )
-                            TrainingRecommendation(
-                                problemId = row.id,
-                                judge = row.judge,
-                                externalId = row.externalId,
-                                title = row.title,
-                                priority = priority.priority,
-                                reasons = priority.reasons,
+                            projectTrainingRecommendation(
+                                row = row,
+                                targets = signals.targets,
+                                masteryScores = masteryScores,
                             )
                         }
                         .sortedWith(compareByDescending<TrainingRecommendation> { it.priority }.thenBy { it.problemId }),
@@ -170,6 +202,16 @@ class TrainingViewModel(
 
     fun clearCompleted() {
         viewModelScope.launch { trainingRepository.clearCompletedTasks(todayEpochDay.value) }
+    }
+
+    fun setTrainingTarget(judge: com.ojnexus.core.model.JudgeId?, center: Int, tolerance: Int) {
+        viewModelScope.launch {
+            preferencesRepository?.setTrainingTarget(judge, center, tolerance)
+        }
+    }
+
+    fun clearTrainingTarget(judge: com.ojnexus.core.model.JudgeId?) {
+        viewModelScope.launch { preferencesRepository?.clearTrainingTarget(judge) }
     }
 
     fun startSession(

@@ -50,7 +50,10 @@ import com.ojnexus.core.designsystem.component.NexusStatus
 import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
 import com.ojnexus.core.model.ReviewQueueItem
+import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.model.TaskType
+import com.ojnexus.core.model.TrainingTarget
+import com.ojnexus.core.model.TrainingTargetPolicy
 import com.ojnexus.core.model.TrainingSession
 import com.ojnexus.core.model.TrainingTask
 import com.ojnexus.core.model.TrainingType
@@ -85,6 +88,7 @@ fun TrainingScreen(
                 knowledgeRepository = it.knowledgeRepository,
                 clock = it.clock,
                 localDaySource = it.localDaySource,
+                preferencesRepository = it.userPreferencesRepository,
             )
         },
     )
@@ -153,6 +157,7 @@ private fun TrainingContent(
     var focusSprintIds by rememberSaveable { mutableStateOf(emptyList<Long>()) }
     var libraryProblemIds by rememberSaveable { mutableStateOf(emptyList<Long>()) }
     var showTaskProblemPicker by rememberSaveable { mutableStateOf(false) }
+    var showCalibration by rememberSaveable { mutableStateOf(false) }
     var reviewFilter by rememberSaveable { mutableStateOf(ReviewQueueFilter.ALL) }
     val reduceMotion = NexusTheme.reduceMotion
     val reviewSummary = reviewQueueSummary(uiState.reviews)
@@ -208,6 +213,17 @@ private fun TrainingContent(
                 focusSprintMode = true
                 showSessionDialog = true
             },
+        )
+
+        SectionGap()
+
+        TrainingCalibrationSection(
+            targets = uiState.trainingTargets,
+            showEditor = showCalibration,
+            onOpenEditor = { showCalibration = true },
+            onDismiss = { showCalibration = false },
+            onSave = viewModel::setTrainingTarget,
+            onClear = viewModel::clearTrainingTarget,
         )
 
         SectionGap()
@@ -372,6 +388,157 @@ private fun TrainingContent(
                 focusSprintIds = emptyList()
                 libraryProblemIds = emptyList()
                 viewModel.clearSessionStartState()
+            },
+        )
+    }
+}
+
+@Composable
+private fun TrainingCalibrationSection(
+    targets: List<TrainingTarget>,
+    showEditor: Boolean,
+    onOpenEditor: () -> Unit,
+    onDismiss: () -> Unit,
+    onSave: (JudgeId?, Int, Int) -> Unit,
+    onClear: (JudgeId?) -> Unit,
+) {
+    val defaultTarget = targets.firstOrNull { it.judge == null }
+    val openDescription = stringResource(R.string.training_calibration_open_cd)
+    var selectedKey by rememberSaveable { mutableStateOf("default") }
+    var centerText by rememberSaveable { mutableStateOf("") }
+    var toleranceText by rememberSaveable { mutableStateOf(TrainingTargetPolicy.DEFAULT_TOLERANCE.toString()) }
+    val selectedJudge = JudgeId.entries.firstOrNull { it.id == selectedKey }
+    val selectedTarget = targets.firstOrNull { it.judge == selectedJudge }
+    fun openTarget(judge: JudgeId?) {
+        selectedKey = judge?.id ?: "default"
+        val target = targets.firstOrNull { it.judge == judge }
+        centerText = target?.center?.toString().orEmpty()
+        toleranceText = (target?.tolerance ?: TrainingTargetPolicy.DEFAULT_TOLERANCE).toString()
+        onOpenEditor()
+    }
+
+    NexusSection(label = stringResource(R.string.training_calibration_title)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = defaultTarget?.let {
+                    stringResource(R.string.training_calibration_value, it.center ?: 0, it.tolerance)
+                } ?: stringResource(R.string.training_calibration_none),
+                style = NexusTheme.typography.dataSmall,
+                color = NexusTheme.colors.textSecondary,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = stringResource(R.string.training_calibration_open),
+                style = NexusTheme.typography.sectionLabel,
+                color = NexusTheme.colors.accent,
+                modifier = Modifier
+                    .clickable(role = Role.Button, onClickLabel = openDescription) {
+                        openTarget(null)
+                    }
+                    .semantics { contentDescription = openDescription }
+                    .padding(NexusSpacing.xs),
+            )
+        }
+    }
+
+    if (showEditor) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = onDismiss,
+            containerColor = NexusTheme.colors.surface,
+            titleContentColor = NexusTheme.colors.textPrimary,
+            textContentColor = NexusTheme.colors.textSecondary,
+            title = { Text(stringResource(R.string.training_calibration_title), style = NexusTheme.typography.title) },
+            text = {
+                Column {
+                    Text(
+                        text = stringResource(R.string.training_calibration_judge),
+                        style = NexusTheme.typography.sectionLabel,
+                        color = NexusTheme.colors.textTertiary,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxxs)) {
+                        (listOf<JudgeId?>(null) + JudgeId.entries.filter { it != JudgeId.LOCAL }).forEach { judge ->
+                            NexusTag(
+                                text = judge?.displayName ?: stringResource(R.string.training_calibration_default),
+                                tone = NexusTone.Accent,
+                                selected = selectedKey == (judge?.id ?: "default"),
+                                modifier = Modifier.clickable(role = Role.Button) { openTarget(judge) },
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(NexusSpacing.sm))
+                    NexusPlainField(
+                        label = stringResource(R.string.training_calibration_center),
+                        value = centerText,
+                        onValueChange = { centerText = it },
+                        number = true,
+                    )
+                    Spacer(Modifier.height(NexusSpacing.xxs))
+                    NexusPlainField(
+                        label = stringResource(R.string.training_calibration_tolerance),
+                        value = toleranceText,
+                        onValueChange = { toleranceText = it },
+                        number = true,
+                    )
+                    val candidate = TrainingTarget(
+                        judge = selectedJudge,
+                        center = centerText.toIntOrNull(),
+                        tolerance = toleranceText.toIntOrNull() ?: -1,
+                    )
+                    if (!TrainingTargetPolicy.isValid(candidate)) {
+                        Text(
+                            text = stringResource(R.string.training_calibration_invalid),
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.danger,
+                            modifier = Modifier.padding(top = NexusSpacing.xs),
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                val center = centerText.toIntOrNull()
+                val tolerance = toleranceText.toIntOrNull()
+                val enabled = TrainingTargetPolicy.isValid(
+                    TrainingTarget(selectedJudge, center, tolerance ?: -1),
+                )
+                Text(
+                    text = stringResource(R.string.training_calibration_save),
+                    style = NexusTheme.typography.data,
+                    color = if (enabled) NexusTheme.colors.accent else NexusTheme.colors.textTertiary,
+                    modifier = Modifier
+                        .clickable(enabled = enabled, role = Role.Button) {
+                            onSave(selectedJudge, center!!, tolerance!!)
+                            onDismiss()
+                        }
+                        .padding(NexusSpacing.xs),
+                )
+            },
+            dismissButton = {
+                Row {
+                    if (selectedTarget != null) {
+                        Text(
+                            text = stringResource(R.string.training_calibration_clear),
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.warning,
+                            modifier = Modifier
+                                .clickable(role = Role.Button) {
+                                    onClear(selectedJudge)
+                                    onDismiss()
+                                }
+                                .padding(NexusSpacing.xs),
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.action_cancel),
+                        style = NexusTheme.typography.data,
+                        color = NexusTheme.colors.textSecondary,
+                        modifier = Modifier
+                            .clickable(role = Role.Button, onClick = onDismiss)
+                            .padding(NexusSpacing.xs),
+                    )
+                }
             },
         )
     }

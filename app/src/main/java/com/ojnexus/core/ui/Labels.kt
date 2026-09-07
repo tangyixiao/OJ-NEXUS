@@ -43,7 +43,7 @@ fun TrainingReason.labelRes(): Int = when (this) {
     TrainingReason.REVIEW_DUE -> R.string.training_reason_review
     TrainingReason.FAILURE_HISTORY -> R.string.training_reason_failures
     TrainingReason.DIFFICULTY_FIT -> R.string.training_reason_difficulty
-    TrainingReason.COVERAGE_VALUE -> R.string.training_reason_coverage
+    TrainingReason.LOW_MASTERY -> R.string.training_reason_low_mastery
 }
 
 @StringRes

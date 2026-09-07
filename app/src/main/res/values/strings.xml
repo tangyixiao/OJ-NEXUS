@@ -431,6 +431,7 @@
     <string name="training_reason_review">REVIEW DUE</string>
     <string name="training_reason_failures">FAILURE HISTORY</string>
     <string name="training_reason_difficulty">DIFFICULTY FIT</string>
+    <string name="training_reason_low_mastery">LOW MASTERY</string>
     <string name="training_reason_coverage">COVERAGE VALUE</string>
     <string name="training_section_knowledge">KNOWLEDGE TREE</string>
     <string name="knowledge_area_count">%d AREAS</string>
@@ -440,6 +441,18 @@
     <string name="mastery_reason_failures">FAILURE LOG</string>
     <string name="target_priority">PRIORITY %d</string>
     <string name="target_range_label">RANGE</string>
+    <string name="training_calibration_title">DIFFICULTY CALIBRATION</string>
+    <string name="training_calibration_open">EDIT TARGET</string>
+    <string name="training_calibration_open_cd">Edit explicit training difficulty target</string>
+    <string name="training_calibration_default">DEFAULT</string>
+    <string name="training_calibration_judge">JUDGE</string>
+    <string name="training_calibration_center">CENTER</string>
+    <string name="training_calibration_tolerance">TOLERANCE</string>
+    <string name="training_calibration_none">NO EXPLICIT TARGET</string>
+    <string name="training_calibration_value">TARGET %1$d ± %2$d</string>
+    <string name="training_calibration_save">SAVE TARGET</string>
+    <string name="training_calibration_clear">CLEAR TARGET</string>
+    <string name="training_calibration_invalid">CENTER 0–4000; TOLERANCE 25–1000</string>
 
     <!-- Knowledge areas -->
     <string name="area_data_structure">DATA STRUCTURE</string>

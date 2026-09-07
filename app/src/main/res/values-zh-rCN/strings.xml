@@ -394,6 +394,7 @@
     <string name="training_reason_review">待复习</string>
     <string name="training_reason_failures">失败历史</string>
     <string name="training_reason_difficulty">难度匹配</string>
+    <string name="training_reason_low_mastery">低掌握度</string>
     <string name="training_reason_coverage">覆盖价值</string>
     <string name="training_section_knowledge">知识树</string>
     <string name="knowledge_area_count">%d 个领域</string>
@@ -403,6 +404,18 @@
     <string name="mastery_reason_failures">失败记录</string>
     <string name="target_priority">优先级 %d</string>
     <string name="target_range_label">范围</string>
+    <string name="training_calibration_title">难度校准</string>
+    <string name="training_calibration_open">编辑目标</string>
+    <string name="training_calibration_open_cd">编辑明确的训练难度目标</string>
+    <string name="training_calibration_default">默认</string>
+    <string name="training_calibration_judge">裁判</string>
+    <string name="training_calibration_center">中心</string>
+    <string name="training_calibration_tolerance">容差</string>
+    <string name="training_calibration_none">没有明确目标</string>
+    <string name="training_calibration_value">目标 %1$d ± %2$d</string>
+    <string name="training_calibration_save">保存目标</string>
+    <string name="training_calibration_clear">清除目标</string>
+    <string name="training_calibration_invalid">中心 0–4000；容差 25–1000</string>
     <string name="area_data_structure">数据结构</string>
     <string name="area_graph">图论</string>
     <string name="area_dp">动态规划</string>

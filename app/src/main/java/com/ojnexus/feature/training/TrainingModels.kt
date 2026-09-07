@@ -3,6 +3,7 @@ package com.ojnexus.feature.training
 import com.ojnexus.core.model.ReviewQueueItem
 import com.ojnexus.core.model.TrainingSession
 import com.ojnexus.core.model.TrainingTask
+import com.ojnexus.core.model.TrainingTarget
 import com.ojnexus.core.data.repository.KnowledgeAreaState
 import com.ojnexus.core.domain.TrainingReason
 
@@ -24,6 +25,7 @@ data class TrainingUiState(
     val history: List<TrainingSession>,
     val knowledge: List<KnowledgeAreaState> = emptyList(),
     val recommendations: List<TrainingRecommendation> = emptyList(),
+    val trainingTargets: List<TrainingTarget> = emptyList(),
 )
 
 data class TrainingRecommendation(

@@ -26,6 +26,11 @@ class FocusSprintUiLayoutTest {
         assertTrue(source.contains("focusSprintIds"))
         assertTrue(source.contains("focusSprintIds = focusSprintPlan.ids"))
         assertTrue(source.contains("sessionStartState"))
+        assertTrue(source.contains("TrainingCalibrationSection"))
+        assertTrue(source.contains("training_calibration_open"))
+        assertTrue(source.contains("onSave = viewModel::setTrainingTarget"))
         assertTrue(viewModelSource.contains("error_load_failed"))
+        assertTrue(viewModelSource.contains("trainingTargets"))
+        assertTrue(viewModelSource.contains("targetTolerance"))
     }
 }

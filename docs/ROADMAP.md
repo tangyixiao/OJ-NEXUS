@@ -5,9 +5,16 @@ commits pushed.
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.72` and `versionCode=72`. It carries
-the Phase 74 Action Continuity release. / 当前 Android 安装包身份为 `versionName=0.3.72`、`versionCode=72`，
-对应第 74 阶段动作连续性版本。
+The current Android package identity is `versionName=0.3.73` and `versionCode=73`. It carries
+the Phase 75 Training Calibration release. / 当前 Android 安装包身份为 `versionName=0.3.73`、`versionCode=73`，
+对应第 75 阶段训练校准版本。
+
+Phase 75 stores optional default and per-judge difficulty targets, exposes localized calibration
+controls near Focus Sprint, and ranks a bounded candidate pool from due reviews, recent unsolved
+problems, failure history, and linked weak knowledge areas. Recommendations retain deterministic
+reason codes and never infer a target from a missing rating. / 第 75 阶段保存可选的默认及按 OJ
+难度目标，在 Focus Sprint 附近提供本地化校准控件，并从到期复习、近期未解决题、失败历史和关联薄弱知识区构建有界候选池。
+推荐仍使用确定性的原因码，不会从缺失的 rating 推断目标。
 
 Phase 74 keeps date-sensitive streams current across local midnight and app resume. Dashboard
 commands now carry exact stable identifiers for sessions, tasks, reviews, submissions, and

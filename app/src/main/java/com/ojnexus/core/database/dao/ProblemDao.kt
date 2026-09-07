@@ -23,8 +23,18 @@ data class TrainingCandidateRow(
     val attemptCount: Int,
     val failureCount: Int,
     val reviewDue: Boolean,
-    val coverageValue: Int,
+    val knowledgeAreas: String? = null,
 )
+
+private const val TRAINING_CANDIDATE_SELECT =
+    "SELECT p.id AS id, p.judge AS judge, p.external_id AS externalId, p.title AS title, " +
+        "p.difficulty AS difficulty, p.solved AS solved, p.attempt_count AS attemptCount, " +
+        "(SELECT COUNT(*) FROM failure_entries f WHERE f.problem_id = p.id) AS failureCount, " +
+        "EXISTS(SELECT 1 FROM reviews r WHERE r.problem_id = p.id " +
+        "AND r.due_day_index <= :todayEpochDay) AS reviewDue, " +
+        "COALESCE((SELECT GROUP_CONCAT(k2.knowledge_area) FROM problem_knowledge k2 " +
+        "WHERE k2.problem_id = p.id), '') AS knowledgeAreas " +
+        "FROM problems p "
 
 @Dao
 interface ProblemDao {
@@ -42,12 +52,42 @@ interface ProblemDao {
             "(SELECT COUNT(*) FROM failure_entries f WHERE f.problem_id = p.id) AS failureCount, " +
             "EXISTS(SELECT 1 FROM reviews r WHERE r.problem_id = p.id " +
             "AND r.due_day_index <= :todayEpochDay) AS reviewDue, " +
-            "(SELECT COUNT(*) FROM problem_knowledge k WHERE k.problem_id = p.id) AS coverageValue " +
-            "FROM problems p WHERE p.solved = 0 OR EXISTS(SELECT 1 FROM reviews r2 " +
+        "COALESCE((SELECT GROUP_CONCAT(k2.knowledge_area) FROM problem_knowledge k2 " +
+        "WHERE k2.problem_id = p.id), '') AS knowledgeAreas " +
+        "FROM problems p WHERE p.solved = 0 OR EXISTS(SELECT 1 FROM reviews r2 " +
             "WHERE r2.problem_id = p.id AND r2.due_day_index <= :todayEpochDay) " +
             "ORDER BY p.updated_at DESC LIMIT :limit",
     )
     fun observeTrainingCandidates(todayEpochDay: Long, limit: Int): Flow<List<TrainingCandidateRow>>
+
+    @Query(
+        TRAINING_CANDIDATE_SELECT +
+            "WHERE EXISTS(SELECT 1 FROM reviews r WHERE r.problem_id = p.id " +
+            "AND r.due_day_index <= :todayEpochDay) " +
+            "ORDER BY reviewDue DESC, failureCount DESC, p.updated_at ASC, p.id ASC LIMIT :limit",
+    )
+    fun observeDueTrainingCandidates(todayEpochDay: Long, limit: Int): Flow<List<TrainingCandidateRow>>
+
+    @Query(
+        TRAINING_CANDIDATE_SELECT +
+            "WHERE p.solved = 0 " +
+            "ORDER BY p.updated_at DESC, p.id ASC LIMIT :limit",
+    )
+    fun observeRecentUnsolvedTrainingCandidates(limit: Int, todayEpochDay: Long = 0L): Flow<List<TrainingCandidateRow>>
+
+    @Query(
+        TRAINING_CANDIDATE_SELECT +
+            "WHERE EXISTS(SELECT 1 FROM failure_entries f WHERE f.problem_id = p.id) " +
+            "ORDER BY failureCount DESC, p.updated_at ASC, p.id ASC LIMIT :limit",
+    )
+    fun observeFailureHeavyTrainingCandidates(limit: Int, todayEpochDay: Long = 0L): Flow<List<TrainingCandidateRow>>
+
+    @Query(
+        TRAINING_CANDIDATE_SELECT +
+            "WHERE EXISTS(SELECT 1 FROM problem_knowledge k WHERE k.problem_id = p.id) " +
+            "ORDER BY p.updated_at DESC, p.id ASC LIMIT :limit",
+    )
+    fun observeKnowledgeLinkedTrainingCandidates(limit: Int, todayEpochDay: Long = 0L): Flow<List<TrainingCandidateRow>>
 
     @Transaction
     @Query(
