@@ -22,6 +22,7 @@ import com.ojnexus.core.database.dao.RemoteProblemDetailDao
 import com.ojnexus.core.database.dao.ReviewDao
 import com.ojnexus.core.database.dao.SessionDao
 import com.ojnexus.core.database.dao.SyncStateDao
+import com.ojnexus.core.database.dao.SyncOperationDao
 import com.ojnexus.core.database.dao.TaskDao
 import com.ojnexus.core.database.entity.AttemptEntity
 import com.ojnexus.core.database.entity.ContestEntity
@@ -40,6 +41,8 @@ import com.ojnexus.core.database.entity.RemoteProblemDetailEntity
 import com.ojnexus.core.database.entity.ReviewEntity
 import com.ojnexus.core.database.entity.ReviewLogEntity
 import com.ojnexus.core.database.entity.SyncStateEntity
+import com.ojnexus.core.database.entity.SyncOperationEntity
+import com.ojnexus.core.database.entity.SyncOperationModuleEntity
 import com.ojnexus.core.database.entity.SubmissionJobEntity
 import com.ojnexus.core.database.entity.TrainingSessionEntity
 import com.ojnexus.core.database.entity.TrainingSessionProblemEntity
@@ -76,8 +79,10 @@ import com.ojnexus.core.database.entity.WorkspaceDraftEntity
  * v11 (Phase 50 Luogu): nullable local problem titles on submission history rows.
  *
  * v12 (Phase 52 Luogu): backfill legacy submission titles from local problem caches.
+ *
+ * v13 (Phase 76): bounded explicit sync operation history and committed module outcomes.
  */
-const val OJ_NEXUS_SCHEMA_VERSION = 12
+const val OJ_NEXUS_SCHEMA_VERSION = 13
 
 @Database(
     entities = [
@@ -101,6 +106,8 @@ const val OJ_NEXUS_SCHEMA_VERSION = 12
         ContestProblemMarkerEntity::class,
         ProblemKnowledgeEntity::class,
         SyncStateEntity::class,
+        SyncOperationEntity::class,
+        SyncOperationModuleEntity::class,
         SubmissionJobEntity::class,
         WorkspaceDraftEntity::class,
     ],
@@ -126,6 +133,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
     abstract fun contestProblemMarkerDao(): ContestProblemMarkerDao
     abstract fun knowledgeDao(): KnowledgeDao
     abstract fun syncStateDao(): SyncStateDao
+    abstract fun syncOperationDao(): SyncOperationDao
     abstract fun submissionJobDao(): com.ojnexus.core.database.dao.SubmissionJobDao
     abstract fun workspaceDraftDao(): com.ojnexus.core.database.dao.WorkspaceDraftDao
 
@@ -605,6 +613,53 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_12_13: Migration = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `sync_operations` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`judge` TEXT NOT NULL, " +
+                        "`account_id` INTEGER NOT NULL, " +
+                        "`data_generation` TEXT NOT NULL, " +
+                        "`started_at` INTEGER NOT NULL, " +
+                        "`finished_at` INTEGER, " +
+                        "`status` TEXT NOT NULL, " +
+                        "`current_stage` TEXT, " +
+                        "`last_error_type` TEXT)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sync_operations_judge_started_at` " +
+                        "ON `sync_operations` (`judge`, `started_at`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sync_operations_judge_status_started_at` " +
+                        "ON `sync_operations` (`judge`, `status`, `started_at`)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `sync_operation_modules` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`operation_id` INTEGER NOT NULL, " +
+                        "`stage` TEXT NOT NULL, " +
+                        "`status` TEXT NOT NULL, " +
+                        "`attempted_count` INTEGER NOT NULL, " +
+                        "`imported_count` INTEGER NOT NULL, " +
+                        "`updated_count` INTEGER NOT NULL, " +
+                        "`completed_at` INTEGER, " +
+                        "`failure_type` TEXT, " +
+                        "FOREIGN KEY(`operation_id`) REFERENCES `sync_operations`(`id`) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sync_operation_modules_operation_id` " +
+                        "ON `sync_operation_modules` (`operation_id`)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_sync_operation_modules_operation_id_stage` " +
+                        "ON `sync_operation_modules` (`operation_id`, `stage`)",
+                )
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
                 .addMigrations(
@@ -619,6 +674,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
                     MIGRATION_9_10,
                     MIGRATION_10_11,
                     MIGRATION_11_12,
+                    MIGRATION_12_13,
                 )
                 .build()
     }
