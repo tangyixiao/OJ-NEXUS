@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.ojnexus.core.data.repository.JudgeAccountRepository
+import com.ojnexus.core.data.sync.StageOutcome
 import com.ojnexus.core.data.sync.SyncPhase
+import com.ojnexus.core.data.sync.SyncRunContext
 import com.ojnexus.core.data.sync.SyncStage
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.model.JudgeId
@@ -75,6 +77,21 @@ class LuoguSyncCoordinatorTest {
         assertTrue(report?.allOk == true)
         assertEquals(SyncStage.PROBLEMS, report?.outcomes?.last()?.stage)
         assertEquals(SyncPhase.SUCCESS.name, database.syncStateDao().findByJudge("luogu")?.state)
+    }
+
+    @Test
+    fun `coordinator emits each completed stage to the durable receipt context`() = runBlocking {
+        val account = accounts.connect(JudgeId.LUOGU, "alice")
+        val recorded = mutableListOf<StageOutcome>()
+
+        val report = coordinator.syncAccount(
+            account.id,
+            force = true,
+            context = SyncRunContext(43L, "generation-test") { recorded += it },
+        )
+
+        assertEquals(report?.outcomes, recorded)
+        assertEquals(4, recorded.size)
     }
 
     @Test

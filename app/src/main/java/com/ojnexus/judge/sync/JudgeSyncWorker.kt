@@ -32,8 +32,12 @@ class JudgeSyncWorker(
         if (accountId <= 0 || judge == null) return Result.failure()
         val application = applicationContext as? OjNexusApplication
             ?: return Result.failure()
-        when (decideRestoreWorkGeneration(inputData.getString(DATA_GENERATION), application.container.currentDataGeneration())) {
-            RestoreWorkDecision.STALE -> return Result.success(workDataOf(RESULT_KEY to STALE_RESULT))
+        val dataGeneration = inputData.getString(DATA_GENERATION)
+        when (decideRestoreWorkGeneration(dataGeneration, application.container.currentDataGeneration())) {
+            RestoreWorkDecision.STALE -> {
+                application.container.syncDispatcher.recordStaleGeneration(judge, accountId, dataGeneration)
+                return Result.success(workDataOf(RESULT_KEY to STALE_RESULT))
+            }
             RestoreWorkDecision.PROCEED,
             RestoreWorkDecision.LEGACY,
             -> Unit
@@ -41,7 +45,7 @@ class JudgeSyncWorker(
         val force = inputData.getBoolean(KEY_FORCE, false)
         return try {
             val report = application.container.syncDispatcher
-                .sync(judge, accountId, force)
+                .sync(judge, accountId, force, dataGeneration)
                 ?: return Result.failure()
             when {
                 report.allOk -> Result.success()

@@ -3,6 +3,9 @@ package com.ojnexus.judge.atcoder
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.ojnexus.core.data.repository.JudgeAccountRepository
+import com.ojnexus.core.data.sync.StageOutcome
+import com.ojnexus.core.data.sync.SyncRunContext
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.database.entity.JudgeAccountEntity
 import com.ojnexus.core.model.DifficultySource
@@ -12,6 +15,11 @@ import com.ojnexus.judge.atcoder.api.dto.AtCoderContestDto
 import com.ojnexus.judge.atcoder.api.dto.AtCoderMergedProblemDto
 import com.ojnexus.judge.atcoder.api.dto.AtCoderProblemModelDto
 import com.ojnexus.judge.atcoder.api.dto.AtCoderSubmissionDto
+import com.ojnexus.judge.AdapterStatus
+import com.ojnexus.judge.DataSourceReliability
+import com.ojnexus.judge.JudgeAdapter
+import com.ojnexus.judge.JudgeCapability
+import com.ojnexus.judge.JudgeRegistry
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -55,6 +63,7 @@ class AtCoderSyncRepositoryTest {
     private lateinit var database: OjNexusDatabase
     private lateinit var adapter: FakeAtCoderAdapter
     private lateinit var repository: AtCoderSyncRepository
+    private lateinit var coordinator: AtCoderSyncCoordinator
     private val clock = Clock.fixed(Instant.ofEpochMilli(2_000_000), ZoneId.of("UTC"))
     private val account = JudgeAccountEntity(
         id = 4,
@@ -75,6 +84,13 @@ class AtCoderSyncRepositoryTest {
         ).allowMainThreadQueries().build()
         adapter = FakeAtCoderAdapter()
         repository = AtCoderSyncRepository(database, adapter, clock, ZoneId.of("UTC"))
+        val registry = JudgeRegistry(listOf(object : JudgeAdapter {
+            override val id = JudgeId.ATCODER
+            override val capabilities = emptySet<JudgeCapability>()
+            override val reliability = DataSourceReliability.COMMUNITY
+            override suspend fun status() = AdapterStatus.AVAILABLE
+        }))
+        coordinator = AtCoderSyncCoordinator(JudgeAccountRepository(database, registry, clock), repository)
         val id = database.judgeAccountDao().insert(account.copy(id = 0))
         database.syncStateDao().upsert(
             com.ojnexus.core.database.entity.SyncStateEntity(judge = JudgeId.ATCODER.id, accountId = id),
@@ -210,6 +226,21 @@ class AtCoderSyncRepositoryTest {
 
         assertFalse(outcome.ok)
         assertNotNull(database.remoteProblemDao().findByKey("atcoder", "keep_me"))
+    }
+
+    @Test
+    fun `coordinator emits each completed stage to the durable receipt context`() = runBlocking {
+        val recorded = mutableListOf<StageOutcome>()
+        val accountId = database.judgeAccountDao().findActiveByJudge(JudgeId.ATCODER.id)!!.id
+
+        val report = coordinator.syncAccount(
+            accountId,
+            force = true,
+            context = SyncRunContext(42L, "generation-test") { recorded += it },
+        )
+
+        assertEquals(report?.outcomes, recorded)
+        assertEquals(3, recorded.size)
     }
 
     private suspend fun activeAccount(): JudgeAccountEntity =

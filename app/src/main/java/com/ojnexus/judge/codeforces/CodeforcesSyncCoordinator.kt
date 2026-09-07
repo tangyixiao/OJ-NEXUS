@@ -1,6 +1,7 @@
 package com.ojnexus.judge.codeforces
 
 import com.ojnexus.core.data.sync.SyncReport
+import com.ojnexus.core.data.sync.SyncRunContext
 import com.ojnexus.core.data.sync.SyncStage
 import com.ojnexus.core.data.sync.StageOutcome
 import com.ojnexus.core.database.entity.JudgeAccountEntity
@@ -24,23 +25,46 @@ class CodeforcesSyncCoordinator(
 
     override val judgeId = com.ojnexus.core.model.JudgeId.CODEFORCES
 
-    override suspend fun syncAccount(accountId: Long, force: Boolean): SyncReport? {
+    override suspend fun syncAccount(accountId: Long, force: Boolean): SyncReport? =
+        syncAccountInternal(accountId, force, recordModule = null)
+
+    override suspend fun syncAccount(
+        accountId: Long,
+        force: Boolean,
+        context: SyncRunContext,
+    ): SyncReport? = syncAccountInternal(accountId, force, context::recordModule)
+
+    private suspend fun syncAccountInternal(
+        accountId: Long,
+        force: Boolean,
+        recordModule: (suspend (StageOutcome) -> Unit)?,
+    ): SyncReport? {
         val account = accountRepository.findById(accountId) ?: return null
         val outcomes = mutableListOf<StageOutcome>()
 
-        outcomes += syncRepository.syncProfile(account, force)
+        val profile = syncRepository.syncProfile(account, force)
+        outcomes += profile
+        recordModule?.invoke(profile)
         ensureActive(account)
 
-        outcomes += syncRepository.syncRating(account, force)
+        val rating = syncRepository.syncRating(account, force)
+        outcomes += rating
+        recordModule?.invoke(rating)
         ensureActive(account)
 
-        outcomes += syncRepository.syncSubmissions(account, force)
+        val submissions = syncRepository.syncSubmissions(account, force)
+        outcomes += submissions
+        recordModule?.invoke(submissions)
         ensureActive(account)
 
-        outcomes += syncRepository.syncContests(account, force)
+        val contests = syncRepository.syncContests(account, force)
+        outcomes += contests
+        recordModule?.invoke(contests)
         ensureActive(account)
 
-        outcomes += syncRepository.syncProblemset(account, force)
+        val problems = syncRepository.syncProblemset(account, force)
+        outcomes += problems
+        recordModule?.invoke(problems)
 
         val report = SyncReport(outcomes)
         syncRepository.finalizeSync(account.judge, report)

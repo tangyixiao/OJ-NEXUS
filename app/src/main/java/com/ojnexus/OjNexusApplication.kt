@@ -208,7 +208,13 @@ class AppContainer(context: android.content.Context) {
         )
     }
 
-    val syncDispatcher = JudgeSyncDispatcher(judgeAccountRepository, judgeRegistry)
+    val syncDispatcher = JudgeSyncDispatcher(
+        accountRepository = judgeAccountRepository,
+        registry = judgeRegistry,
+        syncOperationDao = database.syncOperationDao(),
+        currentDataGeneration = ::currentDataGeneration,
+        clock = clock,
+    )
 
     val demoSeeder: DemoDataSeeder = DemoDataSeeder(
         database = database,

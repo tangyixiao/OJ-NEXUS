@@ -1,5 +1,7 @@
 package com.ojnexus.core.data.sync
 
+import com.ojnexus.core.model.JudgeId
+
 /**
  * Sync pipeline stages, executed in order by the coordinator. A stage failure marks the
  * run PARTIAL (already-persisted data stays); only a full failure marks ERROR.
@@ -48,3 +50,21 @@ data class SyncReport(
         else -> SyncPhase.ERROR
     }
 }
+
+/** Context passed to a coordinator when its caller wants durable module receipts. */
+data class SyncRunContext(
+    val operationId: Long,
+    val dataGeneration: String,
+    private val moduleRecorder: suspend (StageOutcome) -> Unit,
+) {
+    suspend fun recordModule(outcome: StageOutcome) = moduleRecorder(outcome)
+}
+
+/** Identity-bound request for retrying one failed stage or falling back to a full sync. */
+data class SyncRetryRequest(
+    val judge: JudgeId,
+    val accountId: Long,
+    val operationId: Long,
+    val stage: SyncStage,
+    val dataGeneration: String,
+)

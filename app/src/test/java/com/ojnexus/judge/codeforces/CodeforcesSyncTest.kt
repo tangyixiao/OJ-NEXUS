@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.ojnexus.core.data.sync.SyncPhase
+import com.ojnexus.core.data.sync.StageOutcome
+import com.ojnexus.core.data.sync.SyncRunContext
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.model.Verdict
@@ -175,6 +177,22 @@ class CodeforcesSyncTest {
         adapter.historicHandlesResolve = true
         val account = accountRepository.connect(JudgeId.CODEFORCES, "tourist_old")
         assertEquals("tourist_new", account.canonicalHandle)
+    }
+
+    @Test
+    fun `coordinator emits each completed stage to the durable receipt context`() = runBlocking {
+        val account = connect()
+        adapter.submissionPages = mutableListOf(emptyList())
+        val recorded = mutableListOf<StageOutcome>()
+
+        val report = coordinator.syncAccount(
+            account.id,
+            force = true,
+            context = SyncRunContext(41L, "generation-test") { recorded += it },
+        )
+
+        assertEquals(report?.outcomes, recorded)
+        assertEquals(5, recorded.size)
     }
 
     @Test
