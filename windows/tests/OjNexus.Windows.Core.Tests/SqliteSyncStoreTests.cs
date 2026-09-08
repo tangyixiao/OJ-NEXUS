@@ -63,6 +63,48 @@ public sealed class SqliteSyncStoreTests
     }
 
     [Fact]
+    public void Migrate_RejectsVersionOneSchemaWithUnexpectedNotNullConstraint()
+    {
+        using var database = new TemporaryDatabaseDirectory();
+        ExecuteNonQuery(
+            database.DatabasePath,
+            VersionZeroSchemaSql
+                .Replace("finished_at TEXT NULL", "finished_at TEXT NOT NULL", StringComparison.Ordinal)
+                .Replace("('schema_version', '0')", "('schema_version', '1')", StringComparison.Ordinal));
+
+        Assert.Throws<InvalidOperationException>(() => SchemaMigrator.Migrate(database.ConnectionString));
+        Assert.Equal("1", ReadSchemaVersion(database.DatabasePath));
+    }
+
+    [Fact]
+    public void Migrate_RejectsVersionOneSchemaWithUnexpectedCascadeOnAccountForeignKey()
+    {
+        using var database = new TemporaryDatabaseDirectory();
+        ExecuteNonQuery(
+            database.DatabasePath,
+            VersionZeroSchemaSql
+                .Replace("FOREIGN KEY (judge) REFERENCES accounts(judge)", "FOREIGN KEY (judge) REFERENCES accounts(judge) ON DELETE CASCADE", StringComparison.Ordinal)
+                .Replace("('schema_version', '0')", "('schema_version', '1')", StringComparison.Ordinal));
+
+        Assert.Throws<InvalidOperationException>(() => SchemaMigrator.Migrate(database.ConnectionString));
+        Assert.Equal("1", ReadSchemaVersion(database.DatabasePath));
+    }
+
+    [Fact]
+    public void Migrate_RejectsVersionOneSchemaMissingModuleCascade()
+    {
+        using var database = new TemporaryDatabaseDirectory();
+        ExecuteNonQuery(
+            database.DatabasePath,
+            VersionZeroSchemaSql
+                .Replace("FOREIGN KEY (operation_id) REFERENCES sync_operations(id) ON DELETE CASCADE", "FOREIGN KEY (operation_id) REFERENCES sync_operations(id)", StringComparison.Ordinal)
+                .Replace("('schema_version', '0')", "('schema_version', '1')", StringComparison.Ordinal));
+
+        Assert.Throws<InvalidOperationException>(() => SchemaMigrator.Migrate(database.ConnectionString));
+        Assert.Equal("1", ReadSchemaVersion(database.DatabasePath));
+    }
+
+    [Fact]
     public void Migrate_RejectsDatabaseVersionNewerThanSupportedWithoutChangingIt()
     {
         using var database = new TemporaryDatabaseDirectory();

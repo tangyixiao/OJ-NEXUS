@@ -168,8 +168,8 @@ public static class SchemaMigrator
             new ColumnDefinition("updated_count", true, 0),
             new ColumnDefinition("failure_type", false, 0),
             new ColumnDefinition("completed_at", true, 0));
-        ValidateForeignKey(connection, transaction, "sync_operations", "judge", "accounts", "judge", cascadeDelete: false);
-        ValidateForeignKey(connection, transaction, "sync_modules", "operation_id", "sync_operations", "id", cascadeDelete: true);
+        ValidateForeignKey(connection, transaction, "sync_operations", "judge", "accounts", "judge", expectedDeleteAction: "NO ACTION");
+        ValidateForeignKey(connection, transaction, "sync_modules", "operation_id", "sync_operations", "id", expectedDeleteAction: "CASCADE");
     }
 
     private static void ValidateTable(
@@ -200,7 +200,7 @@ public static class SchemaMigrator
                 throw new InvalidOperationException($"Database schema version 1 has an incomplete table '{tableName}'.");
             }
 
-            if (requiredColumn.NotNull && !actual.NotNull)
+            if (actual.NotNull != requiredColumn.NotNull)
             {
                 throw new InvalidOperationException($"Database schema version 1 has an invalid nullability constraint on '{tableName}.{requiredColumn.Name}'.");
             }
@@ -224,7 +224,7 @@ public static class SchemaMigrator
         string fromColumn,
         string targetTable,
         string targetColumn,
-        bool cascadeDelete)
+        string expectedDeleteAction)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -235,14 +235,13 @@ public static class SchemaMigrator
             if (string.Equals(reader.GetString(2), targetTable, StringComparison.Ordinal)
                 && string.Equals(reader.GetString(3), fromColumn, StringComparison.Ordinal)
                 && string.Equals(reader.GetString(4), targetColumn, StringComparison.Ordinal)
-                && (!cascadeDelete || string.Equals(reader.GetString(6), "CASCADE", StringComparison.OrdinalIgnoreCase)))
+                && string.Equals(reader.GetString(6), expectedDeleteAction, StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
         }
 
-        var action = cascadeDelete ? " with ON DELETE CASCADE" : string.Empty;
-        throw new InvalidOperationException($"Database schema version 1 is missing foreign key '{tableName}.{fromColumn}' -> '{targetTable}.{targetColumn}'{action}.");
+        throw new InvalidOperationException($"Database schema version 1 is missing foreign key '{tableName}.{fromColumn}' -> '{targetTable}.{targetColumn}' with ON DELETE {expectedDeleteAction}.");
     }
 
     private sealed record ColumnDefinition(string Name, bool NotNull, int PrimaryKeyOrder);
