@@ -36,7 +36,7 @@ public sealed class SyncService
         ArgumentNullException.ThrowIfNull(account);
 
         var gate = _accountGates.GetOrAdd(GetAccountKey(account), static _ => new SemaphoreSlim(1, 1));
-        await gate.WaitAsync(CancellationToken.None);
+        await gate.WaitAsync(cancellationToken);
         try
         {
             return await RunExclusiveAsync(account, force, cancellationToken);
@@ -78,8 +78,9 @@ public sealed class SyncService
                 foreach (var outcome in outcomes)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    await _store.AppendModuleAsync(operationId, outcome, _clock.UtcNow, CancellationToken.None);
-                    modules.Add(outcome);
+                    var storedOutcome = ToStoredOutcome(outcome);
+                    await _store.AppendModuleAsync(operationId, storedOutcome, _clock.UtcNow, CancellationToken.None);
+                    modules.Add(storedOutcome);
                 }
 
                 status = modules.All(module => module.Status == SyncOperationStatus.Success)
@@ -106,4 +107,19 @@ public sealed class SyncService
 
     private static string GetAccountKey(JudgeAccount account) =>
         $"{account.Judge}:{account.Handle.Trim().ToUpperInvariant()}";
+
+    private static SyncModuleOutcome ToStoredOutcome(SyncModuleOutcome outcome)
+    {
+        ArgumentNullException.ThrowIfNull(outcome);
+
+        var failureType = outcome.Status == SyncOperationStatus.Success
+            ? null
+            : ToFailureCategory(outcome.FailureType);
+        return outcome with { FailureType = failureType };
+    }
+
+    private static string ToFailureCategory(string? failureType) =>
+        Enum.TryParse<SyncError>(failureType, ignoreCase: false, out var category)
+            ? category.ToString()
+            : SyncError.Api.ToString();
 }

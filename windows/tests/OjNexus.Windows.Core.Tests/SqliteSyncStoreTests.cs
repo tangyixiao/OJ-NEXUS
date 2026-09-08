@@ -209,6 +209,22 @@ public sealed class SqliteSyncStoreTests
     }
 
     [Fact]
+    public async Task Store_AppendingDuplicateModuleStage_ReplacesTheExistingModule()
+    {
+        using var database = new TemporaryDatabase();
+        var account = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
+        var startedAt = DateTimeOffset.Parse("2026-09-08T01:02:03+00:00");
+        var operationId = await database.Store.OpenOperationAsync(account, "generation-4", startedAt, CancellationToken.None);
+
+        await database.Store.AppendModuleAsync(operationId, new SyncModuleOutcome("PROFILE", SyncOperationStatus.Error, 1, 0, 0, "Network"), startedAt, CancellationToken.None);
+        await database.Store.AppendModuleAsync(operationId, new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 2, 2, 0, null), startedAt.AddMinutes(1), CancellationToken.None);
+
+        var operation = Assert.Single(await database.Store.GetRecentOperationsAsync(JudgeId.Codeforces, 10, CancellationToken.None));
+        var module = Assert.Single(operation.Modules);
+        Assert.Equal(new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 2, 2, 0, null), module);
+    }
+
+    [Fact]
     public async Task Store_RetainsTwentyCompletedOperationsAndAllActiveOperationsPerJudge()
     {
         using var database = new TemporaryDatabase();

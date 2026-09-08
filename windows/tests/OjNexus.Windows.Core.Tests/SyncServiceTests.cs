@@ -1,5 +1,6 @@
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
+using OjNexus.Windows.Core.Storage;
 using OjNexus.Windows.Core.Sync;
 
 namespace OjNexus.Windows.Core.Tests;
@@ -154,6 +155,48 @@ public sealed class SyncServiceTests
     }
 
     [Fact]
+    public async Task RunAsync_QueuedDuplicateCancellation_DoesNotOpenAnotherOperation()
+    {
+        var account = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
+        var adapter = new BlockingAdapter(JudgeId.Codeforces,
+        [new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 1, 1, 0, null)]);
+        var store = new InMemorySyncStore();
+        var service = CreateService(adapter, store);
+
+        var first = service.RunAsync(account, force: false, CancellationToken.None);
+        await adapter.FirstCallStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        using var cancellation = new CancellationTokenSource();
+        var second = service.RunAsync(account, force: false, cancellation.Token);
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
+        Assert.Single(await store.GetRecentOperationsAsync(JudgeId.Codeforces, 10, CancellationToken.None));
+        Assert.Equal(1, adapter.CallCount);
+
+        adapter.AllowCallsToFinish.SetResult();
+        await first;
+    }
+
+    [Fact]
+    public async Task RunAsync_SqliteStore_PersistsOnlyAllowlistedModuleFailureCategory()
+    {
+        const string sensitiveText = "authorization=Bearer credential-value; body=secret HTTP body";
+        using var database = new TemporaryDatabase();
+        var account = JudgeAccount.Create(JudgeId.Luogu, "tourist");
+        var adapter = new RecordingAdapter(JudgeId.Luogu,
+        [new SyncModuleOutcome("PROFILE", SyncOperationStatus.Error, 1, 0, 0, sensitiveText)]);
+
+        var report = await CreateService(adapter, database.Store).RunAsync(account, force: false, CancellationToken.None);
+
+        Assert.Equal(SyncOperationStatus.Partial, report.Status);
+        var operation = Assert.Single(await database.Store.GetRecentOperationsAsync(JudgeId.Luogu, 10, CancellationToken.None));
+        var module = Assert.Single(operation.Modules);
+        Assert.Equal("Api", module.FailureType);
+        Assert.DoesNotContain(sensitiveText, ReadAllStoredText(database.DatabasePath), StringComparison.Ordinal);
+        Assert.DoesNotContain(sensitiveText, SyncReportProjector.ToJson(report), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ToJson_EmitsStableCamelCaseTypedFieldsWithoutSensitiveOrExceptionText()
     {
         var report = new SyncReport(
@@ -239,5 +282,35 @@ public sealed class SyncServiceTests
     private sealed class TestClock(DateTimeOffset utcNow) : IClock
     {
         public DateTimeOffset UtcNow { get; } = utcNow;
+    }
+
+    private static string ReadAllStoredText(string databasePath)
+    {
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={databasePath};Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COALESCE(group_concat(failure_type, '|'), '') FROM sync_modules";
+        return Convert.ToString(command.ExecuteScalar()) ?? string.Empty;
+    }
+
+    private sealed class TemporaryDatabase : IDisposable
+    {
+        private readonly string _directoryPath = Path.Combine(Path.GetTempPath(), "oj-nexus-tests", Guid.NewGuid().ToString("N"));
+
+        public TemporaryDatabase()
+        {
+            Directory.CreateDirectory(_directoryPath);
+            Store = new SqliteSyncStore(new SqliteConnectionFactory(_directoryPath));
+        }
+
+        public string DatabasePath => Path.Combine(_directoryPath, "ojnexus.db");
+
+        public SqliteSyncStore Store { get; }
+
+        public void Dispose()
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            Directory.Delete(_directoryPath, recursive: true);
+        }
     }
 }
