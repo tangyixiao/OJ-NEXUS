@@ -80,7 +80,7 @@ public sealed class SyncService
                     cancellationToken.ThrowIfCancellationRequested();
                     var storedOutcome = ToStoredOutcome(outcome);
                     await _store.AppendModuleAsync(operationId, storedOutcome, _clock.UtcNow, CancellationToken.None);
-                    modules.Add(storedOutcome);
+                    MoveReplacementToEnd(modules, storedOutcome);
                 }
 
                 status = modules.All(module => module.Status == SyncOperationStatus.Success)
@@ -108,18 +108,11 @@ public sealed class SyncService
     private static string GetAccountKey(JudgeAccount account) =>
         $"{account.Judge}:{account.Handle.Trim().ToUpperInvariant()}";
 
-    private static SyncModuleOutcome ToStoredOutcome(SyncModuleOutcome outcome)
+    private static SyncModuleOutcome ToStoredOutcome(SyncModuleOutcome outcome) => ModuleFailureType.Normalize(outcome);
+
+    private static void MoveReplacementToEnd(List<SyncModuleOutcome> modules, SyncModuleOutcome outcome)
     {
-        ArgumentNullException.ThrowIfNull(outcome);
-
-        var failureType = outcome.Status == SyncOperationStatus.Success
-            ? null
-            : ToFailureCategory(outcome.FailureType);
-        return outcome with { FailureType = failureType };
+        modules.RemoveAll(existing => StringComparer.Ordinal.Equals(existing.Stage, outcome.Stage));
+        modules.Add(outcome);
     }
-
-    private static string ToFailureCategory(string? failureType) =>
-        Enum.TryParse<SyncError>(failureType, ignoreCase: false, out var category)
-            ? category.ToString()
-            : SyncError.Api.ToString();
 }

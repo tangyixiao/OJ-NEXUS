@@ -84,15 +84,8 @@ public sealed class InMemorySyncStore : ISyncStore
         lock (_gate)
         {
             var operation = GetOperation(operationId);
-            if (operation.ModuleIndexes.TryGetValue(outcome.Stage, out var existingIndex))
-            {
-                operation.Modules[existingIndex] = outcome;
-            }
-            else
-            {
-                operation.ModuleIndexes.Add(outcome.Stage, operation.Modules.Count);
-                operation.Modules.Add(outcome);
-            }
+            operation.Modules.RemoveAll(existing => StringComparer.Ordinal.Equals(existing.Stage, outcome.Stage));
+            operation.Modules.Add(ModuleFailureType.Normalize(outcome));
         }
 
         return Task.CompletedTask;
@@ -139,8 +132,6 @@ public sealed class InMemorySyncStore : ISyncStore
         public SyncError? Error { get; set; }
 
         public List<SyncModuleOutcome> Modules { get; } = [];
-
-        public Dictionary<string, int> ModuleIndexes { get; } = new(StringComparer.Ordinal);
 
         public SyncOperation ToSyncOperation() =>
             new(Id, Account, DataGeneration, StartedAt, FinishedAt, Status, Modules);

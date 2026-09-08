@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.Data.Sqlite;
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
+using OjNexus.Windows.Core.Sync;
 
 namespace OjNexus.Windows.Core.Storage;
 
@@ -90,13 +91,13 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
 
             if (!reader.IsDBNull(8))
             {
-                current.Modules.Add(new SyncModuleOutcome(
+                current.Modules.Add(ModuleFailureType.Normalize(new SyncModuleOutcome(
                     reader.GetString(8),
                     ParseStatus(reader.GetString(9)),
                     reader.GetInt32(10),
                     reader.GetInt32(11),
                     reader.GetInt32(12),
-                    reader.IsDBNull(13) ? null : reader.GetString(13)));
+                    reader.IsDBNull(13) ? null : reader.GetString(13))));
             }
         }
 
@@ -139,28 +140,25 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
         DateTimeOffset completedAt,
         CancellationToken cancellationToken)
     {
+        var normalizedOutcome = ModuleFailureType.Normalize(outcome);
         using var connection = connectionFactory.OpenConnection();
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
+            DELETE FROM sync_modules
+            WHERE operation_id = $operationId AND stage = $stage;
+
             INSERT INTO sync_modules (operation_id, stage, status, attempted_count, imported_count, updated_count, failure_type, completed_at)
             VALUES ($operationId, $stage, $status, $attemptedCount, $importedCount, $updatedCount, $failureType, $completedAt)
-            ON CONFLICT(operation_id, stage) DO UPDATE SET
-                status = excluded.status,
-                attempted_count = excluded.attempted_count,
-                imported_count = excluded.imported_count,
-                updated_count = excluded.updated_count,
-                failure_type = excluded.failure_type,
-                completed_at = excluded.completed_at;
             """;
         command.Parameters.AddWithValue("$operationId", operationId);
-        command.Parameters.AddWithValue("$stage", outcome.Stage);
-        command.Parameters.AddWithValue("$status", outcome.Status.ToString());
-        command.Parameters.AddWithValue("$attemptedCount", outcome.AttemptedCount);
-        command.Parameters.AddWithValue("$importedCount", outcome.ImportedCount);
-        command.Parameters.AddWithValue("$updatedCount", outcome.UpdatedCount);
-        command.Parameters.AddWithValue("$failureType", outcome.FailureType ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("$stage", normalizedOutcome.Stage);
+        command.Parameters.AddWithValue("$status", normalizedOutcome.Status.ToString());
+        command.Parameters.AddWithValue("$attemptedCount", normalizedOutcome.AttemptedCount);
+        command.Parameters.AddWithValue("$importedCount", normalizedOutcome.ImportedCount);
+        command.Parameters.AddWithValue("$updatedCount", normalizedOutcome.UpdatedCount);
+        command.Parameters.AddWithValue("$failureType", normalizedOutcome.FailureType ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("$completedAt", FormatTime(completedAt));
         await command.ExecuteNonQueryAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

@@ -197,6 +197,32 @@ public sealed class SyncServiceTests
     }
 
     [Fact]
+    public async Task RunAsync_DuplicateStages_MoveLatestReplacementToEndInReportAndSqliteStore()
+    {
+        using var database = new TemporaryDatabase();
+        var account = JudgeAccount.Create(JudgeId.Luogu, "tourist");
+        IReadOnlyList<SyncModuleOutcome> outcomes =
+        [
+            new SyncModuleOutcome("A", SyncOperationStatus.Error, 1, 0, 0, "Network"),
+            new SyncModuleOutcome("B", SyncOperationStatus.Success, 1, 1, 0, null),
+            new SyncModuleOutcome("A", SyncOperationStatus.Success, 2, 2, 0, null),
+        ];
+        var memoryStore = new InMemorySyncStore();
+        var report = await CreateService(new RecordingAdapter(JudgeId.Luogu, outcomes), memoryStore).RunAsync(account, force: false, CancellationToken.None);
+        var memoryOperation = Assert.Single(await memoryStore.GetRecentOperationsAsync(JudgeId.Luogu, 10, CancellationToken.None));
+
+        await CreateService(new RecordingAdapter(JudgeId.Luogu, outcomes), database.Store).RunAsync(account, force: false, CancellationToken.None);
+        var storedOperation = Assert.Single(await database.Store.GetRecentOperationsAsync(JudgeId.Luogu, 10, CancellationToken.None));
+
+        Assert.Equal(new[] { "B", "A" }, report.Operation.Modules.Select(module => module.Stage));
+        Assert.Equal(new[] { "B", "A" }, memoryOperation.Modules.Select(module => module.Stage));
+        Assert.Equal(new[] { "B", "A" }, storedOperation.Modules.Select(module => module.Stage));
+        Assert.Equal(SyncOperationStatus.Success, report.Operation.Modules.Single(module => module.Stage == "A").Status);
+        Assert.Equal(SyncOperationStatus.Success, memoryOperation.Modules.Single(module => module.Stage == "A").Status);
+        Assert.Equal(SyncOperationStatus.Success, storedOperation.Modules.Single(module => module.Stage == "A").Status);
+    }
+
+    [Fact]
     public void ToJson_EmitsStableCamelCaseTypedFieldsWithoutSensitiveOrExceptionText()
     {
         var report = new SyncReport(

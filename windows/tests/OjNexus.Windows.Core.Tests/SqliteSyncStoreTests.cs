@@ -209,19 +209,40 @@ public sealed class SqliteSyncStoreTests
     }
 
     [Fact]
-    public async Task Store_AppendingDuplicateModuleStage_ReplacesTheExistingModule()
+    public async Task Store_AppendingDuplicateModuleStage_MovesLatestReplacementToEndWhenTimestampsMatch()
     {
         using var database = new TemporaryDatabase();
         var account = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
         var startedAt = DateTimeOffset.Parse("2026-09-08T01:02:03+00:00");
         var operationId = await database.Store.OpenOperationAsync(account, "generation-4", startedAt, CancellationToken.None);
 
-        await database.Store.AppendModuleAsync(operationId, new SyncModuleOutcome("PROFILE", SyncOperationStatus.Error, 1, 0, 0, "Network"), startedAt, CancellationToken.None);
-        await database.Store.AppendModuleAsync(operationId, new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 2, 2, 0, null), startedAt.AddMinutes(1), CancellationToken.None);
+        await database.Store.AppendModuleAsync(operationId, new SyncModuleOutcome("A", SyncOperationStatus.Error, 1, 0, 0, "Network"), startedAt, CancellationToken.None);
+        await database.Store.AppendModuleAsync(operationId, new SyncModuleOutcome("B", SyncOperationStatus.Success, 1, 1, 0, null), startedAt, CancellationToken.None);
+        await database.Store.AppendModuleAsync(operationId, new SyncModuleOutcome("A", SyncOperationStatus.Success, 2, 2, 0, null), startedAt, CancellationToken.None);
 
         var operation = Assert.Single(await database.Store.GetRecentOperationsAsync(JudgeId.Codeforces, 10, CancellationToken.None));
-        var module = Assert.Single(operation.Modules);
-        Assert.Equal(new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 2, 2, 0, null), module);
+        Assert.Collection(
+            operation.Modules,
+            first => Assert.Equal(new SyncModuleOutcome("B", SyncOperationStatus.Success, 1, 1, 0, null), first),
+            second => Assert.Equal(new SyncModuleOutcome("A", SyncOperationStatus.Success, 2, 2, 0, null), second));
+    }
+
+    [Fact]
+    public async Task Store_AppendingUntrustedFailureTypes_PersistsOnlyAllowedCategories()
+    {
+        const string sensitiveFailureType = "authorization=Bearer credential-value; body=secret HTTP body";
+        using var database = new TemporaryDatabase();
+        var account = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
+        var operationId = await database.Store.OpenOperationAsync(account, "generation-4", DateTimeOffset.Parse("2026-09-08T01:02:03+00:00"), CancellationToken.None);
+
+        await database.Store.AppendModuleAsync(operationId, new SyncModuleOutcome("RAW", SyncOperationStatus.Error, 1, 0, 0, sensitiveFailureType), DateTimeOffset.Parse("2026-09-08T01:02:03+00:00"), CancellationToken.None);
+        await database.Store.AppendModuleAsync(operationId, new SyncModuleOutcome("NUMERIC", SyncOperationStatus.Error, 1, 0, 0, "401"), DateTimeOffset.Parse("2026-09-08T01:02:03+00:00"), CancellationToken.None);
+
+        var operation = Assert.Single(await database.Store.GetRecentOperationsAsync(JudgeId.Codeforces, 10, CancellationToken.None));
+
+        Assert.All(operation.Modules, module => Assert.Equal("Api", module.FailureType));
+        Assert.DoesNotContain(sensitiveFailureType, ReadAllModuleFailureTypes(database.DatabasePath), StringComparison.Ordinal);
+        Assert.DoesNotContain("401", ReadAllModuleFailureTypes(database.DatabasePath), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -284,6 +305,14 @@ public sealed class SqliteSyncStoreTests
         command.CommandText = "SELECT COUNT(*) FROM sync_modules WHERE operation_id = $operationId";
         command.Parameters.AddWithValue("$operationId", operationId);
         return (long)command.ExecuteScalar()!;
+    }
+
+    private static string ReadAllModuleFailureTypes(string databasePath)
+    {
+        using var connection = OpenDirectConnection(databasePath);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COALESCE(group_concat(failure_type, '|'), '') FROM sync_modules";
+        return Convert.ToString(command.ExecuteScalar()) ?? string.Empty;
     }
 
     private static string? ReadSchemaVersion(string databasePath) => ReadString(databasePath, "SELECT value FROM schema_metadata WHERE key = 'schema_version'");
