@@ -4,7 +4,7 @@ namespace OjNexus.Windows.Core.Storage;
 
 public sealed class SqliteConnectionFactory
 {
-    private const string DatabaseFileName = "oj-nexus.db";
+    private const string DatabaseFileName = "ojnexus.db";
     private readonly string _connectionString;
 
     public SqliteConnectionFactory(string? rootOverride = null)

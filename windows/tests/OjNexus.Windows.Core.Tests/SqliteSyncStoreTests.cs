@@ -7,6 +7,53 @@ namespace OjNexus.Windows.Core.Tests;
 public sealed class SqliteSyncStoreTests
 {
     [Fact]
+    public void Migrate_FreshDatabase_SetsSchemaVersionOne()
+    {
+        using var database = new TemporaryDatabase();
+
+        Assert.Equal("1", ReadSchemaVersion(database.DatabasePath));
+    }
+
+    [Fact]
+    public void Migrate_RepeatsWithoutChangingSchemaVersionOrExistingData()
+    {
+        using var database = new TemporaryDatabase();
+        ExecuteNonQuery(
+            database.DatabasePath,
+            "INSERT INTO accounts (judge, handle, enabled) VALUES ('Codeforces', 'tourist', 1)");
+
+        SchemaMigrator.Migrate(database.ConnectionString);
+
+        Assert.Equal("1", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("tourist", ReadAccountHandle(database.DatabasePath, "Codeforces"));
+    }
+
+    [Fact]
+    public void Migrate_RejectsDatabaseVersionNewerThanSupportedWithoutChangingIt()
+    {
+        using var database = new TemporaryDatabaseDirectory();
+        ExecuteNonQuery(database.DatabasePath, "CREATE TABLE schema_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL)");
+        ExecuteNonQuery(database.DatabasePath, "INSERT INTO schema_metadata (key, value) VALUES ('schema_version', '2')");
+
+        Assert.Throws<InvalidOperationException>(() => SchemaMigrator.Migrate(database.ConnectionString));
+
+        Assert.Equal("2", ReadSchemaVersion(database.DatabasePath));
+        Assert.False(TableExists(database.DatabasePath, "accounts"));
+    }
+
+    [Fact]
+    public void Migrate_RejectsIncompleteCurrentVersionSchema()
+    {
+        using var database = new TemporaryDatabaseDirectory();
+        ExecuteNonQuery(database.DatabasePath, "CREATE TABLE schema_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL)");
+        ExecuteNonQuery(database.DatabasePath, "INSERT INTO schema_metadata (key, value) VALUES ('schema_version', '1')");
+
+        Assert.Throws<InvalidOperationException>(() => SchemaMigrator.Migrate(database.ConnectionString));
+
+        Assert.False(TableExists(database.DatabasePath, "accounts"));
+    }
+
+    [Fact]
     public void Migrate_CreatesOnlyTheRequiredSchemaTables()
     {
         using var database = new TemporaryDatabase();
@@ -76,6 +123,7 @@ public sealed class SqliteSyncStoreTests
     {
         using var database = new TemporaryDatabase();
         var account = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
+        var otherJudgeAccount = JudgeAccount.Create(JudgeId.AtCoder, "second");
         var startedAt = DateTimeOffset.Parse("2026-09-07T03:00:00+00:00");
         var completedIds = new List<long>();
 
@@ -93,7 +141,14 @@ public sealed class SqliteSyncStoreTests
             activeIds.Add(await database.Store.OpenOperationAsync(account, $"active-{index}", startedAt.AddDays(1).AddMinutes(index), CancellationToken.None));
         }
 
+        for (var index = 0; index < 25; index++)
+        {
+            var operationId = await database.Store.OpenOperationAsync(otherJudgeAccount, $"other-{index}", startedAt.AddMinutes(index), CancellationToken.None);
+            await database.Store.CloseOperationAsync(operationId, SyncOperationStatus.Success, null, startedAt.AddMinutes(index + 1), CancellationToken.None);
+        }
+
         var operations = await database.Store.GetRecentOperationsAsync(JudgeId.Codeforces, 100, CancellationToken.None);
+        var otherJudgeOperations = await database.Store.GetRecentOperationsAsync(JudgeId.AtCoder, 100, CancellationToken.None);
 
         Assert.Equal(25, operations.Count);
         Assert.DoesNotContain(operations, operation => operation.Id == completedIds[0]);
@@ -101,6 +156,8 @@ public sealed class SqliteSyncStoreTests
         Assert.Equal(20, operations.Count(operation => operation.FinishedAt is not null));
         Assert.Equal(5, operations.Count(operation => operation.FinishedAt is null));
         Assert.Equal(0L, CountModules(database.DatabasePath, completedIds[0]));
+        Assert.Equal(20, otherJudgeOperations.Count);
+        Assert.All(otherJudgeOperations, operation => Assert.Equal(JudgeId.AtCoder, operation.Account.Judge));
     }
 
     private static string? ReadFailureCategory(string databasePath, long operationId)
@@ -123,20 +180,65 @@ public sealed class SqliteSyncStoreTests
         return (long)command.ExecuteScalar()!;
     }
 
-    private sealed class TemporaryDatabase : IDisposable
+    private static string? ReadSchemaVersion(string databasePath) => ReadString(databasePath, "SELECT value FROM schema_metadata WHERE key = 'schema_version'");
+
+    private static string? ReadAccountHandle(string databasePath, string judge)
+    {
+        using var connection = OpenDirectConnection(databasePath);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT handle FROM accounts WHERE judge = $judge";
+        command.Parameters.AddWithValue("$judge", judge);
+        return command.ExecuteScalar() as string;
+    }
+
+    private static bool TableExists(string databasePath, string tableName)
+    {
+        using var connection = OpenDirectConnection(databasePath);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = $tableName)";
+        command.Parameters.AddWithValue("$tableName", tableName);
+        return Convert.ToInt64(command.ExecuteScalar()) != 0;
+    }
+
+    private static string? ReadString(string databasePath, string commandText)
+    {
+        using var connection = OpenDirectConnection(databasePath);
+        using var command = connection.CreateCommand();
+        command.CommandText = commandText;
+        return command.ExecuteScalar() as string;
+    }
+
+    private static void ExecuteNonQuery(string databasePath, string commandText)
+    {
+        using var connection = OpenDirectConnection(databasePath);
+        using var command = connection.CreateCommand();
+        command.CommandText = commandText;
+        command.ExecuteNonQuery();
+    }
+
+    private static SqliteConnection OpenDirectConnection(string databasePath)
+    {
+        var connection = new SqliteConnection($"Data Source={databasePath};Pooling=False");
+        connection.Open();
+        return connection;
+    }
+
+    private class TemporaryDatabaseDirectory : IDisposable
     {
         private readonly string _directoryPath = Path.Combine(Path.GetTempPath(), "oj-nexus-tests", Guid.NewGuid().ToString("N"));
 
-        public TemporaryDatabase()
+        public TemporaryDatabaseDirectory()
         {
-            var factory = new SqliteConnectionFactory(_directoryPath);
-            Store = new SqliteSyncStore(factory);
-            DatabasePath = factory.DatabasePath;
+            Directory.CreateDirectory(_directoryPath);
         }
 
-        public string DatabasePath { get; }
+        public string DatabasePath => Path.Combine(_directoryPath, "ojnexus.db");
 
-        public SqliteSyncStore Store { get; }
+        public string ConnectionString => new SqliteConnectionStringBuilder
+        {
+            DataSource = DatabasePath,
+            ForeignKeys = true,
+        }.ToString();
 
         public void Dispose()
         {
@@ -146,5 +248,17 @@ public sealed class SqliteSyncStoreTests
                 Directory.Delete(_directoryPath, recursive: true);
             }
         }
+    }
+
+    private sealed class TemporaryDatabase : TemporaryDatabaseDirectory
+    {
+        public TemporaryDatabase()
+        {
+            var factory = new SqliteConnectionFactory(Path.GetDirectoryName(DatabasePath));
+            Store = new SqliteSyncStore(factory);
+            Assert.Equal(DatabasePath, factory.DatabasePath);
+        }
+
+        public SqliteSyncStore Store { get; }
     }
 }

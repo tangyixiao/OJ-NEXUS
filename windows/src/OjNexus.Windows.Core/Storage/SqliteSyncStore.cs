@@ -199,10 +199,11 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
                   WHERE judge = (SELECT judge FROM sync_operations WHERE id = $operationId)
                     AND finished_at IS NOT NULL
                   ORDER BY started_at DESC, id DESC
-                  LIMIT 20
+                  LIMIT $retention
               );
             """;
         pruneCommand.Parameters.AddWithValue("$operationId", operationId);
+        pruneCommand.Parameters.AddWithValue("$retention", CompletedOperationRetention);
         await pruneCommand.ExecuteNonQueryAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
