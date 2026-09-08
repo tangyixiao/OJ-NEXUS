@@ -29,6 +29,40 @@ public sealed class SqliteSyncStoreTests
     }
 
     [Fact]
+    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionOne()
+    {
+        using var database = new TemporaryDatabaseDirectory();
+        ExecuteNonQuery(database.DatabasePath, VersionZeroSchemaSql);
+
+        SchemaMigrator.Migrate(database.ConnectionString);
+
+        Assert.Equal("1", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
+        Assert.Equal(1L, CountModules(database.DatabasePath, 7));
+        Assert.Equal("Success", ReadString(database.DatabasePath, "SELECT status FROM sync_operations WHERE id = 7"));
+    }
+
+    [Fact]
+    public void Migrate_MalformedVersionZero_RollsBackWithoutChangingVersionOrData()
+    {
+        using var database = new TemporaryDatabaseDirectory();
+        ExecuteNonQuery(
+            database.DatabasePath,
+            """
+            CREATE TABLE schema_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE accounts (judge TEXT NOT NULL PRIMARY KEY, handle TEXT NOT NULL);
+            INSERT INTO schema_metadata (key, value) VALUES ('schema_version', '0');
+            INSERT INTO accounts (judge, handle) VALUES ('Codeforces', 'legacy');
+            """);
+
+        Assert.Throws<InvalidOperationException>(() => SchemaMigrator.Migrate(database.ConnectionString));
+
+        Assert.Equal("0", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
+        Assert.False(TableExists(database.DatabasePath, "sync_operations"));
+    }
+
+    [Fact]
     public void Migrate_RejectsDatabaseVersionNewerThanSupportedWithoutChangingIt()
     {
         using var database = new TemporaryDatabaseDirectory();
@@ -222,6 +256,43 @@ public sealed class SqliteSyncStoreTests
         connection.Open();
         return connection;
     }
+
+    private const string VersionZeroSchemaSql = """
+        CREATE TABLE schema_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE accounts (
+            judge TEXT NOT NULL PRIMARY KEY,
+            handle TEXT NOT NULL,
+            enabled INTEGER NOT NULL
+        );
+        CREATE TABLE sync_operations (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            judge TEXT NOT NULL,
+            data_generation TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            finished_at TEXT NULL,
+            status TEXT NOT NULL,
+            failure_category TEXT NULL,
+            FOREIGN KEY (judge) REFERENCES accounts(judge)
+        );
+        CREATE TABLE sync_modules (
+            operation_id INTEGER NOT NULL,
+            stage TEXT NOT NULL,
+            status TEXT NOT NULL,
+            attempted_count INTEGER NOT NULL,
+            imported_count INTEGER NOT NULL,
+            updated_count INTEGER NOT NULL,
+            failure_type TEXT NULL,
+            completed_at TEXT NOT NULL,
+            PRIMARY KEY (operation_id, stage),
+            FOREIGN KEY (operation_id) REFERENCES sync_operations(id) ON DELETE CASCADE
+        );
+        INSERT INTO schema_metadata (key, value) VALUES ('schema_version', '0');
+        INSERT INTO accounts (judge, handle, enabled) VALUES ('Codeforces', 'legacy', 1);
+        INSERT INTO sync_operations (id, judge, data_generation, started_at, finished_at, status, failure_category)
+        VALUES (7, 'Codeforces', 'legacy-generation', '2026-09-07T00:00:00.0000000+00:00', '2026-09-07T00:01:00.0000000+00:00', 'Success', NULL);
+        INSERT INTO sync_modules (operation_id, stage, status, attempted_count, imported_count, updated_count, failure_type, completed_at)
+        VALUES (7, 'PROFILE', 'Success', 1, 1, 0, NULL, '2026-09-07T00:01:00.0000000+00:00');
+        """;
 
     private class TemporaryDatabaseDirectory : IDisposable
     {

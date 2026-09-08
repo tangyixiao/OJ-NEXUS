@@ -132,13 +132,51 @@ public static class SchemaMigrator
 
     private static void ValidateVersionOneSchema(SqliteConnection connection, SqliteTransaction transaction)
     {
-        ValidateColumns(connection, transaction, "schema_metadata", "key", "value");
-        ValidateColumns(connection, transaction, "accounts", "judge", "handle", "enabled");
-        ValidateColumns(connection, transaction, "sync_operations", "id", "judge", "data_generation", "started_at", "finished_at", "status", "failure_category");
-        ValidateColumns(connection, transaction, "sync_modules", "operation_id", "stage", "status", "attempted_count", "imported_count", "updated_count", "failure_type", "completed_at");
+        ValidateTable(
+            connection,
+            transaction,
+            "schema_metadata",
+            new ColumnDefinition("key", true, 1),
+            new ColumnDefinition("value", true, 0));
+        ValidateTable(
+            connection,
+            transaction,
+            "accounts",
+            new ColumnDefinition("judge", true, 1),
+            new ColumnDefinition("handle", true, 0),
+            new ColumnDefinition("enabled", true, 0));
+        ValidateTable(
+            connection,
+            transaction,
+            "sync_operations",
+            new ColumnDefinition("id", true, 1),
+            new ColumnDefinition("judge", true, 0),
+            new ColumnDefinition("data_generation", true, 0),
+            new ColumnDefinition("started_at", true, 0),
+            new ColumnDefinition("finished_at", false, 0),
+            new ColumnDefinition("status", true, 0),
+            new ColumnDefinition("failure_category", false, 0));
+        ValidateTable(
+            connection,
+            transaction,
+            "sync_modules",
+            new ColumnDefinition("operation_id", true, 1),
+            new ColumnDefinition("stage", true, 2),
+            new ColumnDefinition("status", true, 0),
+            new ColumnDefinition("attempted_count", true, 0),
+            new ColumnDefinition("imported_count", true, 0),
+            new ColumnDefinition("updated_count", true, 0),
+            new ColumnDefinition("failure_type", false, 0),
+            new ColumnDefinition("completed_at", true, 0));
+        ValidateForeignKey(connection, transaction, "sync_operations", "judge", "accounts", "judge", cascadeDelete: false);
+        ValidateForeignKey(connection, transaction, "sync_modules", "operation_id", "sync_operations", "id", cascadeDelete: true);
     }
 
-    private static void ValidateColumns(SqliteConnection connection, SqliteTransaction transaction, string tableName, params string[] requiredColumns)
+    private static void ValidateTable(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string tableName,
+        params ColumnDefinition[] requiredColumns)
     {
         if (!TableExists(connection, transaction, tableName))
         {
@@ -149,17 +187,65 @@ public static class SchemaMigrator
         command.Transaction = transaction;
         command.CommandText = $"PRAGMA table_info([{tableName}])";
         using var reader = command.ExecuteReader();
-        var columns = new HashSet<string>(StringComparer.Ordinal);
+        var columns = new Dictionary<string, (bool NotNull, int PrimaryKeyOrder)>(StringComparer.Ordinal);
         while (reader.Read())
         {
-            columns.Add(reader.GetString(1));
+            columns[reader.GetString(1)] = (reader.GetInt64(3) != 0, reader.GetInt32(5));
         }
 
-        if (requiredColumns.Any(column => !columns.Contains(column)))
+        foreach (var requiredColumn in requiredColumns)
         {
-            throw new InvalidOperationException($"Database schema version 1 has an incomplete table '{tableName}'.");
+            if (!columns.TryGetValue(requiredColumn.Name, out var actual))
+            {
+                throw new InvalidOperationException($"Database schema version 1 has an incomplete table '{tableName}'.");
+            }
+
+            if (requiredColumn.NotNull && !actual.NotNull)
+            {
+                throw new InvalidOperationException($"Database schema version 1 has an invalid nullability constraint on '{tableName}.{requiredColumn.Name}'.");
+            }
+
+            if (actual.PrimaryKeyOrder != requiredColumn.PrimaryKeyOrder)
+            {
+                throw new InvalidOperationException($"Database schema version 1 has an invalid primary key on '{tableName}.{requiredColumn.Name}'.");
+            }
+        }
+
+        if (columns.Any(column => column.Value.PrimaryKeyOrder > 0 && requiredColumns.All(required => required.Name != column.Key)))
+        {
+            throw new InvalidOperationException($"Database schema version 1 has an unexpected primary key on table '{tableName}'.");
         }
     }
+
+    private static void ValidateForeignKey(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string tableName,
+        string fromColumn,
+        string targetTable,
+        string targetColumn,
+        bool cascadeDelete)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"PRAGMA foreign_key_list([{tableName}])";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(2), targetTable, StringComparison.Ordinal)
+                && string.Equals(reader.GetString(3), fromColumn, StringComparison.Ordinal)
+                && string.Equals(reader.GetString(4), targetColumn, StringComparison.Ordinal)
+                && (!cascadeDelete || string.Equals(reader.GetString(6), "CASCADE", StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+        }
+
+        var action = cascadeDelete ? " with ON DELETE CASCADE" : string.Empty;
+        throw new InvalidOperationException($"Database schema version 1 is missing foreign key '{tableName}.{fromColumn}' -> '{targetTable}.{targetColumn}'{action}.");
+    }
+
+    private sealed record ColumnDefinition(string Name, bool NotNull, int PrimaryKeyOrder);
 
     private static void Execute(SqliteConnection connection, SqliteTransaction transaction, string commandText)
     {
