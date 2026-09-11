@@ -61,4 +61,23 @@ public sealed class CliParserTests
 
         Assert.Contains("--verbose", exception.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Parse_UnknownFlagAfterJson_ReportsUnknownFlagNotJson()
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["status", "--json", "--verbose"]));
+
+        Assert.Contains("--verbose", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("UNKNOWN OPTION '--json'", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("status")]
+    [InlineData("config", "show")]
+    public void Parse_DuplicateJson_RejectsWithOnceError(params string[] args)
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(args.Concat(["--json", "--json"]).ToArray()));
+
+        Assert.Contains("ONCE", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
 }

@@ -20,9 +20,9 @@ public sealed class Bootstrap
     public SqliteSyncStore Store { get; }
     public SyncService SyncService { get; }
 
-    public static Bootstrap Create()
+    public static Bootstrap Create(string? dataDirectoryOverride = null)
     {
-        var dataDirectory = WindowsPaths.GetDataDirectory();
+        var dataDirectory = WindowsPaths.GetDataDirectory(dataDirectoryOverride);
         var connectionFactory = new SqliteConnectionFactory(dataDirectory);
         var store = new SqliteSyncStore(connectionFactory);
         IReadOnlyDictionary<JudgeId, IJudgeAdapter> adapters = new Dictionary<JudgeId, IJudgeAdapter>();

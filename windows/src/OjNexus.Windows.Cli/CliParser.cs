@@ -102,10 +102,20 @@ public static class CliParser
 
     private static bool ParseJsonOnly(string[] args, int start, string usage)
     {
-        if (args.Length == start) return false;
-        if (args.Length == start + 1 && args[start] == "--json") return true;
-        ThrowUnknownOption(args[start], $"{usage} [--json]");
-        return false;
+        var json = false;
+        for (var index = start; index < args.Length; index++)
+        {
+            if (args[index] == "--json")
+            {
+                EnsureNotAlreadySet(json, "--json");
+                json = true;
+                continue;
+            }
+
+            ThrowUnknownOption(args[index], $"{usage} [--json]");
+        }
+
+        return json;
     }
 
     private static JudgeId ParseJudge(string value)

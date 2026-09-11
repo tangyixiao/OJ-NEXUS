@@ -9,6 +9,7 @@ public enum CliExitCode
     InvalidArguments = 2,
     Unavailable = 3,
     Cancelled = 4,
+    GeneralError = 5,
 }
 
 public static class CliExitCodeMapper

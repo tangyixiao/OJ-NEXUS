@@ -6,25 +6,42 @@ public static class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        using var cancellationSource = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, eventArgs) =>
+        {
+            eventArgs.Cancel = true;
+            cancellationSource.Cancel();
+        };
+
+        return await RunAsync(args, Console.Out, Console.Error, cancellationSource.Token);
+    }
+
+    public static async Task<int> RunAsync(string[] args, TextWriter output, TextWriter error, CancellationToken cancellationToken, string? dataDirectoryOverride = null)
+    {
         try
         {
             var command = CliParser.Parse(args);
-            var bootstrap = Bootstrap.Create();
-            return await ExecuteAsync(command, bootstrap, Console.Out, CancellationToken.None);
+            var bootstrap = Bootstrap.Create(dataDirectoryOverride);
+            return await ExecuteAsync(command, bootstrap, output, error, cancellationToken);
         }
         catch (CliParseException exception)
         {
-            Console.Error.WriteLine($"ARGUMENT ERROR: {exception.Message}");
+            await error.WriteLineAsync($"ARGUMENT ERROR: {exception.Message}");
             return (int)CliExitCode.InvalidArguments;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            Console.Error.WriteLine("SYNC: CANCELLED");
+            await error.WriteLineAsync("SYNC: CANCELLED");
             return (int)CliExitCode.Cancelled;
+        }
+        catch (Exception)
+        {
+            await error.WriteLineAsync("CLI ERROR: UNEXPECTED FAILURE. INSPECT THE OPERATION WITHOUT EXPOSING INTERNAL DETAILS.");
+            return (int)CliExitCode.GeneralError;
         }
     }
 
-    private static async Task<int> ExecuteAsync(CliCommand command, Bootstrap bootstrap, TextWriter output, CancellationToken cancellationToken)
+    private static async Task<int> ExecuteAsync(CliCommand command, Bootstrap bootstrap, TextWriter output, TextWriter error, CancellationToken cancellationToken)
     {
         switch (command)
         {
@@ -54,7 +71,7 @@ public static class Program
                 var account = await ResolveAccountAsync(sync, bootstrap, cancellationToken);
                 if (account is null)
                 {
-                    await Console.Error.WriteLineAsync($"ARGUMENT ERROR: NO HANDLE CONFIGURED FOR {sync.Judge.ToString().ToUpperInvariant()}. SUPPLY --handle <handle>.");
+                    await error.WriteLineAsync($"ARGUMENT ERROR: NO HANDLE CONFIGURED FOR {sync.Judge.ToString().ToUpperInvariant()}. SUPPLY --handle <handle>.");
                     return (int)CliExitCode.InvalidArguments;
                 }
 
