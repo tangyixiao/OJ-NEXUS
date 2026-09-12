@@ -5,8 +5,10 @@
         Height="720"
         Width="1180"
         MinHeight="560"
-        MinWidth="900">
-  <Grid Margin="24">
+        MinWidth="900"
+        Background="{StaticResource NexusBackgroundBrush}"
+        Foreground="{StaticResource NexusTextBrush}">
+  <Grid Margin="24" Background="{StaticResource NexusBackgroundBrush}">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="220" />
       <ColumnDefinition Width="36" />
@@ -125,7 +127,14 @@
 
           <StackPanel Visibility="{Binding IsHistoryVisible, Converter={StaticResource BoolToVisibility}}">
             <TextBlock Text="RECENT OPERATIONS" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
-            <TextBlock Text="Local sync receipts are bounded and remain readable offline." Margin="0,7,0,18" Foreground="{StaticResource NexusMutedTextBrush}" />
+            <Grid Margin="0,7,0,18">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="Local sync receipts are bounded and remain readable offline." Foreground="{StaticResource NexusMutedTextBrush}" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="1" ItemsSource="{Binding HistoryJudgeFilters}" SelectedItem="{Binding SelectedHistoryJudge, Mode=OneWay}" SelectionChanged="HistoryFilter_SelectionChanged" MinWidth="150" />
+            </Grid>
             <ItemsControl ItemsSource="{Binding History}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
@@ -136,6 +145,7 @@
                         <ColumnDefinition Width="130" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
                       <TextBlock Text="{Binding Id, StringFormat=\#\{0\}}" Foreground="{StaticResource NexusMutedTextBrush}" />
                       <StackPanel Grid.Column="1">
@@ -147,6 +157,7 @@
                         <TextBlock Text="{Binding StartedAt}" Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
                       </StackPanel>
                       <TextBlock Grid.Column="3" Text="{Binding Status}" HorizontalAlignment="Right" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
+                      <Button Grid.Column="4" Content="RETRY" Tag="{Binding}" Style="{StaticResource ActionButton}" Visibility="{Binding CanRetry, Converter={StaticResource BoolToVisibility}}" Margin="16,0,0,0" Click="RetryHistory_Click" />
                     </Grid>
                   </Border>
                 </DataTemplate>

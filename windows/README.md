@@ -35,6 +35,9 @@ typed and local sync history stays readable offline. The `OJ_NEXUS_DATA_DIRECTOR
 variable is a test/automation override; without it, the default local application directory is
 used.
 
+The history view shows at most five rows for the selected judge. Failed, partial, cancelled, and
+offline operations expose an explicit full-sync `RETRY` action; successful operations do not.
+
 ## Release artifacts
 
 CI produces framework-dependent `.NET 8` `ojnexus.exe` CLI and WPF directories under `windows/artifacts/`.

@@ -90,5 +90,13 @@
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Padding" Value="10,8" />
     </Style>
+
+    <Style TargetType="{x:Type ComboBox}">
+      <Setter Property="Foreground" Value="{StaticResource NexusTextBrush}" />
+      <Setter Property="Background" Value="{StaticResource NexusBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource NexusBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="10,7" />
+    </Style>
   </Application.Resources>
 </Application>

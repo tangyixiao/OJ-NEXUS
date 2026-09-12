@@ -104,7 +104,10 @@ public sealed record HistoryRow(
     string Handle,
     string Status,
     string StartedAt,
-    string ModuleSummary);
+    string ModuleSummary)
+{
+    public bool CanRetry => Status is "PARTIAL" or "ERROR" or "CANCELLED" or "OFFLINE";
+}
 
 public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
 {
@@ -126,6 +129,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     private string _statusText = "READY";
     private string _lastError = string.Empty;
     private bool _isBusy;
+    private string _selectedHistoryJudge = "ALL";
 
     public DesktopViewModel(ISyncStore store, SyncService syncService, string dataDirectory)
     {
@@ -150,6 +154,14 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     public ObservableCollection<HistoryRow> History { get; } = [];
 
     public bool HasNoHistory => History.Count == 0;
+
+    public IReadOnlyList<string> HistoryJudgeFilters { get; } = ["ALL", "CODEFORCES", "ATCODER", "LUOGU"];
+
+    public string SelectedHistoryJudge
+    {
+        get => _selectedHistoryJudge;
+        private set => SetField(ref _selectedHistoryJudge, value);
+    }
 
     public DesktopPage CurrentPage
     {
@@ -223,6 +235,21 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
 
     public void Navigate(DesktopPage page) => CurrentPage = page;
 
+    public async Task SelectHistoryJudgeAsync(string judgeFilter, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(judgeFilter);
+        var normalizedFilter = judgeFilter.Trim().ToUpperInvariant();
+        if (normalizedFilter != "ALL" && !JudgeIdParser.TryParse(normalizedFilter, out _))
+        {
+            StatusText = "ERROR";
+            LastError = "UNKNOWN JUDGE FILTER";
+            return;
+        }
+
+        SelectedHistoryJudge = normalizedFilter;
+        await RefreshAsync(cancellationToken);
+    }
+
     public async Task RefreshAsync(CancellationToken cancellationToken)
     {
         IsBusy = true;
@@ -233,7 +260,12 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             var accounts = await _store.GetAccountsAsync(cancellationToken);
             var operations = await _store.GetRecentOperationsAsync(null, 20, cancellationToken);
             ProjectAccounts(accounts, operations);
-            ProjectHistory(operations);
+            var historyOperations = SelectedHistoryJudge == "ALL"
+                ? operations
+                : JudgeIdParser.TryParse(SelectedHistoryJudge, out var historyJudge)
+                    ? await _store.GetRecentOperationsAsync(historyJudge, 5, cancellationToken)
+                    : Array.Empty<SyncOperation>();
+            ProjectHistory(historyOperations);
             StatusText = "READY";
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -335,6 +367,27 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    public async Task<bool> RetryHistoryAsync(HistoryRow row, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        if (!row.CanRetry || !JudgeIdParser.TryParse(row.Judge, out var judge))
+        {
+            return false;
+        }
+
+        var connector = Connectors.FirstOrDefault(candidate => candidate.Judge == judge);
+        if (connector is null)
+        {
+            StatusText = "ERROR";
+            LastError = "JUDGE UNAVAILABLE";
+            return false;
+        }
+
+        connector.Handle = row.Handle;
+        connector.IsConfigured = true;
+        return await SyncConnectorAsync(connector, cancellationToken);
+    }
+
     public void CancelSync() => _syncCancellation?.Cancel();
 
     public void Dispose()
@@ -370,7 +423,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     {
         History.Clear();
         OnPropertyChanged(nameof(HasNoHistory));
-        foreach (var operation in operations)
+        foreach (var operation in operations.Take(5))
         {
             var moduleSummary = operation.Modules.Count == 0
                 ? "NO MODULE RECEIPTS"

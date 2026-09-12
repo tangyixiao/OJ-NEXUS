@@ -65,6 +65,24 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void HistoryFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.AddedItems.Count == 0 || e.AddedItems[0] is not string judgeFilter)
+        {
+            return;
+        }
+
+        await _viewModel.SelectHistoryJudgeAsync(judgeFilter, _lifetime.Token);
+    }
+
+    private async void RetryHistory_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: HistoryRow row })
+        {
+            await _viewModel.RetryHistoryAsync(row, _lifetime.Token);
+        }
+    }
+
     private void OnClosed(object? sender, EventArgs e)
     {
         _lifetime.Cancel();

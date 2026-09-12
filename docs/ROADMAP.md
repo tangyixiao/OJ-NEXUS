@@ -7,6 +7,8 @@ commits pushed.
 
 The `windows/` solution now contains a native WPF client with `DASHBOARD`, `CONNECTORS`, and
 `SYNC HISTORY` views, plus the `status`, `sync`, `history`, `data`, and `config show` CLI commands.
+History is bounded to five visible rows per selected judge and exposes typed full-sync retry for
+non-success operations.
 Both clients use the Windows Core SQLite ledger and accept public handles only. Windows CI runs
 the full solution test/build gate and a temporary-data CLI/WPF smoke check. The current Windows
 artifact is framework-dependent; installer, signing, and store packaging remain separate work.

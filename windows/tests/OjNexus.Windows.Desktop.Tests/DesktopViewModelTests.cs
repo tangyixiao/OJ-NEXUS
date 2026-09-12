@@ -78,6 +78,75 @@ public sealed class DesktopViewModelTests
         Assert.Equal("HANDLE REQUIRED", viewModel.LastError);
     }
 
+    [Fact]
+    public async Task History_IsBoundedToFiveRowsAndMarksRetryableFailures()
+    {
+        var store = new InMemorySyncStore();
+        var account = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
+        await store.UpsertAccountAsync(account, CancellationToken.None);
+        for (var index = 0; index < 7; index++)
+        {
+            var startedAt = DateTimeOffset.Parse("2026-09-12T01:00:00+00:00").AddMinutes(index);
+            var operationId = await store.OpenOperationAsync(account, $"generation-{index}", startedAt, CancellationToken.None);
+            await store.AppendModuleAsync(operationId, new SyncModuleOutcome("PROFILE", SyncOperationStatus.Error, 1, 0, 0, "Network"), startedAt, CancellationToken.None);
+            await store.CloseOperationAsync(operationId, SyncOperationStatus.Error, SyncError.Network, startedAt, CancellationToken.None);
+        }
+
+        var viewModel = CreateViewModel(store);
+        await viewModel.RefreshAsync(CancellationToken.None);
+
+        Assert.Equal(5, viewModel.History.Count);
+        Assert.All(viewModel.History, row => Assert.True(row.CanRetry));
+    }
+
+    [Fact]
+    public async Task SelectHistoryJudge_FiltersRowsByJudge()
+    {
+        var store = new InMemorySyncStore();
+        for (var index = 0; index < 21; index++)
+        {
+            await SeedCompletedOperationAsync(store, JudgeId.Codeforces, "tourist", 100 + index);
+        }
+        await SeedCompletedOperationAsync(store, JudgeId.AtCoder, "tourist", 1);
+        var viewModel = CreateViewModel(store);
+
+        await viewModel.SelectHistoryJudgeAsync("AtCoder", CancellationToken.None);
+
+        Assert.Equal("ATCODER", viewModel.SelectedHistoryJudge);
+        Assert.Single(viewModel.History);
+        Assert.Equal("ATCODER", viewModel.History[0].Judge);
+        Assert.False(viewModel.History[0].CanRetry);
+    }
+
+    [Fact]
+    public async Task RetryHistory_RunsAFullSyncForRetryableOperation()
+    {
+        var store = new InMemorySyncStore();
+        var account = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
+        await store.UpsertAccountAsync(account, CancellationToken.None);
+        var startedAt = DateTimeOffset.Parse("2026-09-12T01:00:00+00:00");
+        var operationId = await store.OpenOperationAsync(account, "failed-generation", startedAt, CancellationToken.None);
+        await store.AppendModuleAsync(operationId, new SyncModuleOutcome("PROFILE", SyncOperationStatus.Error, 1, 0, 0, "Network"), startedAt, CancellationToken.None);
+        await store.CloseOperationAsync(operationId, SyncOperationStatus.Error, SyncError.Network, startedAt, CancellationToken.None);
+        var viewModel = CreateViewModel(store, new SuccessfulAdapter(JudgeId.Codeforces));
+        await viewModel.RefreshAsync(CancellationToken.None);
+
+        var retried = await viewModel.RetryHistoryAsync(Assert.Single(viewModel.History), CancellationToken.None);
+
+        Assert.True(retried);
+        Assert.Equal("SUCCESS", viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces).Status);
+    }
+
+    private static async Task SeedCompletedOperationAsync(InMemorySyncStore store, JudgeId judge, string handle, int minute)
+    {
+        var account = JudgeAccount.Create(judge, handle);
+        await store.UpsertAccountAsync(account, CancellationToken.None);
+        var startedAt = DateTimeOffset.Parse("2026-09-12T01:00:00+00:00").AddMinutes(minute);
+        var operationId = await store.OpenOperationAsync(account, $"generation-{judge}-{minute}", startedAt, CancellationToken.None);
+        await store.AppendModuleAsync(operationId, new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 1, 1, 0, null), startedAt, CancellationToken.None);
+        await store.CloseOperationAsync(operationId, SyncOperationStatus.Success, null, startedAt, CancellationToken.None);
+    }
+
     private static DesktopViewModel CreateViewModel(InMemorySyncStore store, params IJudgeAdapter[] adapters)
     {
         var adapterMap = adapters.ToDictionary(adapter => adapter.Judge);
