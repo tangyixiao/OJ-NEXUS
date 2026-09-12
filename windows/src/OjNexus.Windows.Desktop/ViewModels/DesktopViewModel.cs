@@ -120,7 +120,8 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
 
     private readonly ISyncStore _store;
     private readonly SyncService _syncService;
-    private CancellationTokenSource? _syncCancellation;
+    private readonly object _syncCancellationLock = new();
+    private readonly Dictionary<ConnectorRow, CancellationTokenSource> _syncCancellations = [];
     private DesktopPage _currentPage = DesktopPage.Dashboard;
     private int _accountCount;
     private int _connectedJudgeCount;
@@ -325,13 +326,30 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     public async Task<bool> SyncConnectorAsync(ConnectorRow row, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(row);
+        lock (_syncCancellationLock)
+        {
+            if (_syncCancellations.ContainsKey(row))
+            {
+                return false;
+            }
+        }
+
         if (!await SaveConnectorAsync(row, cancellationToken))
         {
             return false;
         }
 
         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _syncCancellation = linkedCancellation;
+        lock (_syncCancellationLock)
+        {
+            if (_syncCancellations.ContainsKey(row))
+            {
+                return false;
+            }
+
+            _syncCancellations[row] = linkedCancellation;
+        }
+
         row.IsSyncing = true;
         row.Status = "SYNCING";
         StatusText = "SYNCING";
@@ -362,7 +380,15 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         finally
         {
             row.IsSyncing = false;
-            _syncCancellation = null;
+            lock (_syncCancellationLock)
+            {
+                if (_syncCancellations.TryGetValue(row, out var activeCancellation)
+                    && ReferenceEquals(activeCancellation, linkedCancellation))
+                {
+                    _syncCancellations.Remove(row);
+                }
+            }
+
             await RefreshAsync(CancellationToken.None);
         }
     }
@@ -388,13 +414,35 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         return await SyncConnectorAsync(connector, cancellationToken);
     }
 
-    public void CancelSync() => _syncCancellation?.Cancel();
+    public void CancelSync(ConnectorRow row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        lock (_syncCancellationLock)
+        {
+            if (_syncCancellations.TryGetValue(row, out var cancellation))
+            {
+                cancellation.Cancel();
+            }
+        }
+    }
+
+    public void CancelSync()
+    {
+        CancellationTokenSource[] activeCancellations;
+        lock (_syncCancellationLock)
+        {
+            activeCancellations = [.. _syncCancellations.Values];
+        }
+
+        foreach (var cancellation in activeCancellations)
+        {
+            cancellation.Cancel();
+        }
+    }
 
     public void Dispose()
     {
-        _syncCancellation?.Cancel();
-        _syncCancellation?.Dispose();
-        _syncCancellation = null;
+        CancelSync();
     }
 
     private void ProjectAccounts(IReadOnlyList<JudgeAccount> accounts, IReadOnlyList<SyncOperation> operations)

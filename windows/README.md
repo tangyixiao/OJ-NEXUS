@@ -37,6 +37,8 @@ used.
 
 The history view shows at most five rows for the selected judge. Failed, partial, cancelled, and
 offline operations expose an explicit full-sync `RETRY` action; successful operations do not.
+When multiple connectors are syncing, each connector's `CANCEL` action only cancels that
+connector; closing the desktop client cancels all active syncs.
 
 ## Release artifacts
 

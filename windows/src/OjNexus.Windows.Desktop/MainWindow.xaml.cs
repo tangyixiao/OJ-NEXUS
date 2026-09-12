@@ -51,7 +51,7 @@ public partial class MainWindow : Window
 
         if (row.IsSyncing)
         {
-            _viewModel.CancelSync();
+            _viewModel.CancelSync(row);
             return;
         }
 

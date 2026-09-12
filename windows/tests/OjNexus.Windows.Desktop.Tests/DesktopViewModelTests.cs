@@ -65,6 +65,57 @@ public sealed class DesktopViewModelTests
     }
 
     [Fact]
+    public async Task CancelSync_CancelsEveryActiveConnectorWithoutLeavingAStuckOperation()
+    {
+        var store = new InMemorySyncStore();
+        var codeforcesAdapter = new BlockingAdapter(JudgeId.Codeforces);
+        var luoguAdapter = new BlockingAdapter(JudgeId.Luogu);
+        var viewModel = CreateViewModel(store, codeforcesAdapter, luoguAdapter);
+        var codeforces = viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        var luogu = viewModel.Connectors.Single(row => row.Judge == JudgeId.Luogu);
+        codeforces.Handle = "tourist";
+        luogu.Handle = "2";
+
+        var codeforcesSync = viewModel.SyncConnectorAsync(codeforces, CancellationToken.None);
+        var luoguSync = viewModel.SyncConnectorAsync(luogu, CancellationToken.None);
+        await Task.WhenAll(codeforcesAdapter.Started.Task, luoguAdapter.Started.Task);
+
+        viewModel.CancelSync();
+        await Task.WhenAll(codeforcesSync, luoguSync).WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal("CANCELLED", codeforces.Status);
+        Assert.Equal("CANCELLED", luogu.Status);
+    }
+
+    [Fact]
+    public async Task CancelSync_ForOneConnectorLeavesOtherSyncRunning()
+    {
+        var store = new InMemorySyncStore();
+        var codeforcesAdapter = new BlockingAdapter(JudgeId.Codeforces);
+        var luoguAdapter = new BlockingAdapter(JudgeId.Luogu);
+        var viewModel = CreateViewModel(store, codeforcesAdapter, luoguAdapter);
+        var codeforces = viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        var luogu = viewModel.Connectors.Single(row => row.Judge == JudgeId.Luogu);
+        codeforces.Handle = "tourist";
+        luogu.Handle = "2";
+
+        var codeforcesSync = viewModel.SyncConnectorAsync(codeforces, CancellationToken.None);
+        var luoguSync = viewModel.SyncConnectorAsync(luogu, CancellationToken.None);
+        await Task.WhenAll(codeforcesAdapter.Started.Task, luoguAdapter.Started.Task);
+
+        viewModel.CancelSync(codeforces);
+        await codeforcesSync.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.True(luogu.IsSyncing);
+        Assert.False(luoguSync.IsCompleted);
+
+        viewModel.CancelSync(luogu);
+        await luoguSync.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal("CANCELLED", codeforces.Status);
+        Assert.Equal("CANCELLED", luogu.Status);
+    }
+
+    [Fact]
     public async Task SaveConnector_RejectsBlankHandleAndExplainsError()
     {
         var viewModel = CreateViewModel(new InMemorySyncStore());
