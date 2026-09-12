@@ -4,7 +4,7 @@ namespace OjNexus.Windows.Core.Storage;
 
 public static class SchemaMigrator
 {
-    private const int CurrentSchemaVersion = 1;
+    private const int CurrentSchemaVersion = 2;
 
     public static void Migrate(string connectionString)
     {
@@ -21,6 +21,7 @@ public static class SchemaMigrator
             }
 
             ApplyVersionOneMigration(connection, transaction);
+            ApplyVersionTwoMigration(connection, transaction);
         }
         else if (version > CurrentSchemaVersion)
         {
@@ -29,10 +30,15 @@ public static class SchemaMigrator
         else if (version == 0)
         {
             ApplyVersionOneMigration(connection, transaction);
+            ApplyVersionTwoMigration(connection, transaction);
+        }
+        else if (version == 1)
+        {
+            ApplyVersionTwoMigration(connection, transaction);
         }
         else if (version == CurrentSchemaVersion)
         {
-            ValidateVersionOneSchema(connection, transaction);
+            ValidateVersionTwoSchema(connection, transaction);
         }
 
         transaction.Commit();
@@ -126,8 +132,103 @@ public static class SchemaMigrator
         versionCommand.Transaction = transaction;
         versionCommand.CommandText = "INSERT INTO schema_metadata (key, value) VALUES ($key, $value) ON CONFLICT(key) DO UPDATE SET value = excluded.value";
         versionCommand.Parameters.AddWithValue("$key", "schema_version");
-        versionCommand.Parameters.AddWithValue("$value", CurrentSchemaVersion.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        versionCommand.Parameters.AddWithValue("$value", "1");
         versionCommand.ExecuteNonQuery();
+    }
+
+    private static void ApplyVersionTwoMigration(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        Execute(connection, transaction, """
+            CREATE TABLE IF NOT EXISTS codeforces_profiles (
+                handle TEXT NOT NULL PRIMARY KEY,
+                rating INTEGER NULL,
+                rank TEXT NULL,
+                max_rating INTEGER NULL,
+                max_rank TEXT NULL,
+                fetched_at TEXT NOT NULL
+            );
+            """);
+        Execute(connection, transaction, """
+            CREATE TABLE IF NOT EXISTS codeforces_ratings (
+                handle TEXT NOT NULL,
+                contest_id INTEGER NOT NULL,
+                contest_name TEXT NOT NULL,
+                rank INTEGER NOT NULL,
+                rating_update_time_seconds INTEGER NOT NULL,
+                old_rating INTEGER NOT NULL,
+                new_rating INTEGER NOT NULL,
+                fetched_at TEXT NOT NULL,
+                PRIMARY KEY (handle, contest_id, rating_update_time_seconds)
+            );
+            """);
+        Execute(connection, transaction, """
+            CREATE TABLE IF NOT EXISTS codeforces_submissions (
+                handle TEXT NOT NULL,
+                id INTEGER NOT NULL,
+                contest_id INTEGER NULL,
+                problem_index TEXT NULL,
+                problem_name TEXT NULL,
+                verdict TEXT NULL,
+                programming_language TEXT NOT NULL,
+                passed_test_count INTEGER NOT NULL,
+                time_consumed_millis INTEGER NOT NULL,
+                memory_consumed_bytes INTEGER NOT NULL,
+                creation_time_seconds INTEGER NOT NULL,
+                fetched_at TEXT NOT NULL,
+                PRIMARY KEY (handle, id)
+            );
+            """);
+        Execute(connection, transaction, "CREATE INDEX IF NOT EXISTS idx_codeforces_ratings_handle_time ON codeforces_ratings(handle, rating_update_time_seconds DESC);");
+        Execute(connection, transaction, "CREATE INDEX IF NOT EXISTS idx_codeforces_submissions_handle_time ON codeforces_submissions(handle, creation_time_seconds DESC, id DESC);");
+        ValidateVersionTwoSchema(connection, transaction);
+
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.Transaction = transaction;
+        versionCommand.CommandText = "UPDATE schema_metadata SET value = '2' WHERE key = 'schema_version'";
+        versionCommand.ExecuteNonQuery();
+    }
+
+    private static void ValidateVersionTwoSchema(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        ValidateVersionOneSchema(connection, transaction);
+        ValidateTable(
+            connection,
+            transaction,
+            "codeforces_profiles",
+            new ColumnDefinition("handle", true, 1),
+            new ColumnDefinition("rating", false, 0),
+            new ColumnDefinition("rank", false, 0),
+            new ColumnDefinition("max_rating", false, 0),
+            new ColumnDefinition("max_rank", false, 0),
+            new ColumnDefinition("fetched_at", true, 0));
+        ValidateTable(
+            connection,
+            transaction,
+            "codeforces_ratings",
+            new ColumnDefinition("handle", true, 1),
+            new ColumnDefinition("contest_id", true, 2),
+            new ColumnDefinition("contest_name", true, 0),
+            new ColumnDefinition("rank", true, 0),
+            new ColumnDefinition("rating_update_time_seconds", true, 3),
+            new ColumnDefinition("old_rating", true, 0),
+            new ColumnDefinition("new_rating", true, 0),
+            new ColumnDefinition("fetched_at", true, 0));
+        ValidateTable(
+            connection,
+            transaction,
+            "codeforces_submissions",
+            new ColumnDefinition("handle", true, 1),
+            new ColumnDefinition("id", true, 2),
+            new ColumnDefinition("contest_id", false, 0),
+            new ColumnDefinition("problem_index", false, 0),
+            new ColumnDefinition("problem_name", false, 0),
+            new ColumnDefinition("verdict", false, 0),
+            new ColumnDefinition("programming_language", true, 0),
+            new ColumnDefinition("passed_test_count", true, 0),
+            new ColumnDefinition("time_consumed_millis", true, 0),
+            new ColumnDefinition("memory_consumed_bytes", true, 0),
+            new ColumnDefinition("creation_time_seconds", true, 0),
+            new ColumnDefinition("fetched_at", true, 0));
     }
 
     private static void ValidateVersionOneSchema(SqliteConnection connection, SqliteTransaction transaction)

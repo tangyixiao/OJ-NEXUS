@@ -207,6 +207,11 @@ public sealed class DomainContractTests
             return Task.FromResult<IReadOnlyList<SyncOperation>>(operations);
         }
 
+        public Task<CodeforcesPayloadSnapshot> GetCodeforcesPayloadAsync(
+            string handle,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new CodeforcesPayloadSnapshot(null, Array.Empty<CodeforcesRating>(), Array.Empty<CodeforcesSubmission>()));
+
         public Task<long> OpenOperationAsync(
             JudgeAccount account,
             string dataGeneration,

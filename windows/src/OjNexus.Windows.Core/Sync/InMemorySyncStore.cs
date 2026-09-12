@@ -8,6 +8,9 @@ public sealed class InMemorySyncStore : ISyncStore
     private readonly object _gate = new();
     private readonly Dictionary<JudgeId, JudgeAccount> _accounts = [];
     private readonly Dictionary<long, StoredOperation> _operations = [];
+    private readonly Dictionary<string, CodeforcesProfilePayload> _codeforcesProfiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, IReadOnlyList<CodeforcesRating>> _codeforcesRatings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, IReadOnlyList<CodeforcesSubmission>> _codeforcesSubmissions = new(StringComparer.OrdinalIgnoreCase);
     private long _nextOperationId = 1;
 
     public Task<IReadOnlyList<JudgeAccount>> GetAccountsAsync(CancellationToken cancellationToken)
@@ -16,6 +19,22 @@ public sealed class InMemorySyncStore : ISyncStore
         lock (_gate)
         {
             return Task.FromResult<IReadOnlyList<JudgeAccount>>(_accounts.Values.OrderBy(account => account.Judge).ToArray());
+        }
+    }
+
+    public Task<CodeforcesPayloadSnapshot> GetCodeforcesPayloadAsync(
+        string handle,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(handle);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
+        {
+            var normalizedHandle = handle.Trim();
+            return Task.FromResult(new CodeforcesPayloadSnapshot(
+                _codeforcesProfiles.GetValueOrDefault(normalizedHandle),
+                _codeforcesRatings.GetValueOrDefault(normalizedHandle, Array.Empty<CodeforcesRating>()),
+                _codeforcesSubmissions.GetValueOrDefault(normalizedHandle, Array.Empty<CodeforcesSubmission>())));
         }
     }
 
@@ -84,8 +103,21 @@ public sealed class InMemorySyncStore : ISyncStore
         lock (_gate)
         {
             var operation = GetOperation(operationId);
+            var normalizedOutcome = ModuleFailureType.Normalize(outcome);
             operation.Modules.RemoveAll(existing => StringComparer.Ordinal.Equals(existing.Stage, outcome.Stage));
-            operation.Modules.Add(ModuleFailureType.Normalize(outcome));
+            operation.Modules.Add(normalizedOutcome);
+            switch (normalizedOutcome.Payload)
+            {
+                case CodeforcesProfilePayload profile:
+                    _codeforcesProfiles[profile.Handle] = profile;
+                    break;
+                case CodeforcesRatingsPayload ratings:
+                    _codeforcesRatings[ratings.Handle] = ratings.Items.ToArray();
+                    break;
+                case CodeforcesSubmissionsPayload submissions:
+                    _codeforcesSubmissions[submissions.Handle] = submissions.Items.ToArray();
+                    break;
+            }
         }
 
         return Task.CompletedTask;

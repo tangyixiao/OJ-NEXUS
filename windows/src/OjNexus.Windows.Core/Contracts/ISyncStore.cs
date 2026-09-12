@@ -13,6 +13,10 @@ public interface ISyncStore
         int limit,
         CancellationToken cancellationToken);
 
+    Task<CodeforcesPayloadSnapshot> GetCodeforcesPayloadAsync(
+        string handle,
+        CancellationToken cancellationToken);
+
     Task<long> OpenOperationAsync(
         JudgeAccount account,
         string dataGeneration,

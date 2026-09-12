@@ -10,13 +10,51 @@ public enum SyncOperationStatus
     Offline,
 }
 
-public record SyncModuleOutcome(
-    string Stage,
-    SyncOperationStatus Status,
-    int AttemptedCount,
-    int ImportedCount,
-    int UpdatedCount,
-    string? FailureType);
+public record SyncModuleOutcome
+{
+    public SyncModuleOutcome(
+        string stage,
+        SyncOperationStatus status,
+        int attemptedCount,
+        int importedCount,
+        int updatedCount,
+        string? failureType)
+        : this(stage, status, attemptedCount, importedCount, updatedCount, failureType, null)
+    {
+    }
+
+    public SyncModuleOutcome(
+        string stage,
+        SyncOperationStatus status,
+        int attemptedCount,
+        int importedCount,
+        int updatedCount,
+        string? failureType,
+        SyncModulePayload? payload)
+    {
+        Stage = stage;
+        Status = status;
+        AttemptedCount = attemptedCount;
+        ImportedCount = importedCount;
+        UpdatedCount = updatedCount;
+        FailureType = failureType;
+        Payload = payload;
+    }
+
+    public string Stage { get; init; }
+
+    public SyncOperationStatus Status { get; init; }
+
+    public int AttemptedCount { get; init; }
+
+    public int ImportedCount { get; init; }
+
+    public int UpdatedCount { get; init; }
+
+    public string? FailureType { get; init; }
+
+    public SyncModulePayload? Payload { get; init; }
+}
 
 public record SyncOperation
 {

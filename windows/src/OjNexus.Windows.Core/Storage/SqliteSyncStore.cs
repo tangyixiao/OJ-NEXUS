@@ -109,6 +109,85 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
         return operations;
     }
 
+    public async Task<CodeforcesPayloadSnapshot> GetCodeforcesPayloadAsync(
+        string handle,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(handle);
+        handle = handle.Trim();
+
+        using var connection = connectionFactory.OpenConnection();
+        CodeforcesProfilePayload? profile = null;
+        using (var profileCommand = connection.CreateCommand())
+        {
+            profileCommand.CommandText = "SELECT handle, rating, rank, max_rating, max_rank FROM codeforces_profiles WHERE handle = $handle";
+            profileCommand.Parameters.AddWithValue("$handle", handle);
+            using var reader = await profileCommand.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                profile = new CodeforcesProfilePayload(
+                    reader.GetString(0),
+                    reader.IsDBNull(1) ? null : reader.GetInt32(1),
+                    reader.IsDBNull(2) ? null : reader.GetString(2),
+                    reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                    reader.IsDBNull(4) ? null : reader.GetString(4));
+            }
+        }
+
+        var ratings = new List<CodeforcesRating>();
+        using (var ratingsCommand = connection.CreateCommand())
+        {
+            ratingsCommand.CommandText = """
+                SELECT contest_id, contest_name, rank, rating_update_time_seconds, old_rating, new_rating
+                FROM codeforces_ratings
+                WHERE handle = $handle
+                ORDER BY rating_update_time_seconds ASC, contest_id ASC;
+                """;
+            ratingsCommand.Parameters.AddWithValue("$handle", handle);
+            using var reader = await ratingsCommand.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                ratings.Add(new CodeforcesRating(
+                    reader.GetInt32(0),
+                    reader.GetString(1),
+                    reader.GetInt32(2),
+                    reader.GetInt64(3),
+                    reader.GetInt32(4),
+                    reader.GetInt32(5)));
+            }
+        }
+
+        var submissions = new List<CodeforcesSubmission>();
+        using (var submissionsCommand = connection.CreateCommand())
+        {
+            submissionsCommand.CommandText = """
+                SELECT id, contest_id, problem_index, problem_name, verdict, programming_language,
+                       passed_test_count, time_consumed_millis, memory_consumed_bytes, creation_time_seconds
+                FROM codeforces_submissions
+                WHERE handle = $handle
+                ORDER BY creation_time_seconds ASC, id ASC;
+                """;
+            submissionsCommand.Parameters.AddWithValue("$handle", handle);
+            using var reader = await submissionsCommand.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                submissions.Add(new CodeforcesSubmission(
+                    reader.GetInt64(0),
+                    reader.IsDBNull(1) ? null : reader.GetInt32(1),
+                    reader.IsDBNull(2) ? null : reader.GetString(2),
+                    reader.IsDBNull(3) ? null : reader.GetString(3),
+                    reader.IsDBNull(4) ? null : reader.GetString(4),
+                    reader.GetString(5),
+                    reader.GetInt32(6),
+                    reader.GetInt32(7),
+                    reader.GetInt64(8),
+                    reader.GetInt64(9)));
+            }
+        }
+
+        return new CodeforcesPayloadSnapshot(profile, ratings, submissions);
+    }
+
     public async Task<long> OpenOperationAsync(
         JudgeAccount account,
         string dataGeneration,
@@ -161,7 +240,128 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
         command.Parameters.AddWithValue("$failureType", normalizedOutcome.FailureType ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("$completedAt", FormatTime(completedAt));
         await command.ExecuteNonQueryAsync(cancellationToken);
+        await PersistPayloadAsync(connection, transaction, normalizedOutcome.Payload, completedAt, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static async Task PersistPayloadAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        SyncModulePayload? payload,
+        DateTimeOffset fetchedAt,
+        CancellationToken cancellationToken)
+    {
+        switch (payload)
+        {
+            case CodeforcesProfilePayload profile:
+                using (var command = connection.CreateCommand())
+                {
+                    command.Transaction = transaction;
+                    command.CommandText = """
+                        INSERT INTO codeforces_profiles (handle, rating, rank, max_rating, max_rank, fetched_at)
+                        VALUES ($handle, $rating, $rank, $maxRating, $maxRank, $fetchedAt)
+                        ON CONFLICT(handle) DO UPDATE SET
+                            rating = excluded.rating,
+                            rank = excluded.rank,
+                            max_rating = excluded.max_rating,
+                            max_rank = excluded.max_rank,
+                            fetched_at = excluded.fetched_at;
+                        """;
+                    command.Parameters.AddWithValue("$handle", profile.Handle);
+                    AddNullableParameter(command, "$rating", profile.Rating);
+                    AddNullableParameter(command, "$rank", profile.Rank);
+                    AddNullableParameter(command, "$maxRating", profile.MaxRating);
+                    AddNullableParameter(command, "$maxRank", profile.MaxRank);
+                    command.Parameters.AddWithValue("$fetchedAt", FormatTime(fetchedAt));
+                    await command.ExecuteNonQueryAsync(cancellationToken);
+                }
+
+                break;
+            case CodeforcesRatingsPayload ratings:
+                await ReplaceRatingsAsync(connection, transaction, ratings, fetchedAt, cancellationToken);
+                break;
+            case CodeforcesSubmissionsPayload submissions:
+                await ReplaceSubmissionsAsync(connection, transaction, submissions, fetchedAt, cancellationToken);
+                break;
+        }
+    }
+
+    private static async Task ReplaceRatingsAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CodeforcesRatingsPayload payload,
+        DateTimeOffset fetchedAt,
+        CancellationToken cancellationToken)
+    {
+        using (var deleteCommand = connection.CreateCommand())
+        {
+            deleteCommand.Transaction = transaction;
+            deleteCommand.CommandText = "DELETE FROM codeforces_ratings WHERE handle = $handle";
+            deleteCommand.Parameters.AddWithValue("$handle", payload.Handle);
+            await deleteCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        foreach (var item in payload.Items)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO codeforces_ratings
+                    (handle, contest_id, contest_name, rank, rating_update_time_seconds, old_rating, new_rating, fetched_at)
+                VALUES ($handle, $contestId, $contestName, $rank, $updateTime, $oldRating, $newRating, $fetchedAt);
+                """;
+            command.Parameters.AddWithValue("$handle", payload.Handle);
+            command.Parameters.AddWithValue("$contestId", item.ContestId);
+            command.Parameters.AddWithValue("$contestName", item.ContestName);
+            command.Parameters.AddWithValue("$rank", item.Rank);
+            command.Parameters.AddWithValue("$updateTime", item.RatingUpdateTimeSeconds);
+            command.Parameters.AddWithValue("$oldRating", item.OldRating);
+            command.Parameters.AddWithValue("$newRating", item.NewRating);
+            command.Parameters.AddWithValue("$fetchedAt", FormatTime(fetchedAt));
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    private static async Task ReplaceSubmissionsAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CodeforcesSubmissionsPayload payload,
+        DateTimeOffset fetchedAt,
+        CancellationToken cancellationToken)
+    {
+        using (var deleteCommand = connection.CreateCommand())
+        {
+            deleteCommand.Transaction = transaction;
+            deleteCommand.CommandText = "DELETE FROM codeforces_submissions WHERE handle = $handle";
+            deleteCommand.Parameters.AddWithValue("$handle", payload.Handle);
+            await deleteCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        foreach (var item in payload.Items)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO codeforces_submissions
+                    (handle, id, contest_id, problem_index, problem_name, verdict, programming_language,
+                     passed_test_count, time_consumed_millis, memory_consumed_bytes, creation_time_seconds, fetched_at)
+                VALUES ($handle, $id, $contestId, $problemIndex, $problemName, $verdict, $language,
+                        $passedTests, $timeMillis, $memoryBytes, $createdAt, $fetchedAt);
+                """;
+            command.Parameters.AddWithValue("$handle", payload.Handle);
+            command.Parameters.AddWithValue("$id", item.Id);
+            AddNullableParameter(command, "$contestId", item.ContestId);
+            AddNullableParameter(command, "$problemIndex", item.ProblemIndex);
+            AddNullableParameter(command, "$problemName", item.ProblemName);
+            AddNullableParameter(command, "$verdict", item.Verdict);
+            command.Parameters.AddWithValue("$language", item.ProgrammingLanguage);
+            command.Parameters.AddWithValue("$passedTests", item.PassedTestCount);
+            command.Parameters.AddWithValue("$timeMillis", item.TimeConsumedMillis);
+            command.Parameters.AddWithValue("$memoryBytes", item.MemoryConsumedBytes);
+            command.Parameters.AddWithValue("$createdAt", item.CreationTimeSeconds);
+            command.Parameters.AddWithValue("$fetchedAt", FormatTime(fetchedAt));
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 
     public async Task CloseOperationAsync(
@@ -223,6 +423,17 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
         command.Parameters.AddWithValue("$judge", account.Judge.ToString());
         command.Parameters.AddWithValue("$handle", account.Handle);
         command.Parameters.AddWithValue("$enabled", account.Enabled ? 1 : 0);
+    }
+
+    private static void AddNullableParameter<T>(SqliteCommand command, string name, T? value)
+        where T : struct
+    {
+        command.Parameters.AddWithValue(name, value.HasValue ? value.Value : DBNull.Value);
+    }
+
+    private static void AddNullableParameter(SqliteCommand command, string name, string? value)
+    {
+        command.Parameters.AddWithValue(name, value ?? (object)DBNull.Value);
     }
 
     private static string FormatTime(DateTimeOffset value) => value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);

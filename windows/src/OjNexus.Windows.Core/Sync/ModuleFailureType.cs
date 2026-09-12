@@ -13,6 +13,7 @@ internal static class ModuleFailureType
             FailureType = outcome.Status == SyncOperationStatus.Success
                 ? null
                 : Normalize(outcome.FailureType),
+            Payload = outcome.Status == SyncOperationStatus.Success ? outcome.Payload : null,
         };
     }
 

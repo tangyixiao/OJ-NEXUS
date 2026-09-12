@@ -7,11 +7,11 @@ namespace OjNexus.Windows.Core.Tests;
 public sealed class SqliteSyncStoreTests
 {
     [Fact]
-    public void Migrate_FreshDatabase_SetsSchemaVersionOne()
+    public void Migrate_FreshDatabase_SetsSchemaVersionTwo()
     {
         using var database = new TemporaryDatabase();
 
-        Assert.Equal("1", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("2", ReadSchemaVersion(database.DatabasePath));
     }
 
     [Fact]
@@ -24,21 +24,38 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("1", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("2", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("tourist", ReadAccountHandle(database.DatabasePath, "Codeforces"));
     }
 
     [Fact]
-    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionOne()
+    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionTwo()
     {
         using var database = new TemporaryDatabaseDirectory();
         ExecuteNonQuery(database.DatabasePath, VersionZeroSchemaSql);
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("1", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("2", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.Equal(1L, CountModules(database.DatabasePath, 7));
+        Assert.Equal("Success", ReadString(database.DatabasePath, "SELECT status FROM sync_operations WHERE id = 7"));
+    }
+
+    [Fact]
+    public void Migrate_VersionOne_AddsPayloadTablesAndPreservesLedger()
+    {
+        using var database = new TemporaryDatabaseDirectory();
+        ExecuteNonQuery(
+            database.DatabasePath,
+            VersionZeroSchemaSql
+                .Replace("('schema_version', '0')", "('schema_version', '1')", StringComparison.Ordinal));
+
+        SchemaMigrator.Migrate(database.ConnectionString);
+
+        Assert.Equal("2", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
+        Assert.True(TableExists(database.DatabasePath, "codeforces_profiles"));
         Assert.Equal("Success", ReadString(database.DatabasePath, "SELECT status FROM sync_operations WHERE id = 7"));
     }
 
@@ -159,7 +176,7 @@ public sealed class SqliteSyncStoreTests
             tableNames.Add(reader.GetString(0));
         }
 
-        Assert.Equal(new[] { "accounts", "schema_metadata", "sync_modules", "sync_operations" }, tableNames);
+        Assert.Equal(new[] { "accounts", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "schema_metadata", "sync_modules", "sync_operations" }, tableNames);
     }
 
     [Fact]

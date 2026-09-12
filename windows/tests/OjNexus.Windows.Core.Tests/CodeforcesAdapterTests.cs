@@ -13,9 +13,9 @@ public sealed class CodeforcesAdapterTests
     {
         var handler = new StubHandler
         {
-            ["https://codeforces.com/api/user.info?handles=tourist"] = """{"status":"OK","result":[{"handle":"tourist","rating":3800}]}""",
-            ["https://codeforces.com/api/user.rating?handle=tourist"] = """{"status":"OK","result":[{"contestId":1},{"contestId":2}]}""",
-            ["https://codeforces.com/api/user.status?handle=tourist&from=1&count=1000"] = """{"status":"OK","result":[{"id":1},{"id":2},{"id":3}]}""",
+            ["https://codeforces.com/api/user.info?handles=tourist"] = """{"status":"OK","result":[{"handle":"tourist","rating":3800,"rank":"legend","maxRating":4000,"maxRank":"legend"}]}""",
+            ["https://codeforces.com/api/user.rating?handle=tourist"] = """{"status":"OK","result":[{"contestId":1,"contestName":"Round One","rank":3,"ratingUpdateTimeSeconds":100,"oldRating":3700,"newRating":3750},{"contestId":2,"contestName":"Round Two","rank":1,"ratingUpdateTimeSeconds":200,"oldRating":3750,"newRating":3800}]}""",
+            ["https://codeforces.com/api/user.status?handle=tourist&from=1&count=1000"] = """{"status":"OK","result":[{"id":1,"contestId":2,"problem":{"index":"A","name":"First"},"verdict":"OK","programmingLanguage":"GNU C++17","passedTestCount":10,"timeConsumedMillis":42,"memoryConsumedBytes":1024,"creationTimeSeconds":1000},{"id":2,"contestId":2,"problem":{"index":"B","name":"Second"},"verdict":"WRONG_ANSWER","programmingLanguage":"Python 3","passedTestCount":5,"timeConsumedMillis":20,"memoryConsumedBytes":2048,"creationTimeSeconds":2000},{"id":3,"problem":{"index":"C","name":"Third"},"programmingLanguage":"Java 17","creationTimeSeconds":3000}]}""",
         };
         var adapter = new CodeforcesAdapter(() => new HttpClient(handler));
 
@@ -29,18 +29,36 @@ public sealed class CodeforcesAdapterTests
                 Assert.Equal(SyncOperationStatus.Success, stage.Status);
                 Assert.Equal(1, stage.ImportedCount);
                 Assert.Null(stage.FailureType);
+                Assert.Equal(new CodeforcesProfilePayload("tourist", 3800, "legend", 4000, "legend"), stage.Payload);
             },
             stage =>
             {
                 Assert.Equal("RATING", stage.Stage);
                 Assert.Equal(SyncOperationStatus.Success, stage.Status);
                 Assert.Equal(2, stage.ImportedCount);
+                var payload = Assert.IsType<CodeforcesRatingsPayload>(stage.Payload);
+                Assert.Equal("tourist", payload.Handle);
+                Assert.Equal(
+                    [
+                        new CodeforcesRating(1, "Round One", 3, 100, 3700, 3750),
+                        new CodeforcesRating(2, "Round Two", 1, 200, 3750, 3800),
+                    ],
+                    payload.Items);
             },
             stage =>
             {
                 Assert.Equal("SUBMISSIONS", stage.Stage);
                 Assert.Equal(SyncOperationStatus.Success, stage.Status);
                 Assert.Equal(3, stage.ImportedCount);
+                var payload = Assert.IsType<CodeforcesSubmissionsPayload>(stage.Payload);
+                Assert.Equal("tourist", payload.Handle);
+                Assert.Equal(
+                    [
+                        new CodeforcesSubmission(1, 2, "A", "First", "OK", "GNU C++17", 10, 42, 1024, 1000),
+                        new CodeforcesSubmission(2, 2, "B", "Second", "WRONG_ANSWER", "Python 3", 5, 20, 2048, 2000),
+                        new CodeforcesSubmission(3, null, "C", "Third", null, "Java 17", 0, 0, 0, 3000),
+                    ],
+                    payload.Items);
             });
     }
 
