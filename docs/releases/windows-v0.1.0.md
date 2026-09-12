@@ -29,7 +29,7 @@ dotnet build windows/OjNexus.Windows.sln -c Release --no-restore
 pwsh -File windows/scripts/smoke.ps1 -Configuration Release
 ```
 
-Observed test totals: Core 53/53, CLI 27/27, Desktop 11/11. The Release build completed with 0
+Observed test totals: Core 53/53, CLI 27/27, Desktop 12/12. The Release build completed with 0
 warnings and 0 errors. The smoke script uses a generated temporary data directory, validates the
 CLI `status --json` response and exit code 0, then keeps the WPF executable alive within its
 15-second bound before terminating that exact test process.

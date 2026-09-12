@@ -154,6 +154,21 @@ public sealed class DesktopViewModelTests
     }
 
     [Fact]
+    public async Task SyncConnector_PartialOperationKeepsModuleFailureAfterRefresh()
+    {
+        var store = new InMemorySyncStore();
+        var viewModel = CreateViewModel(store, new PartialAdapter(JudgeId.AtCoder));
+        var connector = viewModel.Connectors.Single(row => row.Judge == JudgeId.AtCoder);
+        connector.Handle = "tourist";
+
+        var synced = await viewModel.SyncConnectorAsync(connector, CancellationToken.None);
+
+        Assert.False(synced);
+        Assert.Equal("PARTIAL", connector.Status);
+        Assert.Equal("NETWORK", viewModel.LastError);
+    }
+
+    [Fact]
     public async Task SaveConnector_RejectsBlankHandleAndExplainsError()
     {
         var viewModel = CreateViewModel(new InMemorySyncStore());
@@ -264,6 +279,16 @@ public sealed class DesktopViewModelTests
 
         public Task<IReadOnlyList<SyncModuleOutcome>> SyncAsync(JudgeAccount account, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("fixture failure");
+    }
+
+    private sealed class PartialAdapter(JudgeId judge) : IJudgeAdapter
+    {
+        public JudgeId Judge { get; } = judge;
+
+        public Task<IReadOnlyList<SyncModuleOutcome>> SyncAsync(JudgeAccount account, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<SyncModuleOutcome>>([
+                new SyncModuleOutcome("SUBMISSIONS", SyncOperationStatus.Error, 1, 0, 0, "Network"),
+            ]);
     }
 
     private sealed class BlockingAdapter(JudgeId judge) : IJudgeAdapter
