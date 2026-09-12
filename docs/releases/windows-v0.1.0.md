@@ -44,15 +44,11 @@ CLI `status --json` response and exit code 0, then keeps the WPF executable aliv
 real WPF process at the supported minimum `900x560` size, visits `DASHBOARD`, `CONNECTORS`, and
 `SYNC HISTORY` through UI Automation, finds the semantically named `CODEFORCES PUBLIC HANDLE`,
 `ATCODER PUBLIC HANDLE`, and `LUOGU PUBLIC HANDLE` editors plus 1 history filter, and
-cleans up its exact temporary data directory. On this host it reported `SCREENSHOTS: 0/3` because
-the PowerShell session had no usable interactive desktop capture handle; screenshot capture is
-reported separately and is not treated as a fabricated visual pass. The package command then
-verified the staged and extracted self-contained package, with `662` hashed package files and
-ZIP SHA-256 `8A16154B3F5E02BBC28BD1FE5792704ED7CDC40BE04B03062D626773D077DD95`.
-A separate final UI smoke against the packaged WPF executable completed the UI Automation checks
-with `UI SMOKE: PASS` at `900x560`, but its three `PrintWindow` captures were rejected as
-identical/unrendered and therefore reported `SCREENSHOTS: 0/3`. This is control-tree evidence,
-not a human visual acceptance.
+cleans up its exact temporary data directory. The smoke harness requests an in-process WPF
+render capture when running interactively and rejects identical or unrendered external captures.
+The final packaged run reported `SCREENSHOTS: 3/3` and `UI SMOKE: PASS` at `900x560`. The package
+command then verified the staged and extracted self-contained package, with `662` hashed package
+files and ZIP SHA-256 `9A4C46D5A68C9A9DB1B899F8091A7CCC0B273F0451C33182594B6BD058EF2DEB`.
 
 A separate local-only public smoke used `uid:2` with a temporary data directory. Luogu sync
 returned the expected partial result (3 of 4 public stages succeeded because anonymous

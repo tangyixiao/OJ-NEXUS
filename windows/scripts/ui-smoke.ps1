@@ -232,11 +232,36 @@ function Save-WindowScreenshot {
     }
 }
 
+function Wait-ForApplicationScreenshot {
+    param(
+        [string] $Path,
+        [int] $TimeoutMilliseconds = 3000
+    )
+
+    $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
+    do {
+        if (Test-Path -LiteralPath $Path -PathType Leaf) {
+            $file = Get-Item -LiteralPath $Path
+            if ($file.Length -gt 1024) {
+                return $true
+            }
+        }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    return $false
+}
+
 function Try-Save-WindowScreenshot {
     param(
         [IntPtr] $WindowHandle,
         [string] $Path
     )
+
+    if (Wait-ForApplicationScreenshot -Path $Path) {
+        Write-Host "SCREENSHOT: $([IO.Path]::GetFileName($Path)) / wpf-render"
+        return $true
+    }
 
     try {
         $method = Save-WindowScreenshot -WindowHandle $WindowHandle -Path $Path
@@ -289,6 +314,7 @@ try {
     $startInfo.WorkingDirectory = Split-Path -Parent $DesktopPath
     $startInfo.UseShellExecute = $false
     $startInfo.Environment['OJ_NEXUS_DATA_DIRECTORY'] = $uiDataDirectory
+    $startInfo.Environment['OJ_NEXUS_UI_SCREENSHOT_DIRECTORY'] = $OutputDirectory
     $process = [Diagnostics.Process]::Start($startInfo)
     if ($null -eq $process) {
         throw "Desktop process failed to start: $DesktopPath"
