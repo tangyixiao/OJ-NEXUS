@@ -30,6 +30,12 @@ module outcomes, stale-generation protection, and capability-gated retry actions
 center. The APK identity is aligned to `versionName=0.3.74`, `versionCode=74`. /
 早期开发——**第 76 阶段（同步操作账本）**：连接中心提供有界的逐次同步历史、模块结果、过时代际保护及按能力门控的重试操作。APK 版本身份同步为 `versionName=0.3.74`、`versionCode=74`。
 
+The repository also contains a native Windows vertical slice under `windows/`: a WPF dashboard,
+public OJ connectors, bounded sync history, and a scriptable CLI backed by the same tested local
+sync core. Windows CI runs restore, Release tests/build, and a bounded CLI/WPF smoke check. / 仓库
+同时包含 `windows/` 原生 Windows 垂直切片：WPF 指挥面板、公开 OJ 连接器、有界同步历史，以及由同一套本地同步核心支持的命令行工具。
+Windows CI 会运行还原、Release 测试/构建，以及有界 CLI/WPF 启动冒烟检查。
+
 Phase 75 remains available: optional default and per-judge difficulty targets, localized Focus
 Sprint calibration, and a bounded explainable candidate pool covering due reviews, recent unsolved
 problems, failures, and weak knowledge areas. Missing ratings never become inferred targets. /

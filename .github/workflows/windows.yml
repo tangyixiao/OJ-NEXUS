@@ -1,0 +1,82 @@
+name: Windows CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('windows/**/*.csproj', 'windows/NuGet.Config') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore Windows solution
+        run: dotnet restore windows/OjNexus.Windows.sln --configfile windows/NuGet.Config
+
+      - name: Run Windows tests
+        run: >-
+          dotnet test windows/OjNexus.Windows.sln --configuration Release --no-restore
+          --logger trx
+          --results-directory windows/artifacts/test-results
+
+      - name: Build Windows solution
+        run: dotnet build windows/OjNexus.Windows.sln --configuration Release --no-restore
+
+      - name: Publish CLI
+        run: >-
+          dotnet publish windows/src/OjNexus.Windows.Cli/OjNexus.Windows.Cli.csproj
+          --configuration Release --no-restore --self-contained false
+          --output windows/artifacts/cli
+
+      - name: Publish desktop client
+        run: >-
+          dotnet publish windows/src/OjNexus.Windows.Desktop/OjNexus.Windows.Desktop.csproj
+          --configuration Release --no-restore --self-contained false
+          --output windows/artifacts/desktop
+
+      - name: Run Windows smoke check
+        shell: pwsh
+        run: >-
+          ./windows/scripts/smoke.ps1 -Configuration Release
+          -CliPath ./windows/artifacts/cli/OjNexus.Windows.Cli.exe
+          -DesktopPath ./windows/artifacts/desktop/OjNexus.Windows.Desktop.exe
+
+      - name: Upload Windows release artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          if-no-files-found: ignore
+          path: windows/artifacts/cli
+
+      - name: Upload Windows desktop artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-desktop
+          if-no-files-found: ignore
+          path: windows/artifacts/desktop
+
+      - name: Upload Windows test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-reports
+          if-no-files-found: ignore
+          path: windows/artifacts/test-results

@@ -1,6 +1,7 @@
 using System.Reflection;
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
+using OjNexus.Windows.Core.Storage;
 
 namespace OjNexus.Windows.Core.Tests;
 
@@ -65,6 +66,23 @@ public sealed class DomainContractTests
             () => create!.Invoke(null, new[] { Enum.Parse(judgeIdType, "Luogu"), "   " }));
 
         Assert.IsType<ArgumentException>(exception.InnerException);
+    }
+
+    [Fact]
+    public void WindowsPaths_UsesProcessOverrideForAutomation()
+    {
+        const string variableName = "OJ_NEXUS_DATA_DIRECTORY";
+        var previousValue = Environment.GetEnvironmentVariable(variableName);
+        try
+        {
+            Environment.SetEnvironmentVariable(variableName, "TEST-AUTOMATION-DATA");
+
+            Assert.Equal("TEST-AUTOMATION-DATA", WindowsPaths.GetDataDirectory());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(variableName, previousValue);
+        }
     }
 
     [Fact]
