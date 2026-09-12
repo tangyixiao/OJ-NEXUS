@@ -30,6 +30,7 @@ public sealed class Bootstrap
         {
             [JudgeId.Codeforces] = new CodeforcesAdapter(static () => new HttpClient()),
             [JudgeId.AtCoder] = new AtCoderAdapter(static () => new HttpClient()),
+            [JudgeId.Luogu] = new LuoguAdapter(static () => new HttpClient()),
         };
         var syncService = new SyncService(effectiveAdapters, store, new SystemClock(), static () => "windows-cli-v1");
         return new Bootstrap(dataDirectory, connectionFactory, store, syncService);
