@@ -310,6 +310,9 @@ try {
     if ($editCount -lt 3) {
         throw "Expected at least 3 public handle editors, found $editCount."
     }
+    foreach ($judgeName in @('CODEFORCES PUBLIC HANDLE', 'ATCODER PUBLIC HANDLE', 'LUOGU PUBLIC HANDLE')) {
+        [void](Require-DescendantByName -Root $root -Name $judgeName)
+    }
     if (Try-Save-WindowScreenshot -WindowHandle $windowHandle -Path (Join-Path $OutputDirectory 'connectors.png')) {
         $screenshotCount++
     }

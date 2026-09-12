@@ -23,7 +23,8 @@ finishes. Normal application data remains below `%LOCALAPPDATA%\OJ-NEXUS\ojnexus
 
 The UI smoke check starts the real WPF executable with an isolated temporary data directory,
 resizes it to the supported minimum `900x560`, uses Windows UI Automation to visit all three
-views, and checks the public-handle editors and history judge filter. It reports screenshot
+views, and checks the three semantically named public-handle editors (`CODEFORCES PUBLIC HANDLE`,
+`ATCODER PUBLIC HANDLE`, and `LUOGU PUBLIC HANDLE`) plus the history judge filter. It reports screenshot
 capture separately; sessions without a usable interactive desktop may pass the UI checks while
 reporting `SCREENSHOTS: 0/3`. Any generated screenshots are written below
 `windows/artifacts/ui-smoke/`, which is ignored by Git.

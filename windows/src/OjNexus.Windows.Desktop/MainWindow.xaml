@@ -116,7 +116,11 @@
                       <TextBlock Text="{Binding JudgeLabel}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
                       <TextBlock Grid.Column="1" Text="{Binding Status}" HorizontalAlignment="Right" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
                       <TextBlock Grid.Row="1" Grid.ColumnSpan="3" Text="{Binding Capability}" Margin="0,6,0,14" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
-                      <TextBox Grid.Row="2" Text="{Binding Handle, UpdateSourceTrigger=PropertyChanged}" MinWidth="200" />
+                      <TextBox Grid.Row="2"
+                               Text="{Binding Handle, UpdateSourceTrigger=PropertyChanged}"
+                               AutomationProperties.Name="{Binding JudgeLabel, StringFormat={}{0} PUBLIC HANDLE}"
+                               AutomationProperties.HelpText="Enter a public handle only. Credentials and cookies are not accepted."
+                               MinWidth="200" />
                       <Button Grid.Row="2" Grid.Column="2" Content="{Binding ActionLabel}" Tag="{Binding}" Style="{StaticResource ActionButton}" Margin="12,0,0,0" Click="ConnectorAction_Click" />
                     </Grid>
                   </Border>

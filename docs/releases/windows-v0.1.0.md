@@ -39,7 +39,8 @@ warnings and 0 errors. The smoke script uses a generated temporary data director
 CLI `status --json` response and exit code 0, then keeps the WPF executable alive within its
 15-second bound before terminating that exact test process. The UI smoke script then starts the
 real WPF process at the supported minimum `900x560` size, visits `DASHBOARD`, `CONNECTORS`, and
-`SYNC HISTORY` through UI Automation, finds 3 public-handle editors and 1 history filter, and
+`SYNC HISTORY` through UI Automation, finds the semantically named `CODEFORCES PUBLIC HANDLE`,
+`ATCODER PUBLIC HANDLE`, and `LUOGU PUBLIC HANDLE` editors plus 1 history filter, and
 cleans up its exact temporary data directory. On this host it reported `SCREENSHOTS: 0/3` because
 the PowerShell session had no usable interactive desktop capture handle; screenshot capture is
 reported separately and is not treated as a fabricated visual pass.
