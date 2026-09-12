@@ -90,6 +90,39 @@ function Invoke-CheckedPowerShell {
     }
 }
 
+function New-DeterministicZip {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $SourceRoot,
+        [Parameter(Mandatory = $true)]
+        [string] $DestinationPath
+    )
+
+    Add-Type -AssemblyName System.IO.Compression
+    $sourceName = Split-Path -Leaf $SourceRoot
+    $sourcePrefix = $SourceRoot.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    $archive = [IO.Compression.ZipFile]::Open($DestinationPath, [IO.Compression.ZipArchiveMode]::Create)
+    try {
+        foreach ($file in (Get-ChildItem -LiteralPath $SourceRoot -File -Recurse | Sort-Object FullName)) {
+            $relativePath = $file.FullName.Substring($sourcePrefix.Length).Replace([IO.Path]::DirectorySeparatorChar, '/')
+            $entry = $archive.CreateEntry("$sourceName/$relativePath", [IO.Compression.CompressionLevel]::Optimal)
+            $entry.LastWriteTime = [DateTimeOffset]::new(1980, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
+            $input = [IO.File]::OpenRead($file.FullName)
+            $output = $entry.Open()
+            try {
+                $input.CopyTo($output)
+            }
+            finally {
+                $output.Dispose()
+                $input.Dispose()
+            }
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
 try {
     $publishArguments = @(
         'publish',
@@ -122,7 +155,7 @@ try {
     }
 
     $workArchivePath = Join-Path $workRoot $archiveName
-    Compress-Archive -Path $stagingRoot -DestinationPath $workArchivePath -CompressionLevel Optimal
+    New-DeterministicZip -SourceRoot $stagingRoot -DestinationPath $workArchivePath
     $extractRoot = Join-Path $verificationRoot 'archive-extract'
     Expand-Archive -LiteralPath $workArchivePath -DestinationPath $extractRoot -Force
     $topLevelEntries = @(Get-ChildItem -LiteralPath $extractRoot -Force)
