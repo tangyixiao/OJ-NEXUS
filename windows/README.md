@@ -9,11 +9,12 @@ desktop client does not launch the CLI as a child process.
 From the repository root on Windows:
 
 ```powershell
-dotnet restore windows/OjNexus.Windows.sln --configfile windows/NuGet.Config
+dotnet restore windows/OjNexus.Windows.sln --configfile windows/NuGet.Config --runtime win-x64
 dotnet test windows/OjNexus.Windows.sln -c Release --no-restore
 dotnet build windows/OjNexus.Windows.sln -c Release --no-restore
 pwsh -File windows/scripts/smoke.ps1 -Configuration Release
 pwsh -File windows/scripts/ui-smoke.ps1 -Configuration Release
+pwsh -File windows/scripts/package.ps1 -Version 0.1.0 -Configuration Release -Runtime win-x64
 ```
 
 The smoke check prints the exact CLI and desktop paths, runs `status --json`, validates
@@ -56,6 +57,18 @@ connector; closing the desktop client cancels all active syncs.
 
 ## Release artifacts
 
-CI produces framework-dependent `.NET 8` `ojnexus.exe` CLI and WPF directories under `windows/artifacts/`.
-They require the matching .NET 8 runtime on the target machine. This milestone does not claim an
-installer, code signature, or a store package.
+The package command produces a self-contained `win-x64` directory and ZIP under
+`windows/artifacts/self-contained/`:
+
+```text
+OJ-NEXUS-Windows-v0.1.0-win-x64/
+  cli/ojnexus.exe
+  desktop/OjNexus.Windows.Desktop.exe
+  README.txt
+  SHA256SUMS.txt
+OJ-NEXUS-Windows-v0.1.0-win-x64.zip
+```
+
+The package carries its .NET runtime and does not require a separately installed .NET 8 runtime.
+Run `windows/scripts/verify-package.ps1` with the package root to verify every SHA-256 entry.
+The artifact is unsigned and is not an installer, MSIX/MSI package, or Store submission.

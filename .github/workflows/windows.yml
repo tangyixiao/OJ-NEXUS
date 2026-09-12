@@ -27,7 +27,7 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore Windows solution
-        run: dotnet restore windows/OjNexus.Windows.sln --configfile windows/NuGet.Config
+        run: dotnet restore windows/OjNexus.Windows.sln --configfile windows/NuGet.Config --runtime win-x64
 
       - name: Run Windows tests
         run: >-
@@ -38,40 +38,19 @@ jobs:
       - name: Build Windows solution
         run: dotnet build windows/OjNexus.Windows.sln --configuration Release --no-restore
 
-      - name: Publish CLI
-        run: >-
-          dotnet publish windows/src/OjNexus.Windows.Cli/OjNexus.Windows.Cli.csproj
-          --configuration Release --no-restore --self-contained false
-          --output windows/artifacts/cli
-
-      - name: Publish desktop client
-        run: >-
-          dotnet publish windows/src/OjNexus.Windows.Desktop/OjNexus.Windows.Desktop.csproj
-          --configuration Release --no-restore --self-contained false
-          --output windows/artifacts/desktop
-
-      - name: Run Windows smoke check
+      - name: Package self-contained Windows client
         shell: pwsh
         run: >-
-          ./windows/scripts/smoke.ps1 -Configuration Release
-          -CliPath ./windows/artifacts/cli/ojnexus.exe
-          -DesktopPath ./windows/artifacts/desktop/OjNexus.Windows.Desktop.exe
+          ./windows/scripts/package.ps1 -Version 0.1.0 -Configuration Release -Runtime win-x64
+          -SkipUiSmoke
 
-      - name: Upload Windows release artifacts
+      - name: Upload self-contained Windows package
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: windows-release
+          name: windows-self-contained-win-x64
           if-no-files-found: ignore
-          path: windows/artifacts/cli
-
-      - name: Upload Windows desktop artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-desktop
-          if-no-files-found: ignore
-          path: windows/artifacts/desktop
+          path: windows/artifacts/self-contained
 
       - name: Upload Windows test reports
         if: always()

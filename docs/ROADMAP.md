@@ -10,12 +10,13 @@ The `windows/` solution now contains a native WPF client with `DASHBOARD`, `CONN
 History is bounded to five visible rows per selected judge and exposes typed full-sync retry for
 non-success operations.
 Both clients use the Windows Core SQLite ledger and accept public handles only. Windows CI runs
-the full solution test/build gate and a temporary-data CLI/WPF smoke check. The current Windows
-artifact is framework-dependent; installer, signing, and store packaging remain separate work.
+the full solution test/build gate, self-contained `win-x64` packaging, package hash verification,
+and a temporary-data CLI/WPF smoke check. The current Windows artifact is an unsigned directory/ZIP
+bundle; installer, signing, and store packaging remain separate work.
 / `windows/` 方案现在包含原生 WPF 客户端（`DASHBOARD`、`CONNECTORS`、`SYNC HISTORY`）以及
 `status`、`sync`、`history`、`data`、`config show` 命令。两端共用 Windows Core SQLite 账本，
-仅接受公开 handle。Windows CI 运行完整测试/构建门禁和临时数据 CLI/WPF 冒烟；当前 Windows
-产物依赖 .NET 运行时，安装包、签名和商店发布仍是后续工作。
+仅接受公开 handle。Windows CI 运行完整测试/构建门禁、自包含 `win-x64` 打包、包哈希校验和
+临时数据 CLI/WPF 冒烟；当前 Windows 产物是未签名的目录/ZIP 包，安装包、签名和商店发布仍是后续工作。
 
 ## CURRENT PACKAGE IDENTITY
 

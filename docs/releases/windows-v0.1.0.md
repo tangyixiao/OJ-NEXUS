@@ -1,8 +1,8 @@
 # OJ NEXUS Windows v0.1.0 vertical slice
 
-This note records the first native Windows client and CLI vertical slice. It is a framework-
-dependent validation artifact, not a claim that an installer, code signature, or store package
-has been published.
+This note records the first native Windows client and CLI vertical slice plus its self-contained
+`win-x64` distribution bundle. It is not a claim that an installer, code signature, or store
+package has been published.
 
 ## Included
 
@@ -18,6 +18,8 @@ has been published.
 - Scriptable `ojnexus.exe` `status`, `sync`, `history`, `data`, and `config show` CLI commands.
 - Shared .NET 8 Core SQLite ledger with typed sync outcomes and public-data-only adapters for
   Codeforces, AtCoder, and Luogu.
+- Self-contained `win-x64` directory and ZIP package with the CLI, WPF client, runtime files,
+  package readme, and SHA-256 manifest.
 - Schema v4 persists a structured Luogu public payload summary; `data --judge luogu` returns the
   profile and locally known counts without storing raw HTTP bodies.
 - Bounded local history, cancellation, and redacted error presentation.
@@ -27,11 +29,12 @@ has been published.
 The following commands were run from `D:\AndroidAppCoding` after the Windows client commit:
 
 ```powershell
-dotnet restore windows/OjNexus.Windows.sln --configfile windows/NuGet.Config
+dotnet restore windows/OjNexus.Windows.sln --configfile windows/NuGet.Config --runtime win-x64
 dotnet test windows/OjNexus.Windows.sln -c Release --no-restore
 dotnet build windows/OjNexus.Windows.sln -c Release --no-restore
 pwsh -File windows/scripts/smoke.ps1 -Configuration Release
 pwsh -File windows/scripts/ui-smoke.ps1 -Configuration Release
+pwsh -File windows/scripts/package.ps1 -Version 0.1.0 -Configuration Release -Runtime win-x64
 ```
 
 Observed test totals: Core 55/55, CLI 28/28, Desktop 12/12. The Release build completed with 0
@@ -43,7 +46,9 @@ real WPF process at the supported minimum `900x560` size, visits `DASHBOARD`, `C
 `ATCODER PUBLIC HANDLE`, and `LUOGU PUBLIC HANDLE` editors plus 1 history filter, and
 cleans up its exact temporary data directory. On this host it reported `SCREENSHOTS: 0/3` because
 the PowerShell session had no usable interactive desktop capture handle; screenshot capture is
-reported separately and is not treated as a fabricated visual pass.
+reported separately and is not treated as a fabricated visual pass. The package command then
+verified the staged and extracted self-contained package, with `662` hashed package files and
+ZIP SHA-256 `D4C217866D38B924DB6531067E7E4B6F6F14B38625BD19283A6E4FDD62B97C4A`.
 
 A separate local-only public smoke used `uid:2` with a temporary data directory. Luogu sync
 returned the expected partial result (3 of 4 public stages succeeded because anonymous
@@ -55,6 +60,7 @@ returned exit code 0 with profile `lzn`, `CONTESTS: 20`, `PROBLEMS: 50`, and
 
 Windows data defaults to `%LOCALAPPDATA%\OJ-NEXUS\ojnexus.db`. Only public handles are stored;
 passwords, cookies, sessions, raw HTTP bodies, source code, and custom input are not persisted.
-The current artifacts are framework-dependent. Installer, signing, store packaging, and enlarged
-text-scale acceptance are not included in this note. The UI Automation smoke is a reusable
-minimum-size control/render probe, not a replacement for a human visual review on a normal desktop.
+The current package is self-contained but unsigned. Installer, signing, store packaging, and
+enlarged text-scale acceptance are not included in this note. The UI Automation smoke is a
+reusable minimum-size control/render probe, not a replacement for a human visual review on a
+normal desktop.
