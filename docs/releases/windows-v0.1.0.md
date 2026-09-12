@@ -48,7 +48,7 @@ cleans up its exact temporary data directory. On this host it reported `SCREENSH
 the PowerShell session had no usable interactive desktop capture handle; screenshot capture is
 reported separately and is not treated as a fabricated visual pass. The package command then
 verified the staged and extracted self-contained package, with `662` hashed package files and
-ZIP SHA-256 `D090A5D9C406A0338B7AA102EBD1DFC0313F6823DDF9DBC128773F1217C986E1`.
+ZIP SHA-256 `8A16154B3F5E02BBC28BD1FE5792704ED7CDC40BE04B03062D626773D077DD95`.
 
 A separate local-only public smoke used `uid:2` with a temporary data directory. Luogu sync
 returned the expected partial result (3 of 4 public stages succeeded because anonymous
