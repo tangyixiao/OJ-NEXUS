@@ -139,6 +139,21 @@ public sealed class DesktopViewModelTests
     }
 
     [Fact]
+    public async Task SyncConnector_FailedOperationKeepsTypedErrorAfterRefresh()
+    {
+        var store = new InMemorySyncStore();
+        var viewModel = CreateViewModel(store, new ThrowingAdapter(JudgeId.Codeforces));
+        var connector = viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        connector.Handle = "tourist";
+
+        var synced = await viewModel.SyncConnectorAsync(connector, CancellationToken.None);
+
+        Assert.False(synced);
+        Assert.Equal("ERROR", connector.Status);
+        Assert.Equal("NETWORK", viewModel.LastError);
+    }
+
+    [Fact]
     public async Task SaveConnector_RejectsBlankHandleAndExplainsError()
     {
         var viewModel = CreateViewModel(new InMemorySyncStore());
@@ -241,6 +256,14 @@ public sealed class DesktopViewModelTests
             Task.FromResult<IReadOnlyList<SyncModuleOutcome>>([
                 new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 1, 1, 0, null),
             ]);
+    }
+
+    private sealed class ThrowingAdapter(JudgeId judge) : IJudgeAdapter
+    {
+        public JudgeId Judge { get; } = judge;
+
+        public Task<IReadOnlyList<SyncModuleOutcome>> SyncAsync(JudgeAccount account, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("fixture failure");
     }
 
     private sealed class BlockingAdapter(JudgeId judge) : IJudgeAdapter

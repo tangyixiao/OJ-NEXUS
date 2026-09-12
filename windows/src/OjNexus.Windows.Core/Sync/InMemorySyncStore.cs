@@ -183,6 +183,6 @@ public sealed class InMemorySyncStore : ISyncStore
         public List<SyncModuleOutcome> Modules { get; } = [];
 
         public SyncOperation ToSyncOperation() =>
-            new(Id, Account, DataGeneration, StartedAt, FinishedAt, Status, Modules);
+            new(Id, Account, DataGeneration, StartedAt, FinishedAt, Status, Modules, Error);
     }
 }

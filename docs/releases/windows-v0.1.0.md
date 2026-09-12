@@ -11,6 +11,8 @@ has been published.
   retry for typed failed, partial, cancelled, and offline operations.
 - Connector cancellation is isolated per active sync; cancelling one connector does not cancel
   another, while client shutdown cancels all active syncs.
+- Typed operation failures survive local refresh, so `ERROR`, `OFFLINE`, and partial module
+  failures retain an actionable reason in the desktop state.
 - Scriptable `ojnexus.exe` `status`, `sync`, `history`, `data`, and `config show` CLI commands.
 - Shared .NET 8 Core SQLite ledger with typed sync outcomes and public-data-only adapters for
   Codeforces, AtCoder, and Luogu.
@@ -27,7 +29,7 @@ dotnet build windows/OjNexus.Windows.sln -c Release --no-restore
 pwsh -File windows/scripts/smoke.ps1 -Configuration Release
 ```
 
-Observed test totals: Core 53/53, CLI 27/27, Desktop 10/10. The Release build completed with 0
+Observed test totals: Core 53/53, CLI 27/27, Desktop 11/11. The Release build completed with 0
 warnings and 0 errors. The smoke script uses a generated temporary data directory, validates the
 CLI `status --json` response and exit code 0, then keeps the WPF executable alive within its
 15-second bound before terminating that exact test process.

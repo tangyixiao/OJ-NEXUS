@@ -203,6 +203,7 @@ public sealed class SqliteSyncStoreTests
         Assert.Equal(startedAt, operation.StartedAt);
         Assert.Equal(completedAt, operation.FinishedAt);
         Assert.Equal(SyncOperationStatus.Partial, operation.Status);
+        Assert.Equal(SyncError.Network, operation.Error);
         Assert.Collection(
             operation.Modules,
             profile => Assert.Equal(new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 2, 1, 1, null), profile),

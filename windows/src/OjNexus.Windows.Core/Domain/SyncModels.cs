@@ -66,6 +66,19 @@ public record SyncOperation
         DateTimeOffset? FinishedAt,
         SyncOperationStatus Status,
         IReadOnlyList<SyncModuleOutcome> Modules)
+        : this(Id, Account, DataGeneration, StartedAt, FinishedAt, Status, Modules, null)
+    {
+    }
+
+    public SyncOperation(
+        long Id,
+        JudgeAccount Account,
+        string DataGeneration,
+        DateTimeOffset StartedAt,
+        DateTimeOffset? FinishedAt,
+        SyncOperationStatus Status,
+        IReadOnlyList<SyncModuleOutcome> Modules,
+        SyncError? Error)
     {
         ArgumentNullException.ThrowIfNull(Modules);
         this.Id = Id;
@@ -75,6 +88,7 @@ public record SyncOperation
         this.FinishedAt = FinishedAt;
         this.Status = Status;
         this.Modules = Array.AsReadOnly(Modules.ToArray());
+        this.Error = Error;
     }
 
     public long Id { get; init; }
@@ -90,6 +104,8 @@ public record SyncOperation
     public SyncOperationStatus Status { get; init; }
 
     public IReadOnlyList<SyncModuleOutcome> Modules { get; init; }
+
+    public SyncError? Error { get; init; }
 
     public void Deconstruct(
         out long Id,

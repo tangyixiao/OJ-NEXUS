@@ -465,6 +465,19 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             ? "NO SYNC RECORDED"
             : $"{latestOperation.Account.Judge.ToString().ToUpperInvariant()} / {latestOperation.Status.ToString().ToUpperInvariant()}";
         LastSync = latestOperation?.FinishedAt?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "NONE";
+        LastError = latestOperation is null ? string.Empty : FormatOperationError(latestOperation);
+    }
+
+    private static string FormatOperationError(SyncOperation operation)
+    {
+        if (operation.Error is not null)
+        {
+            return operation.Error.Value.ToString().ToUpperInvariant();
+        }
+
+        var failedModule = operation.Modules.FirstOrDefault(module =>
+            module.Status is SyncOperationStatus.Error or SyncOperationStatus.Offline or SyncOperationStatus.Cancelled);
+        return failedModule?.FailureType?.ToUpperInvariant() ?? string.Empty;
     }
 
     private void ProjectHistory(IReadOnlyList<SyncOperation> operations)

@@ -101,7 +101,7 @@ public sealed class SyncService
 
         var finishedAt = _clock.UtcNow;
         await _store.CloseOperationAsync(operationId, status, error, finishedAt, CancellationToken.None);
-        var operation = new SyncOperation(operationId, account, dataGeneration, startedAt, finishedAt, status, modules);
+        var operation = new SyncOperation(operationId, account, dataGeneration, startedAt, finishedAt, status, modules, error);
         return new SyncReport(operation, status, error);
     }
 

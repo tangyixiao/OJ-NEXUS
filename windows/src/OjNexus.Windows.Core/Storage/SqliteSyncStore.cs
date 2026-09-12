@@ -52,10 +52,11 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
         command.CommandText = """
             SELECT operation.id, operation.judge, account.handle, account.enabled, operation.data_generation,
                    operation.started_at, operation.finished_at, operation.status,
+                   operation.failure_category,
                    module.stage, module.status, module.attempted_count, module.imported_count,
                    module.updated_count, module.failure_type
             FROM (
-                SELECT id, judge, data_generation, started_at, finished_at, status
+                 SELECT id, judge, data_generation, started_at, finished_at, status, failure_category
                 FROM sync_operations
                 WHERE ($judge IS NULL OR judge = $judge)
                 ORDER BY started_at DESC, id DESC
@@ -86,18 +87,19 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
                     reader.GetString(4),
                     ParseTime(reader.GetString(5)),
                     reader.IsDBNull(6) ? null : ParseTime(reader.GetString(6)),
-                    ParseStatus(reader.GetString(7)));
+                    ParseStatus(reader.GetString(7)),
+                    reader.IsDBNull(8) ? null : ParseError(reader.GetString(8)));
             }
 
-            if (!reader.IsDBNull(8))
+            if (!reader.IsDBNull(9))
             {
                 current.Modules.Add(ModuleFailureType.Normalize(new SyncModuleOutcome(
-                    reader.GetString(8),
-                    ParseStatus(reader.GetString(9)),
-                    reader.GetInt32(10),
+                    reader.GetString(9),
+                    ParseStatus(reader.GetString(10)),
                     reader.GetInt32(11),
                     reader.GetInt32(12),
-                    reader.IsDBNull(13) ? null : reader.GetString(13))));
+                    reader.GetInt32(13),
+                    reader.IsDBNull(14) ? null : reader.GetString(14))));
             }
         }
 
@@ -522,7 +524,17 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
 
     private static SyncOperationStatus ParseStatus(string value) => Enum.Parse<SyncOperationStatus>(value, ignoreCase: false);
 
-    private sealed class OperationAccumulator(long id, JudgeAccount account, string dataGeneration, DateTimeOffset startedAt, DateTimeOffset? finishedAt, SyncOperationStatus status)
+    private static SyncError? ParseError(string value) =>
+        Enum.TryParse<SyncError>(value, ignoreCase: false, out var error) ? error : null;
+
+    private sealed class OperationAccumulator(
+        long id,
+        JudgeAccount account,
+        string dataGeneration,
+        DateTimeOffset startedAt,
+        DateTimeOffset? finishedAt,
+        SyncOperationStatus status,
+        SyncError? error)
     {
         public long Id { get; } = id;
         public JudgeAccount Account { get; } = account;
@@ -530,8 +542,9 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
         public DateTimeOffset StartedAt { get; } = startedAt;
         public DateTimeOffset? FinishedAt { get; } = finishedAt;
         public SyncOperationStatus Status { get; } = status;
+        public SyncError? Error { get; } = error;
         public List<SyncModuleOutcome> Modules { get; } = [];
 
-        public SyncOperation ToOperation() => new(Id, Account, DataGeneration, StartedAt, FinishedAt, Status, Modules);
+        public SyncOperation ToOperation() => new(Id, Account, DataGeneration, StartedAt, FinishedAt, Status, Modules, Error);
     }
 }
