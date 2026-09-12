@@ -116,6 +116,29 @@ public sealed class DesktopViewModelTests
     }
 
     [Fact]
+    public async Task SyncConnector_RejectsDuplicateForTheSameConnector()
+    {
+        var store = new InMemorySyncStore();
+        var adapter = new BlockingAdapter(JudgeId.Codeforces);
+        var viewModel = CreateViewModel(store, adapter);
+        var connector = viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        connector.Handle = "tourist";
+
+        var firstSync = viewModel.SyncConnectorAsync(connector, CancellationToken.None);
+        await adapter.Started.Task;
+
+        var duplicateResult = await viewModel.SyncConnectorAsync(connector, CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.False(duplicateResult);
+        Assert.True(connector.IsSyncing);
+
+        viewModel.CancelSync(connector);
+        await firstSync.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal("CANCELLED", connector.Status);
+    }
+
+    [Fact]
     public async Task SaveConnector_RejectsBlankHandleAndExplainsError()
     {
         var viewModel = CreateViewModel(new InMemorySyncStore());
