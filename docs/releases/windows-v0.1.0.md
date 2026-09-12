@@ -18,6 +18,8 @@ has been published.
 - Scriptable `ojnexus.exe` `status`, `sync`, `history`, `data`, and `config show` CLI commands.
 - Shared .NET 8 Core SQLite ledger with typed sync outcomes and public-data-only adapters for
   Codeforces, AtCoder, and Luogu.
+- Schema v4 persists a structured Luogu public payload summary; `data --judge luogu` returns the
+  profile and locally known counts without storing raw HTTP bodies.
 - Bounded local history, cancellation, and redacted error presentation.
 
 ## Local verification
@@ -32,7 +34,7 @@ pwsh -File windows/scripts/smoke.ps1 -Configuration Release
 pwsh -File windows/scripts/ui-smoke.ps1 -Configuration Release
 ```
 
-Observed test totals: Core 53/53, CLI 27/27, Desktop 12/12. The Release build completed with 0
+Observed test totals: Core 55/55, CLI 28/28, Desktop 12/12. The Release build completed with 0
 warnings and 0 errors. The smoke script uses a generated temporary data directory, validates the
 CLI `status --json` response and exit code 0, then keeps the WPF executable alive within its
 15-second bound before terminating that exact test process. The UI smoke script then starts the
@@ -41,6 +43,12 @@ real WPF process at the supported minimum `900x560` size, visits `DASHBOARD`, `C
 cleans up its exact temporary data directory. On this host it reported `SCREENSHOTS: 0/3` because
 the PowerShell session had no usable interactive desktop capture handle; screenshot capture is
 reported separately and is not treated as a fabricated visual pass.
+
+A separate local-only public smoke used `uid:2` with a temporary data directory. Luogu sync
+returned the expected partial result (3 of 4 public stages succeeded because anonymous
+`SUBMISSIONS` remains authentication-gated), and the subsequent `data --judge luogu --json`
+returned exit code 0 with profile `lzn`, `CONTESTS: 20`, `PROBLEMS: 50`, and
+`SUBMISSIONS: 0`. The temporary directory was removed after the check.
 
 ## Boundary
 

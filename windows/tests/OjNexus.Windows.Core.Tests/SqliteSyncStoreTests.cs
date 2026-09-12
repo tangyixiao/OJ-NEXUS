@@ -7,11 +7,11 @@ namespace OjNexus.Windows.Core.Tests;
 public sealed class SqliteSyncStoreTests
 {
     [Fact]
-    public void Migrate_FreshDatabase_SetsSchemaVersionTwo()
+    public void Migrate_FreshDatabase_SetsSchemaVersionFour()
     {
         using var database = new TemporaryDatabase();
 
-        Assert.Equal("3", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("4", ReadSchemaVersion(database.DatabasePath));
     }
 
     [Fact]
@@ -24,19 +24,19 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("3", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("4", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("tourist", ReadAccountHandle(database.DatabasePath, "Codeforces"));
     }
 
     [Fact]
-    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionTwo()
+    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionFour()
     {
         using var database = new TemporaryDatabaseDirectory();
         ExecuteNonQuery(database.DatabasePath, VersionZeroSchemaSql);
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("3", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("4", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.Equal(1L, CountModules(database.DatabasePath, 7));
         Assert.Equal("Success", ReadString(database.DatabasePath, "SELECT status FROM sync_operations WHERE id = 7"));
@@ -53,10 +53,24 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("3", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("4", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.True(TableExists(database.DatabasePath, "codeforces_profiles"));
+        Assert.True(TableExists(database.DatabasePath, "luogu_payloads"));
         Assert.Equal("Success", ReadString(database.DatabasePath, "SELECT status FROM sync_operations WHERE id = 7"));
+    }
+
+    [Fact]
+    public void Migrate_VersionThree_AddsLuoguPayloadTableAndPreservesExistingPayloadTables()
+    {
+        using var database = new TemporaryDatabase();
+        ExecuteNonQuery(database.DatabasePath, "UPDATE schema_metadata SET value = '3' WHERE key = 'schema_version'; DROP TABLE luogu_payloads;");
+
+        SchemaMigrator.Migrate(database.ConnectionString);
+
+        Assert.Equal("4", ReadSchemaVersion(database.DatabasePath));
+        Assert.True(TableExists(database.DatabasePath, "atcoder_submissions"));
+        Assert.True(TableExists(database.DatabasePath, "luogu_payloads"));
     }
 
     [Fact]
@@ -140,11 +154,11 @@ public sealed class SqliteSyncStoreTests
     {
         using var database = new TemporaryDatabaseDirectory();
         ExecuteNonQuery(database.DatabasePath, "CREATE TABLE schema_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL)");
-        ExecuteNonQuery(database.DatabasePath, "INSERT INTO schema_metadata (key, value) VALUES ('schema_version', '4')");
+        ExecuteNonQuery(database.DatabasePath, "INSERT INTO schema_metadata (key, value) VALUES ('schema_version', '5')");
 
         Assert.Throws<InvalidOperationException>(() => SchemaMigrator.Migrate(database.ConnectionString));
 
-        Assert.Equal("4", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
         Assert.False(TableExists(database.DatabasePath, "accounts"));
     }
 
@@ -176,7 +190,7 @@ public sealed class SqliteSyncStoreTests
             tableNames.Add(reader.GetString(0));
         }
 
-        Assert.Equal(new[] { "accounts", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "schema_metadata", "sync_modules", "sync_operations" }, tableNames);
+        Assert.Equal(new[] { "accounts", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "luogu_payloads", "schema_metadata", "sync_modules", "sync_operations" }, tableNames);
     }
 
     [Fact]

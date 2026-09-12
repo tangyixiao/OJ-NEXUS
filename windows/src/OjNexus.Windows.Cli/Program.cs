@@ -96,6 +96,12 @@ public static class Program
                         await output.WriteLineAsync(data.Json ? ConsoleRenderer.RenderJson(payload) : ConsoleRenderer.RenderHuman(payload));
                         return (int)CliExitCode.Success;
                     }
+                    case JudgeId.Luogu:
+                    {
+                        var payload = await bootstrap.Store.GetLuoguPayloadAsync(handle, cancellationToken);
+                        await output.WriteLineAsync(data.Json ? ConsoleRenderer.RenderJson(payload) : ConsoleRenderer.RenderHuman(payload));
+                        return (int)CliExitCode.Success;
+                    }
                     default:
                     {
                         if (data.Json)

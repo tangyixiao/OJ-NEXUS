@@ -12,6 +12,7 @@ public sealed class InMemorySyncStore : ISyncStore
     private readonly Dictionary<string, IReadOnlyList<CodeforcesRating>> _codeforcesRatings = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<CodeforcesSubmission>> _codeforcesSubmissions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<AtCoderSubmission>> _atcoderSubmissions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, LuoguPayloadState> _luoguPayloads = new(StringComparer.OrdinalIgnoreCase);
     private long _nextOperationId = 1;
 
     public Task<IReadOnlyList<JudgeAccount>> GetAccountsAsync(CancellationToken cancellationToken)
@@ -49,6 +50,20 @@ public sealed class InMemorySyncStore : ISyncStore
         {
             return Task.FromResult(new AtCoderPayloadSnapshot(
                 _atcoderSubmissions.GetValueOrDefault(handle.Trim(), Array.Empty<AtCoderSubmission>())));
+        }
+    }
+
+    public Task<LuoguPayloadSnapshot> GetLuoguPayloadAsync(
+        string handle,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(handle);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
+        {
+            var normalizedHandle = handle.Trim();
+            var state = _luoguPayloads.GetValueOrDefault(normalizedHandle);
+            return Task.FromResult(state?.ToSnapshot() ?? new LuoguPayloadSnapshot(null, 0, 0, 0));
         }
     }
 
@@ -134,6 +149,18 @@ public sealed class InMemorySyncStore : ISyncStore
                 case AtCoderSubmissionsPayload atcoderSubmissions:
                     _atcoderSubmissions[atcoderSubmissions.Handle] = atcoderSubmissions.Items.ToArray();
                     break;
+                case LuoguProfilePayload luoguProfile:
+                    GetLuoguState(luoguProfile.Handle).Profile = luoguProfile;
+                    break;
+                case LuoguCollectionPayload luoguCollection:
+                    var luoguState = GetLuoguState(luoguCollection.Handle);
+                    switch (luoguCollection.Collection)
+                    {
+                        case "SUBMISSIONS": luoguState.SubmissionsCount = luoguCollection.Count; break;
+                        case "CONTESTS": luoguState.ContestsCount = luoguCollection.Count; break;
+                        case "PROBLEMSET": luoguState.ProblemsCount = luoguCollection.Count; break;
+                    }
+                    break;
             }
         }
 
@@ -163,6 +190,28 @@ public sealed class InMemorySyncStore : ISyncStore
         _operations.TryGetValue(operationId, out var operation)
             ? operation
             : throw new KeyNotFoundException($"No operation exists with ID {operationId}.");
+
+    private LuoguPayloadState GetLuoguState(string handle)
+    {
+        var normalizedHandle = handle.Trim();
+        if (!_luoguPayloads.TryGetValue(normalizedHandle, out var state))
+        {
+            state = new LuoguPayloadState();
+            _luoguPayloads[normalizedHandle] = state;
+        }
+
+        return state;
+    }
+
+    private sealed class LuoguPayloadState
+    {
+        public LuoguProfilePayload? Profile { get; set; }
+        public int SubmissionsCount { get; set; }
+        public int ContestsCount { get; set; }
+        public int ProblemsCount { get; set; }
+
+        public LuoguPayloadSnapshot ToSnapshot() => new(Profile, SubmissionsCount, ContestsCount, ProblemsCount);
+    }
 
     private sealed class StoredOperation(long id, JudgeAccount account, string dataGeneration, DateTimeOffset startedAt)
     {

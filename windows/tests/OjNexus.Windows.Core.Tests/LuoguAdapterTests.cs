@@ -23,10 +23,27 @@ public sealed class LuoguAdapterTests
 
         Assert.Collection(
             outcomes,
-            stage => AssertStage(stage, "PROFILE", 1),
-            stage => AssertStage(stage, "SUBMISSIONS", 1),
-            stage => AssertStage(stage, "CONTESTS", 1),
-            stage => AssertStage(stage, "PROBLEMSET", 1));
+            stage =>
+            {
+                AssertStage(stage, "PROFILE", 1);
+                var profile = Assert.IsType<LuoguProfilePayload>(stage.Payload);
+                Assert.Equal(new LuoguProfilePayload("uid:2", 2, "demo", null), profile);
+            },
+            stage =>
+            {
+                AssertStage(stage, "SUBMISSIONS", 1);
+                Assert.Equal(new LuoguCollectionPayload("uid:2", "SUBMISSIONS", 1), stage.Payload);
+            },
+            stage =>
+            {
+                AssertStage(stage, "CONTESTS", 1);
+                Assert.Equal(new LuoguCollectionPayload("uid:2", "CONTESTS", 1), stage.Payload);
+            },
+            stage =>
+            {
+                AssertStage(stage, "PROBLEMSET", 1);
+                Assert.Equal(new LuoguCollectionPayload("uid:2", "PROBLEMSET", 1), stage.Payload);
+            });
     }
 
     [Fact]

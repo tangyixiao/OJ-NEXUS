@@ -43,6 +43,11 @@ typed and local sync history stays readable offline. The `OJ_NEXUS_DATA_DIRECTOR
 variable is a test/automation override; without it, the default local application directory is
 used.
 
+`data --judge luogu` reads a structured local summary containing the public profile and the
+persisted counts for submissions, contests, and problems. An anonymous Luogu submissions request
+may remain authentication-gated; the client records that typed failure and never fabricates a
+submission count.
+
 The history view shows at most five rows for the selected judge. Failed, partial, cancelled, and
 offline operations expose an explicit full-sync `RETRY` action; successful operations do not.
 When multiple connectors are syncing, each connector's `CANCEL` action only cancels that

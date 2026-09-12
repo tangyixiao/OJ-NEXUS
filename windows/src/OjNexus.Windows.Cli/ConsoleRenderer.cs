@@ -76,6 +76,29 @@ public static class ConsoleRenderer
         }),
     });
 
+    public static string RenderHuman(LuoguPayloadSnapshot payload) => string.Join(
+        Environment.NewLine,
+        "DATA: LUOGU",
+        $"PROFILE: {(payload.Profile is null ? "NONE" : "PRESENT")}",
+        $"SUBMISSIONS: {payload.SubmissionsCount}",
+        $"CONTESTS: {payload.ContestsCount}",
+        $"PROBLEMS: {payload.ProblemsCount}");
+
+    public static string RenderJson(LuoguPayloadSnapshot payload) => JsonSerializer.Serialize(new
+    {
+        judge = "Luogu",
+        profile = payload.Profile is null ? null : new
+        {
+            handle = payload.Profile.Handle,
+            userId = payload.Profile.UserId,
+            displayName = payload.Profile.DisplayName,
+            rating = payload.Profile.Rating,
+        },
+        submissions = payload.SubmissionsCount,
+        contests = payload.ContestsCount,
+        problems = payload.ProblemsCount,
+    });
+
     public static string RenderHuman(CliConfig config) => string.Join(Environment.NewLine, "CONFIG: REDACTED", $"DATA DIRECTORY: {config.DataDirectory}", $"DATABASE: {config.DatabasePath}", $"ACCOUNTS: {config.Accounts.Count}");
 
     public static string RenderJson(CliConfig config) => JsonSerializer.Serialize(new

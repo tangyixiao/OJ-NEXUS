@@ -21,6 +21,10 @@ public interface ISyncStore
         string handle,
         CancellationToken cancellationToken);
 
+    Task<LuoguPayloadSnapshot> GetLuoguPayloadAsync(
+        string handle,
+        CancellationToken cancellationToken);
+
     Task<long> OpenOperationAsync(
         JudgeAccount account,
         string dataGeneration,

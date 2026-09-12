@@ -81,6 +81,48 @@ public sealed class ProgramTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_DataJson_ReadsPersistedLuoguPayloadSummary()
+    {
+        var store = new SqliteSyncStore(new SqliteConnectionFactory(_dataDirectory));
+        var account = JudgeAccount.Create(JudgeId.Luogu, "uid:2");
+        var timestamp = DateTimeOffset.Parse("2026-09-13T01:02:03+00:00");
+        var operationId = await store.OpenOperationAsync(account, "generation-1", timestamp, CancellationToken.None);
+        await store.AppendModuleAsync(
+            operationId,
+            new SyncModuleOutcome(
+                "PROFILE",
+                SyncOperationStatus.Success,
+                1,
+                1,
+                0,
+                null,
+                new LuoguProfilePayload("uid:2", 2, "demo", 1200)),
+            timestamp,
+            CancellationToken.None);
+        await store.AppendModuleAsync(
+            operationId,
+            new SyncModuleOutcome(
+                "PROBLEMSET",
+                SyncOperationStatus.Success,
+                5,
+                5,
+                0,
+                null,
+                new LuoguCollectionPayload("uid:2", "PROBLEMSET", 5)),
+            timestamp,
+            CancellationToken.None);
+
+        var (exitCode, output, error) = await RunAsync(["data", "--judge", "luogu", "--handle", "uid:2", "--json"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(string.Empty, error.ToString());
+        using var document = JsonDocument.Parse(output.ToString());
+        Assert.Equal("Luogu", document.RootElement.GetProperty("judge").GetString());
+        Assert.Equal("demo", document.RootElement.GetProperty("profile").GetProperty("displayName").GetString());
+        Assert.Equal(5, document.RootElement.GetProperty("problems").GetInt32());
+    }
+
+    [Fact]
     public async Task RunAsync_SyncWithoutAvailableAdapter_ReportsUnavailableAndTypedError()
     {
         var output = new StringWriter();

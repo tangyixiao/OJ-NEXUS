@@ -235,6 +235,11 @@ public sealed class DomainContractTests
             CancellationToken cancellationToken) =>
             Task.FromResult(new AtCoderPayloadSnapshot(Array.Empty<AtCoderSubmission>()));
 
+        public Task<LuoguPayloadSnapshot> GetLuoguPayloadAsync(
+            string handle,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new LuoguPayloadSnapshot(null, 0, 0, 0));
+
         public Task<long> OpenOperationAsync(
             JudgeAccount account,
             string dataGeneration,

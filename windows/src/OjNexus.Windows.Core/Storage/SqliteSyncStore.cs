@@ -224,6 +224,37 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
         return new AtCoderPayloadSnapshot(submissions);
     }
 
+    public async Task<LuoguPayloadSnapshot> GetLuoguPayloadAsync(
+        string handle,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(handle);
+        handle = handle.Trim();
+        using var connection = connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT user_id, display_name, rating, submissions_count, contests_count, problems_count
+            FROM luogu_payloads
+            WHERE handle = $handle;
+            """;
+        command.Parameters.AddWithValue("$handle", handle);
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return new LuoguPayloadSnapshot(null, 0, 0, 0);
+        }
+
+        var userId = reader.IsDBNull(0) ? (long?)null : reader.GetInt64(0);
+        var profile = userId.HasValue
+            ? new LuoguProfilePayload(
+                handle,
+                userId.Value,
+                reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetInt32(2))
+            : null;
+        return new LuoguPayloadSnapshot(profile, reader.GetInt32(3), reader.GetInt32(4), reader.GetInt32(5));
+    }
+
     public async Task<long> OpenOperationAsync(
         JudgeAccount account,
         string dataGeneration,
@@ -322,7 +353,72 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
             case AtCoderSubmissionsPayload atcoderSubmissions:
                 await ReplaceAtCoderSubmissionsAsync(connection, transaction, atcoderSubmissions, fetchedAt, cancellationToken);
                 break;
+            case LuoguProfilePayload luoguProfile:
+                await UpsertLuoguProfileAsync(connection, transaction, luoguProfile, fetchedAt, cancellationToken);
+                break;
+            case LuoguCollectionPayload luoguCollection:
+                await UpsertLuoguCollectionAsync(connection, transaction, luoguCollection, fetchedAt, cancellationToken);
+                break;
         }
+    }
+
+    private static async Task UpsertLuoguProfileAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        LuoguProfilePayload payload,
+        DateTimeOffset fetchedAt,
+        CancellationToken cancellationToken)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO luogu_payloads
+                (handle, user_id, display_name, rating, submissions_count, contests_count, problems_count, fetched_at)
+            VALUES ($handle, $userId, $displayName, $rating, 0, 0, 0, $fetchedAt)
+            ON CONFLICT(handle) DO UPDATE SET
+                user_id = excluded.user_id,
+                display_name = excluded.display_name,
+                rating = excluded.rating,
+                fetched_at = excluded.fetched_at;
+            """;
+        command.Parameters.AddWithValue("$handle", payload.Handle);
+        command.Parameters.AddWithValue("$userId", payload.UserId);
+        command.Parameters.AddWithValue("$displayName", payload.DisplayName);
+        AddNullableParameter(command, "$rating", payload.Rating);
+        command.Parameters.AddWithValue("$fetchedAt", FormatTime(fetchedAt));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task UpsertLuoguCollectionAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        LuoguCollectionPayload payload,
+        DateTimeOffset fetchedAt,
+        CancellationToken cancellationToken)
+    {
+        var submissionsCount = payload.Collection == "SUBMISSIONS" ? payload.Count : 0;
+        var contestsCount = payload.Collection == "CONTESTS" ? payload.Count : 0;
+        var problemsCount = payload.Collection == "PROBLEMSET" ? payload.Count : 0;
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO luogu_payloads
+                (handle, user_id, display_name, rating, submissions_count, contests_count, problems_count, fetched_at)
+            VALUES ($handle, NULL, $handle, NULL, $submissionsCount, $contestsCount, $problemsCount, $fetchedAt)
+            ON CONFLICT(handle) DO UPDATE SET
+                submissions_count = CASE WHEN $collection = 'SUBMISSIONS' THEN $count ELSE submissions_count END,
+                contests_count = CASE WHEN $collection = 'CONTESTS' THEN $count ELSE contests_count END,
+                problems_count = CASE WHEN $collection = 'PROBLEMSET' THEN $count ELSE problems_count END,
+                fetched_at = excluded.fetched_at;
+            """;
+        command.Parameters.AddWithValue("$handle", payload.Handle);
+        command.Parameters.AddWithValue("$submissionsCount", submissionsCount);
+        command.Parameters.AddWithValue("$contestsCount", contestsCount);
+        command.Parameters.AddWithValue("$problemsCount", problemsCount);
+        command.Parameters.AddWithValue("$collection", payload.Collection);
+        command.Parameters.AddWithValue("$count", payload.Count);
+        command.Parameters.AddWithValue("$fetchedAt", FormatTime(fetchedAt));
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task ReplaceRatingsAsync(

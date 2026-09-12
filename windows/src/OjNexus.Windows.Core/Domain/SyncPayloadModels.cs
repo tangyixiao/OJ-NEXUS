@@ -59,3 +59,20 @@ public sealed record AtCoderSubmissionsPayload(
 
 public sealed record AtCoderPayloadSnapshot(
     IReadOnlyList<AtCoderSubmission> Submissions);
+
+public sealed record LuoguProfilePayload(
+    string Handle,
+    long UserId,
+    string DisplayName,
+    int? Rating) : SyncModulePayload;
+
+public sealed record LuoguCollectionPayload(
+    string Handle,
+    string Collection,
+    int Count) : SyncModulePayload;
+
+public sealed record LuoguPayloadSnapshot(
+    LuoguProfilePayload? Profile,
+    int SubmissionsCount,
+    int ContestsCount,
+    int ProblemsCount);

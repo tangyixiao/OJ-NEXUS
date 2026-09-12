@@ -4,7 +4,7 @@ namespace OjNexus.Windows.Core.Storage;
 
 public static class SchemaMigrator
 {
-    private const int CurrentSchemaVersion = 3;
+    private const int CurrentSchemaVersion = 4;
 
     public static void Migrate(string connectionString)
     {
@@ -23,6 +23,7 @@ public static class SchemaMigrator
             ApplyVersionOneMigration(connection, transaction);
             ApplyVersionTwoMigration(connection, transaction);
             ApplyVersionThreeMigration(connection, transaction);
+            ApplyVersionFourMigration(connection, transaction);
         }
         else if (version > CurrentSchemaVersion)
         {
@@ -33,19 +34,26 @@ public static class SchemaMigrator
             ApplyVersionOneMigration(connection, transaction);
             ApplyVersionTwoMigration(connection, transaction);
             ApplyVersionThreeMigration(connection, transaction);
+            ApplyVersionFourMigration(connection, transaction);
         }
         else if (version == 1)
         {
             ApplyVersionTwoMigration(connection, transaction);
             ApplyVersionThreeMigration(connection, transaction);
+            ApplyVersionFourMigration(connection, transaction);
         }
         else if (version == 2)
         {
             ApplyVersionThreeMigration(connection, transaction);
+            ApplyVersionFourMigration(connection, transaction);
+        }
+        else if (version == 3)
+        {
+            ApplyVersionFourMigration(connection, transaction);
         }
         else if (version == CurrentSchemaVersion)
         {
-            ValidateVersionThreeSchema(connection, transaction);
+            ValidateVersionFourSchema(connection, transaction);
         }
 
         transaction.Commit();
@@ -282,6 +290,45 @@ public static class SchemaMigrator
             new ColumnDefinition("source_length", true, 0),
             new ColumnDefinition("result", true, 0),
             new ColumnDefinition("execution_time_millis", true, 0),
+            new ColumnDefinition("fetched_at", true, 0));
+    }
+
+    private static void ApplyVersionFourMigration(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        Execute(connection, transaction, """
+            CREATE TABLE IF NOT EXISTS luogu_payloads (
+                handle TEXT NOT NULL PRIMARY KEY,
+                user_id INTEGER NULL,
+                display_name TEXT NOT NULL,
+                rating INTEGER NULL,
+                submissions_count INTEGER NOT NULL,
+                contests_count INTEGER NOT NULL,
+                problems_count INTEGER NOT NULL,
+                fetched_at TEXT NOT NULL
+            );
+            """);
+        ValidateVersionFourSchema(connection, transaction);
+
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.Transaction = transaction;
+        versionCommand.CommandText = "UPDATE schema_metadata SET value = '4' WHERE key = 'schema_version'";
+        versionCommand.ExecuteNonQuery();
+    }
+
+    private static void ValidateVersionFourSchema(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        ValidateVersionThreeSchema(connection, transaction);
+        ValidateTable(
+            connection,
+            transaction,
+            "luogu_payloads",
+            new ColumnDefinition("handle", true, 1),
+            new ColumnDefinition("user_id", false, 0),
+            new ColumnDefinition("display_name", true, 0),
+            new ColumnDefinition("rating", false, 0),
+            new ColumnDefinition("submissions_count", true, 0),
+            new ColumnDefinition("contests_count", true, 0),
+            new ColumnDefinition("problems_count", true, 0),
             new ColumnDefinition("fetched_at", true, 0));
     }
 
