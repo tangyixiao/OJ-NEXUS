@@ -54,7 +54,7 @@ jobs:
         shell: pwsh
         run: >-
           ./windows/scripts/smoke.ps1 -Configuration Release
-          -CliPath ./windows/artifacts/cli/OjNexus.Windows.Cli.exe
+          -CliPath ./windows/artifacts/cli/ojnexus.exe
           -DesktopPath ./windows/artifacts/desktop/OjNexus.Windows.Desktop.exe
 
       - name: Upload Windows release artifacts

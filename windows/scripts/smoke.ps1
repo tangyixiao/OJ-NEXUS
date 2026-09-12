@@ -11,7 +11,7 @@ Set-StrictMode -Version Latest
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 if ([string]::IsNullOrWhiteSpace($CliPath)) {
-    $CliPath = Join-Path $repoRoot "windows\src\OjNexus.Windows.Cli\bin\$Configuration\net8.0\OjNexus.Windows.Cli.exe"
+    $CliPath = Join-Path $repoRoot "windows\src\OjNexus.Windows.Cli\bin\$Configuration\net8.0\ojnexus.exe"
 }
 if ([string]::IsNullOrWhiteSpace($DesktopPath)) {
     $DesktopPath = Join-Path $repoRoot "windows\src\OjNexus.Windows.Desktop\bin\$Configuration\net8.0-windows\OjNexus.Windows.Desktop.exe"

@@ -7,7 +7,7 @@ has been published.
 ## Included
 
 - Native WPF client with `DASHBOARD`, `CONNECTORS`, and `SYNC HISTORY` views.
-- Scriptable `status`, `sync`, `history`, `data`, and `config show` CLI commands.
+- Scriptable `ojnexus.exe` `status`, `sync`, `history`, `data`, and `config show` CLI commands.
 - Shared .NET 8 Core SQLite ledger with typed sync outcomes and public-data-only adapters for
   Codeforces, AtCoder, and Luogu.
 - Bounded local history, cancellation, and redacted error presentation.

@@ -23,10 +23,10 @@ finishes. Normal application data remains below `%LOCALAPPDATA%\OJ-NEXUS\ojnexus
 ## Commands
 
 ```powershell
-ojnexus status [--json]
-ojnexus sync --judge <codeforces|atcoder|luogu> [--handle <handle>] [--force] [--json]
-ojnexus history [--judge <judge>] [--limit <n>] [--json]
-ojnexus config show [--json]
+ojnexus.exe status [--json]
+ojnexus.exe sync --judge <codeforces|atcoder|luogu> [--handle <handle>] [--force] [--json]
+ojnexus.exe history [--judge <judge>] [--limit <n>] [--json]
+ojnexus.exe config show [--json]
 ```
 
 Only public handles are accepted. The Windows client never asks for or stores OJ passwords,
@@ -37,6 +37,6 @@ used.
 
 ## Release artifacts
 
-CI produces framework-dependent `.NET 8` CLI and WPF directories under `windows/artifacts/`.
+CI produces framework-dependent `.NET 8` `ojnexus.exe` CLI and WPF directories under `windows/artifacts/`.
 They require the matching .NET 8 runtime on the target machine. This milestone does not claim an
 installer, code signature, or a store package.
