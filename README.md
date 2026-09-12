@@ -32,9 +32,11 @@ center. The APK identity is aligned to `versionName=0.3.74`, `versionCode=74`. /
 
 The repository also contains a native Windows vertical slice under `windows/`: a WPF dashboard,
 public OJ connectors, bounded sync history, and a scriptable CLI backed by the same tested local
-sync core. Windows CI runs restore, Release tests/build, and a bounded CLI/WPF smoke check. / 仓库
+sync core. Windows CI runs restore, Release tests/build, self-contained `win-x64` packaging, and
+a bounded CLI/WPF smoke check. The current Windows artifact is an unsigned directory/ZIP bundle;
+see [windows/README.md](windows/README.md). / 仓库
 同时包含 `windows/` 原生 Windows 垂直切片：WPF 指挥面板、公开 OJ 连接器、有界同步历史，以及由同一套本地同步核心支持的命令行工具。
-Windows CI 会运行还原、Release 测试/构建，以及有界 CLI/WPF 启动冒烟检查。
+Windows CI 会运行还原、Release 测试/构建、自包含 `win-x64` 打包，以及有界 CLI/WPF 启动冒烟检查。当前 Windows 产物是未签名的目录/ZIP 包，详见 [windows/README.md](windows/README.md)。
 
 Phase 75 remains available: optional default and per-judge difficulty targets, localized Focus
 Sprint calibration, and a bounded explainable candidate pool covering due reviews, recent unsolved
