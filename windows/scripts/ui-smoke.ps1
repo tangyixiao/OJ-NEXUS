@@ -249,6 +249,30 @@ function Try-Save-WindowScreenshot {
     }
 }
 
+function Test-ScreenshotSet {
+    param(
+        [string] $Directory,
+        [string[]] $Names
+    )
+
+    $paths = @($Names | ForEach-Object { Join-Path $Directory $_ })
+    if ($paths.Count -ne $Names.Count -or @($paths | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) }).Count -gt 0) {
+        Write-Warning 'SCREENSHOTS REJECTED: one or more capture files are missing.'
+        return $false
+    }
+
+    $uniqueHashes = @($paths | ForEach-Object { (Get-FileHash -Algorithm SHA256 -LiteralPath $_).Hash } | Sort-Object -Unique)
+    if ($uniqueHashes.Count -ne $paths.Count) {
+        foreach ($path in $paths) {
+            Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+        }
+        Write-Warning 'SCREENSHOTS REJECTED: page captures are identical; the capture API did not prove distinct rendered views.'
+        return $false
+    }
+
+    return $true
+}
+
 $uiDataDirectory = Join-Path ([IO.Path]::GetTempPath()) "ojnexus-ui-smoke-$([Guid]::NewGuid().ToString('N'))"
 $process = $null
 $oldDataDirectory = [Environment]::GetEnvironmentVariable('OJ_NEXUS_DATA_DIRECTORY', 'Process')
@@ -331,6 +355,9 @@ try {
         $screenshotCount++
     }
     Write-Host "SYNC HISTORY: RENDERED / FILTERS=$comboCount"
+    if ($screenshotCount -eq 3 -and -not (Test-ScreenshotSet -Directory $OutputDirectory -Names @('dashboard.png', 'connectors.png', 'history.png'))) {
+        $screenshotCount = 0
+    }
     Write-Host "SCREENSHOTS: $screenshotCount/3"
     Write-Host 'UI SMOKE: PASS'
 }
