@@ -41,3 +41,21 @@ public sealed record CodeforcesPayloadSnapshot(
     CodeforcesProfilePayload? Profile,
     IReadOnlyList<CodeforcesRating> Ratings,
     IReadOnlyList<CodeforcesSubmission> Submissions);
+
+public sealed record AtCoderSubmission(
+    long Id,
+    long EpochSecond,
+    string ProblemId,
+    string ContestId,
+    string Language,
+    double Point,
+    int SourceLength,
+    string Result,
+    long ExecutionTimeMillis);
+
+public sealed record AtCoderSubmissionsPayload(
+    string Handle,
+    IReadOnlyList<AtCoderSubmission> Items) : SyncModulePayload;
+
+public sealed record AtCoderPayloadSnapshot(
+    IReadOnlyList<AtCoderSubmission> Submissions);

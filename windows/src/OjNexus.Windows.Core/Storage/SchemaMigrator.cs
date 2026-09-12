@@ -4,7 +4,7 @@ namespace OjNexus.Windows.Core.Storage;
 
 public static class SchemaMigrator
 {
-    private const int CurrentSchemaVersion = 2;
+    private const int CurrentSchemaVersion = 3;
 
     public static void Migrate(string connectionString)
     {
@@ -22,6 +22,7 @@ public static class SchemaMigrator
 
             ApplyVersionOneMigration(connection, transaction);
             ApplyVersionTwoMigration(connection, transaction);
+            ApplyVersionThreeMigration(connection, transaction);
         }
         else if (version > CurrentSchemaVersion)
         {
@@ -31,14 +32,20 @@ public static class SchemaMigrator
         {
             ApplyVersionOneMigration(connection, transaction);
             ApplyVersionTwoMigration(connection, transaction);
+            ApplyVersionThreeMigration(connection, transaction);
         }
         else if (version == 1)
         {
             ApplyVersionTwoMigration(connection, transaction);
+            ApplyVersionThreeMigration(connection, transaction);
+        }
+        else if (version == 2)
+        {
+            ApplyVersionThreeMigration(connection, transaction);
         }
         else if (version == CurrentSchemaVersion)
         {
-            ValidateVersionTwoSchema(connection, transaction);
+            ValidateVersionThreeSchema(connection, transaction);
         }
 
         transaction.Commit();
@@ -228,6 +235,53 @@ public static class SchemaMigrator
             new ColumnDefinition("time_consumed_millis", true, 0),
             new ColumnDefinition("memory_consumed_bytes", true, 0),
             new ColumnDefinition("creation_time_seconds", true, 0),
+            new ColumnDefinition("fetched_at", true, 0));
+    }
+
+    private static void ApplyVersionThreeMigration(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        Execute(connection, transaction, """
+            CREATE TABLE IF NOT EXISTS atcoder_submissions (
+                handle TEXT NOT NULL,
+                id INTEGER NOT NULL,
+                epoch_second INTEGER NOT NULL,
+                problem_id TEXT NOT NULL,
+                contest_id TEXT NOT NULL,
+                language TEXT NOT NULL,
+                point REAL NOT NULL,
+                source_length INTEGER NOT NULL,
+                result TEXT NOT NULL,
+                execution_time_millis INTEGER NOT NULL,
+                fetched_at TEXT NOT NULL,
+                PRIMARY KEY (handle, id)
+            );
+            """);
+        Execute(connection, transaction, "CREATE INDEX IF NOT EXISTS idx_atcoder_submissions_handle_time ON atcoder_submissions(handle, epoch_second DESC, id DESC);");
+        ValidateVersionThreeSchema(connection, transaction);
+
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.Transaction = transaction;
+        versionCommand.CommandText = "UPDATE schema_metadata SET value = '3' WHERE key = 'schema_version'";
+        versionCommand.ExecuteNonQuery();
+    }
+
+    private static void ValidateVersionThreeSchema(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        ValidateVersionTwoSchema(connection, transaction);
+        ValidateTable(
+            connection,
+            transaction,
+            "atcoder_submissions",
+            new ColumnDefinition("handle", true, 1),
+            new ColumnDefinition("id", true, 2),
+            new ColumnDefinition("epoch_second", true, 0),
+            new ColumnDefinition("problem_id", true, 0),
+            new ColumnDefinition("contest_id", true, 0),
+            new ColumnDefinition("language", true, 0),
+            new ColumnDefinition("point", true, 0),
+            new ColumnDefinition("source_length", true, 0),
+            new ColumnDefinition("result", true, 0),
+            new ColumnDefinition("execution_time_millis", true, 0),
             new ColumnDefinition("fetched_at", true, 0));
     }
 

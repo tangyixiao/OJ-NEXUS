@@ -188,6 +188,40 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
         return new CodeforcesPayloadSnapshot(profile, ratings, submissions);
     }
 
+    public async Task<AtCoderPayloadSnapshot> GetAtCoderPayloadAsync(
+        string handle,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(handle);
+        handle = handle.Trim();
+        using var connection = connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, epoch_second, problem_id, contest_id, language, point, source_length, result, execution_time_millis
+            FROM atcoder_submissions
+            WHERE handle = $handle
+            ORDER BY epoch_second ASC, id ASC;
+            """;
+        command.Parameters.AddWithValue("$handle", handle);
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var submissions = new List<AtCoderSubmission>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            submissions.Add(new AtCoderSubmission(
+                reader.GetInt64(0),
+                reader.GetInt64(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetString(4),
+                reader.GetDouble(5),
+                reader.GetInt32(6),
+                reader.GetString(7),
+                reader.GetInt64(8)));
+        }
+
+        return new AtCoderPayloadSnapshot(submissions);
+    }
+
     public async Task<long> OpenOperationAsync(
         JudgeAccount account,
         string dataGeneration,
@@ -283,6 +317,9 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
             case CodeforcesSubmissionsPayload submissions:
                 await ReplaceSubmissionsAsync(connection, transaction, submissions, fetchedAt, cancellationToken);
                 break;
+            case AtCoderSubmissionsPayload atcoderSubmissions:
+                await ReplaceAtCoderSubmissionsAsync(connection, transaction, atcoderSubmissions, fetchedAt, cancellationToken);
+                break;
         }
     }
 
@@ -359,6 +396,47 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
             command.Parameters.AddWithValue("$timeMillis", item.TimeConsumedMillis);
             command.Parameters.AddWithValue("$memoryBytes", item.MemoryConsumedBytes);
             command.Parameters.AddWithValue("$createdAt", item.CreationTimeSeconds);
+            command.Parameters.AddWithValue("$fetchedAt", FormatTime(fetchedAt));
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    private static async Task ReplaceAtCoderSubmissionsAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        AtCoderSubmissionsPayload payload,
+        DateTimeOffset fetchedAt,
+        CancellationToken cancellationToken)
+    {
+        using (var deleteCommand = connection.CreateCommand())
+        {
+            deleteCommand.Transaction = transaction;
+            deleteCommand.CommandText = "DELETE FROM atcoder_submissions WHERE handle = $handle";
+            deleteCommand.Parameters.AddWithValue("$handle", payload.Handle);
+            await deleteCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        foreach (var item in payload.Items)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO atcoder_submissions
+                    (handle, id, epoch_second, problem_id, contest_id, language, point, source_length,
+                     result, execution_time_millis, fetched_at)
+                VALUES ($handle, $id, $epochSecond, $problemId, $contestId, $language, $point, $sourceLength,
+                        $result, $executionTime, $fetchedAt);
+                """;
+            command.Parameters.AddWithValue("$handle", payload.Handle);
+            command.Parameters.AddWithValue("$id", item.Id);
+            command.Parameters.AddWithValue("$epochSecond", item.EpochSecond);
+            command.Parameters.AddWithValue("$problemId", item.ProblemId);
+            command.Parameters.AddWithValue("$contestId", item.ContestId);
+            command.Parameters.AddWithValue("$language", item.Language);
+            command.Parameters.AddWithValue("$point", item.Point);
+            command.Parameters.AddWithValue("$sourceLength", item.SourceLength);
+            command.Parameters.AddWithValue("$result", item.Result);
+            command.Parameters.AddWithValue("$executionTime", item.ExecutionTimeMillis);
             command.Parameters.AddWithValue("$fetchedAt", FormatTime(fetchedAt));
             await command.ExecuteNonQueryAsync(cancellationToken);
         }

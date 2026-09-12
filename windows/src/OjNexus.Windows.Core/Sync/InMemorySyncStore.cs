@@ -11,6 +11,7 @@ public sealed class InMemorySyncStore : ISyncStore
     private readonly Dictionary<string, CodeforcesProfilePayload> _codeforcesProfiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<CodeforcesRating>> _codeforcesRatings = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<CodeforcesSubmission>> _codeforcesSubmissions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, IReadOnlyList<AtCoderSubmission>> _atcoderSubmissions = new(StringComparer.OrdinalIgnoreCase);
     private long _nextOperationId = 1;
 
     public Task<IReadOnlyList<JudgeAccount>> GetAccountsAsync(CancellationToken cancellationToken)
@@ -35,6 +36,19 @@ public sealed class InMemorySyncStore : ISyncStore
                 _codeforcesProfiles.GetValueOrDefault(normalizedHandle),
                 _codeforcesRatings.GetValueOrDefault(normalizedHandle, Array.Empty<CodeforcesRating>()),
                 _codeforcesSubmissions.GetValueOrDefault(normalizedHandle, Array.Empty<CodeforcesSubmission>())));
+        }
+    }
+
+    public Task<AtCoderPayloadSnapshot> GetAtCoderPayloadAsync(
+        string handle,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(handle);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
+        {
+            return Task.FromResult(new AtCoderPayloadSnapshot(
+                _atcoderSubmissions.GetValueOrDefault(handle.Trim(), Array.Empty<AtCoderSubmission>())));
         }
     }
 
@@ -116,6 +130,9 @@ public sealed class InMemorySyncStore : ISyncStore
                     break;
                 case CodeforcesSubmissionsPayload submissions:
                     _codeforcesSubmissions[submissions.Handle] = submissions.Items.ToArray();
+                    break;
+                case AtCoderSubmissionsPayload atcoderSubmissions:
+                    _atcoderSubmissions[atcoderSubmissions.Handle] = atcoderSubmissions.Items.ToArray();
                     break;
             }
         }
