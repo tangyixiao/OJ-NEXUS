@@ -488,7 +488,12 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         {
             var moduleSummary = operation.Modules.Count == 0
                 ? "NO MODULE RECEIPTS"
-                : string.Join("  ·  ", operation.Modules.Select(module => $"{module.Stage}:{module.Status.ToString().ToUpperInvariant()}"));
+                : string.Join("  ·  ", operation.Modules.Select(FormatModuleSummary));
+            if (operation.Error is not null)
+            {
+                moduleSummary = $"{moduleSummary}  ·  ERROR:{operation.Error.Value.ToString().ToUpperInvariant()}";
+            }
+
             History.Add(new HistoryRow(
                 operation.Id,
                 operation.Account.Judge.ToString().ToUpperInvariant(),
@@ -498,6 +503,14 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
                 moduleSummary));
         }
         OnPropertyChanged(nameof(HasNoHistory));
+    }
+
+    private static string FormatModuleSummary(SyncModuleOutcome module)
+    {
+        var summary = $"{module.Stage}:{module.Status.ToString().ToUpperInvariant()}";
+        return string.IsNullOrWhiteSpace(module.FailureType)
+            ? summary
+            : $"{summary} ({module.FailureType.ToUpperInvariant()})";
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

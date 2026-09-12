@@ -201,6 +201,7 @@ public sealed class DesktopViewModelTests
 
         Assert.Equal(5, viewModel.History.Count);
         Assert.All(viewModel.History, row => Assert.True(row.CanRetry));
+        Assert.Contains("NETWORK", viewModel.History[0].ModuleSummary, StringComparison.Ordinal);
     }
 
     [Fact]

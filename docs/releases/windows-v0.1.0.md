@@ -13,6 +13,8 @@ has been published.
   another, while client shutdown cancels all active syncs.
 - Typed operation failures survive local refresh, so `ERROR`, `OFFLINE`, and partial module
   failures retain an actionable reason in the desktop state.
+- `SYNC HISTORY` includes the allowlisted failure reason in each module summary, for example
+  `SUBMISSIONS:ERROR (NETWORK)`, while full operation failures show `ERROR:<CATEGORY>`.
 - Scriptable `ojnexus.exe` `status`, `sync`, `history`, `data`, and `config show` CLI commands.
 - Shared .NET 8 Core SQLite ledger with typed sync outcomes and public-data-only adapters for
   Codeforces, AtCoder, and Luogu.
