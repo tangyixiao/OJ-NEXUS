@@ -1,5 +1,6 @@
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
+using OjNexus.Windows.Core.Network;
 using OjNexus.Windows.Core.Storage;
 using OjNexus.Windows.Core.Sync;
 
@@ -20,13 +21,16 @@ public sealed class Bootstrap
     public SqliteSyncStore Store { get; }
     public SyncService SyncService { get; }
 
-    public static Bootstrap Create(string? dataDirectoryOverride = null)
+    public static Bootstrap Create(string? dataDirectoryOverride = null, IReadOnlyDictionary<JudgeId, IJudgeAdapter>? adapters = null)
     {
         var dataDirectory = WindowsPaths.GetDataDirectory(dataDirectoryOverride);
         var connectionFactory = new SqliteConnectionFactory(dataDirectory);
         var store = new SqliteSyncStore(connectionFactory);
-        IReadOnlyDictionary<JudgeId, IJudgeAdapter> adapters = new Dictionary<JudgeId, IJudgeAdapter>();
-        var syncService = new SyncService(adapters, store, new SystemClock(), static () => "windows-cli-v1");
+        var effectiveAdapters = adapters ?? new Dictionary<JudgeId, IJudgeAdapter>
+        {
+            [JudgeId.Codeforces] = new CodeforcesAdapter(static () => new HttpClient()),
+        };
+        var syncService = new SyncService(effectiveAdapters, store, new SystemClock(), static () => "windows-cli-v1");
         return new Bootstrap(dataDirectory, connectionFactory, store, syncService);
     }
 

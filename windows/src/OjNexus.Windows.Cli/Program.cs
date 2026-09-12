@@ -1,3 +1,4 @@
+using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
 
 namespace OjNexus.Windows.Cli;
@@ -16,12 +17,18 @@ public static class Program
         return await RunAsync(args, Console.Out, Console.Error, cancellationSource.Token);
     }
 
-    public static async Task<int> RunAsync(string[] args, TextWriter output, TextWriter error, CancellationToken cancellationToken, string? dataDirectoryOverride = null)
+    public static async Task<int> RunAsync(
+        string[] args,
+        TextWriter output,
+        TextWriter error,
+        CancellationToken cancellationToken,
+        string? dataDirectoryOverride = null,
+        IReadOnlyDictionary<JudgeId, IJudgeAdapter>? adapters = null)
     {
         try
         {
             var command = CliParser.Parse(args);
-            var bootstrap = Bootstrap.Create(dataDirectoryOverride);
+            var bootstrap = Bootstrap.Create(dataDirectoryOverride, adapters);
             return await ExecuteAsync(command, bootstrap, output, error, cancellationToken);
         }
         catch (CliParseException exception)

@@ -52,7 +52,16 @@ public sealed class ProgramTests : IDisposable
     [Fact]
     public async Task RunAsync_SyncWithoutAvailableAdapter_ReportsUnavailableAndTypedError()
     {
-        var (exitCode, output, error) = await RunAsync(["sync", "--judge", "codeforces", "--handle", "tourist", "--json"]);
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["sync", "--judge", "codeforces", "--handle", "tourist", "--json"],
+            output,
+            error,
+            CancellationToken.None,
+            _dataDirectory,
+            new Dictionary<OjNexus.Windows.Core.Domain.JudgeId, OjNexus.Windows.Core.Contracts.IJudgeAdapter>());
 
         Assert.Equal((int)CliExitCode.Unavailable, exitCode);
         Assert.Equal(string.Empty, error.ToString());
