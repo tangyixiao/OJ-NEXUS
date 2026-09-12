@@ -13,12 +13,20 @@ dotnet restore windows/OjNexus.Windows.sln --configfile windows/NuGet.Config
 dotnet test windows/OjNexus.Windows.sln -c Release --no-restore
 dotnet build windows/OjNexus.Windows.sln -c Release --no-restore
 pwsh -File windows/scripts/smoke.ps1 -Configuration Release
+pwsh -File windows/scripts/ui-smoke.ps1 -Configuration Release
 ```
 
 The smoke check prints the exact CLI and desktop paths, runs `status --json`, validates
 `status=ready`, verifies the JSON exit code is zero, and keeps the WPF process alive for up to
 15 seconds. It uses a generated temporary data directory and removes only that directory when it
 finishes. Normal application data remains below `%LOCALAPPDATA%\OJ-NEXUS\ojnexus.db`.
+
+The UI smoke check starts the real WPF executable with an isolated temporary data directory,
+resizes it to the supported minimum `900x560`, uses Windows UI Automation to visit all three
+views, and checks the public-handle editors and history judge filter. It reports screenshot
+capture separately; sessions without a usable interactive desktop may pass the UI checks while
+reporting `SCREENSHOTS: 0/3`. Any generated screenshots are written below
+`windows/artifacts/ui-smoke/`, which is ignored by Git.
 
 ## Commands
 

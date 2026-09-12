@@ -29,16 +29,23 @@ dotnet restore windows/OjNexus.Windows.sln --configfile windows/NuGet.Config
 dotnet test windows/OjNexus.Windows.sln -c Release --no-restore
 dotnet build windows/OjNexus.Windows.sln -c Release --no-restore
 pwsh -File windows/scripts/smoke.ps1 -Configuration Release
+pwsh -File windows/scripts/ui-smoke.ps1 -Configuration Release
 ```
 
 Observed test totals: Core 53/53, CLI 27/27, Desktop 12/12. The Release build completed with 0
 warnings and 0 errors. The smoke script uses a generated temporary data directory, validates the
 CLI `status --json` response and exit code 0, then keeps the WPF executable alive within its
-15-second bound before terminating that exact test process.
+15-second bound before terminating that exact test process. The UI smoke script then starts the
+real WPF process at the supported minimum `900x560` size, visits `DASHBOARD`, `CONNECTORS`, and
+`SYNC HISTORY` through UI Automation, finds 3 public-handle editors and 1 history filter, and
+cleans up its exact temporary data directory. On this host it reported `SCREENSHOTS: 0/3` because
+the PowerShell session had no usable interactive desktop capture handle; screenshot capture is
+reported separately and is not treated as a fabricated visual pass.
 
 ## Boundary
 
 Windows data defaults to `%LOCALAPPDATA%\OJ-NEXUS\ojnexus.db`. Only public handles are stored;
 passwords, cookies, sessions, raw HTTP bodies, source code, and custom input are not persisted.
-The current artifacts are framework-dependent. Installer, signing, store packaging, and manual
-per-control visual acceptance are not included in this note.
+The current artifacts are framework-dependent. Installer, signing, store packaging, and enlarged
+text-scale acceptance are not included in this note. The UI Automation smoke is a reusable
+minimum-size control/render probe, not a replacement for a human visual review on a normal desktop.
