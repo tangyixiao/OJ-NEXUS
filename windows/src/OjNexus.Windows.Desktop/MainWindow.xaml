@@ -2,12 +2,160 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="OJ NEXUS"
-        Height="450"
-        Width="800">
-  <Grid>
-    <TextBlock HorizontalAlignment="Center"
-               VerticalAlignment="Center"
-               Text="OJ NEXUS WINDOWS SHELL"
-               FontSize="20" />
+        Height="720"
+        Width="1180"
+        MinHeight="560"
+        MinWidth="900">
+  <Grid Margin="24">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="220" />
+      <ColumnDefinition Width="36" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+
+    <Grid Grid.Column="0">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <StackPanel>
+        <TextBlock Text="OJ NEXUS" FontSize="24" FontWeight="Bold" Foreground="{StaticResource NexusTextBrush}" />
+        <TextBlock Text="WINDOWS CLIENT / LOCAL FIRST" Margin="0,6,0,0" FontSize="10" Foreground="{StaticResource NexusAccentBrush}" />
+        <Border Height="1" Background="{StaticResource NexusBorderBrush}" Margin="0,24,0,20" />
+      </StackPanel>
+
+      <StackPanel Grid.Row="1">
+        <Button Content="DASHBOARD" Tag="Dashboard" Style="{StaticResource NavButton}" Click="Navigate_Click" />
+        <Button Content="CONNECTORS" Tag="Connectors" Style="{StaticResource NavButton}" Click="Navigate_Click" />
+        <Button Content="SYNC HISTORY" Tag="History" Style="{StaticResource NavButton}" Click="Navigate_Click" />
+      </StackPanel>
+
+      <StackPanel Grid.Row="2">
+        <Border Height="1" Background="{StaticResource NexusBorderBrush}" Margin="0,0,0,16" />
+        <TextBlock Text="DATA DIRECTORY" FontSize="10" Foreground="{StaticResource NexusMutedTextBrush}" />
+        <TextBlock Text="{Binding DataDirectory}" TextWrapping="Wrap" Margin="0,5,0,0" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
+        <TextBlock Text="{Binding StatusText}" Margin="0,16,0,0" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource NexusPositiveBrush}" />
+      </StackPanel>
+    </Grid>
+
+    <Grid Grid.Column="2">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="24" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+
+      <Grid Grid.Row="0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel>
+          <TextBlock Text="{Binding PageTitle}" FontSize="28" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
+          <TextBlock Text="PUBLIC CONNECTIONS / PERSISTED LOCAL STATE" Margin="0,5,0,0" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="REFRESH" Style="{StaticResource ActionButton}" Click="Refresh_Click" />
+      </Grid>
+
+      <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+        <Grid>
+          <StackPanel Visibility="{Binding IsDashboardVisible, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="LOCAL STATE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
+            <UniformGrid Columns="3" Margin="0,12,0,24">
+              <Border Background="{StaticResource NexusSurfaceBrush}" BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1" Padding="18" Margin="0,0,8,0">
+                <StackPanel>
+                  <TextBlock Text="ACCOUNTS" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
+                  <TextBlock Text="{Binding AccountCount}" FontSize="32" Margin="0,6,0,0" Foreground="{StaticResource NexusTextBrush}" />
+                </StackPanel>
+              </Border>
+              <Border Background="{StaticResource NexusSurfaceBrush}" BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1" Padding="18" Margin="4,0,4,0">
+                <StackPanel>
+                  <TextBlock Text="CONNECTED JUDGES" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
+                  <TextBlock Text="{Binding ConnectedJudgeCount}" FontSize="32" Margin="0,6,0,0" Foreground="{StaticResource NexusTextBrush}" />
+                </StackPanel>
+              </Border>
+              <Border Background="{StaticResource NexusSurfaceBrush}" BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1" Padding="18" Margin="8,0,0,0">
+                <StackPanel>
+                  <TextBlock Text="LATEST SIGNAL" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
+                  <TextBlock Text="{Binding LatestSignal}" FontSize="16" Margin="0,12,0,0" TextWrapping="Wrap" Foreground="{StaticResource NexusAccentBrush}" />
+                </StackPanel>
+              </Border>
+            </UniformGrid>
+
+            <Border Background="{StaticResource NexusSurfaceBrush}" BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1" Padding="20">
+              <StackPanel>
+                <TextBlock Text="LAST SYNC" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
+                <TextBlock Text="{Binding LastSync}" FontSize="22" Margin="0,8,0,0" Foreground="{StaticResource NexusTextBrush}" />
+                <TextBlock Text="{Binding LastError}" Margin="0,14,0,0" Foreground="{StaticResource NexusWarningBrush}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Visibility="{Binding IsConnectorsVisible, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="PUBLIC HANDLES" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
+            <TextBlock Text="Only public handles are stored. Credentials and cookies are not part of this client." Margin="0,7,0,18" Foreground="{StaticResource NexusMutedTextBrush}" />
+            <ItemsControl ItemsSource="{Binding Connectors}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{StaticResource NexusSurfaceBrush}" BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1" Padding="18" Margin="0,0,0,12">
+                    <Grid>
+                      <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                      </Grid.RowDefinitions>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="190" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding JudgeLabel}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
+                      <TextBlock Grid.Column="1" Text="{Binding Status}" HorizontalAlignment="Right" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
+                      <TextBlock Grid.Row="1" Grid.ColumnSpan="3" Text="{Binding Capability}" Margin="0,6,0,14" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
+                      <TextBox Grid.Row="2" Text="{Binding Handle, UpdateSourceTrigger=PropertyChanged}" MinWidth="200" />
+                      <Button Grid.Row="2" Grid.Column="2" Content="{Binding ActionLabel}" Tag="{Binding}" Style="{StaticResource ActionButton}" Margin="12,0,0,0" Click="ConnectorAction_Click" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+          <StackPanel Visibility="{Binding IsHistoryVisible, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="RECENT OPERATIONS" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
+            <TextBlock Text="Local sync receipts are bounded and remain readable offline." Margin="0,7,0,18" Foreground="{StaticResource NexusMutedTextBrush}" />
+            <ItemsControl ItemsSource="{Binding History}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{StaticResource NexusSurfaceBrush}" BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1" Padding="16" Margin="0,0,0,10">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="130" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding Id, StringFormat=\#\{0\}}" Foreground="{StaticResource NexusMutedTextBrush}" />
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="{Binding Judge}" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
+                        <TextBlock Text="{Binding Handle}" Margin="0,4,0,0" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="2" Margin="18,0,18,0">
+                        <TextBlock Text="{Binding ModuleSummary}" TextWrapping="Wrap" Foreground="{StaticResource NexusMutedTextBrush}" />
+                        <TextBlock Text="{Binding StartedAt}" Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
+                      </StackPanel>
+                      <TextBlock Grid.Column="3" Text="{Binding Status}" HorizontalAlignment="Right" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="NO OPERATIONS RECORDED" Visibility="{Binding HasNoHistory, Converter={StaticResource BoolToVisibility}}" Foreground="{StaticResource NexusMutedTextBrush}" Margin="0,16,0,0" />
+          </StackPanel>
+        </Grid>
+      </ScrollViewer>
+    </Grid>
   </Grid>
 </Window>
