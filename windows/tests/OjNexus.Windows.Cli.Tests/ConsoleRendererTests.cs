@@ -32,6 +32,20 @@ public sealed class ConsoleRendererTests
         Assert.Equal(string.Join(Environment.NewLine, "STATUS: READY", "ACCOUNTS: 2", "LAST SYNC: NONE"), output);
     }
 
+    [Fact]
+    public void RenderAtCoderPayloadJson_UsesStablePublicFields()
+    {
+        var output = ConsoleRenderer.RenderJson(new AtCoderPayloadSnapshot(
+            [new AtCoderSubmission(11, 100, "abc100_a", "abc100", "C++", 100, 10, "AC", 1)]));
+
+        using var document = JsonDocument.Parse(output);
+        Assert.Equal("AtCoder", document.RootElement.GetProperty("judge").GetString());
+        Assert.Equal("abc100_a", document.RootElement.GetProperty("submissions")[0].GetProperty("problemId").GetString());
+        Assert.DoesNotContain("password", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("cookie", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("rawHttp", output, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Theory]
     [InlineData(SyncOperationStatus.Success, null, 0)]
     [InlineData(SyncOperationStatus.Partial, null, 1)]

@@ -55,6 +55,18 @@ public sealed class CliParserTests
     }
 
     [Fact]
+    public void Parse_DataWithJudgeHandleAndJson_ReturnsTypedCommand()
+    {
+        var command = Assert.IsType<DataCommand>(CliParser.Parse([
+            "data", "--judge", "atcoder", "--handle", "tourist", "--json",
+        ]));
+
+        Assert.Equal(JudgeId.AtCoder, command.Judge);
+        Assert.Equal("tourist", command.Handle);
+        Assert.True(command.Json);
+    }
+
+    [Fact]
     public void Parse_UnknownFlag_RejectsWithFlagName()
     {
         var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["status", "--verbose"]));

@@ -1,5 +1,7 @@
 using System.Text.Json;
 using OjNexus.Windows.Cli;
+using OjNexus.Windows.Core.Domain;
+using OjNexus.Windows.Core.Storage;
 
 namespace OjNexus.Windows.Cli.Tests;
 
@@ -47,6 +49,35 @@ public sealed class ProgramTests : IDisposable
         Assert.Equal(string.Empty, error.ToString());
         using var document = JsonDocument.Parse(output.ToString());
         Assert.Empty(document.RootElement.GetProperty("operations").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task RunAsync_DataJson_ReadsPersistedAtCoderPayload()
+    {
+        var store = new SqliteSyncStore(new SqliteConnectionFactory(_dataDirectory));
+        var account = JudgeAccount.Create(JudgeId.AtCoder, "tourist");
+        var timestamp = DateTimeOffset.Parse("2026-09-12T01:02:03+00:00");
+        var operationId = await store.OpenOperationAsync(account, "generation-1", timestamp, CancellationToken.None);
+        await store.AppendModuleAsync(
+            operationId,
+            new SyncModuleOutcome(
+                "SUBMISSIONS",
+                SyncOperationStatus.Success,
+                1,
+                1,
+                0,
+                null,
+                new AtCoderSubmissionsPayload("tourist", [new AtCoderSubmission(11, 100, "abc100_a", "abc100", "C++", 100, 10, "AC", 1)])),
+            timestamp,
+            CancellationToken.None);
+
+        var (exitCode, output, error) = await RunAsync(["data", "--judge", "atcoder", "--handle", "tourist", "--json"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(string.Empty, error.ToString());
+        using var document = JsonDocument.Parse(output.ToString());
+        Assert.Equal("AtCoder", document.RootElement.GetProperty("judge").GetString());
+        Assert.Equal("abc100_a", document.RootElement.GetProperty("submissions")[0].GetProperty("problemId").GetString());
     }
 
     [Fact]

@@ -20,6 +20,62 @@ public static class ConsoleRenderer
 
     public static string RenderJson(IReadOnlyList<SyncOperation> operations) => JsonSerializer.Serialize(new { operations = operations.Select(ProjectOperation) });
 
+    public static string RenderHuman(CodeforcesPayloadSnapshot payload) => string.Join(Environment.NewLine, "DATA: CODEFORCES", $"PROFILE: {(payload.Profile is null ? "NONE" : "PRESENT")}", $"RATINGS: {payload.Ratings.Count}", $"SUBMISSIONS: {payload.Submissions.Count}");
+
+    public static string RenderJson(CodeforcesPayloadSnapshot payload) => JsonSerializer.Serialize(new
+    {
+        judge = "Codeforces",
+        profile = payload.Profile is null ? null : new
+        {
+            handle = payload.Profile.Handle,
+            rating = payload.Profile.Rating,
+            rank = payload.Profile.Rank,
+            maxRating = payload.Profile.MaxRating,
+            maxRank = payload.Profile.MaxRank,
+        },
+        ratings = payload.Ratings.Select(rating => new
+        {
+            contestId = rating.ContestId,
+            contestName = rating.ContestName,
+            rank = rating.Rank,
+            ratingUpdateTimeSeconds = rating.RatingUpdateTimeSeconds,
+            oldRating = rating.OldRating,
+            newRating = rating.NewRating,
+        }),
+        submissions = payload.Submissions.Select(submission => new
+        {
+            id = submission.Id,
+            contestId = submission.ContestId,
+            problemIndex = submission.ProblemIndex,
+            problemName = submission.ProblemName,
+            verdict = submission.Verdict,
+            programmingLanguage = submission.ProgrammingLanguage,
+            passedTestCount = submission.PassedTestCount,
+            timeConsumedMillis = submission.TimeConsumedMillis,
+            memoryConsumedBytes = submission.MemoryConsumedBytes,
+            creationTimeSeconds = submission.CreationTimeSeconds,
+        }),
+    });
+
+    public static string RenderHuman(AtCoderPayloadSnapshot payload) => string.Join(Environment.NewLine, "DATA: ATCODER", $"SUBMISSIONS: {payload.Submissions.Count}");
+
+    public static string RenderJson(AtCoderPayloadSnapshot payload) => JsonSerializer.Serialize(new
+    {
+        judge = "AtCoder",
+        submissions = payload.Submissions.Select(submission => new
+        {
+            id = submission.Id,
+            epochSecond = submission.EpochSecond,
+            problemId = submission.ProblemId,
+            contestId = submission.ContestId,
+            language = submission.Language,
+            point = submission.Point,
+            sourceLength = submission.SourceLength,
+            result = submission.Result,
+            executionTimeMillis = submission.ExecutionTimeMillis,
+        }),
+    });
+
     public static string RenderHuman(CliConfig config) => string.Join(Environment.NewLine, "CONFIG: REDACTED", $"DATA DIRECTORY: {config.DataDirectory}", $"DATABASE: {config.DatabasePath}", $"ACCOUNTS: {config.Accounts.Count}");
 
     public static string RenderJson(CliConfig config) => JsonSerializer.Serialize(new

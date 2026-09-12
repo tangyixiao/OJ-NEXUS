@@ -8,6 +8,8 @@ public sealed record StatusCommand(bool Json) : CliCommand(Json);
 
 public sealed record SyncCommand(JudgeId Judge, string? Handle, bool Force, bool Json) : CliCommand(Json);
 
+public sealed record DataCommand(JudgeId Judge, string? Handle, bool Json) : CliCommand(Json);
+
 public sealed record HistoryCommand(JudgeId? Judge, int Limit, bool Json) : CliCommand(Json);
 
 public sealed record ConfigShowCommand(bool Json) : CliCommand(Json);
@@ -23,16 +25,17 @@ public static class CliParser
         ArgumentNullException.ThrowIfNull(args);
         if (args.Length == 0)
         {
-            throw new CliParseException("MISSING COMMAND. USE: status | sync | history | config show.");
+            throw new CliParseException("MISSING COMMAND. USE: status | sync | data | history | config show.");
         }
 
         return args[0] switch
         {
             "status" => new StatusCommand(ParseJsonOnly(args, 1, "status")),
             "sync" => ParseSync(args),
+            "data" => ParseData(args),
             "history" => ParseHistory(args),
             "config" => ParseConfig(args),
-            _ => throw new CliParseException($"UNKNOWN COMMAND '{args[0]}'. USE: status | sync | history | config show."),
+            _ => throw new CliParseException($"UNKNOWN COMMAND '{args[0]}'. USE: status | sync | data | history | config show."),
         };
     }
 
@@ -88,6 +91,33 @@ public static class CliParser
         }
 
         return new HistoryCommand(judge, limit, json);
+    }
+
+    private static DataCommand ParseData(string[] args)
+    {
+        JudgeId? judge = null;
+        string? handle = null;
+        var json = false;
+        for (var index = 1; index < args.Length; index++)
+        {
+            switch (args[index])
+            {
+                case "--judge": EnsureNotSpecified(judge, "--judge"); judge = ParseJudge(ReadValue(args, ref index, "--judge")); break;
+                case "--handle":
+                    if (handle is not null) throw new CliParseException("OPTION '--handle' MAY ONLY BE SPECIFIED ONCE.");
+                    handle = ReadNonBlankValue(args, ref index, "--handle");
+                    break;
+                case "--json": EnsureNotAlreadySet(json, "--json"); json = true; break;
+                default: ThrowUnknownOption(args[index], "data --judge <judge> [--handle <handle>] [--json]"); break;
+            }
+        }
+
+        if (judge is null)
+        {
+            throw new CliParseException("MISSING REQUIRED OPTION '--judge'. USE: data --judge <judge> [--handle <handle>] [--json].");
+        }
+
+        return new DataCommand(judge.Value, handle, json);
     }
 
     private static ConfigShowCommand ParseConfig(string[] args)

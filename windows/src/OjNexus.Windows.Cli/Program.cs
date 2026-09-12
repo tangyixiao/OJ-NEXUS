@@ -73,15 +73,56 @@ public static class Program
                 await output.WriteLineAsync(configShow.Json ? ConsoleRenderer.RenderJson(result) : ConsoleRenderer.RenderHuman(result));
                 return (int)CliExitCode.Success;
             }
+            case DataCommand data:
+            {
+                var handle = await ResolveHandleAsync(data.Judge, data.Handle, bootstrap, cancellationToken);
+                if (handle is null)
+                {
+                    await error.WriteLineAsync($"ARGUMENT ERROR: NO HANDLE CONFIGURED FOR {data.Judge.ToString().ToUpperInvariant()}. SUPPLY --handle <handle>.");
+                    return (int)CliExitCode.InvalidArguments;
+                }
+
+                switch (data.Judge)
+                {
+                    case JudgeId.Codeforces:
+                    {
+                        var payload = await bootstrap.Store.GetCodeforcesPayloadAsync(handle, cancellationToken);
+                        await output.WriteLineAsync(data.Json ? ConsoleRenderer.RenderJson(payload) : ConsoleRenderer.RenderHuman(payload));
+                        return (int)CliExitCode.Success;
+                    }
+                    case JudgeId.AtCoder:
+                    {
+                        var payload = await bootstrap.Store.GetAtCoderPayloadAsync(handle, cancellationToken);
+                        await output.WriteLineAsync(data.Json ? ConsoleRenderer.RenderJson(payload) : ConsoleRenderer.RenderHuman(payload));
+                        return (int)CliExitCode.Success;
+                    }
+                    default:
+                    {
+                        if (data.Json)
+                        {
+                            await output.WriteLineAsync($"{{\"status\":\"unavailable\",\"judge\":\"{data.Judge}\",\"error\":\"Payload is not available for this judge.\"}}");
+                        }
+                        else
+                        {
+                            await output.WriteLineAsync($"DATA: {data.Judge.ToString().ToUpperInvariant()}");
+                            await output.WriteLineAsync("STATUS: UNAVAILABLE");
+                            await output.WriteLineAsync("ERROR: PAYLOAD IS NOT AVAILABLE FOR THIS JUDGE.");
+                        }
+
+                        return (int)CliExitCode.Unavailable;
+                    }
+                }
+            }
             case SyncCommand sync:
             {
-                var account = await ResolveAccountAsync(sync, bootstrap, cancellationToken);
-                if (account is null)
+                var handle = await ResolveHandleAsync(sync.Judge, sync.Handle, bootstrap, cancellationToken);
+                if (handle is null)
                 {
                     await error.WriteLineAsync($"ARGUMENT ERROR: NO HANDLE CONFIGURED FOR {sync.Judge.ToString().ToUpperInvariant()}. SUPPLY --handle <handle>.");
                     return (int)CliExitCode.InvalidArguments;
                 }
 
+                var account = JudgeAccount.Create(sync.Judge, handle);
                 var report = await bootstrap.SyncService.RunAsync(account, sync.Force, cancellationToken);
                 await output.WriteLineAsync(sync.Json ? ConsoleRenderer.RenderJson(report) : ConsoleRenderer.RenderHuman(report));
                 return (int)CliExitCodeMapper.FromReport(report);
@@ -91,10 +132,10 @@ public static class Program
         }
     }
 
-    private static async Task<JudgeAccount?> ResolveAccountAsync(SyncCommand command, Bootstrap bootstrap, CancellationToken cancellationToken)
+    private static async Task<string?> ResolveHandleAsync(JudgeId judge, string? handle, Bootstrap bootstrap, CancellationToken cancellationToken)
     {
-        if (command.Handle is not null) return JudgeAccount.Create(command.Judge, command.Handle);
+        if (handle is not null) return handle;
         var accounts = await bootstrap.Store.GetAccountsAsync(cancellationToken);
-        return accounts.SingleOrDefault(account => account.Judge == command.Judge);
+        return accounts.SingleOrDefault(account => account.Judge == judge)?.Handle;
     }
 }
