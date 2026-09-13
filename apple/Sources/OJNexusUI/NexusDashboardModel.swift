@@ -272,8 +272,14 @@ public final class NexusDashboardModel: ObservableObject {
         switch judge {
         case .codeforces:
             return lhs.caseInsensitiveCompare(rhs) == .orderedSame
-        case .atcoder, .luogu:
+        case .atcoder:
             return lhs == rhs
+        case .luogu:
+            let normalized: (String) -> String = { value in
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.lowercased().hasPrefix("uid:") ? String(trimmed.dropFirst(4)) : trimmed
+            }
+            return normalized(lhs) == normalized(rhs)
         }
     }
 }

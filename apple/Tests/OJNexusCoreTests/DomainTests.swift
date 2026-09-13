@@ -347,6 +347,16 @@ final class DomainTests: XCTestCase {
     }
 
     @MainActor
+    func testDashboardModelMatchesEquivalentLuoguUIDForms() throws {
+        let account = try XCTUnwrap(JudgeAccount(judge: .luogu, handle: "uid:2"))
+        let profile = PublicProfile(judge: .luogu, handle: "2", rating: 2000)
+        let model = NexusDashboardModel(accounts: [account], profiles: [profile])
+
+        XCTAssertEqual(model.cachedProfile(for: account), profile)
+        XCTAssertEqual(model.lastProfile, profile)
+    }
+
+    @MainActor
     func testDashboardModelLooksUpLatestOperationByJudgeAwareAccountIdentity() throws {
         let codeforces = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
         let atcoder = try XCTUnwrap(JudgeAccount(judge: .atcoder, handle: "tourist"))
