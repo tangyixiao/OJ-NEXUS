@@ -43,12 +43,14 @@ public final class NexusDashboardModel: ObservableObject {
     }
 
     public func cachedProfile(for account: JudgeAccount) -> PublicProfile? {
-        profiles.first { $0.judge == account.judge && $0.handle == account.handle }
+        profiles.first {
+            $0.judge == account.judge && Self.sameHandle(account.judge, $0.handle, account.handle)
+        }
     }
 
     public func lastOperation(for account: JudgeAccount) -> SyncOperation? {
         ledger.operations.first {
-            $0.account.judge == account.judge && $0.account.handle == account.handle
+            $0.account.judge == account.judge && Self.sameHandle(account.judge, $0.account.handle, account.handle)
         }
     }
 
@@ -87,7 +89,9 @@ public final class NexusDashboardModel: ObservableObject {
         let previousAccounts = accounts
         let previousProfiles = profiles
         let previousLastProfile = lastProfile
-        let handleChanged = accounts.first(where: { $0.judge == judge })?.handle != account.handle
+        let handleChanged = accounts.first(where: { $0.judge == judge })?.handle.map {
+            !Self.sameHandle(judge, $0, account.handle)
+        } ?? true
         accounts.removeAll { $0.judge == judge }
         accounts.append(account)
         if handleChanged {
@@ -234,7 +238,7 @@ public final class NexusDashboardModel: ObservableObject {
 
     private func canSync(_ account: JudgeAccount) -> Bool {
         guard let configured = accounts.first(where: {
-            $0.judge == account.judge && $0.handle == account.handle
+            $0.judge == account.judge && Self.sameHandle(account.judge, $0.handle, account.handle)
         }) else {
             syncStatus = .error
             loadError = "ACCOUNT NOT CONFIGURED"
@@ -259,8 +263,17 @@ public final class NexusDashboardModel: ObservableObject {
     private static func configuredProfile(from profiles: [PublicProfile], accounts: [JudgeAccount]) -> PublicProfile? {
         profiles.first { profile in
             accounts.contains { account in
-                account.judge == profile.judge && account.handle == profile.handle
+                account.judge == profile.judge && Self.sameHandle(profile.judge, account.handle, profile.handle)
             }
+        }
+    }
+
+    private static func sameHandle(_ judge: JudgeID, _ lhs: String, _ rhs: String) -> Bool {
+        switch judge {
+        case .codeforces:
+            return lhs.caseInsensitiveCompare(rhs) == .orderedSame
+        case .atcoder, .luogu:
+            return lhs == rhs
         }
     }
 }

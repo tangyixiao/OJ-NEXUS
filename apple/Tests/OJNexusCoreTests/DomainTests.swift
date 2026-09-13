@@ -337,7 +337,17 @@ final class DomainTests: XCTestCase {
     }
 
     @MainActor
-    func testDashboardModelLooksUpLatestOperationByExactAccountIdentity() throws {
+    func testDashboardModelMatchesCodeforcesCanonicalHandleCasing() throws {
+        let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "Tourist"))
+        let profile = PublicProfile(judge: .codeforces, handle: "tourist", rating: 3800)
+        let model = NexusDashboardModel(accounts: [account], profiles: [profile])
+
+        XCTAssertEqual(model.cachedProfile(for: account), profile)
+        XCTAssertEqual(model.lastProfile, profile)
+    }
+
+    @MainActor
+    func testDashboardModelLooksUpLatestOperationByJudgeAwareAccountIdentity() throws {
         let codeforces = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
         let atcoder = try XCTUnwrap(JudgeAccount(judge: .atcoder, handle: "tourist"))
         let oldCodeforces = SyncOperation(
