@@ -1,0 +1,28 @@
+name: Apple clients
+
+on:
+  push:
+    paths:
+      - "apple/**"
+      - ".github/workflows/apple.yml"
+  pull_request:
+    paths:
+      - "apple/**"
+      - ".github/workflows/apple.yml"
+
+jobs:
+  swift:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: apple
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Apple toolchain
+        run: xcodebuild -version && swift --version
+      - name: Run Core tests
+        run: swift test
+      - name: Build macOS product
+        run: swift build --product OJNexusMacOS
+      - name: Build iOS Simulator product
+        run: xcodebuild -packagePath . -scheme OJNexusIOS -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
