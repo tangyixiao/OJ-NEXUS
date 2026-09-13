@@ -40,8 +40,10 @@ public struct JudgeAccount: Codable, Equatable, Identifiable, Sendable {
             guard isSafe else { return nil }
         }
         if judge == .luogu {
-            let uid = normalized.split(separator: ":", maxSplits: 1).last
-            guard let uid, !uid.isEmpty, uid.allSatisfy({ $0.wholeNumberValue != nil }) else { return nil }
+            let uid = normalized.lowercased().hasPrefix("uid:")
+                ? normalized.dropFirst(4)
+                : Substring(normalized)
+            guard !uid.isEmpty, uid.allSatisfy({ $0.wholeNumberValue != nil }) else { return nil }
         }
         self.judge = judge
         self.handle = normalized

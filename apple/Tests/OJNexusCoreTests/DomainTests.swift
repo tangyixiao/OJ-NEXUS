@@ -17,6 +17,11 @@ final class DomainTests: XCTestCase {
         XCTAssertNil(JudgeAccount(judge: .luogu, handle: "uid:abc"))
     }
 
+    func testAccountRejectsLuoguHandlesWithNonUidPrefix() {
+        XCTAssertNil(JudgeAccount(judge: .luogu, handle: "user:2"))
+        XCTAssertNil(JudgeAccount(judge: .luogu, handle: "uid:2:3"))
+    }
+
     func testLedgerRecoversInterruptedOperationsAsCancelled() {
         let started = Date(timeIntervalSince1970: 100)
         var ledger = SyncLedger()

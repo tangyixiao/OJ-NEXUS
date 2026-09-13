@@ -12,6 +12,8 @@ This directory contains the native Apple slice for OJ NEXUS:
 
 The deployment floor is macOS 13 and iOS 16. The clients use SwiftUI and do not use a
 WebView, Flutter, React Native, passwords, browser-cookie scraping, or fabricated remote data.
+Luogu accounts accept only a numeric UID or the explicit `uid:<number>` form, matching the
+Linux client boundary.
 The public profile adapters are already routed behind a judge-agnostic boundary; additional
 remote modules will be added only after their public source and failure boundaries are validated.
 The history view retains failed or cancelled profile operations and exposes an explicit retry
