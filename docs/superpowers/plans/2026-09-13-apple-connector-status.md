@@ -38,7 +38,7 @@ Add this `@MainActor` test near the existing dashboard-model query tests:
 
 ```swift
 @MainActor
-func testDashboardModelLooksUpLatestOperationByExactAccountIdentity() throws {
+func testDashboardModelLooksUpLatestOperationByJudgeAwareAccountIdentity() throws {
     let codeforces = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
     let atcoder = try XCTUnwrap(JudgeAccount(judge: .atcoder, handle: "tourist"))
     let oldCodeforces = SyncOperation(
@@ -91,12 +91,15 @@ Place the method beside `cachedProfile(for:)`:
 ```swift
 public func lastOperation(for account: JudgeAccount) -> SyncOperation? {
     ledger.operations.first {
-        $0.account.judge == account.judge && $0.account.handle == account.handle
+        $0.account.judge == account.judge && Self.sameHandle(account.judge, $0.account.handle, account.handle)
     }
 }
 ```
 
-Do not sort, mutate the ledger, normalize handles, or fall back to judge-only matching. The ledger's `open` method inserts newest operations at index zero, so the first exact match is the required result.
+Do not sort, mutate the ledger, or fall back to judge-only matching. Use the established judge-aware
+handle identity: Codeforces is case-insensitive, while AtCoder and Luogu use their validated
+identities. The ledger's `open` method inserts newest operations at index zero, so the first matching
+operation is the required result.
 
 - [ ] **Step 2: Run the focused test again**
 
