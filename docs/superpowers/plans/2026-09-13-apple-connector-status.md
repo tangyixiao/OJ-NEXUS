@@ -66,7 +66,7 @@ func testDashboardModelLooksUpLatestOperationByExactAccountIdentity() throws {
 Run from `D:\AndroidAppCoding`:
 
 ```powershell
-swift test --package-path apple --filter DomainTests/testDashboardModelLooksUpLatestOperationByExactAccountIdentity
+swift test --package-path apple --filter DomainTests/testDashboardModelLooksUpLatestOperationByJudgeAwareAccountIdentity
 ```
 
 On a macOS host this must fail to compile or fail the assertion because `lastOperation(for:)` is not yet implemented. On the current Windows host, the command is expected to stop earlier with `swift` not found; retain that as an environment limitation, not a test pass.
@@ -101,7 +101,7 @@ Do not sort, mutate the ledger, normalize handles, or fall back to judge-only ma
 - [ ] **Step 2: Run the focused test again**
 
 ```powershell
-swift test --package-path apple --filter DomainTests/testDashboardModelLooksUpLatestOperationByExactAccountIdentity
+swift test --package-path apple --filter DomainTests/testDashboardModelLooksUpLatestOperationByJudgeAwareAccountIdentity
 ```
 
 Expected on macOS: the new test passes. Expected on the current Windows host: the same missing-toolchain result remains and must be reported explicitly.
