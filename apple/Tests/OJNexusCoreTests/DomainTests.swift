@@ -607,6 +607,37 @@ final class DomainTests: XCTestCase {
     }
 
     @MainActor
+    func testDashboardModelKeepsCancelledStatusAfterPartialBatchCancellation() async throws {
+        let payload = Data(#"{"status":"OK","result":[{"handle":"tourist","rating":3800}]}"#.utf8)
+        let client = FirstSuccessThenBlockingHTTPClient(payload: payload)
+        let codeforces = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
+        let atcoder = try XCTUnwrap(JudgeAccount(judge: .atcoder, handle: "tourist"))
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ojnexus-model-sync-cancelled-batch-tests", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
+        let model = NexusDashboardModel(
+            accounts: [codeforces, atcoder], workspaceStore: store, httpClient: client)
+
+        model.startProfileSyncAll()
+        for _ in 0..<200 where client.requestCount < 2 {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertGreaterThanOrEqual(client.requestCount, 2)
+
+        model.cancelSync()
+        for _ in 0..<200 where model.isSyncing {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        XCTAssertFalse(model.isSyncing)
+        XCTAssertEqual(model.syncStatus, .cancelled)
+        XCTAssertEqual(model.ledger.operations.count, 2)
+        XCTAssertEqual(model.ledger.operations[0].status, .cancelled)
+        XCTAssertEqual(model.ledger.operations[1].status, .success)
+    }
+
+    @MainActor
     func testDashboardModelSyncAllReportsPartialWhenOneProfileFails() async throws {
         let successPayload = Data(#"{"status":"OK","result":[{"handle":"tourist","rating":3800}]}"#.utf8)
         let client = SequencedHTTPClient(results: [.failure(.network), .success(successPayload)])
@@ -680,5 +711,23 @@ private final class SequencedHTTPClient: HTTPClient, @unchecked Sendable {
     func get(_ url: URL) async throws -> Data {
         let result = results.removeFirst()
         return try result.get()
+    }
+}
+
+private final class FirstSuccessThenBlockingHTTPClient: HTTPClient, @unchecked Sendable {
+    let payload: Data
+    private(set) var requestCount = 0
+
+    init(payload: Data) {
+        self.payload = payload
+    }
+
+    func get(_ url: URL) async throws -> Data {
+        requestCount += 1
+        if requestCount == 1 {
+            return payload
+        }
+        try await Task.sleep(nanoseconds: 60_000_000_000)
+        return Data()
     }
 }

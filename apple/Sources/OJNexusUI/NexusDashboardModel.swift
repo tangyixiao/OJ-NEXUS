@@ -170,7 +170,9 @@ public final class NexusDashboardModel: ObservableObject {
                     sawFailure = true
                 }
             }
-            if sawFailure && sawSuccess {
+            if Task.isCancelled {
+                self.syncStatus = .cancelled
+            } else if sawFailure && sawSuccess {
                 self.syncStatus = .partial
             }
             self.isSyncing = false
