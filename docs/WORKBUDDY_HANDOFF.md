@@ -467,3 +467,43 @@ Core 72/72、CLI 28/28、Desktop 19/19；`tools\gradlew-local.bat test assembleD
 ### 11.3 仍未推送
 
 `git push` 未执行，需用户明确授权；推送前应再扫一次 `git diff origin/codex/phase-5-arena..HEAD` 的敏感信息。
+
+## 12. 跨端错误语义对照（2026-09-18 只读审查，未改代码）
+
+补齐 Windows 的 `Authentication` 后，四端在「认证受限」上已一致，但**错误语义粒度**与 **CLI 退出码体系**
+仍不一致。本节的用途是给后续对齐决策提供事实，不代表当前实现有缺陷。
+
+### 12.1 认证受限（HTTP 401/403）
+
+| 端 | 表示 | 位置 |
+| --- | --- | --- |
+| Android | `LuoguApiError.AuthenticationRequired`，且用响应体 `instance == "auth"` / `template == "login"` 判定，比状态码更精确 | `judge/luogu/LuoguClient.kt:74` |
+| Windows | `SyncError.Authentication`（本轮新增，401/403 判定） | `Core/Network/LuoguAdapter.cs` |
+| Apple | `AdapterError.authentication` → `SyncError.authentication` | `Sources/OJNexusCore/Adapter.swift` |
+| Linux | `SyncError::Authentication`（401/403），UI 文案 `AUTHENTICATION / PUBLIC ACCESS REQUIRED` | `linux/src/core/adapters.cpp:20` |
+
+### 12.2 更细粒度错误（Android 有、Windows/Apple 无）
+
+- `CodeforcesApiError.UserNotFound` / `RateLimited` / `ServerError` / `Timeout`：Android 通过解析 CF 返回的
+  `comment` 文本区分（`judge/codeforces/CodeforcesApiError.kt`、`CodeforcesClient.kt:81-86`）。
+- Windows 与 Apple 目前一律归为 `Api` / `apiFailure`。是否对齐需要单独决策：Windows 侧会改变 UI 文案与
+  可能的退出码，Apple 侧需要新增枚举并补测试。
+
+### 12.3 CLI 退出码体系差异（重要，影响多端脚本）
+
+| 值 | Windows (`CliExitCode`) | Linux (`OjNexus::Cli::ExitCode`) |
+| --- | --- | --- |
+| 0 | Success | Ok |
+| 1 | Partial | PartialFailure |
+| 2 | InvalidArguments | UsageError |
+| 3 | **Unavailable** | **AuthenticationError** |
+| 4 | **Cancelled** | StorageError |
+| 5 | GeneralError | NetworkError |
+
+两端枚举语义不同（同为 3 含义相反），且 Linux 在「全部报告都是认证受限」时返回
+`AuthenticationError = 3`，Windows 本轮刻意保持 `Partial = 1` 以不改动既有 CLI 契约。
+若要统一，必须作为独立变更处理并同步更新两端 README 与 CI 期望值。
+
+### 12.4 结论
+
+本轮只做「补齐 Windows 认证语义」这一件事，跨端退出码统一与更细粒度错误对齐**未做**，属待决策项。
