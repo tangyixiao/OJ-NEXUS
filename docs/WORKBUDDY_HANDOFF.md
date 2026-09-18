@@ -414,4 +414,35 @@ Luogu `uid:2` → `Partial` 3/4（认证受限，见 10.1）。`data --judge cod
 ### 10.4 仍未收口（与本轮无关，继续沿用）
 
 Apple 需 macOS/CI 编译；Linux 需 Linux 主机或 CI；Windows self-contained 包重建仍被宿主删除保护阻断、
-旧哈希作废；交互式终端 Ctrl+C 未验证；主 checkout 大量改动仍未提交、未推送（本轮新增改动同样未提交）。
+旧哈希作废；交互式终端 Ctrl+C 未验证。
+
+## 11. 提交记录（Workbuddy，2026-09-18，经用户授权）
+
+用户在 2026-09-18 明确授权提交「本轮改动 + 既有未提交工作」，并要求排除构建产物与 worktree。
+分支 `codex/phase-5-arena`，ahead 61 → **67**，**未推送**。全部只按明确文件 `git add`，未使用
+`git add -A`，每个 commit 前跑 `git diff --cached --check`。
+
+| commit | 内容 |
+| --- | --- |
+| `b30b38f` | `test: guard the public HTTP boundary across Android and Windows`——`PublicHttpClient.kt`、Android/Windows 两侧审计测试、`Bootstrap.cs`、`DesktopViewModel.cs` 的 3 行 factory 切换 |
+| `3af21f2` | `fix: surface Luogu authentication limits as a typed Windows error`——`SyncError.Authentication` + Luogu 401/403 映射 + 白名单 + Theory 测试 |
+| `a3e65e9` | `feat(android): add connector enable and disable controls`——仓库/ViewModel/Compose/字符串/测试 |
+| `3f24312` | `feat(windows): align sync store, payload projection and desktop UI`——`JudgeAccount`、schema/store、`SyncService`、WPF 与测试 |
+| `31d149d` | `feat(apple): project connector status and validate public identities`——Apple 包、CI、`.gitignore`、`AGENTS.md`；body 注明**本机未编译** |
+| `9ca689c` | `docs: record multi-platform status, plans and handoff notes`——README/ROADMAP/两份 handoff/superpowers 计划与规格 |
+
+**仍排除、未提交**：`.worktrees/`（Linux worktree，属 `codex/linux-client`）、`.workbuddy-ai/`（项目 AI 数据）、
+`windows/**/bin`、`windows/**/obj`（构建产物；`.gitignore` 目前只加了 `apple/.build/` 与
+`apple/DerivedData/`，尚未覆盖 Windows 输出，建议后续补规则）。
+
+**hunk 级拆分**：`DesktopViewModel.cs` 同时含用户改动与本次 3 行 hardening 改动，通过
+`git diff` → 按 hunk 过滤 → `git apply --cached` 只把 3 行放进 `b30b38f`，使该 commit 单独 checkout 时
+审计测试仍然自洽。注意 `git` 是 Windows 程序，`git apply` 的补丁路径必须写成 `C:/...`，给 `/tmp/...` 会失败。
+
+**提交后验证（fresh）**：`dotnet test windows/OjNexus.Windows.sln -c Release --no-restore` → `EXIT=0`，
+Core 72/72、CLI 28/28、Desktop 19/19；`tools\gradlew-local.bat test assembleDebug lintDebug` →
+`BUILD SUCCESSFUL in 53s`、`EXIT=0`（源码与已构建状态一致，Gradle 判定 54 个任务 up-to-date），
+单测报告仍为 132 suite / 525 tests / 0 failures。
+
+`docs/GLM_HANDOFF.md` 含 Markdown 行尾双空格，`git diff --cached --check` 会报 trailing whitespace，
+属 Markdown 换行语法，提交时保留原文。
