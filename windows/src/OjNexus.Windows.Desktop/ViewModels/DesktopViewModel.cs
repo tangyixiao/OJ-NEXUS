@@ -23,6 +23,7 @@ public sealed class ConnectorRow : INotifyPropertyChanged
     private string _status = "NOT SYNCED";
     private string _lastSync = "NONE";
     private bool _isConfigured;
+    private bool _isEnabled = true;
     private bool _isSyncing;
 
     public ConnectorRow(JudgeId judge, string capability)
@@ -68,6 +69,20 @@ public sealed class ConnectorRow : INotifyPropertyChanged
             }
         }
     }
+
+    public bool IsEnabled
+    {
+        get => _isEnabled;
+        set
+        {
+            if (SetField(ref _isEnabled, value))
+            {
+                OnPropertyChanged(nameof(ToggleLabel));
+            }
+        }
+    }
+
+    public string ToggleLabel => IsEnabled ? "DISABLE" : "ENABLE";
 
     public bool IsSyncing
     {
@@ -130,6 +145,8 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     private string _statusText = "READY";
     private string _lastError = string.Empty;
     private bool _isBusy;
+    private bool _isBatchSyncing;
+    private bool _batchCancelRequested;
     private string _selectedHistoryJudge = "ALL";
 
     public DesktopViewModel(ISyncStore store, SyncService syncService, string dataDirectory)
@@ -234,6 +251,8 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         private set => SetField(ref _isBusy, value);
     }
 
+    public bool CanSyncAll => !_isBusy && !_isBatchSyncing && Connectors.Any(row => row.IsConfigured && row.IsEnabled);
+
     public void Navigate(DesktopPage page) => CurrentPage = page;
 
     public async Task SelectHistoryJudgeAsync(string judgeFilter, CancellationToken cancellationToken)
@@ -299,13 +318,18 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
-            var account = JudgeAccount.Create(row.Judge, handle);
+            var account = JudgeAccount.Create(row.Judge, handle) with
+            {
+                Enabled = row.IsConfigured && !row.IsEnabled ? false : true,
+            };
             await _store.UpsertAccountAsync(account, cancellationToken);
             row.Handle = account.Handle;
             row.IsConfigured = true;
+            row.IsEnabled = account.Enabled;
             row.Status = "READY";
             LastError = string.Empty;
             StatusText = "READY";
+            OnPropertyChanged(nameof(CanSyncAll));
             return true;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -323,9 +347,130 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    public async Task<bool> SyncAllAsync(CancellationToken cancellationToken)
+    {
+        if (_isBusy || _isBatchSyncing || HasActiveSyncs())
+        {
+            StatusText = "ERROR";
+            LastError = "SYNC IN PROGRESS";
+            return false;
+        }
+
+        var candidates = Connectors
+            .Where(row => row.IsConfigured && row.IsEnabled)
+            .ToArray();
+        if (candidates.Length == 0)
+        {
+            StatusText = "ERROR";
+            LastError = "NO ENABLED ACCOUNTS";
+            return false;
+        }
+
+        _isBatchSyncing = true;
+        _batchCancelRequested = false;
+        OnPropertyChanged(nameof(CanSyncAll));
+        StatusText = "SYNCING";
+        LastError = string.Empty;
+        var allSucceeded = true;
+        try
+        {
+            foreach (var row in candidates)
+            {
+                if (cancellationToken.IsCancellationRequested || BatchCancelRequested())
+                {
+                    StatusText = "CANCELLED";
+                    LastError = "CANCELLED";
+                    return false;
+                }
+
+                if (!await SyncConnectorAsync(row, cancellationToken))
+                {
+                    allSucceeded = false;
+                }
+            }
+
+            if (cancellationToken.IsCancellationRequested || BatchCancelRequested())
+            {
+                StatusText = "CANCELLED";
+                LastError = "CANCELLED";
+                return false;
+            }
+
+            StatusText = allSucceeded ? "READY" : "ERROR";
+            LastError = allSucceeded ? string.Empty : "SYNC PARTIAL";
+            return allSucceeded;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            StatusText = "CANCELLED";
+            LastError = "CANCELLED";
+            return false;
+        }
+        finally
+        {
+            _isBatchSyncing = false;
+            _batchCancelRequested = false;
+            OnPropertyChanged(nameof(CanSyncAll));
+        }
+    }
+
+    public async Task<bool> SetConnectorEnabledAsync(
+        ConnectorRow row,
+        bool enabled,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        if (row.IsSyncing)
+        {
+            StatusText = "ERROR";
+            LastError = "SYNC IN PROGRESS";
+            return false;
+        }
+
+        try
+        {
+            var accounts = await _store.GetAccountsAsync(cancellationToken);
+            var account = accounts.FirstOrDefault(candidate =>
+                candidate.Judge == row.Judge
+                && JudgeIdentity.HandlesMatch(row.Judge, candidate.Handle, row.Handle));
+            if (account is null)
+            {
+                StatusText = "ERROR";
+                LastError = "ACCOUNT NOT CONFIGURED";
+                return false;
+            }
+
+            await _store.UpsertAccountAsync(account with { Enabled = enabled }, cancellationToken);
+            row.IsConfigured = true;
+            row.IsEnabled = enabled;
+            StatusText = "READY";
+            LastError = string.Empty;
+            OnPropertyChanged(nameof(CanSyncAll));
+            return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            StatusText = "CANCELLED";
+            return false;
+        }
+        catch (Exception)
+        {
+            StatusText = "ERROR";
+            LastError = "ACCOUNT UPDATE FAILED";
+            return false;
+        }
+    }
+
     public async Task<bool> SyncConnectorAsync(ConnectorRow row, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(row);
+        if (row.IsConfigured && !row.IsEnabled)
+        {
+            StatusText = "ERROR";
+            LastError = "ACCOUNT DISABLED";
+            return false;
+        }
+
         lock (_syncCancellationLock)
         {
             if (_syncCancellations.ContainsKey(row))
@@ -409,7 +554,13 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             return false;
         }
 
-        connector.Handle = row.Handle;
+        if (!JudgeIdentity.HandlesMatch(judge, connector.Handle, row.Handle))
+        {
+            StatusText = "ERROR";
+            LastError = "ACCOUNT HANDLE CHANGED";
+            return false;
+        }
+
         connector.IsConfigured = true;
         return await SyncConnectorAsync(connector, cancellationToken);
     }
@@ -417,6 +568,10 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     public void CancelSync(ConnectorRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
+        if (_isBatchSyncing)
+        {
+            _batchCancelRequested = true;
+        }
         lock (_syncCancellationLock)
         {
             if (_syncCancellations.TryGetValue(row, out var cancellation))
@@ -428,6 +583,10 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
 
     public void CancelSync()
     {
+        if (_isBatchSyncing)
+        {
+            _batchCancelRequested = true;
+        }
         CancellationTokenSource[] activeCancellations;
         lock (_syncCancellationLock)
         {
@@ -437,6 +596,19 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         foreach (var cancellation in activeCancellations)
         {
             cancellation.Cancel();
+        }
+    }
+
+    private bool BatchCancelRequested()
+    {
+        return _batchCancelRequested;
+    }
+
+    private bool HasActiveSyncs()
+    {
+        lock (_syncCancellationLock)
+        {
+            return _syncCancellations.Count != 0;
         }
     }
 
@@ -455,7 +627,10 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             accountByJudge.TryGetValue(row.Judge, out var account);
             row.Handle = account?.Handle ?? string.Empty;
             row.IsConfigured = account is not null;
-            var latest = operations.FirstOrDefault(operation => operation.Account.Judge == row.Judge);
+            row.IsEnabled = account?.Enabled ?? true;
+            var latest = operations.FirstOrDefault(operation =>
+                operation.Account.Judge == row.Judge
+                && JudgeIdentity.HandlesMatch(row.Judge, operation.Account.Handle, row.Handle));
             row.Status = latest?.Status.ToString().ToUpperInvariant() ?? "NOT SYNCED";
             row.LastSync = latest?.FinishedAt?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "NONE";
         }
@@ -466,6 +641,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             : $"{latestOperation.Account.Judge.ToString().ToUpperInvariant()} / {latestOperation.Status.ToString().ToUpperInvariant()}";
         LastSync = latestOperation?.FinishedAt?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "NONE";
         LastError = latestOperation is null ? string.Empty : FormatOperationError(latestOperation);
+        OnPropertyChanged(nameof(CanSyncAll));
     }
 
     private static string FormatOperationError(SyncOperation operation)

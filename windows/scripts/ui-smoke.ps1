@@ -149,6 +149,18 @@ function Invoke-ButtonByName {
     $pattern.Invoke()
 }
 
+function Set-EditValueByName {
+    param(
+        [System.Windows.Automation.AutomationElement] $Root,
+        [string] $Name,
+        [string] $Value
+    )
+
+    $edit = Require-DescendantByName -Root $Root -Name $Name
+    $pattern = $edit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+    $pattern.SetValue($Value)
+}
+
 function Wait-ForElement {
     param(
         [System.Windows.Automation.AutomationElement] $Root,
@@ -363,6 +375,29 @@ try {
     foreach ($judgeName in @('CODEFORCES PUBLIC HANDLE', 'ATCODER PUBLIC HANDLE', 'LUOGU PUBLIC HANDLE')) {
         [void](Require-DescendantByName -Root $root -Name $judgeName)
     }
+
+    Set-EditValueByName -Root $root -Name 'CODEFORCES PUBLIC HANDLE' -Value 'tourist'
+    Invoke-ButtonByName -Root $root -Name 'CONNECT'
+    [void](Wait-ForElement -Root $root -Name 'DISABLE')
+    Invoke-ButtonByName -Root $root -Name 'DISABLE'
+    [void](Wait-ForElement -Root $root -Name 'ENABLE')
+    $syncButton = Wait-ForElement -Root $root -Name 'SYNC'
+    Write-Host "CONNECTOR BUTTON STATE AFTER DISABLE: NAME=$($syncButton.Current.Name) ENABLED=$($syncButton.Current.IsEnabled)"
+    if ($syncButton.Current.IsEnabled) {
+        throw 'SYNC remained enabled after disabling the configured Codeforces account.'
+    }
+    Invoke-ButtonByName -Root $root -Name 'ENABLE'
+    [void](Wait-ForElement -Root $root -Name 'DISABLE')
+    $syncButton = Wait-ForElement -Root $root -Name 'SYNC'
+    if (-not $syncButton.Current.IsEnabled) {
+        throw 'SYNC remained disabled after re-enabling the configured Codeforces account.'
+    }
+    Invoke-ButtonByName -Root $root -Name 'DASHBOARD'
+    $syncAllButton = Wait-ForElement -Root $root -Name 'SYNC ALL'
+    if (-not $syncAllButton.Current.IsEnabled) {
+        throw 'SYNC ALL remained disabled after configuring an enabled Codeforces account.'
+    }
+    Write-Host 'CONNECTOR LIFECYCLE: SAVE / DISABLE / ENABLE / PASS'
     if (Try-Save-WindowScreenshot -WindowHandle $windowHandle -Path (Join-Path $OutputDirectory 'connectors.png')) {
         $screenshotCount++
     }

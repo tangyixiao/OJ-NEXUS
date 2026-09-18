@@ -56,7 +56,7 @@ public sealed class SyncServiceTests
     [Fact]
     public async Task RunAsync_AdapterException_MapsToNetworkAndDoesNotFabricateModules()
     {
-        var account = JudgeAccount.Create(JudgeId.Luogu, "tourist");
+        var account = JudgeAccount.Create(JudgeId.Luogu, "uid:2");
         var adapter = new ThrowingAdapter(JudgeId.Luogu, new InvalidOperationException("secret HTTP body"));
         var store = new InMemorySyncStore();
 
@@ -67,6 +67,22 @@ public sealed class SyncServiceTests
         var operation = Assert.Single(await store.GetRecentOperationsAsync(JudgeId.Luogu, 10, CancellationToken.None));
         Assert.Equal(SyncOperationStatus.Error, operation.Status);
         Assert.Empty(operation.Modules);
+    }
+
+    [Fact]
+    public async Task RunAsync_InvalidPersistedHandleRejectsBeforeOpeningHistoryOrCallingAdapter()
+    {
+        var account = new JudgeAccount(JudgeId.Luogu, "not-a-uid");
+        var adapter = new RecordingAdapter(JudgeId.Luogu,
+        [new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 1, 1, 0, null)]);
+        var store = new InMemorySyncStore();
+
+        var report = await CreateService(adapter, store).RunAsync(account, force: false, CancellationToken.None);
+
+        Assert.Equal(SyncOperationStatus.Error, report.Status);
+        Assert.Equal(SyncError.InvalidConfiguration, report.Error);
+        Assert.Equal(0, adapter.CallCount);
+        Assert.Empty(await store.GetRecentOperationsAsync(JudgeId.Luogu, 10, CancellationToken.None));
     }
 
     [Fact]
@@ -182,7 +198,7 @@ public sealed class SyncServiceTests
     {
         const string sensitiveText = "authorization=Bearer credential-value; body=secret HTTP body";
         using var database = new TemporaryDatabase();
-        var account = JudgeAccount.Create(JudgeId.Luogu, "tourist");
+        var account = JudgeAccount.Create(JudgeId.Luogu, "uid:2");
         var adapter = new RecordingAdapter(JudgeId.Luogu,
         [new SyncModuleOutcome("PROFILE", SyncOperationStatus.Error, 1, 0, 0, sensitiveText)]);
 
@@ -200,7 +216,7 @@ public sealed class SyncServiceTests
     public async Task RunAsync_DuplicateStages_MoveLatestReplacementToEndInReportAndSqliteStore()
     {
         using var database = new TemporaryDatabase();
-        var account = JudgeAccount.Create(JudgeId.Luogu, "tourist");
+        var account = JudgeAccount.Create(JudgeId.Luogu, "uid:2");
         IReadOnlyList<SyncModuleOutcome> outcomes =
         [
             new SyncModuleOutcome("A", SyncOperationStatus.Error, 1, 0, 0, "Network"),

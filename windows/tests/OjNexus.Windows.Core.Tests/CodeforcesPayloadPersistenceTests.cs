@@ -9,7 +9,7 @@ namespace OjNexus.Windows.Core.Tests;
 public sealed class CodeforcesPayloadPersistenceTests
 {
     [Fact]
-    public void FreshDatabase_UsesSchemaVersionFourAndCreatesPayloadTables()
+    public void FreshDatabase_UsesSchemaVersionFiveAndCreatesPayloadTables()
     {
         using var database = new TemporaryDatabase();
 
@@ -18,7 +18,7 @@ public sealed class CodeforcesPayloadPersistenceTests
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT value FROM schema_metadata WHERE key = 'schema_version'";
 
-        Assert.Equal("4", command.ExecuteScalar()?.ToString());
+        Assert.Equal("5", command.ExecuteScalar()?.ToString());
         Assert.Equal(
             new[] { "accounts", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "luogu_payloads", "schema_metadata", "sync_modules", "sync_operations" },
             ReadTableNames(connection));

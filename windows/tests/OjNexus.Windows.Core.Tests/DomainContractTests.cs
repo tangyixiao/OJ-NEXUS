@@ -68,6 +68,35 @@ public sealed class DomainContractTests
         Assert.IsType<ArgumentException>(exception.InnerException);
     }
 
+    [Theory]
+    [InlineData(JudgeId.Codeforces, "tourist&handles=other")]
+    [InlineData(JudgeId.Codeforces, "tourist#fragment")]
+    [InlineData(JudgeId.Codeforces, "tourist用户")]
+    [InlineData(JudgeId.AtCoder, "tourist.user")]
+    [InlineData(JudgeId.AtCoder, "tourist/other")]
+    [InlineData(JudgeId.AtCoder, "touristé")]
+    [InlineData(JudgeId.Luogu, "uid:abc")]
+    public void JudgeAccount_Create_RejectsHandlesOutsideJudgeBoundary(JudgeId judge, string handle)
+    {
+        var exception = Assert.Throws<ArgumentException>(
+            () => JudgeAccount.Create(judge, handle));
+
+        Assert.Contains("handle", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(JudgeId.Codeforces, "Tourist", " tourist ", true)]
+    [InlineData(JudgeId.AtCoder, "Tourist", "tourist", false)]
+    [InlineData(JudgeId.Luogu, "uid:2", "2", true)]
+    public void JudgeIdentity_HandlesMatch_UsesJudgeSpecificIdentity(
+        JudgeId judge,
+        string left,
+        string right,
+        bool expected)
+    {
+        Assert.Equal(expected, JudgeIdentity.HandlesMatch(judge, left, right));
+    }
+
     [Fact]
     public void WindowsPaths_UsesProcessOverrideForAutomation()
     {

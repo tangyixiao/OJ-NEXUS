@@ -70,6 +70,7 @@ public sealed class InMemorySyncStore : ISyncStore
     public Task UpsertAccountAsync(JudgeAccount account, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(account);
+        account = JudgeAccount.Create(account.Judge, account.Handle) with { Enabled = account.Enabled };
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
@@ -111,6 +112,7 @@ public sealed class InMemorySyncStore : ISyncStore
     {
         ArgumentNullException.ThrowIfNull(account);
         ArgumentNullException.ThrowIfNull(dataGeneration);
+        account = JudgeAccount.Create(account.Judge, account.Handle) with { Enabled = account.Enabled };
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {

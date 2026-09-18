@@ -52,16 +52,26 @@ public sealed class SyncService
         bool force,
         CancellationToken cancellationToken)
     {
+        JudgeAccount validatedAccount;
+        try
+        {
+            validatedAccount = JudgeAccount.Create(account.Judge, account.Handle) with { Enabled = account.Enabled };
+        }
+        catch (ArgumentException)
+        {
+            return InvalidAccountReport(account);
+        }
+
         var startedAt = _clock.UtcNow;
         var dataGeneration = _dataGeneration();
-        var operationId = await _store.OpenOperationAsync(account, dataGeneration, startedAt, CancellationToken.None);
+        var operationId = await _store.OpenOperationAsync(validatedAccount, dataGeneration, startedAt, CancellationToken.None);
         var modules = new List<SyncModuleOutcome>();
         var status = SyncOperationStatus.Running;
         SyncError? error = null;
 
         try
         {
-            if (!account.Enabled && !force)
+            if (!validatedAccount.Enabled && !force)
             {
                 status = SyncOperationStatus.Error;
                 error = SyncError.InvalidConfiguration;
@@ -74,7 +84,7 @@ public sealed class SyncService
             else
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var outcomes = await adapter.SyncAsync(account, cancellationToken);
+                var outcomes = await adapter.SyncAsync(validatedAccount, cancellationToken);
                 foreach (var outcome in outcomes)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -101,8 +111,23 @@ public sealed class SyncService
 
         var finishedAt = _clock.UtcNow;
         await _store.CloseOperationAsync(operationId, status, error, finishedAt, CancellationToken.None);
-        var operation = new SyncOperation(operationId, account, dataGeneration, startedAt, finishedAt, status, modules, error);
+        var operation = new SyncOperation(operationId, validatedAccount, dataGeneration, startedAt, finishedAt, status, modules, error);
         return new SyncReport(operation, status, error);
+    }
+
+    private SyncReport InvalidAccountReport(JudgeAccount account)
+    {
+        var timestamp = _clock.UtcNow;
+        var operation = new SyncOperation(
+            0,
+            account,
+            _dataGeneration(),
+            timestamp,
+            timestamp,
+            SyncOperationStatus.Error,
+            Array.Empty<SyncModuleOutcome>(),
+            SyncError.InvalidConfiguration);
+        return new SyncReport(operation, SyncOperationStatus.Error, SyncError.InvalidConfiguration);
     }
 
     private static string GetAccountKey(JudgeAccount account) =>

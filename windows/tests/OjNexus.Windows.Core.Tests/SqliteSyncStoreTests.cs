@@ -7,11 +7,11 @@ namespace OjNexus.Windows.Core.Tests;
 public sealed class SqliteSyncStoreTests
 {
     [Fact]
-    public void Migrate_FreshDatabase_SetsSchemaVersionFour()
+    public void Migrate_FreshDatabase_SetsSchemaVersionFive()
     {
         using var database = new TemporaryDatabase();
 
-        Assert.Equal("4", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
     }
 
     [Fact]
@@ -24,19 +24,19 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("4", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("tourist", ReadAccountHandle(database.DatabasePath, "Codeforces"));
     }
 
     [Fact]
-    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionFour()
+    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionFive()
     {
         using var database = new TemporaryDatabaseDirectory();
         ExecuteNonQuery(database.DatabasePath, VersionZeroSchemaSql);
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("4", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.Equal(1L, CountModules(database.DatabasePath, 7));
         Assert.Equal("Success", ReadString(database.DatabasePath, "SELECT status FROM sync_operations WHERE id = 7"));
@@ -53,7 +53,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("4", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.True(TableExists(database.DatabasePath, "codeforces_profiles"));
         Assert.True(TableExists(database.DatabasePath, "luogu_payloads"));
@@ -68,9 +68,79 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("4", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
         Assert.True(TableExists(database.DatabasePath, "atcoder_submissions"));
         Assert.True(TableExists(database.DatabasePath, "luogu_payloads"));
+    }
+
+    [Fact]
+    public void Migrate_VersionFour_AddsOperationHandleColumn()
+    {
+        using var database = new TemporaryDatabase();
+        ExecuteNonQuery(
+            database.DatabasePath,
+            "ALTER TABLE sync_operations DROP COLUMN handle; UPDATE schema_metadata SET value = '4' WHERE key = 'schema_version';");
+
+        SchemaMigrator.Migrate(database.ConnectionString);
+
+        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
+        Assert.True(ColumnExists(database.DatabasePath, "sync_operations", "handle"));
+    }
+
+    [Fact]
+    public async Task Store_IgnoresMalformedPersistedAccountsAndOperations()
+    {
+        using var database = new TemporaryDatabase();
+        ExecuteNonQuery(
+            database.DatabasePath,
+            "INSERT INTO accounts (judge, handle, enabled) VALUES " +
+            "('Codeforces', 'tourist', 1), ('AtCoder', 'tourist.user', 1);" +
+            "INSERT INTO sync_operations (judge, handle, data_generation, started_at, finished_at, status, failure_category) " +
+            "VALUES ('Codeforces', 'tourist&handle=other', 'generation-1', '2026-09-14T00:00:00.0000000+00:00', " +
+            "'2026-09-14T00:00:01.0000000+00:00', 'Success', NULL);");
+
+        var accounts = await database.Store.GetAccountsAsync(CancellationToken.None);
+        var operations = await database.Store.GetRecentOperationsAsync(null, 10, CancellationToken.None);
+
+        var account = Assert.Single(accounts);
+        Assert.Equal(JudgeId.Codeforces, account.Judge);
+        Assert.Equal("tourist", account.Handle);
+        Assert.Empty(operations);
+    }
+
+    [Fact]
+    public async Task Store_ChangingHandleClearsOldPayloadsButRetainsSyncHistory()
+    {
+        using var database = new TemporaryDatabase();
+        var oldAccount = JudgeAccount.Create(JudgeId.Codeforces, "old-handle");
+        var newAccount = JudgeAccount.Create(JudgeId.Codeforces, "new-handle");
+        await database.Store.UpsertAccountAsync(oldAccount, CancellationToken.None);
+
+        var startedAt = DateTimeOffset.Parse("2026-09-14T01:02:03+00:00");
+        var operationId = await database.Store.OpenOperationAsync(oldAccount, "old-generation", startedAt, CancellationToken.None);
+        await database.Store.CloseOperationAsync(operationId, SyncOperationStatus.Success, null, startedAt, CancellationToken.None);
+
+        ExecuteNonQuery(
+            database.DatabasePath,
+            """
+            INSERT INTO codeforces_profiles(handle, rating, rank, max_rating, max_rank, fetched_at)
+            VALUES ('old-handle', 1200, 'pupil', 1300, 'expert', '2026-09-14T01:02:03.0000000+00:00');
+            INSERT INTO codeforces_ratings(handle, contest_id, contest_name, rank, rating_update_time_seconds, old_rating, new_rating, fetched_at)
+            VALUES ('old-handle', 1, 'Contest', 1, 1700000000, 1100, 1200, '2026-09-14T01:02:03.0000000+00:00');
+            INSERT INTO codeforces_submissions(handle, id, contest_id, problem_index, problem_name, verdict, programming_language, passed_test_count, time_consumed_millis, memory_consumed_bytes, creation_time_seconds, fetched_at)
+            VALUES ('old-handle', 1, 1, 'A', 'Problem', 'OK', 'GNU C++17', 10, 10, 1024, 1700000000, '2026-09-14T01:02:03.0000000+00:00');
+            INSERT INTO atcoder_submissions(handle, id, epoch_second, problem_id, contest_id, language, point, source_length, result, execution_time_millis, fetched_at)
+            VALUES ('old-handle', 1, 1700000000, 'abc001_a', 'abc001', 'C++', 100, 42, 'AC', 10, '2026-09-14T01:02:03.0000000+00:00');
+            INSERT INTO luogu_payloads(handle, user_id, display_name, rating, submissions_count, contests_count, problems_count, fetched_at)
+            VALUES ('old-handle', 2, 'Old Handle', 1200, 10, 2, 20, '2026-09-14T01:02:03.0000000+00:00');
+            """);
+
+        await database.Store.UpsertAccountAsync(newAccount, CancellationToken.None);
+
+        Assert.Equal("new-handle", Assert.Single(await database.Store.GetAccountsAsync(CancellationToken.None)).Handle);
+        var operations = await database.Store.GetRecentOperationsAsync(JudgeId.Codeforces, 10, CancellationToken.None);
+        Assert.Single(operations);
+        Assert.Equal(0L, CountRowsForHandle(database.DatabasePath, "old-handle"));
     }
 
     [Fact]
@@ -226,10 +296,31 @@ public sealed class SqliteSyncStoreTests
     }
 
     [Fact]
+    public async Task Store_PreservesOperationHandleWhenCurrentAccountHandleChanges()
+    {
+        using var database = new TemporaryDatabase();
+        var originalAccount = JudgeAccount.Create(JudgeId.Codeforces, "old-handle");
+        var changedAccount = JudgeAccount.Create(JudgeId.Codeforces, "new-handle");
+        var startedAt = DateTimeOffset.Parse("2026-09-08T02:00:00+00:00");
+
+        await database.Store.UpsertAccountAsync(originalAccount, CancellationToken.None);
+        var operationId = await database.Store.OpenOperationAsync(
+            originalAccount, "generation-old", startedAt, CancellationToken.None);
+        await database.Store.CloseOperationAsync(
+            operationId, SyncOperationStatus.Success, null, startedAt, CancellationToken.None);
+        await database.Store.UpsertAccountAsync(changedAccount, CancellationToken.None);
+
+        var operation = Assert.Single(
+            await database.Store.GetRecentOperationsAsync(JudgeId.Codeforces, 10, CancellationToken.None));
+
+        Assert.Equal("old-handle", operation.Account.Handle);
+    }
+
+    [Fact]
     public async Task Store_OrdersRecentOperationsByStartedAtThenIdDescending()
     {
         using var database = new TemporaryDatabase();
-        var account = JudgeAccount.Create(JudgeId.Luogu, "nexus");
+        var account = JudgeAccount.Create(JudgeId.Luogu, "uid:2");
         var startedAt = DateTimeOffset.Parse("2026-09-07T02:00:00+00:00");
 
         var firstId = await database.Store.OpenOperationAsync(account, "first", startedAt, CancellationToken.None);
@@ -339,6 +430,22 @@ public sealed class SqliteSyncStoreTests
         return (long)command.ExecuteScalar()!;
     }
 
+    private static long CountRowsForHandle(string databasePath, string handle)
+    {
+        using var connection = OpenDirectConnection(databasePath);
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                (SELECT COUNT(*) FROM codeforces_profiles WHERE handle = $handle) +
+                (SELECT COUNT(*) FROM codeforces_ratings WHERE handle = $handle) +
+                (SELECT COUNT(*) FROM codeforces_submissions WHERE handle = $handle) +
+                (SELECT COUNT(*) FROM atcoder_submissions WHERE handle = $handle) +
+                (SELECT COUNT(*) FROM luogu_payloads WHERE handle = $handle);
+            """;
+        command.Parameters.AddWithValue("$handle", handle);
+        return (long)command.ExecuteScalar()!;
+    }
+
     private static string ReadAllModuleFailureTypes(string databasePath)
     {
         using var connection = OpenDirectConnection(databasePath);
@@ -365,6 +472,23 @@ public sealed class SqliteSyncStoreTests
         command.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = $tableName)";
         command.Parameters.AddWithValue("$tableName", tableName);
         return Convert.ToInt64(command.ExecuteScalar()) != 0;
+    }
+
+    private static bool ColumnExists(string databasePath, string tableName, string columnName)
+    {
+        using var connection = OpenDirectConnection(databasePath);
+        using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA table_info([{tableName}])";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), columnName, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string? ReadString(string databasePath, string commandText)

@@ -19,7 +19,16 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
         var accounts = new List<JudgeAccount>();
         while (await reader.ReadAsync(cancellationToken))
         {
-            accounts.Add(new JudgeAccount(ParseJudge(reader.GetString(0)), reader.GetString(1), reader.GetInt64(2) != 0));
+            try
+            {
+                accounts.Add(JudgeAccount.Create(
+                    ParseJudge(reader.GetString(0)),
+                    reader.GetString(1)) with { Enabled = reader.GetInt64(2) != 0 });
+            }
+            catch (ArgumentException)
+            {
+                // Malformed local rows must not re-enter the request boundary after restart.
+            }
         }
 
         return accounts;
@@ -27,14 +36,11 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
 
     public async Task UpsertAccountAsync(JudgeAccount account, CancellationToken cancellationToken)
     {
+        account = JudgeAccount.Create(account.Judge, account.Handle) with { Enabled = account.Enabled };
         using var connection = connectionFactory.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            INSERT INTO accounts (judge, handle, enabled) VALUES ($judge, $handle, $enabled)
-            ON CONFLICT(judge) DO UPDATE SET handle = excluded.handle, enabled = excluded.enabled;
-            """;
-        AddAccountParameters(command, account);
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        await UpsertAccountAsync(connection, transaction, account, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<SyncOperation>> GetRecentOperationsAsync(
@@ -50,13 +56,13 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
         using var connection = connectionFactory.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT operation.id, operation.judge, account.handle, account.enabled, operation.data_generation,
+            SELECT operation.id, operation.judge, operation.handle, account.enabled, operation.data_generation,
                    operation.started_at, operation.finished_at, operation.status,
                    operation.failure_category,
                    module.stage, module.status, module.attempted_count, module.imported_count,
                    module.updated_count, module.failure_type
             FROM (
-                 SELECT id, judge, data_generation, started_at, finished_at, status, failure_category
+                 SELECT id, judge, handle, data_generation, started_at, finished_at, status, failure_category
                 FROM sync_operations
                 WHERE ($judge IS NULL OR judge = $judge)
                 ORDER BY started_at DESC, id DESC
@@ -81,14 +87,22 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
                     operations.Add(current.ToOperation());
                 }
 
-                current = new OperationAccumulator(
-                    operationId,
-                    new JudgeAccount(ParseJudge(reader.GetString(1)), reader.GetString(2), reader.GetInt64(3) != 0),
-                    reader.GetString(4),
-                    ParseTime(reader.GetString(5)),
-                    reader.IsDBNull(6) ? null : ParseTime(reader.GetString(6)),
-                    ParseStatus(reader.GetString(7)),
-                    reader.IsDBNull(8) ? null : ParseError(reader.GetString(8)));
+                try
+                {
+                    current = new OperationAccumulator(
+                        operationId,
+                        JudgeAccount.Create(ParseJudge(reader.GetString(1)), reader.GetString(2)) with { Enabled = reader.GetInt64(3) != 0 },
+                        reader.GetString(4),
+                        ParseTime(reader.GetString(5)),
+                        reader.IsDBNull(6) ? null : ParseTime(reader.GetString(6)),
+                        ParseStatus(reader.GetString(7)),
+                        reader.IsDBNull(8) ? null : ParseError(reader.GetString(8)));
+                }
+                catch (ArgumentException)
+                {
+                    current = null;
+                    continue;
+                }
             }
 
             if (!reader.IsDBNull(9))
@@ -261,17 +275,19 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
         DateTimeOffset startedAt,
         CancellationToken cancellationToken)
     {
+        account = JudgeAccount.Create(account.Judge, account.Handle) with { Enabled = account.Enabled };
         using var connection = connectionFactory.OpenConnection();
         using var transaction = connection.BeginTransaction();
         await UpsertAccountAsync(connection, transaction, account, cancellationToken);
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
-            INSERT INTO sync_operations (judge, data_generation, started_at, finished_at, status, failure_category)
-            VALUES ($judge, $dataGeneration, $startedAt, NULL, $status, NULL);
+            INSERT INTO sync_operations (judge, handle, data_generation, started_at, finished_at, status, failure_category)
+            VALUES ($judge, $handle, $dataGeneration, $startedAt, NULL, $status, NULL);
             SELECT last_insert_rowid();
             """;
         command.Parameters.AddWithValue("$judge", account.Judge.ToString());
+        command.Parameters.AddWithValue("$handle", account.Handle);
         command.Parameters.AddWithValue("$dataGeneration", dataGeneration);
         command.Parameters.AddWithValue("$startedAt", FormatTime(startedAt));
         command.Parameters.AddWithValue("$status", SyncOperationStatus.Running.ToString());
@@ -584,6 +600,26 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
 
     private static async Task UpsertAccountAsync(SqliteConnection connection, SqliteTransaction transaction, JudgeAccount account, CancellationToken cancellationToken)
     {
+        using (var existingCommand = connection.CreateCommand())
+        {
+            existingCommand.Transaction = transaction;
+            existingCommand.CommandText = "SELECT handle FROM accounts WHERE judge = $judge";
+            existingCommand.Parameters.AddWithValue("$judge", account.Judge.ToString());
+            var existingHandle = await existingCommand.ExecuteScalarAsync(cancellationToken) as string;
+            if (existingHandle is not null
+                && !JudgeIdentity.HandlesMatch(account.Judge, existingHandle, account.Handle))
+            {
+                foreach (var table in PayloadTables)
+                {
+                    using var clearCommand = connection.CreateCommand();
+                    clearCommand.Transaction = transaction;
+                    clearCommand.CommandText = $"DELETE FROM {table} WHERE handle = $handle";
+                    clearCommand.Parameters.AddWithValue("$handle", existingHandle);
+                    await clearCommand.ExecuteNonQueryAsync(cancellationToken);
+                }
+            }
+        }
+
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
@@ -593,6 +629,15 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
         AddAccountParameters(command, account);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
+
+    private static readonly string[] PayloadTables =
+    [
+        "codeforces_profiles",
+        "codeforces_ratings",
+        "codeforces_submissions",
+        "atcoder_submissions",
+        "luogu_payloads",
+    ];
 
     private static void AddAccountParameters(SqliteCommand command, JudgeAccount account)
     {

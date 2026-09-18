@@ -91,6 +91,11 @@ public partial class MainWindow : Window
         await _viewModel.RefreshAsync(_lifetime.Token);
     }
 
+    private async void SyncAll_Click(object sender, RoutedEventArgs e)
+    {
+        await _viewModel.SyncAllAsync(_lifetime.Token);
+    }
+
     private async void ConnectorAction_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: ConnectorRow row })
@@ -106,11 +111,22 @@ public partial class MainWindow : Window
 
         if (row.IsConfigured)
         {
-            await _viewModel.SyncConnectorAsync(row, _lifetime.Token);
+            if (row.IsEnabled)
+            {
+                await _viewModel.SyncConnectorAsync(row, _lifetime.Token);
+            }
         }
         else
         {
             await _viewModel.SaveConnectorAsync(row, _lifetime.Token);
+        }
+    }
+
+    private async void ConnectorToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: ConnectorRow row })
+        {
+            await _viewModel.SetConnectorEnabledAsync(row, !row.IsEnabled, _lifetime.Token);
         }
     }
 

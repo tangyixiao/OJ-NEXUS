@@ -22,6 +22,11 @@ The smoke check prints the exact CLI and desktop paths, runs `status --json`, va
 15 seconds. It uses a generated temporary data directory and removes only that directory when it
 finishes. Normal application data remains below `%LOCALAPPDATA%\OJ-NEXUS\ojnexus.db`.
 
+Changing a configured handle uses the judge-specific identity boundary. The account update and
+removal of payload snapshots for the old handle happen in one local SQLite transaction; sync
+history remains available as an audit trail, while the new handle starts without stale profile,
+rating, or submission data.
+
 The UI smoke check starts the real WPF executable with an isolated temporary data directory,
 resizes it to the supported minimum `900x560`, uses Windows UI Automation to visit all three
 views, and checks the three semantically named public-handle editors (`CODEFORCES PUBLIC HANDLE`,
@@ -29,6 +34,10 @@ views, and checks the three semantically named public-handle editors (`CODEFORCE
 capture separately; sessions without a usable interactive desktop may pass the UI checks while
 reporting `SCREENSHOTS: 0/3`. Any generated screenshots are written below
 `windows/artifacts/ui-smoke/`, which is ignored by Git.
+
+The Dashboard `SYNC ALL` action runs the configured and enabled connectors in order. Disabled or
+unconfigured rows are skipped; a cancellation or failed connector leaves its typed operation in
+history and reports a non-success batch result without starting an unsolicited retry.
 
 ## Commands
 
@@ -45,6 +54,13 @@ typed and local sync history stays readable offline. The `OJ_NEXUS_DATA_DIRECTOR
 variable is a test/automation override; without it, the default local application directory is
 used.
 
+The Core account boundary trims and validates handles before request construction: Codeforces
+allows letters, digits, `-`, `.`, and `_`; AtCoder allows letters, digits, `-`, and `_`; Luogu
+allows a numeric UID or the equivalent `uid:<number>` form.
+The SQLite and in-memory stores repeat this validation at their read/write boundaries; malformed
+local account or operation rows are ignored rather than being projected into a sync request or
+the desktop history view.
+
 `data --judge luogu` reads a structured local summary containing the public profile and the
 persisted counts for submissions, contests, and problems. An anonymous Luogu submissions request
 may remain authentication-gated; the client records that typed failure and never fabricates a
@@ -54,6 +70,15 @@ The history view shows at most five rows for the selected judge. Failed, partial
 offline operations expose an explicit full-sync `RETRY` action; successful operations do not.
 When multiple connectors are syncing, each connector's `CANCEL` action only cancels that
 connector; closing the desktop client cancels all active syncs.
+
+Configured connectors can be disabled and re-enabled from the WPF connector view. Disabling
+preserves the public handle and local history, blocks new sync requests, and does not silently
+re-enable the account when its equivalent handle is saved again.
+
+Each sync operation also retains the public handle that started it. After an account handle is
+changed, an older operation remains visible in history under its original identity but is not
+projected onto the new connector row and cannot be retried against the changed account. Existing
+databases migrate this field transactionally as schema v5.
 
 ## Release artifacts
 

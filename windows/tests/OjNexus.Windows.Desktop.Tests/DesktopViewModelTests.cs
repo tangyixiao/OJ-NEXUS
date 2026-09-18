@@ -30,6 +30,28 @@ public sealed class DesktopViewModelTests
     }
 
     [Fact]
+    public async Task Refresh_DoesNotProjectOldHandleOperationToChangedAccount()
+    {
+        var store = new InMemorySyncStore();
+        var oldAccount = JudgeAccount.Create(JudgeId.Codeforces, "old-handle");
+        var newAccount = JudgeAccount.Create(JudgeId.Codeforces, "new-handle");
+        var startedAt = DateTimeOffset.Parse("2026-09-12T01:02:03+00:00");
+        await store.UpsertAccountAsync(oldAccount, CancellationToken.None);
+        var operationId = await store.OpenOperationAsync(oldAccount, "old-generation", startedAt, CancellationToken.None);
+        await store.CloseOperationAsync(operationId, SyncOperationStatus.Success, null, startedAt, CancellationToken.None);
+        await store.UpsertAccountAsync(newAccount, CancellationToken.None);
+
+        var viewModel = CreateViewModel(store);
+
+        await viewModel.RefreshAsync(CancellationToken.None);
+
+        var connector = viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        Assert.Equal("new-handle", connector.Handle);
+        Assert.Equal("NOT SYNCED", connector.Status);
+        Assert.Equal("NONE", connector.LastSync);
+    }
+
+    [Fact]
     public async Task SaveAndSyncConnector_PersistsAccountAndProjectsSuccess()
     {
         var store = new InMemorySyncStore();
@@ -44,6 +66,94 @@ public sealed class DesktopViewModelTests
         Assert.Equal(new JudgeAccount(JudgeId.AtCoder, "tourist"), Assert.Single(accounts));
         Assert.Equal("SUCCESS", viewModel.Connectors.Single(row => row.Judge == JudgeId.AtCoder).Status);
         Assert.Equal("READY", viewModel.StatusText);
+    }
+
+    [Fact]
+    public async Task DisableConnector_PersistsStateAndPreventsSync()
+    {
+        var store = new InMemorySyncStore();
+        var adapter = new SuccessfulAdapter(JudgeId.Codeforces);
+        var viewModel = CreateViewModel(store, adapter);
+        var connector = viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        connector.Handle = "tourist";
+
+        Assert.True(await viewModel.SaveConnectorAsync(connector, CancellationToken.None));
+        Assert.True(await viewModel.SetConnectorEnabledAsync(connector, false, CancellationToken.None));
+
+        Assert.False(connector.IsEnabled);
+        Assert.False((await store.GetAccountsAsync(CancellationToken.None)).Single().Enabled);
+        Assert.False(await viewModel.SyncConnectorAsync(connector, CancellationToken.None));
+        Assert.Equal("ACCOUNT DISABLED", viewModel.LastError);
+        Assert.Equal(0, adapter.CallCount);
+    }
+
+    [Fact]
+    public async Task SaveConnector_PreservesDisabledStateForEquivalentHandle()
+    {
+        var store = new InMemorySyncStore();
+        var viewModel = CreateViewModel(store);
+        var connector = viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        connector.Handle = "tourist";
+
+        Assert.True(await viewModel.SaveConnectorAsync(connector, CancellationToken.None));
+        Assert.True(await viewModel.SetConnectorEnabledAsync(connector, false, CancellationToken.None));
+        connector.Handle = "  Tourist  ";
+
+        Assert.True(await viewModel.SaveConnectorAsync(connector, CancellationToken.None));
+
+        var account = Assert.Single(await store.GetAccountsAsync(CancellationToken.None));
+        Assert.Equal("Tourist", account.Handle);
+        Assert.False(account.Enabled);
+        Assert.False(connector.IsEnabled);
+    }
+
+    [Fact]
+    public async Task SyncAll_SyncsOnlyConfiguredEnabledConnectors()
+    {
+        var store = new InMemorySyncStore();
+        var codeforcesAdapter = new SuccessfulAdapter(JudgeId.Codeforces);
+        var atcoderAdapter = new SuccessfulAdapter(JudgeId.AtCoder);
+        var luoguAdapter = new SuccessfulAdapter(JudgeId.Luogu);
+        var viewModel = CreateViewModel(store, codeforcesAdapter, atcoderAdapter, luoguAdapter);
+        var codeforces = viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        var atcoder = viewModel.Connectors.Single(row => row.Judge == JudgeId.AtCoder);
+        var luogu = viewModel.Connectors.Single(row => row.Judge == JudgeId.Luogu);
+        codeforces.Handle = "tourist";
+        atcoder.Handle = "tourist";
+        luogu.Handle = "2";
+
+        Assert.True(await viewModel.SaveConnectorAsync(codeforces, CancellationToken.None));
+        Assert.True(await viewModel.SaveConnectorAsync(atcoder, CancellationToken.None));
+        Assert.True(await viewModel.SaveConnectorAsync(luogu, CancellationToken.None));
+        Assert.True(await viewModel.SetConnectorEnabledAsync(luogu, false, CancellationToken.None));
+
+        Assert.True(await viewModel.SyncAllAsync(CancellationToken.None));
+
+        Assert.Equal(1, codeforcesAdapter.CallCount);
+        Assert.Equal(1, atcoderAdapter.CallCount);
+        Assert.Equal(0, luoguAdapter.CallCount);
+        Assert.Equal("SUCCESS", codeforces.Status);
+        Assert.Equal("SUCCESS", atcoder.Status);
+        Assert.Equal("NOT SYNCED", luogu.Status);
+    }
+
+    [Fact]
+    public async Task SyncAll_CancelledLastConnectorReportsCancelledBatch()
+    {
+        var store = new InMemorySyncStore();
+        var adapter = new BlockingAdapter(JudgeId.Codeforces);
+        var viewModel = CreateViewModel(store, adapter);
+        var connector = viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        connector.Handle = "tourist";
+        Assert.True(await viewModel.SaveConnectorAsync(connector, CancellationToken.None));
+
+        var syncAll = viewModel.SyncAllAsync(CancellationToken.None);
+        await adapter.Started.Task;
+        viewModel.CancelSync();
+
+        Assert.False(await syncAll);
+        Assert.Equal("CANCELLED", viewModel.StatusText);
+        Assert.Equal("CANCELLED", connector.Status);
     }
 
     [Fact]
@@ -242,6 +352,27 @@ public sealed class DesktopViewModelTests
         Assert.Equal("SUCCESS", viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces).Status);
     }
 
+    [Fact]
+    public async Task RetryHistory_RejectsOperationFromAnOldConfiguredHandle()
+    {
+        var store = new InMemorySyncStore();
+        var oldAccount = JudgeAccount.Create(JudgeId.Codeforces, "old-handle");
+        var currentAccount = JudgeAccount.Create(JudgeId.Codeforces, "new-handle");
+        var startedAt = DateTimeOffset.Parse("2026-09-12T01:00:00+00:00");
+        await store.UpsertAccountAsync(oldAccount, CancellationToken.None);
+        var operationId = await store.OpenOperationAsync(oldAccount, "old-generation", startedAt, CancellationToken.None);
+        await store.CloseOperationAsync(operationId, SyncOperationStatus.Error, SyncError.Network, startedAt, CancellationToken.None);
+        await store.UpsertAccountAsync(currentAccount, CancellationToken.None);
+        var viewModel = CreateViewModel(store, new SuccessfulAdapter(JudgeId.Codeforces));
+        await viewModel.RefreshAsync(CancellationToken.None);
+
+        var retried = await viewModel.RetryHistoryAsync(Assert.Single(viewModel.History), CancellationToken.None);
+
+        Assert.False(retried);
+        Assert.Equal("ACCOUNT HANDLE CHANGED", viewModel.LastError);
+        Assert.Equal("new-handle", viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces).Handle);
+    }
+
     private static async Task SeedCompletedOperationAsync(InMemorySyncStore store, JudgeId judge, string handle, int minute)
     {
         var account = JudgeAccount.Create(judge, handle);
@@ -268,10 +399,15 @@ public sealed class DesktopViewModelTests
     {
         public JudgeId Judge { get; } = judge;
 
-        public Task<IReadOnlyList<SyncModuleOutcome>> SyncAsync(JudgeAccount account, CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<SyncModuleOutcome>>([
+        public int CallCount { get; private set; }
+
+        public Task<IReadOnlyList<SyncModuleOutcome>> SyncAsync(JudgeAccount account, CancellationToken cancellationToken)
+        {
+            CallCount++;
+            return Task.FromResult<IReadOnlyList<SyncModuleOutcome>>([
                 new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 1, 1, 0, null),
             ]);
+        }
     }
 
     private sealed class ThrowingAdapter(JudgeId judge) : IJudgeAdapter

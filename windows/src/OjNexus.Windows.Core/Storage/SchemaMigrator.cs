@@ -4,7 +4,7 @@ namespace OjNexus.Windows.Core.Storage;
 
 public static class SchemaMigrator
 {
-    private const int CurrentSchemaVersion = 4;
+    private const int CurrentSchemaVersion = 5;
 
     public static void Migrate(string connectionString)
     {
@@ -24,6 +24,7 @@ public static class SchemaMigrator
             ApplyVersionTwoMigration(connection, transaction);
             ApplyVersionThreeMigration(connection, transaction);
             ApplyVersionFourMigration(connection, transaction);
+            ApplyVersionFiveMigration(connection, transaction);
         }
         else if (version > CurrentSchemaVersion)
         {
@@ -35,25 +36,33 @@ public static class SchemaMigrator
             ApplyVersionTwoMigration(connection, transaction);
             ApplyVersionThreeMigration(connection, transaction);
             ApplyVersionFourMigration(connection, transaction);
+            ApplyVersionFiveMigration(connection, transaction);
         }
         else if (version == 1)
         {
             ApplyVersionTwoMigration(connection, transaction);
             ApplyVersionThreeMigration(connection, transaction);
             ApplyVersionFourMigration(connection, transaction);
+            ApplyVersionFiveMigration(connection, transaction);
         }
         else if (version == 2)
         {
             ApplyVersionThreeMigration(connection, transaction);
             ApplyVersionFourMigration(connection, transaction);
+            ApplyVersionFiveMigration(connection, transaction);
         }
         else if (version == 3)
         {
             ApplyVersionFourMigration(connection, transaction);
+            ApplyVersionFiveMigration(connection, transaction);
+        }
+        else if (version == 4)
+        {
+            ApplyVersionFiveMigration(connection, transaction);
         }
         else if (version == CurrentSchemaVersion)
         {
-            ValidateVersionFourSchema(connection, transaction);
+            ValidateVersionFiveSchema(connection, transaction);
         }
 
         transaction.Commit();
@@ -98,6 +107,27 @@ public static class SchemaMigrator
         command.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = $tableName)";
         command.Parameters.AddWithValue("$tableName", tableName);
         return Convert.ToInt64(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) != 0;
+    }
+
+    private static bool ColumnExists(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string tableName,
+        string columnName)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"PRAGMA table_info([{tableName}])";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), columnName, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void ApplyVersionOneMigration(SqliteConnection connection, SqliteTransaction transaction)
@@ -329,7 +359,46 @@ public static class SchemaMigrator
             new ColumnDefinition("submissions_count", true, 0),
             new ColumnDefinition("contests_count", true, 0),
             new ColumnDefinition("problems_count", true, 0),
-            new ColumnDefinition("fetched_at", true, 0));
+             new ColumnDefinition("fetched_at", true, 0));
+    }
+
+    private static void ApplyVersionFiveMigration(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        if (!ColumnExists(connection, transaction, "sync_operations", "handle"))
+        {
+            Execute(connection, transaction, "ALTER TABLE sync_operations ADD COLUMN handle TEXT NOT NULL DEFAULT ''");
+        }
+
+        Execute(connection, transaction, """
+            UPDATE sync_operations
+            SET handle = (
+                SELECT handle FROM accounts WHERE accounts.judge = sync_operations.judge
+            )
+            WHERE handle = '';
+            """);
+        ValidateVersionFiveSchema(connection, transaction);
+
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.Transaction = transaction;
+        versionCommand.CommandText = "UPDATE schema_metadata SET value = '5' WHERE key = 'schema_version'";
+        versionCommand.ExecuteNonQuery();
+    }
+
+    private static void ValidateVersionFiveSchema(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        ValidateVersionFourSchema(connection, transaction);
+        ValidateTable(
+            connection,
+            transaction,
+            "sync_operations",
+            new ColumnDefinition("id", true, 1),
+            new ColumnDefinition("judge", true, 0),
+            new ColumnDefinition("data_generation", true, 0),
+            new ColumnDefinition("started_at", true, 0),
+            new ColumnDefinition("finished_at", false, 0),
+            new ColumnDefinition("status", true, 0),
+            new ColumnDefinition("failure_category", false, 0),
+            new ColumnDefinition("handle", true, 0));
     }
 
     private static void ValidateVersionOneSchema(SqliteConnection connection, SqliteTransaction transaction)
