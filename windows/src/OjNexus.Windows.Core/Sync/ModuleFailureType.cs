@@ -22,6 +22,7 @@ internal static class ModuleFailureType
         nameof(SyncError.UnsupportedJudge) => nameof(SyncError.UnsupportedJudge),
         nameof(SyncError.Network) => nameof(SyncError.Network),
         nameof(SyncError.Api) => nameof(SyncError.Api),
+        nameof(SyncError.Authentication) => nameof(SyncError.Authentication),
         nameof(SyncError.Cancelled) => nameof(SyncError.Cancelled),
         nameof(SyncError.Offline) => nameof(SyncError.Offline),
         nameof(SyncError.InvalidConfiguration) => nameof(SyncError.InvalidConfiguration),

@@ -206,6 +206,13 @@ public sealed class LuoguAdapter : IJudgeAdapter
         try
         {
             using var response = await httpClient.GetAsync(ApiBase + requestUri, cancellationToken);
+            if ((int)response.StatusCode is 401 or 403)
+            {
+                // Luogu gates records/submissions behind an authenticated session; anonymous public
+                // access is a capability limit, not a client failure. Keep the typed distinction.
+                return new StageResult(0, SyncOperationStatus.Error, nameof(SyncError.Authentication));
+            }
+
             if (!response.IsSuccessStatusCode)
             {
                 return new StageResult(0, SyncOperationStatus.Error, nameof(SyncError.Api));

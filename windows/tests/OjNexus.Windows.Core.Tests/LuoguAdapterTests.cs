@@ -46,8 +46,11 @@ public sealed class LuoguAdapterTests
             });
     }
 
-    [Fact]
-    public async Task SyncAsync_WhenAnonymousSubmissionsAreUnauthorized_ReportsApiFailureOnlyForThatStage()
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    public async Task SyncAsync_WhenAnonymousSubmissionsAreGated_ReportsAuthenticationFailureOnlyForThatStage(
+        HttpStatusCode gatedStatus)
     {
         var handler = new StubHandler
         {
@@ -55,7 +58,7 @@ public sealed class LuoguAdapterTests
             ["https://www.luogu.com.cn/record/list?user=2&page=1&_contentOnly=1"] = string.Empty,
             ["https://www.luogu.com.cn/contest/list?page=1&_contentOnly=1"] = Content("contests", "[]"),
             ["https://www.luogu.com.cn/problem/list?page=1&_contentOnly=1"] = Content("problems", "[]"),
-            Status = HttpStatusCode.Unauthorized,
+            Status = gatedStatus,
             StatusByUrl = new Dictionary<string, HttpStatusCode>
             {
                 ["https://www.luogu.com.cn/api/user/info/2"] = HttpStatusCode.OK,
@@ -69,7 +72,7 @@ public sealed class LuoguAdapterTests
 
         Assert.Equal(SyncOperationStatus.Success, outcomes[0].Status);
         Assert.Equal(SyncOperationStatus.Error, outcomes[1].Status);
-        Assert.Equal(nameof(SyncError.Api), outcomes[1].FailureType);
+        Assert.Equal(nameof(SyncError.Authentication), outcomes[1].FailureType);
         Assert.Equal(SyncOperationStatus.Success, outcomes[2].Status);
         Assert.Equal(SyncOperationStatus.Success, outcomes[3].Status);
     }
@@ -84,7 +87,7 @@ public sealed class LuoguAdapterTests
             return new HttpClient(new StubHandler());
         });
 
-        var outcomes = await adapter.SyncAsync(JudgeAccount.Create(JudgeId.Luogu, "demo"), CancellationToken.None);
+        var outcomes = await adapter.SyncAsync(new JudgeAccount(JudgeId.Luogu, "demo"), CancellationToken.None);
 
         var outcome = Assert.Single(outcomes);
         Assert.Equal("PROFILE", outcome.Stage);

@@ -5,6 +5,7 @@ public enum SyncError
     UnsupportedJudge,
     Network,
     Api,
+    Authentication,
     Cancelled,
     Offline,
     InvalidConfiguration,
