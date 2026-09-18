@@ -60,6 +60,7 @@ import com.ojnexus.judge.luogu.open.LuoguOpenPlatformClient
 import com.ojnexus.judge.luogu.open.WorkManagerLuoguResultScheduler
 import com.ojnexus.judge.luogu.open.LuoguSubmissionRepository
 import com.ojnexus.judge.luogu.open.LuoguResultWorkBootstrap
+import com.ojnexus.core.network.PublicHttpClient
 import kotlinx.serialization.json.Json
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -97,7 +98,7 @@ class AppContainer(context: android.content.Context) {
     // --- Codeforces adapter stack (single request gate for the whole process) ---
 
     private val json: Json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
-    private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
+    private val okHttpClient: OkHttpClient = PublicHttpClient.builder()
         .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
         .readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
         .build()

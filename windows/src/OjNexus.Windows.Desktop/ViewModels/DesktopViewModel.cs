@@ -537,9 +537,9 @@ public static class DesktopRuntime
         var store = new SqliteSyncStore(connectionFactory);
         var adapters = new Dictionary<JudgeId, IJudgeAdapter>
         {
-            [JudgeId.Codeforces] = new CodeforcesAdapter(static () => new HttpClient()),
-            [JudgeId.AtCoder] = new AtCoderAdapter(static () => new HttpClient()),
-            [JudgeId.Luogu] = new LuoguAdapter(static () => new HttpClient()),
+            [JudgeId.Codeforces] = new CodeforcesAdapter(PublicHttpClientFactory.Create),
+            [JudgeId.AtCoder] = new AtCoderAdapter(PublicHttpClientFactory.Create),
+            [JudgeId.Luogu] = new LuoguAdapter(PublicHttpClientFactory.Create),
         };
         var syncService = new SyncService(adapters, store, new SystemClock(), static () => "windows-desktop-v1");
         return new DesktopViewModel(store, syncService, dataDirectory);

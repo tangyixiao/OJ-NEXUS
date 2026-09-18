@@ -18,6 +18,7 @@ import kotlinx.serialization.json.JsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import com.ojnexus.core.network.PublicHttpClient
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import retrofit2.Response
@@ -384,7 +385,7 @@ sealed class LuoguOpenApiError(message: String) : Exception(message) {
 class LuoguOpenPlatformClient internal constructor(
     private val api: LuoguOpenPlatformApi,
     private val credentialStore: OpenAppCredentialStore,
-    private val webSocketClient: OkHttpClient = OkHttpClient(),
+    private val webSocketClient: OkHttpClient = PublicHttpClient.builder().build(),
     private val webSocketUrl: String = LuoguUrls.OPEN_PLATFORM_WEBSOCKET_URL,
 ) : LuoguOpenGateway, LuoguOpenQuotaReader, LuoguOpenCredentialVerifier {
     private val callbackJson = Json { ignoreUnknownKeys = true; coerceInputValues = true }

@@ -28,9 +28,9 @@ public sealed class Bootstrap
         var store = new SqliteSyncStore(connectionFactory);
         var effectiveAdapters = adapters ?? new Dictionary<JudgeId, IJudgeAdapter>
         {
-            [JudgeId.Codeforces] = new CodeforcesAdapter(static () => new HttpClient()),
-            [JudgeId.AtCoder] = new AtCoderAdapter(static () => new HttpClient()),
-            [JudgeId.Luogu] = new LuoguAdapter(static () => new HttpClient()),
+            [JudgeId.Codeforces] = new CodeforcesAdapter(PublicHttpClientFactory.Create),
+            [JudgeId.AtCoder] = new AtCoderAdapter(PublicHttpClientFactory.Create),
+            [JudgeId.Luogu] = new LuoguAdapter(PublicHttpClientFactory.Create),
         };
         var syncService = new SyncService(effectiveAdapters, store, new SystemClock(), static () => "windows-cli-v1");
         return new Bootstrap(dataDirectory, connectionFactory, store, syncService);
