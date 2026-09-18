@@ -446,3 +446,24 @@ Core 72/72、CLI 28/28、Desktop 19/19；`tools\gradlew-local.bat test assembleD
 
 `docs/GLM_HANDOFF.md` 含 Markdown 行尾双空格，`git diff --cached --check` 会报 trailing whitespace，
 属 Markdown 换行语法，提交时保留原文。
+
+### 11.1 忽略规则收口
+
+`b1da8da chore: ignore local worktrees, project AI data and .NET build output` 补齐了 `.gitignore`：
+`windows/**/bin/`、`windows/**/obj/`、`.worktrees/`、`.workbuddy-ai/`。此前只有 `apple/.build/` 与
+`apple/DerivedData/`。提交后 `git status` 完全干净（ahead 69，无未跟踪项），构建产物不再构成误提交风险。
+
+### 11.2 提交点回归（fresh）
+
+| 验证 | 结果 |
+| --- | --- |
+| `dotnet test windows/OjNexus.Windows.sln -c Release --no-restore` | `EXIT=0`；Core 72/72、CLI 28/28、Desktop 19/19 |
+| `tools\gradlew-local.bat test assembleDebug lintDebug` | `BUILD SUCCESSFUL in 53s`、`EXIT=0`；单测 132 suite / 525 tests / 0 failures |
+| `windows\scripts\ui-smoke.ps1 -Configuration Release -Width 900 -Height 560` | `UI SMOKE: PASS`、`SCREENSHOTS: 3/3`、`CONNECTOR LIFECYCLE: SAVE / DISABLE / ENABLE / PASS` |
+| Pixel_9 AVD `connectedDebugAndroidTest` | **15/15 通过**，`BUILD SUCCESSFUL in 2m 23s`、`GRADLE_EXIT=0`，XML `tests=15 failures=0 errors=0` |
+
+即：`codex/phase-5-arena` 当前的提交点本身已通过四类门禁，不再依赖工作区的未提交状态。
+
+### 11.3 仍未推送
+
+`git push` 未执行，需用户明确授权；推送前应再扫一次 `git diff origin/codex/phase-5-arena..HEAD` 的敏感信息。
