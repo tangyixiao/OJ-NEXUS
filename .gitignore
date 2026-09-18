@@ -42,3 +42,11 @@ Thumbs.db
 # Swift Package / Xcode outputs
 apple/.build/
 apple/DerivedData/
+
+# .NET build outputs (Windows client)
+windows/**/bin/
+windows/**/obj/
+
+# Local-only trees: linked worktrees and project AI data
+.worktrees/
+.workbuddy-ai/
