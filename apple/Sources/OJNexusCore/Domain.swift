@@ -1,5 +1,23 @@
 import Foundation
 
+private func isSafeCodeforcesHandle(_ handle: String) -> Bool {
+    handle.unicodeScalars.allSatisfy {
+        ($0.value >= 48 && $0.value <= 57) ||
+        ($0.value >= 65 && $0.value <= 90) ||
+        ($0.value >= 97 && $0.value <= 122) ||
+        $0.value == 45 || $0.value == 46 || $0.value == 95
+    }
+}
+
+private func isSafeAtCoderHandle(_ handle: String) -> Bool {
+    handle.unicodeScalars.allSatisfy {
+        ($0.value >= 48 && $0.value <= 57) ||
+        ($0.value >= 65 && $0.value <= 90) ||
+        ($0.value >= 97 && $0.value <= 122) ||
+        $0.value == 45 || $0.value == 95
+    }
+}
+
 public enum JudgeID: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
     case codeforces
     case atcoder
@@ -20,6 +38,26 @@ public enum JudgeID: String, CaseIterable, Codable, Hashable, Identifiable, Send
     }
 }
 
+public func judgeHandlesMatch(_ judge: JudgeID, _ lhs: String, _ rhs: String) -> Bool {
+    let normalized: (String) -> String = { value in
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    switch judge {
+    case .codeforces:
+        return normalized(lhs).caseInsensitiveCompare(normalized(rhs)) == .orderedSame
+    case .atcoder:
+        return normalized(lhs) == normalized(rhs)
+    case .luogu:
+        let normalizeUID: (String) -> String = { value in
+            let trimmed = normalized(value)
+            return trimmed.lowercased().hasPrefix("uid:")
+                ? String(trimmed.dropFirst(4))
+                : trimmed
+        }
+        return normalizeUID(lhs) == normalizeUID(rhs)
+    }
+}
+
 public struct JudgeAccount: Codable, Equatable, Identifiable, Sendable {
     public let judge: JudgeID
     public let handle: String
@@ -30,14 +68,11 @@ public struct JudgeAccount: Codable, Equatable, Identifiable, Sendable {
     public init?(judge: JudgeID, handle rawHandle: String, enabled: Bool = true) {
         let normalized = rawHandle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { return nil }
+        if judge == .codeforces {
+            guard isSafeCodeforcesHandle(normalized) else { return nil }
+        }
         if judge == .atcoder {
-            let isSafe = normalized.unicodeScalars.allSatisfy {
-                ($0.value >= 48 && $0.value <= 57) ||
-                ($0.value >= 65 && $0.value <= 90) ||
-                ($0.value >= 97 && $0.value <= 122) ||
-                $0.value == 45 || $0.value == 95
-            }
-            guard isSafe else { return nil }
+            guard isSafeAtCoderHandle(normalized) else { return nil }
         }
         if judge == .luogu {
             let uid = normalized.lowercased().hasPrefix("uid:")
@@ -49,9 +84,179 @@ public struct JudgeAccount: Codable, Equatable, Identifiable, Sendable {
         self.handle = normalized
         self.enabled = enabled
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let judge = try container.decode(JudgeID.self, forKey: .judge)
+        let handle = try container.decode(String.self, forKey: .handle)
+        let enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        guard let account = Self(judge: judge, handle: handle, enabled: enabled) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .handle,
+                in: container,
+                debugDescription: "INVALID PUBLIC HANDLE")
+        }
+        self = account
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case judge
+        case handle
+        case enabled
+    }
 }
 
-public enum SyncStatus: String, Codable, Sendable {
+public struct RatingChange: Codable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let judge: JudgeID
+    public let handle: String
+    public let contestID: String
+    public let contestName: String?
+    public let oldRating: Int?
+    public let newRating: Int
+    public let rank: Int?
+    public let occurredAt: Date?
+
+    public init?(id: String? = nil, judge: JudgeID, handle: String, contestID: String,
+                contestName: String? = nil, oldRating: Int? = nil, newRating: Int,
+                rank: Int? = nil, occurredAt: Date? = nil) {
+        guard let account = JudgeAccount(judge: judge, handle: handle) else { return nil }
+        let normalizedContestID = contestID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedContestID.isEmpty else { return nil }
+        self.judge = account.judge
+        self.handle = account.handle
+        self.contestID = normalizedContestID
+        let normalizedName = contestName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.contestName = normalizedName?.isEmpty == true ? nil : normalizedName
+        self.oldRating = oldRating
+        self.newRating = newRating
+        self.rank = rank
+        self.occurredAt = occurredAt
+        if let id, !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            self.id = id
+        } else {
+            let timeKey = occurredAt.map { String(Int($0.timeIntervalSince1970)) } ?? "unknown"
+            self.id = "\(account.judge.rawValue):\(account.handle):\(normalizedContestID):\(timeKey)"
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case judge
+        case handle
+        case contestID
+        case contestName
+        case oldRating
+        case newRating
+        case rank
+        case occurredAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let judge = try container.decode(JudgeID.self, forKey: .judge)
+        let handle = try container.decode(String.self, forKey: .handle)
+        let contestID = try container.decode(String.self, forKey: .contestID)
+        let newRating = try container.decode(Int.self, forKey: .newRating)
+        guard let change = Self(
+            id: try container.decodeIfPresent(String.self, forKey: .id),
+            judge: judge,
+            handle: handle,
+            contestID: contestID,
+            contestName: try container.decodeIfPresent(String.self, forKey: .contestName),
+            oldRating: try container.decodeIfPresent(Int.self, forKey: .oldRating),
+            newRating: newRating,
+            rank: try container.decodeIfPresent(Int.self, forKey: .rank),
+            occurredAt: try container.decodeIfPresent(Date.self, forKey: .occurredAt)) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .handle,
+                in: container,
+                debugDescription: "INVALID RATING IDENTITY")
+        }
+        self = change
+    }
+}
+
+public struct SubmissionRecord: Codable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let judge: JudgeID
+    public let handle: String
+    public let externalID: String
+    public let verdict: String
+    public let problemID: String?
+    public let problemName: String?
+    public let language: String?
+    public let submittedAt: Date?
+
+    public init?(id: String? = nil, judge: JudgeID, handle: String, externalID: String,
+                verdict: String, problemID: String? = nil, problemName: String? = nil,
+                language: String? = nil, submittedAt: Date? = nil) {
+        guard let account = JudgeAccount(judge: judge, handle: handle) else { return nil }
+        let normalizedExternalID = externalID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedVerdict = verdict.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !normalizedExternalID.isEmpty, !normalizedVerdict.isEmpty else { return nil }
+        self.judge = account.judge
+        self.handle = account.handle
+        self.externalID = normalizedExternalID
+        self.verdict = normalizedVerdict
+        let normalizedProblemID = problemID?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.problemID = normalizedProblemID?.isEmpty == true ? nil : normalizedProblemID
+        let normalizedProblemName = problemName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.problemName = normalizedProblemName?.isEmpty == true ? nil : normalizedProblemName
+        let normalizedLanguage = language?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.language = normalizedLanguage?.isEmpty == true ? nil : normalizedLanguage
+        self.submittedAt = submittedAt
+        if let id, !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            self.id = id
+        } else {
+            self.id = "\(account.judge.rawValue):\(account.handle):\(normalizedExternalID)"
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case judge
+        case handle
+        case externalID
+        case verdict
+        case problemID
+        case problemName
+        case language
+        case submittedAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let judge = try container.decode(JudgeID.self, forKey: .judge)
+        let handle = try container.decode(String.self, forKey: .handle)
+        let persistedID = try container.decodeIfPresent(String.self, forKey: .id)
+        let externalID: String
+        if let decoded = try container.decodeIfPresent(String.self, forKey: .externalID) {
+            externalID = decoded
+        } else {
+            externalID = try container.decode(String.self, forKey: .id)
+        }
+        let verdict = try container.decode(String.self, forKey: .verdict)
+        guard let submission = Self(
+            id: persistedID,
+            judge: judge,
+            handle: handle,
+            externalID: externalID,
+            verdict: verdict,
+            problemID: try container.decodeIfPresent(String.self, forKey: .problemID),
+            problemName: try container.decodeIfPresent(String.self, forKey: .problemName),
+            language: try container.decodeIfPresent(String.self, forKey: .language),
+            submittedAt: try container.decodeIfPresent(Date.self, forKey: .submittedAt)) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .handle,
+                in: container,
+                debugDescription: "INVALID SUBMISSION IDENTITY")
+        }
+        self = submission
+    }
+}
+
+public enum SyncStatus: String, Codable, Equatable, Sendable {
     case running = "RUNNING"
     case success = "SUCCESS"
     case partial = "PARTIAL"
@@ -60,13 +265,15 @@ public enum SyncStatus: String, Codable, Sendable {
     case cancelled = "CANCELLED"
 }
 
-public enum SyncError: String, Codable, Sendable {
+public enum SyncError: String, Codable, Equatable, Sendable {
+    case authentication = "AUTHENTICATION"
     case cancelled = "CANCELLED"
     case offline = "OFFLINE"
     case network = "NETWORK"
     case api = "API"
     case parse = "PARSE"
     case storage = "STORAGE"
+    case unsupported = "UNSUPPORTED"
 }
 
 public struct SyncModuleOutcome: Codable, Equatable, Sendable {

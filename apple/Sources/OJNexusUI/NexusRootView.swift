@@ -7,6 +7,7 @@ public struct NexusRootView: View {
     @State private var newJudge: JudgeID = .codeforces
     @State private var newHandle = ""
     @State private var historyFilter = "ALL"
+    @State private var expandedSubmissionAccountIDs = Set<String>()
 
     public init(model: NexusDashboardModel = NexusDashboardModel()) {
         _model = StateObject(wrappedValue: model)
@@ -51,14 +52,12 @@ public struct NexusRootView: View {
                 Text("LOCAL LEDGER IS THE SOURCE OF TRUTH. NETWORK SYNC REMAINS CANCELLABLE AND OFFLINE-SAFE.")
                     .font(.system(.callout, design: .monospaced))
                     .foregroundStyle(NexusPalette.mutedText)
-                Text(model.loadError ?? (model.isLoading ? "LOADING LOCAL STATE" : "READY / LOCAL STATE"))
-                    .font(.system(.caption, design: .monospaced).weight(.semibold))
-                    .foregroundStyle(model.loadError == nil ? NexusPalette.blue : NexusPalette.primaryText)
+                localStateBanner
                 if model.isSyncing {
                     Button("CANCEL SYNC") { model.cancelSync() }
                         .buttonStyle(.bordered)
                 }
-                Button("SYNC ALL") { model.startProfileSyncAll() }
+                Button("SYNC ALL") { model.startFullSyncAll() }
                     .disabled(model.isSyncing || model.enabledAccountCount == 0)
                 if let profile = model.lastProfile {
                     header("LAST PUBLIC PROFILE")
@@ -96,6 +95,10 @@ public struct NexusRootView: View {
 
     private var connectors: some View {
         List {
+            if model.loadError != nil || model.isLoading {
+                localStateBanner
+            }
+
             Section("PUBLIC ACCOUNT") {
                 Picker("JUDGE", selection: $newJudge) {
                     ForEach(JudgeID.allCases) { judge in
@@ -159,6 +162,71 @@ public struct NexusRootView: View {
                                 .font(.system(.caption2, design: .monospaced))
                                 .foregroundStyle(NexusPalette.mutedText)
                             }
+                            if let rating = model.latestRating(for: account) {
+                                VStack(alignment: .leading, spacing: NexusLayout.rowSpacing) {
+                                    Text("RATING HISTORY \(model.ratingHistory(for: account).count)")
+                                    Text("LATEST \(rating.newRating)")
+                                    if let contestName = rating.contestName {
+                                        Text("LAST CONTEST \(contestName)")
+                                    }
+                                }
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(NexusPalette.mutedText)
+                            }
+                            if let submission = model.latestSubmission(for: account) {
+                                VStack(alignment: .leading, spacing: NexusLayout.rowSpacing) {
+                                    Text("SUBMISSIONS \(model.submissionHistory(for: account).count) / LATEST \(submission.verdict)")
+                                    if let problemID = submission.problemID {
+                                        Text("LAST PROBLEM \(problemID)")
+                                    }
+                                }
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(NexusPalette.mutedText)
+
+                                Button(expandedSubmissionAccountIDs.contains(account.id)
+                                       ? "HIDE SUBMISSIONS"
+                                       : "SHOW SUBMISSIONS") {
+                                    if expandedSubmissionAccountIDs.contains(account.id) {
+                                        expandedSubmissionAccountIDs.remove(account.id)
+                                    } else {
+                                        expandedSubmissionAccountIDs.insert(account.id)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                .font(.system(.caption2, design: .monospaced).weight(.semibold))
+                                .foregroundStyle(NexusPalette.blue)
+
+                                if expandedSubmissionAccountIDs.contains(account.id) {
+                                    VStack(alignment: .leading, spacing: NexusLayout.rowSpacing) {
+                                        ForEach(model.recentSubmissions(for: account)) { submission in
+                                            VStack(alignment: .leading, spacing: NexusLayout.rowSpacing) {
+                                                HStack(spacing: NexusLayout.rowSpacing) {
+                                                    Text(submission.verdict)
+                                                    if let problemID = submission.problemID {
+                                                        Text(problemID)
+                                                    }
+                                                    if let submittedAt = submission.submittedAt {
+                                                        Text(submittedAt.formatted(.iso8601))
+                                                    } else {
+                                                        Text("TIME UNKNOWN")
+                                                    }
+                                                }
+                                                if let problemName = submission.problemName {
+                                                    Text(problemName)
+                                                }
+                                                if let language = submission.language {
+                                                    Text(language)
+                                                }
+                                            }
+                                            .font(.system(.caption2, design: .monospaced))
+                                            .foregroundStyle(NexusPalette.mutedText)
+                                            Rectangle()
+                                                .fill(NexusPalette.rule)
+                                                .frame(height: NexusLayout.ruleWidth)
+                                        }
+                                    }
+                                }
+                            }
                             HStack {
                                 Spacer()
                                 Button(account.enabled ? "DISABLE" : "ENABLE") {
@@ -169,6 +237,18 @@ public struct NexusRootView: View {
                                     model.startProfileSync(for: account)
                                 }
                                 .disabled(model.isSyncing || !account.enabled)
+                                if supports(account, capability: "RATING") {
+                                    Button(model.isSyncing ? "RATING BUSY" : "SYNC RATING") {
+                                        model.startRatingSync(for: account)
+                                    }
+                                    .disabled(model.isSyncing || !account.enabled)
+                                }
+                                if supports(account, capability: "SUBMISSIONS") {
+                                    Button(model.isSyncing ? "SUBMISSIONS BUSY" : "SYNC SUBMISSIONS") {
+                                        model.startSubmissionSync(for: account)
+                                    }
+                                    .disabled(model.isSyncing || !account.enabled)
+                                }
                                 Button("REMOVE") {
                                     Task { await model.removePublicAccount(judge: account.judge) }
                                 }
@@ -180,12 +260,12 @@ public struct NexusRootView: View {
             }
 
             Section("CAPABILITIES") {
-                ForEach(JudgeID.allCases) { judge in
+                ForEach(JudgeCatalog.descriptors) { descriptor in
                     HStack {
-                        Text(judge.displayName)
+                        Text(descriptor.judge.displayName)
                             .font(.system(.body, design: .monospaced).weight(.semibold))
                         Spacer()
-                        Text("PUBLIC HANDLE")
+                        Text(descriptor.summary)
                             .font(.system(.caption2, design: .monospaced))
                             .foregroundStyle(NexusPalette.mutedText)
                     }
@@ -198,6 +278,10 @@ public struct NexusRootView: View {
 
     private var history: some View {
         List {
+            if model.loadError != nil || model.isLoading {
+                localStateBanner
+            }
+
             Picker("FILTER", selection: $historyFilter) {
                 Text("ALL").tag("ALL")
                 ForEach(JudgeID.allCases) { judge in
@@ -232,9 +316,9 @@ public struct NexusRootView: View {
                                     .foregroundStyle(NexusPalette.mutedText)
                             }
                             Spacer()
-                            if operation.status != .success {
+                            if operation.status != .success && operation.error != .unsupported {
                                 Button("RETRY") {
-                                    model.retryProfileSync(for: operation.account)
+                                    model.retrySync(for: operation)
                                 }
                                 .disabled(model.isSyncing)
                             }
@@ -253,6 +337,12 @@ public struct NexusRootView: View {
             .foregroundStyle(NexusPalette.mutedText)
     }
 
+    private var localStateBanner: some View {
+        Text(model.localStateMessage)
+            .font(.system(.caption, design: .monospaced).weight(.semibold))
+            .foregroundStyle(model.loadError == nil ? NexusPalette.blue : NexusPalette.primaryText)
+    }
+
     private func statRow(label: String, value: String) -> some View {
         HStack {
             Text(label)
@@ -267,5 +357,9 @@ public struct NexusRootView: View {
         .overlay(alignment: .bottom) {
             Rectangle().fill(NexusPalette.rule).frame(height: NexusLayout.ruleWidth)
         }
+    }
+
+    private func supports(_ account: JudgeAccount, capability: String) -> Bool {
+        JudgeCatalog.descriptors.first { $0.judge == account.judge }?.capabilities.contains(capability) == true
     }
 }

@@ -4,17 +4,24 @@ public struct LocalWorkspaceState: Codable, Equatable, Sendable {
     public var accounts: [JudgeAccount]
     public var ledger: SyncLedger
     public var profiles: [PublicProfile]
+    public var ratingChanges: [RatingChange]
+    public var submissions: [SubmissionRecord]
 
-    public init(accounts: [JudgeAccount] = [], ledger: SyncLedger = SyncLedger(), profiles: [PublicProfile] = []) {
+    public init(accounts: [JudgeAccount] = [], ledger: SyncLedger = SyncLedger(), profiles: [PublicProfile] = [],
+                ratingChanges: [RatingChange] = [], submissions: [SubmissionRecord] = []) {
         self.accounts = accounts
         self.ledger = ledger
         self.profiles = profiles
+        self.ratingChanges = ratingChanges
+        self.submissions = submissions
     }
 
     private enum CodingKeys: String, CodingKey {
         case accounts
         case ledger
         case profiles
+        case ratingChanges
+        case submissions
     }
 
     public init(from decoder: Decoder) throws {
@@ -22,6 +29,8 @@ public struct LocalWorkspaceState: Codable, Equatable, Sendable {
         accounts = try container.decode([JudgeAccount].self, forKey: .accounts)
         ledger = try container.decode(SyncLedger.self, forKey: .ledger)
         profiles = try container.decodeIfPresent([PublicProfile].self, forKey: .profiles) ?? []
+        ratingChanges = try container.decodeIfPresent([RatingChange].self, forKey: .ratingChanges) ?? []
+        submissions = try container.decodeIfPresent([SubmissionRecord].self, forKey: .submissions) ?? []
     }
 }
 

@@ -2,6 +2,8 @@ import Foundation
 
 public struct LuoguAdapter: JudgeAdapter, Sendable {
     public let judge: JudgeID = .luogu
+    public let reliability = "PUBLIC_SITE"
+    public let capabilities = ["PROFILE"]
 
     public init() {}
 
@@ -24,10 +26,9 @@ public struct LuoguAdapter: JudgeAdapter, Sendable {
             throw AdapterError.invalidPayload
         }
         guard let account = JudgeAccount(judge: .luogu, handle: requestedHandle),
-              let requestedUID = account.handle.split(separator: ":", maxSplits: 1).last.flatMap({ Int($0) }),
               let user = envelope.user,
               let userUID = user.uid,
-              userUID == requestedUID else {
+              judgeHandlesMatch(.luogu, account.handle, String(userUID)) else {
             throw AdapterError.apiFailure
         }
         return PublicProfile(judge: account.judge, handle: account.handle, rating: user.elo,

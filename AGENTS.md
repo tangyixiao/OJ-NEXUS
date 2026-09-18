@@ -19,6 +19,7 @@ uppercase, telemetry-style; marketing copy is forbidden.
 - Retrofit + OkHttp + kotlinx.serialization (later phases)
 - Hilt (later phases)
 - JUnit; MockK/Turbine only when genuinely needed
+- Apple clients: Swift Package Manager, Swift 5.9+, SwiftUI, Foundation URLSession, actors
 
 No Flutter / React Native / Electron / WebView shells. Prefer AndroidX/Kotlin official
 libraries over third-party.
@@ -39,6 +40,11 @@ libraries over third-party.
 ```
 .\gradlew.bat assembleDebug     # every stage must end with BUILD SUCCESSFUL
 .\gradlew.bat test              # unit tests
+
+# Apple (on macOS/Xcode; unavailable on this Windows host)
+swift test --package-path apple
+swift build --package-path apple --product OJNexusMacOS
+swift build --package-path apple --product OJNexusIOS
 ```
 
 Never skip compilation, never fake results, never mock data pretending to be real API output.
@@ -53,6 +59,8 @@ Never skip compilation, never fake results, never mock data pretending to be rea
 - Local First: the app stays usable offline; network only syncs.
 - Multi-OJ: all judge-specific logic lives behind the `JudgeAdapter` boundary (`judge/<judge>/`).
   Domain models are judge-agnostic; network DTOs never leak into core.
+- Apple clients live under `apple/` as a separate native SwiftUI package. They share no Android
+  Room database or Windows storage; public profile data crosses the `JudgeAdapter` boundary only.
 
 ## Design System
 
@@ -77,6 +85,8 @@ Never skip compilation, never fake results, never mock data pretending to be rea
 
 - Never ask users for OJ passwords; never store plaintext credentials.
 - No cookies/sessions in v0.x. Keystore-protected experimental features only, if ever.
+- Apple clients use public handles only in the current slice; no password, browser Cookie, or
+  WebView authentication path is permitted.
 - Never commit or log: passwords, tokens, cookies, keystores, `local.properties`.
 
 ## Git

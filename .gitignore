@@ -38,3 +38,7 @@ Thumbs.db
 
 # Kotlin
 .kotlin/
+
+# Swift Package / Xcode outputs
+apple/.build/
+apple/DerivedData/
