@@ -38,6 +38,10 @@ see [windows/README.md](windows/README.md). / 仓库
 同时包含 `windows/` 原生 Windows 垂直切片：WPF 指挥面板、公开 OJ 连接器、有界同步历史，以及由同一套本地同步核心支持的命令行工具。
 Windows CI 会运行还原、Release 测试/构建、自包含 `win-x64` 打包，以及有界 CLI/WPF 启动冒烟检查。当前 Windows 产物是未签名的目录/ZIP 包，详见 [windows/README.md](windows/README.md)。
 
+The native Android, Linux, macOS, and iOS slices share the same connector lifecycle: public
+accounts can be enabled, disabled, or removed while existing local profile snapshots and sync
+history remain intact. / 原生 Android、Linux、macOS、iOS 切片共享同一套连接器生命周期：公开账号可启用、禁用或移除，已有本地 profile 快照和同步历史保持不变。
+
 Phase 75 remains available: optional default and per-judge difficulty targets, localized Focus
 Sprint calibration, and a bounded explainable candidate pool covering due reviews, recent unsolved
 problems, failures, and weak knowledge areas. Missing ratings never become inferred targets. /
@@ -740,6 +744,16 @@ Cookie、Session、CSRF 状态、云端服务、本地编译器、自定义输�
 Requires JDK 17+ and an Android SDK with API 37. Point `sdk.dir` at your SDK in a
 (non-committed) `local.properties`, and pin a JDK via `JAVA_HOME` or the user-level
 `~/.gradle/gradle.properties` if needed.
+
+## Apple clients
+
+The native SwiftUI slice lives under [`apple/`](apple/README.md). It contains shared
+judge/account/sync-ledger models, local JSON ledger persistence, and separate macOS/iOS app
+entry points. Its deployment floor is macOS 13 and iOS 16; run `swift test` on a macOS/Xcode
+host before claiming Apple build or simulator readiness. The shared CONNECTORS surface exposes
+the locally cached profile, rating, and supported public-submission modules; `SYNC ALL` runs
+those supported modules serially for enabled accounts without adding passwords, cookies, or
+automatic submissions.
 
 ## License
 

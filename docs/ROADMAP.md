@@ -18,6 +18,15 @@ bundle; installer, signing, and store packaging remain separate work.
 仅接受公开 handle。Windows CI 运行完整测试/构建门禁、自包含 `win-x64` 打包、包哈希校验和
 临时数据 CLI/WPF 冒烟；当前 Windows 产物是未签名的目录/ZIP 包，安装包、签名和商店发布仍是后续工作。
 
+Windows handle replacement now follows the same identity hygiene as the native clients: changing
+a judge-specific handle clears only the old handle's local payload snapshots inside the account
+update transaction, while retaining sync operations as history. / Windows handle 更换现在与其他原生客户端遵循相同的身份清理规则：
+更换某个评测平台的 handle 时，只在账号更新事务内清理旧 handle 的本地 payload 快照，同时保留同步操作作为历史记录。
+
+The Windows Dashboard now exposes `SYNC ALL`, which runs only configured and enabled connectors in
+order and keeps each typed operation in the shared local history. / Windows Dashboard 现在提供“全部同步”，
+按顺序运行已配置且启用的连接器，并将每次类型化操作保留在共享本地历史中。
+
 ## CURRENT PACKAGE IDENTITY
 
 The current Android package identity is `versionName=0.3.74` and `versionCode=74`. It carries
@@ -32,6 +41,11 @@ safe stage retry capability fall back to a full sync. Data-generation mismatches
 stale operations and cannot be retried against the current local dataset. CI now runs unit tests,
 debug lint, release assembly, and the committed connected Android suite in a separate emulator job.
 / 连接中心现在从 Room 投影有界的近期历史，包含逐模块结果和文本状态语义；失败阶段提供明确的重试操作，不支持安全阶段重试的适配器回退到完整同步。数据代际不匹配会记录为过时操作，不能针对当前本地数据集重试。CI 现在运行单元测试、debug lint、release 构建，并在独立模拟器任务中运行已提交的连接测试套件。
+
+Android Settings now exposes the persisted public-account lifecycle as `ENABLE` / `DISABLE`.
+Disabled accounts remain visible with their local profile, receipt, and history data, are excluded
+from `SYNC ALL`, and do not queue manual sync; re-enabling restores the periodic worker without
+starting an unsolicited immediate refresh. / Android 设置页现在提供持久化公开账号的“启用 / 停用”生命周期控制。停用账号仍保留本地 profile、回执和历史数据，会从“全部同步”中排除且不会排队手动同步；重新启用时恢复周期 worker，但不会未经用户请求立即刷新。
 
 Phase 75 stores optional default and per-judge difficulty targets, exposes localized calibration
 controls near Focus Sprint, and ranks a bounded candidate pool from due reviews, recent unsolved

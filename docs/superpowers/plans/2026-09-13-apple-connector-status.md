@@ -188,7 +188,8 @@ Every command must succeed on a macOS/Xcode runner before claiming Apple build r
 wsl -d Ubuntu-24.04 -- bash -lc 'cd /mnt/d/AndroidAppCoding/.worktrees/linux-client/linux && cmake --build build --parallel 2 && ctest --test-dir build --output-on-failure'
 ```
 
-Expected: build success and 9/9 tests passing. Do not stage or commit any Linux worktree files.
+Expected: build success and the current Linux suite passing (currently 8/8 after removal of the
+obsolete Secret Service test). Do not stage or commit any Linux worktree files.
 
 - [ ] **Step 5: Commit only the Apple implementation and documentation**
 
