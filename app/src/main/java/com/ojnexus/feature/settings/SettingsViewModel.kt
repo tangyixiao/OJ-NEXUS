@@ -402,7 +402,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             try {
                 val account = accountRepository.connect(judge, handle)
-                if (!shouldScheduleJudgeSync(registry.adapter(judge).capabilities)) return@launch
+                if (!account.enabled || !shouldScheduleJudgeSync(registry.adapter(judge).capabilities)) return@launch
                 dataRepository.markSyncQueued(judge, account.id)
                 JudgeSyncWorker.enqueueManual(
                     com.ojnexus.core.ui.GlobalContext.application,
@@ -438,9 +438,30 @@ class SettingsViewModel(
 
     fun syncNow(account: JudgeAccountEntity) {
         val judge = JudgeId.fromId(account.judge) ?: return
-        if (!shouldScheduleJudgeSync(registry.adapter(judge).capabilities)) return
+        if (!account.enabled || !shouldScheduleJudgeSync(registry.adapter(judge).capabilities)) return
         viewModelScope.launch {
             queueManualSync(judge, account.id)
+        }
+    }
+
+    fun setEnabled(account: JudgeAccountEntity, enabled: Boolean) {
+        val judge = JudgeId.fromId(account.judge) ?: return
+        viewModelScope.launch {
+            val updated = accountRepository.setEnabled(account.id, enabled) ?: return@launch
+            if (!shouldScheduleJudgeSync(registry.adapter(judge).capabilities)) return@launch
+            if (updated.enabled) {
+                JudgeSyncWorker.enqueuePeriodic(
+                    com.ojnexus.core.ui.GlobalContext.application,
+                    judge,
+                    updated.id,
+                )
+            } else {
+                JudgeSyncWorker.cancelFor(
+                    com.ojnexus.core.ui.GlobalContext.application,
+                    judge,
+                    updated.id,
+                )
+            }
         }
     }
 

@@ -153,6 +153,44 @@ class CodeforcesSyncTest {
     }
 
     @Test
+    fun `account enabled state can be toggled without losing the account`() = runBlocking {
+        val account = connect()
+
+        val disabled = requireNotNull(accountRepository.setEnabled(account.id, false))
+        assertFalse(disabled.enabled)
+        assertNull(accountRepository.findActive(JudgeId.CODEFORCES))
+        assertEquals(disabled, accountRepository.findById(account.id))
+
+        val enabled = requireNotNull(accountRepository.setEnabled(account.id, true))
+        assertTrue(enabled.enabled)
+        assertEquals(account.id, accountRepository.findActive(JudgeId.CODEFORCES)?.id)
+    }
+
+    @Test
+    fun `reconnecting an equivalent disabled account preserves its disabled state`() = runBlocking {
+        val account = connect()
+        requireNotNull(accountRepository.setEnabled(account.id, false))
+
+        val reconnected = accountRepository.connect(JudgeId.CODEFORCES, "tourist")
+
+        assertEquals(account.id, reconnected.id)
+        assertFalse(reconnected.enabled)
+    }
+
+    @Test
+    fun `connection snapshot prefers a newer enabled account over an older disabled account`() = runBlocking {
+        val oldAccount = connect()
+        requireNotNull(accountRepository.setEnabled(oldAccount.id, false))
+        adapter.profile = CfUserDto(handle = "tourist_new", rating = 3900)
+
+        val newAccount = accountRepository.connect(JudgeId.CODEFORCES, "tourist_new")
+        val snapshot = JudgeDataRepository(database).observeConnections().first()
+
+        assertEquals(newAccount.id, snapshot.accounts[JudgeId.CODEFORCES]?.id)
+        assertTrue(snapshot.accounts[JudgeId.CODEFORCES]?.enabled == true)
+    }
+
+    @Test
     fun `connect with empty or unknown handle fails without writing`() = runBlocking {
         adapter.profile = null
         listOf("", "   ").forEach { raw ->
@@ -201,6 +239,19 @@ class CodeforcesSyncTest {
         val second = connect()
         assertEquals(first.id, second.id)
         assertEquals(1, database.judgeAccountDao().countActiveByJudge(JudgeId.CODEFORCES.id))
+    }
+
+    @Test
+    fun `connecting a different handle replaces the previous active account`() = runBlocking {
+        val first = connect()
+        adapter.profile = CfUserDto(handle = "tourist_new", rating = 3900)
+
+        val second = accountRepository.connect(JudgeId.CODEFORCES, "tourist_new")
+
+        assertTrue(first.id != second.id)
+        assertNull(accountRepository.findById(first.id))
+        assertEquals(1, database.judgeAccountDao().countActiveByJudge(JudgeId.CODEFORCES.id))
+        assertEquals(second.id, accountRepository.findActive(JudgeId.CODEFORCES)?.id)
     }
 
     @Test

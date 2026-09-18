@@ -49,6 +49,20 @@ class JudgeAccountRepository(
 
     suspend fun findById(id: Long): JudgeAccountEntity? = accountDao.findById(id)
 
+    /** Toggles participation in sync without deleting the public identity or local cache. */
+    suspend fun setEnabled(accountId: Long, enabled: Boolean): JudgeAccountEntity? {
+        var updated: JudgeAccountEntity? = null
+        database.withTransaction {
+            val current = accountDao.findById(accountId) ?: return@withTransaction
+            updated = current.copy(
+                enabled = enabled,
+                updatedAt = clock.millis(),
+            )
+            accountDao.update(requireNotNull(updated))
+        }
+        return updated
+    }
+
     /** Validation failures surfaced as typed errors; UI maps them to inline strings. */
     sealed class ConnectError : Exception() {
         class HandleEmpty : ConnectError()
@@ -84,12 +98,14 @@ class JudgeAccountRepository(
         require(canonical.isNotEmpty()) { "API returned an empty handle" }
 
         val now = clock.millis()
-        database.withTransaction {
-            val existing = accountDao.findActiveByJudge(judge.id)
+        val accountId = database.withTransaction {
+            val active = accountDao.findActiveByJudge(judge.id)
+            val sameHandleAccount = accountDao.findByJudgeAndHandle(judge.id, canonical)
+            val existing = sameHandleAccount ?: active
             val sameHandle = existing?.canonicalHandle == canonical
-            if (existing != null && !sameHandle) {
+            if (active != null && !sameHandle) {
                 // Replacing with a different handle: drop the old account and its cursor.
-                accountDao.delete(existing.id)
+                accountDao.delete(active.id)
                 database.syncStateDao().deleteByJudge(judge.id)
             }
             val accountId = if (existing != null && sameHandle) {
@@ -121,7 +137,7 @@ class JudgeAccountRepository(
             )
             accountId
         }
-        return accountDao.findActiveByJudge(judge.id)
+        return accountDao.findById(accountId)
             ?: throw ConnectError.ApiFailure("account disappeared after connect")
     }
 

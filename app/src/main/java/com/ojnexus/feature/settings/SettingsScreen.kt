@@ -195,6 +195,7 @@ fun SettingsScreen(
                              connecting = connection.judge in connecting,
                              onConnect = { handle -> viewModel.connect(connection.judge, handle) },
                              onSync = { connection.account?.let(viewModel::syncNow) },
+                             onSetEnabled = { enabled -> connection.account?.let { viewModel.setEnabled(it, enabled) } },
                              onDisconnect = { disconnectAccountId = connection.account?.id },
                          )
                      }
@@ -581,6 +582,7 @@ private fun JudgeConnectionPanel(
     connecting: Boolean,
     onConnect: (String) -> Unit,
     onSync: () -> Unit,
+    onSetEnabled: (Boolean) -> Unit,
     onDisconnect: () -> Unit,
 ) {
     val account = connection.account
@@ -598,6 +600,7 @@ private fun JudgeConnectionPanel(
             )
             when {
                 account == null -> NexusStatus(stringResource(R.string.dash_not_connected), NexusTone.Neutral)
+                !account.enabled -> NexusStatus(stringResource(R.string.settings_state_disabled), NexusTone.Neutral)
                 sync?.state == SyncPhase.QUEUED.name -> NexusStatus(stringResource(R.string.settings_state_queued), NexusTone.Accent)
                 sync?.state == SyncPhase.SYNCING.name -> NexusStatus(stringResource(R.string.settings_state_syncing), NexusTone.Accent)
                 sync?.state == SyncPhase.PARTIAL.name -> NexusStatus(stringResource(R.string.settings_state_partial), NexusTone.Warning)
@@ -727,8 +730,19 @@ private fun JudgeConnectionPanel(
             Spacer(Modifier.height(NexusSpacing.sm))
             Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
                 if (JudgeCapability.BACKGROUND_SYNC in connection.capabilities) {
-                    SettingsAction(stringResource(R.string.settings_sync_now), onClick = onSync)
+                    SettingsAction(
+                        label = stringResource(R.string.settings_sync_now),
+                        enabled = account.enabled,
+                        onClick = onSync,
+                    )
                 }
+                SettingsAction(
+                    label = stringResource(
+                        if (account.enabled) R.string.settings_disable else R.string.settings_enable,
+                    ),
+                    danger = account.enabled,
+                    onClick = { onSetEnabled(!account.enabled) },
+                )
                 SettingsAction(stringResource(R.string.settings_disconnect), danger = true, onClick = onDisconnect)
             }
         }

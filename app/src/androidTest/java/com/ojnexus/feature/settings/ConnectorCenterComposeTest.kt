@@ -83,6 +83,33 @@ class ConnectorCenterComposeTest {
         composeRule.onNodeWithText("SYNC ALL").assertIsNotEnabled()
     }
 
+    @Test
+    fun disabledAccountShowsDisabledStateAndIsExcludedFromSyncAll() {
+        composeRule.setContent {
+            NexusTheme(reduceMotion = true) {
+                ConnectorCenterSection(
+                    summary = deriveConnectorCenter(
+                        listOf(
+                            connection(
+                                JudgeId.CODEFORCES,
+                                account = account(JudgeId.CODEFORCES).copy(enabled = false),
+                                capabilities = setOf(
+                                    JudgeCapability.PROFILE,
+                                    JudgeCapability.BACKGROUND_SYNC,
+                                ),
+                            ),
+                        ),
+                    ),
+                    syncAllInFlight = false,
+                    onSyncAll = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("DISABLED").assertIsDisplayed()
+        composeRule.onNodeWithText("SYNC ALL").assertIsNotEnabled()
+    }
+
     private fun connection(
         judge: JudgeId,
         account: JudgeAccountEntity? = null,

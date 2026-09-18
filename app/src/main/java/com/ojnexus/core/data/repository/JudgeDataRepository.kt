@@ -52,11 +52,17 @@ class JudgeDataRepository(
         database.judgeAccountDao().observeAll(),
         database.judgeProfileDao().observeAll(),
         database.syncStateDao().observeAll(),
-    ) { accounts, profiles, states ->
-        JudgeConnectionSnapshot(
-            accounts = accounts.mapNotNull { account ->
+        ) { accounts, profiles, states ->
+        val accountByJudge = accounts
+            .mapNotNull { account ->
                 JudgeId.fromId(account.judge)?.let { it to account }
-            }.toMap(),
+            }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, candidates) ->
+                candidates.firstOrNull { it.enabled } ?: candidates.first()
+            }
+        JudgeConnectionSnapshot(
+            accounts = accountByJudge,
             profiles = profiles.mapNotNull { profile ->
                 JudgeId.fromId(profile.judge)?.let { it to profile }
             }.toMap(),

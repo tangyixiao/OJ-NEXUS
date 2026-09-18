@@ -44,6 +44,7 @@ data class ConnectorCenterRow(
     val judge: JudgeId,
     val handle: String?,
     val connected: Boolean,
+    val enabled: Boolean,
     val phase: SyncPhase?,
     val currentStage: String?,
     val completedReceiptCount: Int,
@@ -66,6 +67,7 @@ fun deriveConnectorCenter(connections: List<JudgeConnectionUi>): ConnectorCenter
                 judge = connection.judge,
                 handle = account?.canonicalHandle,
                 connected = account != null,
+                enabled = account?.enabled == true,
                 phase = sync?.state?.let { state -> SyncPhase.entries.firstOrNull { it.name == state } },
                 currentStage = sync?.currentStage,
                 completedReceiptCount = receipts.count { it.syncedAt != null },
@@ -200,6 +202,7 @@ private fun ConnectorCenterRow(row: ConnectorCenterRow) {
 @Composable
 private fun connectorStatusLabel(row: ConnectorCenterRow): String = when {
     !row.connected -> stringResource(R.string.settings_connector_disconnected)
+    !row.enabled -> stringResource(R.string.settings_connector_disabled)
     row.phase == SyncPhase.QUEUED -> stringResource(R.string.settings_connector_queued)
     row.phase == SyncPhase.SYNCING -> stringResource(R.string.settings_connector_syncing)
     row.phase == SyncPhase.PARTIAL -> stringResource(R.string.settings_connector_partial)
@@ -209,6 +212,7 @@ private fun connectorStatusLabel(row: ConnectorCenterRow): String = when {
 
 private fun connectorStatusTone(row: ConnectorCenterRow): NexusTone = when {
     !row.connected -> NexusTone.Neutral
+    !row.enabled -> NexusTone.Neutral
     row.phase == SyncPhase.PARTIAL || row.phase == SyncPhase.ERROR -> NexusTone.Warning
     row.phase == SyncPhase.QUEUED || row.phase == SyncPhase.SYNCING -> NexusTone.Accent
     else -> NexusTone.Success

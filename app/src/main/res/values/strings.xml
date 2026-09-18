@@ -564,6 +564,7 @@
     <string name="settings_connector_syncing_all">SYNCING…</string>
     <string name="settings_connector_sync_all_cd">Queue a foreground refresh for every connected judge</string>
     <string name="settings_connector_disconnected">DISCONNECTED</string>
+    <string name="settings_connector_disabled">DISABLED</string>
     <string name="settings_connector_queued">QUEUED</string>
     <string name="settings_connector_syncing">SYNCING</string>
     <string name="settings_connector_partial">PARTIAL</string>
@@ -582,6 +583,8 @@
     <string name="settings_connect">CONNECT</string>
     <string name="settings_connecting">VERIFYING…</string>
     <string name="settings_sync_now">SYNC NOW</string>
+    <string name="settings_enable">ENABLE</string>
+    <string name="settings_disable">DISABLE</string>
     <string name="settings_background_sync_enabled">BACKGROUND SYNC ENABLED — EVERY 6 HOURS</string>
     <string name="settings_sync_coverage">SYNC COVERAGE</string>
     <string name="settings_sync_module_profile">PROFILE</string>
@@ -659,6 +662,7 @@
     <string name="settings_network_unavailable">NETWORK UNAVAILABLE</string>
     <string name="settings_api_failed">API ERROR</string>
     <string name="settings_state_connected">CONNECTED</string>
+    <string name="settings_state_disabled">DISABLED</string>
     <string name="settings_state_queued">QUEUED — WAITING FOR NETWORK</string>
     <string name="settings_state_syncing">SYNCING</string>
     <string name="settings_sync_stage">STAGE: %1$s</string>

@@ -113,6 +113,62 @@ class SettingsViewModelSyncAllTest {
         assertEquals(null, database.syncStateDao().findByJudge(atCoder.id))
     }
 
+    @Test
+    fun `sync now does not queue a disabled account`() = runBlocking {
+        val judge = JudgeId.CODEFORCES
+        val disabled = account(judge, id = 31L).copy(enabled = false)
+        database.judgeAccountDao().insert(disabled)
+        val registry = JudgeRegistry(
+            adapters = listOf(FakeAdapter(judge, setOf(JudgeCapability.BACKGROUND_SYNC))),
+            accountConnectors = listOf(FakeConnector(judge)),
+        )
+        val enqueued = CopyOnWriteArrayList<Pair<JudgeId, Long>>()
+        val viewModel = SettingsViewModel(
+            accountRepository = JudgeAccountRepository(database, registry, Clock.systemUTC()),
+            dataRepository = JudgeDataRepository(database),
+            registry = registry,
+            backupRepository = BackupRepository(database, ApplicationProvider.getApplicationContext()),
+            preferencesRepository = UserPreferencesRepository(ApplicationProvider.getApplicationContext()),
+            manualSyncEnqueuer = { judgeId, accountId -> enqueued += judgeId to accountId },
+        )
+
+        viewModel.syncNow(disabled)
+        delay(100)
+
+        assertEquals(emptyList<Pair<JudgeId, Long>>(), enqueued.toList())
+        assertEquals(null, database.syncStateDao().findByJudge(judge.id))
+    }
+
+    @Test
+    fun `connecting an equivalent disabled account does not queue a manual sync`() = runBlocking {
+        val judge = JudgeId.CODEFORCES
+        val disabled = account(judge, id = 32L).copy(
+            handle = "tourist",
+            canonicalHandle = "tourist",
+            enabled = false,
+        )
+        database.judgeAccountDao().insert(disabled)
+        val registry = JudgeRegistry(
+            adapters = listOf(FakeAdapter(judge, setOf(JudgeCapability.BACKGROUND_SYNC))),
+            accountConnectors = listOf(FakeConnector(judge)),
+        )
+        val enqueued = CopyOnWriteArrayList<Pair<JudgeId, Long>>()
+        val viewModel = SettingsViewModel(
+            accountRepository = JudgeAccountRepository(database, registry, Clock.systemUTC()),
+            dataRepository = JudgeDataRepository(database),
+            registry = registry,
+            backupRepository = BackupRepository(database, ApplicationProvider.getApplicationContext()),
+            preferencesRepository = UserPreferencesRepository(ApplicationProvider.getApplicationContext()),
+            manualSyncEnqueuer = { judgeId, accountId -> enqueued += judgeId to accountId },
+        )
+
+        viewModel.connect(judge, "tourist")
+        delay(100)
+
+        assertEquals(emptyList<Pair<JudgeId, Long>>(), enqueued.toList())
+        assertEquals(false, database.judgeAccountDao().findById(disabled.id)?.enabled)
+    }
+
     private fun account(judge: JudgeId, id: Long) = JudgeAccountEntity(
         id = id,
         judge = judge.id,
