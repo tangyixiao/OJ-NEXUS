@@ -50,3 +50,4 @@ windows/**/obj/
 # Local-only trees: linked worktrees and project AI data
 .worktrees/
 .workbuddy-ai/
+.workbuddy/
