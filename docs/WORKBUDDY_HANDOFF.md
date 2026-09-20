@@ -583,9 +583,9 @@ Core 72/72、CLI 28/28、Desktop 19/19；`tools\gradlew-local.bat test assembleD
   交互式终端 Ctrl+C；Apple 需要在 macOS/Xcode 或 CI 跑 `swift test` 与两个 product 构建；
   Linux 需要在 Linux 主机或 CI 构建测试。
 - 跨端待决策项（§12.2 更细粒度错误、§12.3 CLI 退出码）本轮**未触碰**。
-- 本轮已在用户授权后执行**第一次提交** `bb0c838`（`feat(android): index locally saved problem notes`，
-  11 files / +669 −17，parent `ff24bd9`）。提交动作本身成功，但**分支指针随后被仓库外部进程改回**，见 §13.7。
-  其余 4 个计划中的 commit（测试 / 版本号 / ignore / 文档）**暂缓**，原因见 §13.7。仍未推送。
+- 本轮已在用户授权后完成**全部 5 个提交**，落在分支 `phase-77-note-index`（基于 `ff24bd9`）：
+  `bb0c838` 功能 → `22acfdf` 测试 → `d1b7526` 版本号 → `16d360f` ignore → `5e314d9` 文档，详见 §13.8。
+  `codex/phase-5-arena` 因本环境写不进 `refs/heads/codex/**` 而**未能快进**，恢复命令见 §13.7 / §13.8。仍未推送。
 
 ### 13.6 环境坑补充（本轮新发现）
 
@@ -636,3 +636,35 @@ git status --short --branch              # 期望只剩本轮未提交的测试/
 
 回退值（万一需要退回外部进程设定的状态）：`b49d2015ca000ae6be39cc0598fdde74f4929621`。
 `bb0c838` 受 reflog 保护（默认 90 天），期间即使没有分支引用也不会被 gc 回收。
+
+### 13.8 本轮最终提交集（分支 `phase-77-note-index`）
+
+| commit | 类型 | 内容 |
+| --- | --- | --- |
+| `bb0c838` | `feat(android): index locally saved problem notes` | 数据投影、领域模型、纯筛选、ViewModel、界面、双语字符串（11 files / +669 −17） |
+| `22acfdf` | `test: cover the note index projection, filters and surface` | 模型/仓库 Robolectric 单测 + 过滤逻辑单测 + 设备端 Compose 测试（4 files / +707） |
+| `d1b7526` | `chore: bump the android package identity to 0.3.75` | `versionCode` 75、`versionName` 0.3.75 |
+| `16d360f` | `chore: ignore the project agent data directory` | `.gitignore` 补 `.workbuddy/` |
+| `5e314d9` | `docs: record phase 77 note index, plans and handoff` | README、ROADMAP、交接文档、superpowers 计划与设计（5 files / +331 −7） |
+
+**为什么不在 `codex/phase-5-arena` 上**：见 §13.7 的进一步定位 —— 本环境可以向
+`.git/refs/heads/` 写**一级**引用（实测临时分支可创建并持久），但 `codex/` **子目录**
+会被删除，导致 `refs/heads/codex/phase-5-arena` 无法写入：`git update-ref`、
+`git branch -f` 都返回 0，但引用值不变（仍是 `b49d201`）。为避免继续与仓库外部进程对抗，
+本轮把历史提交在一级分支 `phase-77-note-index` 上（基于 `ff24bd9`，含本轮 5 个 commit），
+未做任何 reset / checkout 覆盖 / 清理索引的操作。
+
+**在正常 shell 里恢复原分支**（`b49d201` 是 `5e314d9` 的祖先，属快进，安全）：
+
+```powershell
+git branch -f codex/phase-5-arena phase-77-note-index   # 或 git update-ref refs/heads/codex/phase-5-arena 5e314d9
+git rev-parse refs/heads/codex/phase-5-arena            # 期望 5e314d9...
+git log --oneline -6
+```
+
+**本轮门禁（提交前最后一次实跑，工作区与提交内容逐字节一致）**：
+`test assembleDebug assembleRelease lintDebug` → `BUILD SUCCESSFUL in 1m 43s`、`GATE_EXIT=0`；
+单测 **135 suite / 547 tests / 0 failures**；Pixel_9 AVD `connectedDebugAndroidTest` →
+**27/27 通过**、`BUILD SUCCESSFUL in 2m 11s`、`DEVICE_EXIT=0`。
+
+**仍未推送**；release 签名、设备安装与冷启动验收仍未做，`0.3.75` 仍是源码身份而非已发布版本。
