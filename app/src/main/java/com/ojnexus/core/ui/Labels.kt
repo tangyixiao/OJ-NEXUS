@@ -5,6 +5,7 @@ import com.ojnexus.R
 import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.model.FailureCategory
 import com.ojnexus.core.model.KnowledgeArea
+import com.ojnexus.core.model.NoteField
 import com.ojnexus.core.model.ProblemStatus
 import com.ojnexus.core.model.ReviewResult
 import com.ojnexus.core.model.TaskType
@@ -88,6 +89,15 @@ fun ProblemStatus.tone(): NexusTone = when (this) {
     ProblemStatus.ATTEMPTED -> NexusTone.Warning
     ProblemStatus.SOLVED -> NexusTone.Success
     ProblemStatus.REVIEW -> NexusTone.Accent
+}
+
+@StringRes
+fun NoteField.labelRes(): Int = when (this) {
+    NoteField.ALL -> R.string.problems_notes_field_all
+    NoteField.KEY_INSIGHT -> R.string.problems_notes_field_insight
+    NoteField.IMPLEMENTATION -> R.string.problems_notes_field_implementation
+    NoteField.COMPLEXITY -> R.string.problems_notes_field_complexity
+    NoteField.GENERAL -> R.string.problems_notes_field_general
 }
 
 @StringRes

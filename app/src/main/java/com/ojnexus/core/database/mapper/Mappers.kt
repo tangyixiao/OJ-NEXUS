@@ -7,6 +7,7 @@ import com.ojnexus.core.database.entity.ProblemNoteEntity
 import com.ojnexus.core.database.entity.ReviewEntity
 import com.ojnexus.core.database.entity.TrainingSessionEntity
 import com.ojnexus.core.database.entity.TrainingTaskEntity
+import com.ojnexus.core.database.dao.NoteIndexRow
 import com.ojnexus.core.database.relation.ProblemDetailPojo
 import com.ojnexus.core.database.relation.ProblemWithTagsPojo
 import com.ojnexus.core.model.Attempt
@@ -16,6 +17,7 @@ import com.ojnexus.core.model.FailureEntry
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.model.Problem
 import com.ojnexus.core.model.ProblemKey
+import com.ojnexus.core.model.ProblemNoteEntry
 import com.ojnexus.core.model.ProblemNotes
 import com.ojnexus.core.model.ReviewResult
 import com.ojnexus.core.model.ReviewState
@@ -99,6 +101,28 @@ fun ProblemNoteEntity.toDomain(): ProblemNotes = ProblemNotes(
     complexity = complexity,
     general = general,
     updatedAt = updatedAt,
+)
+
+/** Note-index row → the notes plus the problem identity they were saved against. */
+fun NoteIndexRow.toDomain(): ProblemNoteEntry = ProblemNoteEntry(
+    problemId = problemId,
+    key = ProblemKey(
+        judge = JudgeId.fromId(judge) ?: JudgeId.LOCAL,
+        externalId = externalId,
+    ),
+    title = title,
+    difficulty = difficulty,
+    attemptCount = attemptCount,
+    solved = solved,
+    inReview = inReview,
+    notes = ProblemNotes(
+        problemId = problemId,
+        keyInsight = keyInsight,
+        implementationNotes = implementationNotes,
+        complexity = complexity,
+        general = general,
+        updatedAt = updatedAt,
+    ),
 )
 
 fun ReviewEntity.toDomain(): ReviewState = ReviewState(

@@ -78,7 +78,7 @@ private val IconTouchSize = 32.dp
 private val RemoteProblemRowHeight = 82.dp
 private val ProblemStatusRailWidth = 3.dp
 
-internal enum class ProblemScope { LIBRARY, REMOTE }
+internal enum class ProblemScope { LIBRARY, REMOTE, NOTES }
 
 internal data class ProblemSearchLaunch(
     val filter: ProblemFilter,
@@ -131,6 +131,7 @@ fun ProblemsScreen(
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val remoteState by viewModel.remoteState.collectAsStateWithLifecycle()
+    val notesState by viewModel.noteState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     Column(
@@ -141,9 +142,14 @@ fun ProblemsScreen(
         NexusTopBar(
             title = stringResource(R.string.nav_problems),
             trailing = {
+                val library = state
+                val notes = notesState
                 Text(
-                    text = when (val s = state) {
-                        is Loadable.Ready -> stringResource(R.string.problems_count, s.value.summary.visible)
+                    text = when {
+                        scope == ProblemScope.NOTES && notes is Loadable.Ready ->
+                            stringResource(R.string.problems_notes_count, notes.value.summary.visible)
+                        library is Loadable.Ready ->
+                            stringResource(R.string.problems_count, library.value.summary.visible)
                         else -> ""
                     },
                     style = NexusTheme.typography.dataSmall,
@@ -154,8 +160,8 @@ fun ProblemsScreen(
         when (val s = state) {
             Loadable.Loading -> LoadingState()
             is Loadable.Failed -> ErrorState(s.message)
-            is Loadable.Ready -> if (scope == ProblemScope.LIBRARY) {
-                LibraryContent(
+            is Loadable.Ready -> when (scope) {
+                ProblemScope.LIBRARY -> LibraryContent(
                     uiState = s.value,
                     viewModel = viewModel,
                     onOpenProblem = onOpenProblem,
@@ -167,9 +173,9 @@ fun ProblemsScreen(
                         scope = ProblemScope.REMOTE
                         viewModel.enterRemoteCatalog()
                     },
+                    onOpenNotes = { scope = ProblemScope.NOTES },
                 )
-            } else {
-                RemoteCatalogContent(
+                ProblemScope.REMOTE -> RemoteCatalogContent(
                     state = remoteState,
                     viewModel = viewModel,
                     onBackToLibrary = { scope = ProblemScope.LIBRARY },
@@ -177,7 +183,26 @@ fun ProblemsScreen(
                     onOpenExternal = { remote -> UrlOpener.open(context, remoteProblemUrl(remote)) },
                     onOpenWorkspace = onOpenWorkspace,
                     onOpenLuoguDetail = onOpenLuoguDetail,
+                    onOpenNotes = { scope = ProblemScope.NOTES },
                 )
+                ProblemScope.NOTES -> when (val notes = notesState) {
+                    Loadable.Loading -> LoadingState()
+                    is Loadable.Failed -> ErrorState(notes.message)
+                    is Loadable.Ready -> NoteIndexContent(
+                        state = notes.value,
+                        onQueryChange = viewModel::setNoteQuery,
+                        onFieldChange = viewModel::setNoteField,
+                        onJudgeChange = viewModel::setNoteJudge,
+                        onToggleUnsolved = viewModel::toggleNoteUnsolvedOnly,
+                        onClearFilters = viewModel::clearNoteFilter,
+                        onOpenProblem = onOpenProblem,
+                        onOpenLibrary = { scope = ProblemScope.LIBRARY },
+                        onOpenRemote = {
+                            scope = ProblemScope.REMOTE
+                            viewModel.enterRemoteCatalog()
+                        },
+                    )
+                }
             }
         }
     }
@@ -221,6 +246,7 @@ private fun LibraryContent(
     onInsertDemo: () -> Unit,
     onClearDemo: () -> Unit,
     onOpenRemote: () -> Unit,
+    onOpenNotes: () -> Unit,
 ) {
     var deleteTarget by remember { mutableStateOf<Problem?>(null) }
     val colors = NexusTheme.colors
@@ -233,6 +259,7 @@ private fun LibraryContent(
                     selected = ProblemScope.LIBRARY,
                     onSelectLibrary = {},
                     onSelectRemote = onOpenRemote,
+                    onSelectNotes = onOpenNotes,
                 )
                 Spacer(modifier = Modifier.height(NexusSpacing.xs))
                 SearchField(
@@ -356,7 +383,7 @@ private fun LibraryContent(
 }
 
 @Composable
-private fun EmptyHint(title: String, hint: String) {
+internal fun EmptyHint(title: String, hint: String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -420,22 +447,22 @@ private fun LibraryPulse(
                 ),
             horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
         ) {
-            LibraryPulseMetric(
+            PulseMetric(
                 label = stringResource(R.string.problems_pulse_total),
                 value = summary.total,
                 modifier = Modifier.weight(1f),
             )
-            LibraryPulseMetric(
+            PulseMetric(
                 label = stringResource(R.string.problems_pulse_visible),
                 value = summary.visible,
                 modifier = Modifier.weight(1f),
             )
-            LibraryPulseMetric(
+            PulseMetric(
                 label = stringResource(R.string.problems_pulse_solved),
                 value = summary.solved,
                 modifier = Modifier.weight(1f),
             )
-            LibraryPulseMetric(
+            PulseMetric(
                 label = stringResource(R.string.problems_pulse_review),
                 value = summary.review,
                 modifier = Modifier.weight(1f),
@@ -445,7 +472,7 @@ private fun LibraryPulse(
 }
 
 @Composable
-private fun LibraryPulseMetric(label: String, value: Int, modifier: Modifier = Modifier) {
+internal fun PulseMetric(label: String, value: Int, modifier: Modifier = Modifier) {
     val animatedValue by animateIntAsState(
         targetValue = value,
         animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
@@ -462,10 +489,11 @@ private fun LibraryPulseMetric(label: String, value: Int, modifier: Modifier = M
 }
 
 @Composable
-private fun ScopeSwitcher(
+internal fun ScopeSwitcher(
     selected: ProblemScope,
     onSelectLibrary: () -> Unit,
     onSelectRemote: () -> Unit,
+    onSelectNotes: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -489,11 +517,20 @@ private fun ScopeSwitcher(
                 }
             },
         )
+        FilterChip(
+            label = stringResource(R.string.problems_scope_notes),
+            selected = selected == ProblemScope.NOTES,
+            onClick = {
+                if (shouldSwitchProblemScope(selected, ProblemScope.NOTES)) {
+                    onSelectNotes()
+                }
+            },
+        )
     }
 }
 
 @Composable
-private fun SearchField(
+internal fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     hintText: String,
@@ -553,6 +590,7 @@ private fun RemoteCatalogContent(
     onOpenExternal: (RemoteProblemEntity) -> Unit,
     onOpenWorkspace: (String) -> Unit,
     onOpenLuoguDetail: (String) -> Unit,
+    onOpenNotes: () -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item(key = "remote-controls") {
@@ -562,6 +600,7 @@ private fun RemoteCatalogContent(
                     selected = ProblemScope.REMOTE,
                     onSelectLibrary = onBackToLibrary,
                     onSelectRemote = {},
+                    onSelectNotes = onOpenNotes,
                 )
                 Spacer(modifier = Modifier.height(NexusSpacing.xs))
                 Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
@@ -885,7 +924,7 @@ private fun FilterChipRow(
 }
 
 @Composable
-private fun FilterChip(
+internal fun FilterChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,

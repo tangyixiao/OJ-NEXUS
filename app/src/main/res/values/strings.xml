@@ -746,6 +746,7 @@
     <string name="problems_scope_library">LIBRARY</string>
     <string name="problems_scope_codeforces">CODEFORCES</string>
     <string name="problems_scope_remote">REMOTE CATALOG</string>
+    <string name="problems_scope_notes">NOTE INDEX</string>
     <string name="problems_remote_search_hint">SEARCH REMOTE PROBLEM CATALOG</string>
     <string name="problems_remote_empty">NO CACHED RESULTS — ENTER A KEYWORD</string>
     <string name="problems_open_source">OPEN</string>
@@ -762,6 +763,27 @@
     <string name="problems_luogu_sync_catalog">SYNC CATALOG</string>
     <string name="problems_luogu_syncing_catalog">SYNCING CATALOG…</string>
     <string name="problems_luogu_catalog_synced">CATALOG UPDATED · %d ITEMS</string>
+    <!-- Problems: local note index -->
+    <string name="problems_notes_section_pulse">NOTE INDEX PULSE</string>
+    <string name="problems_notes_search_hint">SEARCH NOTES, TITLE OR ID</string>
+    <string name="problems_notes_pulse_indexed">INDEXED</string>
+    <string name="problems_notes_pulse_visible">VISIBLE</string>
+    <string name="problems_notes_pulse_unsolved">UNSOLVED</string>
+    <string name="problems_notes_pulse_review">REVIEW</string>
+    <string name="problems_notes_field_all">ALL</string>
+    <string name="problems_notes_field_insight">INSIGHT</string>
+    <string name="problems_notes_field_implementation">IMPLEMENTATION</string>
+    <string name="problems_notes_field_complexity">COMPLEXITY</string>
+    <string name="problems_notes_field_general">GENERAL</string>
+    <string name="problems_notes_filter_unsolved">UNSOLVED ONLY</string>
+    <string name="problems_notes_clear_filters">CLEAR FILTERS</string>
+    <string name="problems_notes_clear_filters_cd">Clear note index filters</string>
+    <string name="problems_notes_count">%d NOTES</string>
+    <string name="problems_notes_preview">%1$s · %2$s</string>
+    <string name="problems_notes_field_empty">NO TEXT IN THIS FIELD</string>
+    <string name="problems_notes_empty_title">NO NOTES INDEXED</string>
+    <string name="problems_notes_empty_hint">SAVE NOTES FROM A PROBLEM DETAIL SCREEN</string>
+    <string name="problems_notes_no_match">NO NOTES MATCH THE FILTER</string>
     <!-- Luogu native problem detail -->
     <string name="luogu_problem_detail_title">LUOGU PROBLEM</string>
     <string name="luogu_problem_loading">LOADING LUOGU PROBLEM</string>

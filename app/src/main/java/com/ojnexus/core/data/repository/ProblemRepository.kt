@@ -25,8 +25,10 @@ import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.model.Problem
 import com.ojnexus.core.model.ProblemDetail
 import com.ojnexus.core.model.ProblemKey
+import com.ojnexus.core.model.ProblemNoteEntry
 import com.ojnexus.core.model.ProblemNotes
 import com.ojnexus.core.model.Verdict
+import com.ojnexus.core.model.hasContent
 import java.time.Clock
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
@@ -57,6 +59,14 @@ class ProblemRepository(
 
     fun observeDetail(problemId: Long): Flow<ProblemDetail?> =
         problemDao.observeDetail(problemId).map { it?.toDetail() }
+
+    /**
+     * Local note index: every problem whose saved notes carry text, newest note first.
+     * A notes row that was emptied field-by-field stops being indexed here.
+     */
+    fun observeNoteIndex(): Flow<List<ProblemNoteEntry>> =
+        noteDao.observeIndex()
+            .map { rows -> rows.map { it.toDomain() }.filter { it.notes.hasContent() } }
 
     suspend fun findProblem(problemId: Long): Problem? =
         problemDao.findDetail(problemId)?.toDomain()

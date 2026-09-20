@@ -6,6 +6,7 @@ import com.ojnexus.core.data.DataResult
 import com.ojnexus.core.data.repository.ProblemRepository
 import com.ojnexus.core.database.entity.RemoteProblemEntity
 import com.ojnexus.core.model.JudgeId
+import com.ojnexus.core.model.NoteField
 import com.ojnexus.core.model.ProblemKey
 import com.ojnexus.core.model.Problem
 import com.ojnexus.core.model.ProblemStatus
@@ -85,11 +86,33 @@ class ProblemsViewModel(
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
 
+    private val noteFilter = MutableStateFlow(ProblemNoteFilter())
+
+    /**
+     * Local note index. Filters are applied to the repository flow only, so the screen never
+     * rewrites or re-sorts the stored notes.
+     */
+    val noteState: StateFlow<Loadable<NoteIndexUiState>> =
+        combine(repository.observeNoteIndex(), noteFilter) { entries, f ->
+            val visible = entries.applyNoteFilter(f)
+            Loadable.Ready(
+                NoteIndexUiState(
+                    entries = entries,
+                    visibleEntries = visible,
+                    filter = f,
+                    summary = summarizeNoteIndex(entries, visible),
+                ),
+            )
+        }
+            .catch<Loadable<NoteIndexUiState>> {
+                emit(Loadable.Failed(it.message ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_load_failed)))
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
+
     private val remoteCatalog = kotlinx.coroutines.flow.MutableStateFlow(RemoteProblemsUiState())
     val remoteState: StateFlow<RemoteProblemsUiState> = remoteCatalog
     private var remoteLoadJob: Job? = null
     private var catalogSyncJob: Job? = null
-
     fun enterRemoteCatalog() {
         if (remoteCatalog.value.problems.isEmpty() && !remoteCatalog.value.loading) reloadRemote()
     }
@@ -255,6 +278,18 @@ class ProblemsViewModel(
         filter.update { ProblemFilter() }
         sort.update { ProblemSort.UPDATED }
     }
+
+    // --- Local note index ---
+
+    fun setNoteQuery(query: String) = noteFilter.update { it.copy(query = query) }
+
+    fun setNoteField(field: NoteField) = noteFilter.update { it.copy(field = field) }
+
+    fun setNoteJudge(judge: JudgeId?) = noteFilter.update { it.copy(judge = judge) }
+
+    fun toggleNoteUnsolvedOnly() = noteFilter.update { it.copy(unsolvedOnly = !it.unsolvedOnly) }
+
+    fun clearNoteFilter() = noteFilter.update { ProblemNoteFilter() }
 
     fun toggleFavorite(problemId: Long, current: Boolean) {
         viewModelScope.launch { repository.setFavorite(problemId, !current) }

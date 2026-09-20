@@ -695,6 +695,7 @@
     <string name="problems_scope_library">题库</string>
     <string name="problems_scope_codeforces">CODEFORCES</string>
     <string name="problems_scope_remote">远端题库</string>
+    <string name="problems_scope_notes">笔记索引</string>
     <string name="problems_remote_search_hint">搜索远端题库</string>
     <string name="problems_remote_empty">暂无缓存结果——请输入关键词</string>
     <string name="problems_open_source">打开原题</string>
@@ -711,6 +712,27 @@
     <string name="problems_luogu_sync_catalog">同步题库</string>
     <string name="problems_luogu_syncing_catalog">正在同步题库…</string>
     <string name="problems_luogu_catalog_synced">题库已更新 · %d 项</string>
+    <!-- 题库：本地笔记索引 -->
+    <string name="problems_notes_section_pulse">笔记索引脉冲</string>
+    <string name="problems_notes_search_hint">搜索笔记、题名或编号</string>
+    <string name="problems_notes_pulse_indexed">已索引</string>
+    <string name="problems_notes_pulse_visible">当前显示</string>
+    <string name="problems_notes_pulse_unsolved">未解决</string>
+    <string name="problems_notes_pulse_review">复习中</string>
+    <string name="problems_notes_field_all">全部</string>
+    <string name="problems_notes_field_insight">关键洞察</string>
+    <string name="problems_notes_field_implementation">实现</string>
+    <string name="problems_notes_field_complexity">复杂度</string>
+    <string name="problems_notes_field_general">普通笔记</string>
+    <string name="problems_notes_filter_unsolved">仅未解决</string>
+    <string name="problems_notes_clear_filters">清除筛选</string>
+    <string name="problems_notes_clear_filters_cd">清除笔记索引筛选</string>
+    <string name="problems_notes_count">%d 条笔记</string>
+    <string name="problems_notes_preview">%1$s · %2$s</string>
+    <string name="problems_notes_field_empty">该字段暂无文字</string>
+    <string name="problems_notes_empty_title">暂无笔记</string>
+    <string name="problems_notes_empty_hint">在题目详情页保存笔记后会出现在这里</string>
+    <string name="problems_notes_no_match">没有符合筛选条件的笔记</string>
     <!-- 洛谷原生题目详情 -->
     <string name="luogu_problem_detail_title">洛谷题目</string>
     <string name="luogu_problem_loading">正在加载洛谷题目</string>
