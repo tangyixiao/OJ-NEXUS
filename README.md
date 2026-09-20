@@ -25,10 +25,20 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Early development — **Phase 76 (Sync Operations Ledger)**: bounded per-operation sync history,
-module outcomes, stale-generation protection, and capability-gated retry actions in the connector
-center. The APK identity is aligned to `versionName=0.3.74`, `versionCode=74`. /
-早期开发——**第 76 阶段（同步操作账本）**：连接中心提供有界的逐次同步历史、模块结果、过时代际保护及按能力门控的重试操作。APK 版本身份同步为 `versionName=0.3.74`、`versionCode=74`。
+Early development — **Phase 77 (Note Index)**: the problem library gains a third scope that indexes
+every problem with saved local notes, newest note first. Rows carry judge, public problem id, title,
+a text status, and a preview of a selected note field; search covers the note text of the chosen
+field scope, the problem title, and the id, with judge and unsolved-only filters. The APK identity is
+aligned to `versionName=0.3.75`, `versionCode=75`; artifact signing and device-install verification
+for this identity are still pending. /
+早期开发——**第 77 阶段（笔记索引）**：题库新增第三个范围，索引所有本地笔记非空的题目，按笔记更新时间倒序排列。
+行内展示评测平台、公开题号、题名、文字状态和所选笔记字段的预览；搜索覆盖所选字段范围的笔记正文、题名和题号，
+并支持按评测平台与「仅未解决」筛选。APK 版本身份同步为 `versionName=0.3.75`、`versionCode=75`；
+该身份的产物签名与设备安装验证仍待完成。
+
+Phase 76 remains available: bounded per-operation sync history, module outcomes, stale-generation
+protection, and capability-gated retry actions in the connector center. / 第 76 阶段继续保留：
+连接中心提供有界的逐次同步历史、模块结果、过时代际保护及按能力门控的重试操作。
 
 The repository also contains a native Windows vertical slice under `windows/`: a WPF dashboard,
 public OJ connectors, bounded sync history, and a scriptable CLI backed by the same tested local

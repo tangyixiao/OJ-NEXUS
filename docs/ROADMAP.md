@@ -29,9 +29,32 @@ order and keeps each typed operation in the shared local history. / Windows Dash
 
 ## CURRENT PACKAGE IDENTITY
 
-The current Android package identity is `versionName=0.3.74` and `versionCode=74`. It carries
-the Phase 76 Sync Operations Ledger release. / 当前 Android 安装包身份为 `versionName=0.3.74`、`versionCode=74`，
-对应第 76 阶段同步操作账本版本。
+The current Android package identity is `versionName=0.3.75` and `versionCode=75`. It carries
+the Phase 77 Note Index work described below; the release artifact, signing, and device
+installation gates for this identity have not been re-run yet. / 当前 Android 安装包身份为
+`versionName=0.3.75`、`versionCode=75`，对应下面的第 77 阶段笔记索引；该身份的发布产物、签名和设备安装门禁尚未重新执行。
+
+## PHASE 77 — Note Index / 笔记索引
+
+Saved local notes are now readable, searchable, and reviewable offline. The problem library gains a
+third scope, `NOTE INDEX`, listing every problem whose saved notes carry text, newest note first.
+Rows show the judge, public problem id, problem title, a text status, and a preview of the selected
+note field. The index searches the note text of the chosen field scope, the problem title, and the
+public id; it also filters by judge and by unsolved-only. Empty and filtered-to-nothing states are
+distinct, and a notes row emptied field by field leaves the index. / 本地已保存的笔记现在可以离线阅读、检索和复习。
+题库新增第三个范围「笔记索引」，按笔记更新时间倒序列出所有笔记非空的题目。行内展示评测平台、公开题号、题名、文字状态，
+以及当前所选笔记字段的预览。索引会搜索所选字段范围、题名和公开题号，并支持按评测平台和「仅未解决」筛选。
+空状态与筛选无结果状态彼此区分；逐字段清空的笔记行会退出索引。
+
+This phase is a local read-only projection. Reading notes adds no network request, no database
+migration, no Room version bump, and no new table; `problem_notes` and its problem identity join are
+read through one bounded query. The screen writes nothing: filtering and previewing never rewrite or
+re-sort stored notes. No main-site password, Cookie, Session, CSRF login, cloud account, cross-device
+sync, local compiler, custom-input runner, background submission, or automatic POST retry is added.
+Earlier phase notes and published Releases remain intact. / 本阶段是本地只读投影。读取笔记不新增网络请求、数据库迁移、
+Room 版本升级或新数据表；`problem_notes` 与其题目身份的联表通过一条有界查询读取。界面不写入任何内容：筛选与预览都不会改写或重排已存笔记。
+不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试。
+此前阶段说明和已发布 Releases 保持不变。
 
 ## PHASE 76 — Sync Operations Ledger / 同步操作账本
 

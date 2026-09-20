@@ -507,3 +507,132 @@ Core 72/72、CLI 28/28、Desktop 19/19；`tools\gradlew-local.bat test assembleD
 ### 12.4 结论
 
 本轮只做「补齐 Windows 认证语义」这一件事，跨端退出码统一与更细粒度错误对齐**未做**，属待决策项。
+
+## 13. 第四轮接手记录（Workbuddy，2026-09-20）
+
+### 13.1 本轮范围
+
+用户选择「Android 新阶段 Phase 77」。接手前先做只读审计：主 checkout `codex/phase-5-arena`
+**ahead 71**、工作区完全干净（无未提交改动、无未跟踪文件）；Linux worktree 未触碰。
+
+审计中发现的真实功能缺口：`problem_notes` 表（`key_insight` / `implementation_notes` /
+`complexity` / `general`）**只能写、不能读** —— 写入只在题目详情页发生，题库 / 训练 / 分析都没有任何读取入口，
+与 README 声明的 “history, notes, review, and stats work fully offline” 不符。Phase 77 因此定为
+**Note Index（笔记索引）**。
+
+### 13.2 实现要点
+
+- 数据层：`NoteDao.observeIndex()` 一条有界联表查询（`problem_notes` JOIN `problems`，`EXISTS(reviews)`
+  解析复习标记，按笔记更新时间倒序）→ 新 `NoteIndexRow` → `NoteIndexRow.toDomain()` →
+  `ProblemRepository.observeNoteIndex()`，并在 Kotlin 侧过滤「四个字段全空」的笔记行（不写在 SQL 里，
+  以便用普通单测覆盖）。
+- 领域层：新 `ProblemNoteIndex.kt` 提供 `NoteField`、`ProblemNotes.hasContent()` /
+  `textFor(field)` / `searchScope(field)`、`ProblemNoteEntry`（含派生 `status`）。
+- 纯逻辑：`ProblemNoteFilter` + `applyNoteFilter`（题名 / 公开题号 / 所选字段笔记正文的大小写不敏感匹配，
+  加 judge 与 unsolvedOnly 条件，保持输入顺序）+ `summarizeNoteIndex`。
+- UI：`ProblemScope` 增加 `NOTES`，范围切换器变三档；新 `ProblemNoteIndex.kt` 提供
+  `NOTE INDEX PULSE` 四项读数、搜索、字段 chip 行、平台 chip 行（只列索引里真实存在的平台）、
+  行（状态色轨 + 平台 + 题号 + **文字状态** + 题名 + 字段预览）、`CLEAR FILTERS`、
+  以及「暂无笔记」与「筛选无结果」两种空态区分。行点击复用已有 `PROBLEM_DETAIL` 路由，未新增路由。
+- 复用而非复制：`ProblemsScreen` 里的 `EmptyHint` / `SearchField` / `FilterChip` / 脉冲指标
+  从 `private` 改为 `internal` 供新文件复用；`NoteField.labelRes()` 按仓库约定加在 `core/ui/Labels.kt`。
+
+**边界**：无网络请求、**无数据库迁移、无 Room 版本升级、无新表**（`app/schemas` 未变）；界面不写任何数据，
+筛选与预览都不会改写或重排已存笔记。
+
+### 13.3 本轮 fresh evidence（本机实跑）
+
+| 命令 | 结果 |
+| --- | --- |
+| `tools\gradlew-local.bat compileDebugKotlin --no-daemon --console=plain` | `BUILD SUCCESSFUL in 1m 21s`，`EXIT=0` |
+| `tools\gradlew-local.bat testDebugUnitTest --no-daemon --console=plain` | `BUILD SUCCESSFUL in 3m 51s`，`EXIT=0` |
+| 单测汇总（`app/build/test-results/testDebugUnitTest/*.xml`） | **135 suite / 547 tests / 0 failures / 0 errors**（原 132 / 525，本轮 +3 suite +22 test） |
+| `tools\gradlew-local.bat test assembleDebug assembleRelease lintDebug --no-daemon --console=plain` | `BUILD SUCCESSFUL in 5m 42s`，`EXIT=0`；产物 `app-debug.apk`（17,833,455 B）、`app-release-unsigned.apk`（12,767,987 B）；`lintDebug` 报告已生成 |
+| `tools\gradlew-local.bat assembleDebugAndroidTest --no-daemon --console=plain` | `BUILD SUCCESSFUL in 29s`，`EXIT=0`（1 条 `createComposeRule` v1 deprecated 警告，与既有两个 Compose 设备测试相同） |
+| Pixel_9 AVD `connectedDebugAndroidTest`（同会话启动模拟器，BOOT_COMPLETED 约 50s） | `BUILD SUCCESSFUL in 2m 25s`，`GRADLE_EXIT=0`，**27 tests / 0 failed / 0 skipped**（原 15，本轮 +12） |
+
+新增测试分布：单测 `ProblemNoteIndexTest`（6）、`ProblemNoteIndexRepositoryTest`（8）、
+`ProblemNoteFilterTest`（8）；设备测试 `ProblemNoteIndexComposeTest`（12，覆盖读数、行身份与预览、
+字段回退、状态文字、平台 chip 计数、行点击、字段 chip 回调、`CLEAR FILTERS` 两态、两种空态）。
+
+**一次真实失败（已修）**：首次设备测试 27 个用例中 `judgeChips_coverExactlyTheJudgesPresentInTheIndex`
+失败 —— `performScrollTo` 用在了一个匹配到两个节点的文本上（平台名同时出现在筛选 chip 和行内），
+属**测试写法缺陷**而非产品缺陷；改为计数断言后复跑全绿。
+
+### 13.4 本轮修改的文件（主 checkout，全部未提交）
+
+修改 12 个：`README.md`、`.gitignore`、`app/build.gradle.kts`、`docs/ROADMAP.md`、
+`core/data/repository/ProblemRepository.kt`、`core/database/dao/NoteDao.kt`、
+`core/database/mapper/Mappers.kt`、`core/ui/Labels.kt`、`feature/problems/ProblemsScreen.kt`、
+`feature/problems/ProblemsViewModel.kt`、`res/values/strings.xml`、`res/values-zh-rCN/strings.xml`。
+
+新增 9 个：`core/model/ProblemNoteIndex.kt`、`feature/problems/ProblemNoteFilter.kt`、
+`feature/problems/ProblemNoteIndex.kt`、三份单测、一份设备测试、
+`docs/superpowers/specs/2026-09-20-note-index-design.md`、
+`docs/superpowers/plans/2026-09-20-note-index.md`。
+
+`.gitignore` 补 `.workbuddy/`（与既有 `.workbuddy-ai/` 同源，避免本地智能体数据被误提交）。
+
+### 13.5 包身份与未完成项
+
+- `versionCode` 74 → **75**，`versionName` 0.3.74 → **0.3.75**。这是**源码身份**：
+  本轮的 `app-release-unsigned.apk` **未签名、未安装、未做冷启动扫描**，也没有生成
+  `docs/releases/v0.3.75.md`。**不得**把 0.3.75 描述为已发布版本。
+- 仍未做（沿用 §6 / §10.4）：Android 侧 release 签名与设备安装验收；Windows CI runner 实跑、
+  installer / 签名 / 商店包 / 自动更新、self-contained 包重建（宿主 safe-delete 阻断，旧哈希作废）、
+  交互式终端 Ctrl+C；Apple 需要在 macOS/Xcode 或 CI 跑 `swift test` 与两个 product 构建；
+  Linux 需要在 Linux 主机或 CI 构建测试。
+- 跨端待决策项（§12.2 更细粒度错误、§12.3 CLI 退出码）本轮**未触碰**。
+- 本轮已在用户授权后执行**第一次提交** `bb0c838`（`feat(android): index locally saved problem notes`，
+  11 files / +669 −17，parent `ff24bd9`）。提交动作本身成功，但**分支指针随后被仓库外部进程改回**，见 §13.7。
+  其余 4 个计划中的 commit（测试 / 版本号 / ignore / 文档）**暂缓**，原因见 §13.7。仍未推送。
+
+### 13.6 环境坑补充（本轮新发现）
+
+1. **同一文件的多次编辑不要并行提交**：本轮实测多次出现「工具报 success、文件只落了一部分」。
+   批量结构性改写请改用「一次性脚本 + 断言 `old` 只出现 1 次」的原子写盘方式。
+2. 本机 Git Bash **没有 `nohup` / `setsid`**：启动模拟器只能用 `emulator ... > log 2>&1 &`，
+   且必须与 `connectedDebugAndroidTest` 写在**同一条命令**里（后台任务形式），否则模拟器会随会话结束被回收。
+3. `cmd //c "..."` 在本机 Git Bash 下会退化成交互式 cmd（只打印版本横幅即退出）；
+   直接用 `./gradlew.bat`（配合导出的 `JAVA_HOME`）或在 PowerShell 工具里调 `tools\gradlew-local.bat`。
+4. 用脚本改写源码后要确认行尾仍是 **CRLF**（工作区约定），否则会刷出大量无意义差异；
+   `io.open(path, encoding=...)` 读入会把 CRLF 归一成 LF，需要按字节读写。
+
+### 13.7 事件：分支引用被仓库外部进程改写（本轮遇到，重要）
+
+**现象**：本轮 `git commit` 成功（`bb0c838`，`git show --stat` 复验内容完整），但同一分钟内
+`git rev-parse HEAD` 变成 `b49d201`（v0.3.49 时代的旧提交，约早于原 HEAD 192 个提交），
+`git status` 显示 314 个「已暂存」文件，`git branch -vv` 显示 `behind 121`。
+
+**取证（全部只读）**：
+
+| 检查 | 结果 |
+| --- | --- |
+| `git reflog` | 最新条目 `HEAD@{0} = bb0c838 commit: feat(android): ...`，**没有任何指向 `b49d201` 的记录** |
+| `git cat-file -t bb0c838` / `git show --stat bb0c838` | `commit`，parent `ff24bd9`，内容与本次改动一致 → **提交对象完好** |
+| `.git/refs/heads/codex/phase-5-arena` | **不存在**；`.git/refs/heads/` 整个目录为空，目录 mtime = 22:48 |
+| `.git/packed-refs` | 仍是 **2026-09-12 21:38** 的旧文件，内含 `refs/heads/codex/phase-5-arena = b49d201` |
+| `git update-ref refs/heads/codex/phase-5-arena bb0c838` | 写入成功、分支 reflog 记下 `22:48:25 → bb0c838`，但**数秒后 loose ref 再次消失**，git 又退回 `packed-refs` 的 `b49d201` |
+| `.git/refs/codex/turn-diffs/checkpoints/...` | 存在，属 Codex CLI 的 checkpoint 机制 |
+
+**判读**：这不是提交失败，也不是工作区/索引丢失 —— 314 个「已暂存」文件只是「旧 HEAD ↔ 索引」的
+差异假象（这些内容全部在 `ff24bd9` / `bb0c838` 的历史里），工作区与索引**没有丢任何文件**。
+真正的问题是：有仓库外部进程在**删除/改写 `.git/refs`**，使分支指针退回 `packed-refs` 的旧值。
+直接原因与 `.git/refs/codex/turn-diffs/` 指向的 Codex checkpoint 机制高度相关，
+但本环境无法确定其调用时机。
+
+**处置**：本轮在第二次确认后**停止一切 git 写操作**，未 reset、未 checkout、未清理索引，
+未 `git add -A`。剩余 4 个 commit 暂缓，直到引用状态稳定。
+
+**恢复步骤（请在确认另一个会话/工具已停止后执行）**：
+
+```powershell
+git update-ref refs/heads/codex/phase-5-arena bb0c83811562469a34c83908ccc869a81f4253df
+git pack-refs --all                     # 让该值进入 packed-refs，避免 loose ref 再被删时退回旧值
+git rev-parse HEAD                       # 期望 bb0c838...
+git log --oneline -3
+git status --short --branch              # 期望只剩本轮未提交的测试/文档/版本号改动
+```
+
+回退值（万一需要退回外部进程设定的状态）：`b49d2015ca000ae6be39cc0598fdde74f4929621`。
+`bb0c838` 受 reflog 保护（默认 90 天），期间即使没有分支引用也不会被 gc 回收。
