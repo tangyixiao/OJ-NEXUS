@@ -668,3 +668,43 @@ git log --oneline -6
 **27/27 通过**、`BUILD SUCCESSFUL in 2m 11s`、`DEVICE_EXIT=0`。
 
 **仍未推送**；release 签名、设备安装与冷启动验收仍未做，`0.3.75` 仍是源码身份而非已发布版本。
+
+## 14. 引用修复记录（Workbuddy，2026-09-21）
+
+接手时先做只读审计，发现 §13.7 的引用异常**没有被修复，且比记录时更严重**：
+
+| 引用 | 审计结果 |
+| --- | --- |
+| `refs/heads/codex/phase-5-arena` | 仍是 `b49d201`（旧值，来自未更新的 `packed-refs`） |
+| `refs/heads/codex/linux-client` | **完全丢失**（不在 `git show-ref` 中），`git worktree list` 里该 worktree 的 HEAD 变成 `0000…` |
+| `refs/codex/turn-diffs/checkpoints/**` | 正常（4 条 Codex checkpoint 引用仍可解析） |
+| 关键提交对象 | `5c42103`（Linux worktree 末次提交）、`6360ad2`（本轮末端）、`ff24bd9` 全部仍是 `commit` |
+
+**根因收窄**：删除动作只针对 `refs/heads/codex/**` 这条路径 —— 同为 `codex/` 前缀但位于
+`refs/codex/**`（Codex 自己的 checkpoint 命名空间）的引用完好无损，而 `refs/heads/` 下的
+**一级**引用（实测临时分支）也能正常创建并持久。也就是说：向 `.git/refs/heads/codex/`
+写 loose ref 会被外部进程清掉，而 `packed-refs`（单文件，自 2026-09-12 起未被改动）是稳定的。
+
+**修复方式**（全部用受支持命令，且写在**同一条命令**里以抢在删除动作之前完成打包）：
+
+```powershell
+cp .git/packed-refs .git/packed-refs.bak-20260921     # 先备份
+git update-ref refs/heads/codex/phase-5-arena 6360ad2  # 写入正确末端
+git update-ref refs/heads/codex/linux-client 5c42103   # 恢复丢失的 Linux 分支
+git pack-refs --all                                    # 关键一步：写进 packed-refs，loose ref 被删也无所谓
+```
+
+验证结果：`refs/heads/codex/phase-5-arena → 6360ad2`、`refs/heads/codex/linux-client → 5c42103`
+（均来自 `packed-refs`），`git worktree list` 两个 worktree 都恢复正常。
+
+**修复后的状态**：
+
+- 主 checkout：`codex/phase-5-arena` @ `6360ad2`，**ahead 77**，工作区干净。
+- Linux worktree：`codex/linux-client` @ `5c42103`，其既有未提交工作（`linux/`、`.github/workflows/linux.yml`、
+  多份文档改动）**完好**。
+- `phase-77-note-index` 作为同一提交的冗余别名保留（防再次丢引用），确认无误后可
+  `git branch -D phase-77-note-index`。
+- 备份文件：`.git/packed-refs.bak-20260921`。
+
+**残留风险**：若外部进程连 `packed-refs` 一起回滚，两条引用仍会退回旧值/消失；
+那时可用 reflog（`5c421038…`、`6360ad2…`）与上述备份再次恢复。**未推送**任何内容。
