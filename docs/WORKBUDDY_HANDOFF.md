@@ -913,3 +913,48 @@ Desktop 19/19、Core 72/72；`dotnet build -c Release` 0 警告 0 错误；`smok
   不产生 native 调用，因此 `$LASTEXITCODE` 可能保留上一次的值。真正兜住失败的是子脚本抛出的
   终止错误（当前有效）。该检查属冗余，理论上仍可能把「未跑 native 调用的失败」误判为成功。
 - 历史计划文档 `docs/superpowers/plans/2026-09-07-windows-client-cli.md` 仍写旧退出码契约，未回改。
+
+## 17. 推送与 Apple 客户端的首次真实 CI（Workbuddy，2026-09-23 续）
+
+### 17.1 提交与推送
+
+在用户显式授权后，§15 / §16 的改动与 Apple 修复共分 8 个提交推送到
+`origin/codex/phase-5-arena`（每个提交都逐文件限定范围并过了 `git diff --cached --check`）：
+
+| commit | 内容 |
+| --- | --- |
+| `1279763` | fix(windows): align CLI exit codes with the Linux client |
+| `6cead08` | test(windows): pin the cross-platform CLI exit codes |
+| `e39d463` | fix(windows): survive guarded deletions while packaging |
+| `4f3f3d9` | docs: record the exit-code contract and the packaging hardening |
+| `a277b7b` | fix(apple): repair the UI module build |
+| `051ff00` | fix(apple): make the core test target build |
+| `04fefd7` | fix(apple): correct the partial sync-all test payload |
+| `f883069` | fix(ci): drop the invalid xcodebuild option from the Apple workflow |
+
+### 17.2 推送触发了 Apple 工作流（§16.6 的判断有误）
+
+§16.6 写「推分支不会跑 CI」——这对 `windows.yml` / `android.yml` 成立（二者只监听 `main`），
+但**漏了 `apple.yml`**：它没有分支限制，只按路径过滤（`apple/**`、`.github/workflows/apple.yml`）。
+本次推送携带 82 个提交，其中含 `apple/**` 改动，因此 **Apple clients 工作流第一次在真实 macOS runner 上运行**。
+
+### 17.3 Apple CI：四轮修复后转绿
+
+`swift test` 此前从未在真实 macOS 上跑过（§8.6 长期挂为遗留项）。首次运行即失败，逐轮修完：
+
+| 轮次 | run | 结果 | 真实缺陷 |
+| --- | --- | --- | --- |
+| 1 | `35870613211` | failure | `NexusDashboardModel.swift:156` 的 `existingAccount?.handle.map {…} ?? true` 把 `.map` 绑定到 `String`（闭包收到 `Character`）得到 `[Bool]?`，无法与 `Bool` 做 `??`；`NexusRootView.swift:12` 在**默认参数**里构造 `@MainActor` 的 `NexusDashboardModel`，而默认参数在 nonisolated 上下文求值 |
+| 2 | `35871084972` | failure | 测试目标：`DelayedHTTPClient`（class）声明了存储属性却没有 init，无法构造并使周边断言失去类型；`XCTAssertEqual((try await store.load())…)` 在 XCTest 的 autoclosure 里 `await`，而 autoclosure 不支持并发 |
+| 3 | `35871341398` | failure | 编译已全过（`Build complete!`），测试真正开始执行；只有 `testDashboardModelSyncAllReportsPartialWhenOneProfileFails` 失败：`successPayload` 是 **Codeforces JSON**，但按顺序该响应属于 AtCoder，而 AtCoder adapter 解析的是 HTML，于是两个操作都失败、整批报 `error` 而非 `partial` |
+| 4 | `35871568271` | failure | `swift test` ✅、`Build macOS product` ✅；`Build iOS Simulator product` 报 `xcodebuild: error: invalid option '-packagePath'`（exit 64）——`-packagePath` 是 `swift build` 的参数，被误用到 xcodebuild |
+| 5 | `35871738539` | **success** | 全步骤通过：公开边界审计 / `swift test` / macOS 产品 / iOS Simulator 产品 |
+
+第 3 轮的定位依据：`SyncLedger` 用 `operations.insert(operation, at: 0)`，因此 `operations[0]` 是**最新**的操作，
+测试断言 `[0]=success` 实际要求 AtCoder 成功、`[1]=error` 要求 Codeforces 失败。
+
+### 17.4 仍未验证
+
+- **Windows CI 与 Android CI 仍未在真实 runner 上跑过**：两者都只监听 `main`，
+  需要一个 base=`main` 的 PR 才能触发（本轮计划中的「跑通 CI」目标只能这样达成）。
+- 发布产物未签名、无安装器（§16.7）。
