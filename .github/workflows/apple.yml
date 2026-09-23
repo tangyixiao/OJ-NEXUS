@@ -36,4 +36,4 @@ jobs:
       - name: Build macOS product
         run: swift build --product OJNexusMacOS
       - name: Build iOS Simulator product
-        run: xcodebuild -packagePath . -scheme OJNexusIOS -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
+        run: xcodebuild -scheme OJNexusIOS -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
