@@ -9,8 +9,8 @@ public struct NexusRootView: View {
     @State private var historyFilter = "ALL"
     @State private var expandedSubmissionAccountIDs = Set<String>()
 
-    public init(model: NexusDashboardModel = NexusDashboardModel()) {
-        _model = StateObject(wrappedValue: model)
+    public init(model: NexusDashboardModel? = nil) {
+        _model = StateObject(wrappedValue: model ?? NexusDashboardModel())
     }
 
     public var body: some View {

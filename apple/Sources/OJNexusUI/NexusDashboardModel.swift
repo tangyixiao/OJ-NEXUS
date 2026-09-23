@@ -153,7 +153,7 @@ public final class NexusDashboardModel: ObservableObject {
         let previousRatingChanges = ratingChanges
         let previousSubmissions = submissions
         let previousLastProfile = lastProfile
-        let handleChanged = existingAccount?.handle.map { !judgeHandlesMatch(judge, $0, account.handle) } ?? true
+        let handleChanged = existingAccount.map { !judgeHandlesMatch(judge, $0.handle, account.handle) } ?? true
         accounts.removeAll { $0.judge == judge }
         accounts.append(account)
         if handleChanged {
