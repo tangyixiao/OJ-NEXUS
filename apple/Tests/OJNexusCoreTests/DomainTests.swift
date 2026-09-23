@@ -1355,7 +1355,11 @@ final class DomainTests: XCTestCase {
 
     @MainActor
     func testDashboardModelSyncAllReportsPartialWhenOneProfileFails() async throws {
-        let successPayload = Data(#"{"status":"OK","result":[{"handle":"tourist","rating":3800}]}"#.utf8)
+        // Accounts sync in order, so the first request belongs to Codeforces and the second to
+        // AtCoder, while the ledger keeps the newest operation first. The successful response
+        // therefore has to be AtCoder's HTML profile: the Codeforces JSON shape is unreadable to
+        // the AtCoder adapter and would make both operations fail.
+        let successPayload = Data("<html><title>tourist - AtCoder</title><script>var rank_history=[{\"Rating\":1800},{\"Rating\":246}];</script></html>".utf8)
         let client = SequencedHTTPClient(results: [.failure(.network), .success(successPayload)])
         let codeforces = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
         let atcoder = try XCTUnwrap(JudgeAccount(judge: .atcoder, handle: "tourist"))
