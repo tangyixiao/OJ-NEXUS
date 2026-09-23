@@ -1026,8 +1026,9 @@ final class DomainTests: XCTestCase {
 
         XCTAssertEqual(model.accounts.first?.enabled, false)
         XCTAssertEqual(model.accounts.first?.handle, "Tourist")
-        XCTAssertEqual((try await store.load()).accounts.first?.enabled, false)
-        XCTAssertEqual((try await store.load()).accounts.first?.handle, "Tourist")
+        let reloaded = try await store.load()
+        XCTAssertEqual(reloaded.accounts.first?.enabled, false)
+        XCTAssertEqual(reloaded.accounts.first?.handle, "Tourist")
     }
 
     @MainActor
@@ -1472,6 +1473,11 @@ private final class DelayedHTTPClient: HTTPClient, @unchecked Sendable {
     let payload: Data
     let delayNanoseconds: UInt64
     private(set) var returnedAt: Date?
+
+    init(payload: Data, delayNanoseconds: UInt64 = 0) {
+        self.payload = payload
+        self.delayNanoseconds = delayNanoseconds
+    }
 
     func get(_ url: URL) async throws -> Data {
         try await Task.sleep(nanoseconds: delayNanoseconds)
