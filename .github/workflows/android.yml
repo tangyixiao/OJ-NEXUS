@@ -73,7 +73,21 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest
+          # This runner has no hardware acceleration, so the system can still be starting its
+          # services when the emulator already reports boot complete. The app install then fails
+          # with "Can't find service: package" and zero tests run, so wait for the package
+          # manager to answer before handing the device to Gradle.
+          script: |
+            adb wait-for-device
+            for attempt in $(seq 1 60); do
+              if adb shell pm path android > /dev/null 2>&1; then
+                echo "package service ready after $attempt attempt(s)"
+                break
+              fi
+              sleep 5
+            done
+            adb shell pm path android > /dev/null 2>&1 || echo "package service still not ready; continuing"
+            ./gradlew connectedDebugAndroidTest
 
       - name: Upload Android test reports
         if: always()
