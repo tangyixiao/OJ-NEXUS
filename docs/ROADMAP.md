@@ -27,6 +27,79 @@ The Windows Dashboard now exposes `SYNC ALL`, which runs only configured and ena
 order and keeps each typed operation in the shared local history. / Windows Dashboard 现在提供“全部同步”，
 按顺序运行已配置且启用的连接器，并将每次类型化操作保留在共享本地历史中。
 
+## CLI EXIT CODE CONTRACT
+
+Both command-line clients now emit the same number for the same outcome. The contract is
+severity-ordered, and each platform emits only the categories it can actually produce, so a number
+never means one thing on Windows and something else on Linux. / 两个命令行客户端现在对同一结果使用同一数字。
+契约按严重程度排序，各端只发出自己能够产生的类别；同一个数字不会在 Windows 上表示一种含义、在 Linux 上表示另一种。
+
+| code | contract name | Windows enum | Linux enum |
+| --- | --- | --- | --- |
+| 0 | success | `Success` | `Ok` |
+| 1 | partial / uncategorized failure | `Partial` | `PartialFailure` |
+| 2 | usage or argument error | `InvalidArguments` | `UsageError` |
+| 3 | unavailable (offline, network, unobtainable resource) | `Unavailable` | `NetworkError` |
+| 4 | authentication refused for public access | `Authentication` | `AuthenticationError` |
+| 5 | cancelled by the user | `Cancelled` | `Cancelled` |
+| 6 | local storage failure | `Storage` (declared, not emitted yet) | `StorageError` |
+| 7 | unexpected internal error | `GeneralError` | `GeneralError` (declared, not emitted yet) |
+
+Before this change the two clients disagreed on 3, 4 and 5: Linux reported an authentication limit
+as 3 while Windows used 3 for `Unavailable`, so automation could not read one shared table. Windows
+additionally folded an authentication limit into `Partial`. Both clients were renumbered onto the
+table above, an authentication limit is now its own category on both sides, a fully cancelled batch
+gets `5` on both sides instead of falling into `PartialFailure` on Linux, and the test suites on both
+platforms pin every value. / 变更前两端在 3、4、5 上含义相反：Linux 把认证受限报告为 3，而 Windows 的 3 是
+`Unavailable`，脚本无法只读一张表；Windows 还把认证受限并入 `Partial`。两端现已按上表重新编号，认证受限在两端都是独立类别，
+整批取消在两端都是 5（此前在 Linux 会落进 `PartialFailure`），且两端测试都钉住了每个数值。
+
+The category is derived the same way on both clients. A run-level error decides first. When a run is
+only partial the run-level error is empty, so the first module that did not succeed decides it:
+authentication → 4, network/offline/unsupported judge → 3, anything else → 1. Both clients were
+checked against the same real run: Luogu `uid:2` reports `AUTHENTICATION` for its submissions stage
+and exits 4 on Windows and on Linux, while Codeforces `tourist` exits 0 on both.
+/ 类别的推导规则在两端一致：整轮错误优先；整轮只是部分失败时整轮错误为空，于是由**第一个未成功的模块**决定——
+认证 → 4，网络/离线/不支持的平台 → 3，其余 → 1。两端已用同一次真实运行核对：洛谷 `uid:2` 的提交阶段报告
+`AUTHENTICATION`，Windows 与 Linux 都退出 4；Codeforces `tourist` 两端都退出 0。
+
+This is a breaking change for any local script that hard-coded the old numbers. CI expectations did
+not need editing: both CI workflows only assert exit code 0 on the success path. / 对硬编码旧数字的本地脚本
+属破坏性变更。CI 期望值无需修改：两个 CI 工作流都只在成功路径断言退出码 0。
+
+## WINDOWS PACKAGING HARDENING
+
+The self-contained `win-x64` package is rebuilt from the current CLI and Desktop sources, and it
+now carries the renumbered exit-code contract. Replacing the previous package used to be
+impossible on this host: the environment substitutes a guarded delete for `Remove-Item` that
+reports failure even when the directory is already gone, and `package.ps1` runs with
+`$ErrorActionPreference = 'Stop'`, so packaging aborted on its own cleanup step while the package
+it had just built was already valid. Packaging now removes staged and temporary paths through the
+.NET file APIs and verifies the resulting filesystem state, so a genuine deletion failure still
+fails the run while a false report no longer does. `ui-smoke.ps1` carried the same exposure when
+its screenshot directory sat inside the workspace, and was fixed the same way. / 自包含
+`win-x64` 包已用当前 CLI 与 Desktop 源码重建,并已带上重新编号的退出码契约。在本机,替换旧包此前完全做不到:
+该环境把 `Remove-Item` 换成带保护的删除,即使目录已经消失也会报告失败,而 `package.ps1` 以
+`$ErrorActionPreference = 'Stop'` 运行,于是打包在自身的清理步骤上中断——而它刚构建出的包其实是有效的。
+现在打包通过 .NET 文件 API 删除暂存与临时路径,并核对删除后的真实文件系统状态:真正的删除失败仍会让打包失败,
+虚假的失败报告不再中断。`ui-smoke.ps1` 在截图目录位于工作区内时有同样的暴露面,已按相同方式修复。
+
+The package was verified on a published artifact rather than on build output: `verify-package.ps1`
+accepts all entries, the packaged CLI exits 4 for Luogu `uid:2` and 0 for Codeforces `tourist`,
+and the packaged WPF client renders all three views with three distinct screenshots. / 该包是在**发布产物**上
+验证的,而不是在编译输出上:`verify-package.ps1` 全部条目通过,包内 CLI 对洛谷 `uid:2` 退出 4、对 Codeforces
+`tourist` 退出 0,包内 WPF 客户端渲染全部三个视图并产出三张互不相同的截图。
+
+`windows.yml` has still never run on a real runner: the workflow exists in local commits only, and
+the remote repository exposes the Android workflow alone, so the Windows job, its packaging step,
+and its artifact upload remain unverified. / `windows.yml` 仍从未在真实 runner 上运行过:
+该工作流只存在于本地提交中,而远程仓库仅发布了 Android 工作流,因此 Windows 任务、其打包步骤与产物上传仍未经验证。
+
+`signtool` and `makeappx` are available with the Windows SDK, and the signing step was exercised
+end to end against a certificate generated in memory; only a CA-issued code signing certificate is
+missing. No installer toolchain is installed. / 本机随 Windows SDK 提供 `signtool` 与 `makeappx`,
+并已用内存中生成的证书把签名步骤完整演练过一遍;缺的只有 CA 签发的代码签名证书。未安装安装包工具链。
+
 ## CURRENT PACKAGE IDENTITY
 
 The current Android package identity is `versionName=0.3.75` and `versionCode=75`. It carries

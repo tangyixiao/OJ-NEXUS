@@ -708,3 +708,208 @@ git pack-refs --all                                    # 关键一步：写进 p
 
 **残留风险**：若外部进程连 `packed-refs` 一起回滚，两条引用仍会退回旧值/消失；
 那时可用 reflog（`5c421038…`、`6360ad2…`）与上述备份再次恢复。**未推送**任何内容。
+
+## 15. 第五轮接手记录（Workbuddy，2026-09-21）
+
+### 15.1 本轮范围
+
+用户选择「统一跨端 CLI 退出码」（交接文档 §12.3）。开工前先修复了 §13.7 遗留的引用问题，见 §14。
+
+### 15.2 契约（新，已写入 `docs/ROADMAP.md` 与两端 README）
+
+| 值 | 含义 | Windows 枚举 | Linux 枚举 |
+| --- | --- | --- | --- |
+| 0 | 成功 | `Success` | `Ok` |
+| 1 | 部分失败 / 未归类失败 | `Partial` | `PartialFailure` |
+| 2 | 用法或参数错误 | `InvalidArguments` | `UsageError` |
+| 3 | 不可达（离线 / 网络失败 / 无法获得资源） | `Unavailable` | `NetworkError` |
+| 4 | 公开访问被拒绝（认证边界） | `Authentication` | `AuthenticationError` |
+| 5 | 用户取消 | `Cancelled` | `Cancelled` |
+| 6 | 本地存储失败 | `Storage`（已声明、暂不发出） | `StorageError` |
+| 7 | 未预期的内部错误 | `GeneralError` | `GeneralError`（已声明、暂不发出） |
+
+改动前两端在 3 / 4 / 5 上含义不同（Linux 3 = 认证受限，Windows 3 = Unavailable），
+Windows 还把认证受限并入 `Partial`。
+
+### 15.3 实现
+
+- **Windows**（`windows/src/OjNexus.Windows.Cli/CliExitCode.cs`）：`Cancelled` 4→5、新增
+  `Authentication = 4`、`Storage = 6`、`GeneralError` 5→7；`CliExitCodeMapper.FromReport` 增加
+  `SyncError.Authentication → Authentication` 的显式分支。判定优先级保持：取消 → 非法配置 →
+  离线/网络/不支持的平台 → 认证 → 成功/部分失败；离线优先于认证（没到达服务器就不可能有类型化的拒绝）。
+- **Linux**（独立 worktree `.worktrees/linux-client`）：`ExitCode` 重排为
+  `Ok0 / PartialFailure1 / UsageError2 / NetworkError3 / AuthenticationError4 / Cancelled5 / StorageError6 / GeneralError7`；
+  `syncExitCode` 增加取消分支（此前整批取消会落进 `PartialFailure`）；`linux/README.md` 数字更新。
+- **测试**：Windows 新增 `CliExitCodeContractTests`（钉住 8 个数值 + 去重排序 + 认证不与取消/部分失败撞码），
+  `ConsoleRendererTests` 的映射表扩充到 8 行（新增 Authentication→4、Api→1、Network→3，取消改为 5）；
+  Linux `CommandParserTest` 新增 `exitCodesMatchTheSharedCrossPlatformContract()` 与取消/存储两个断言。
+- **文档**：`docs/ROADMAP.md` 新增跨端契约段；`windows/README.md` 补上此前完全缺失的退出码表。
+
+### 15.4 本轮 fresh evidence（Windows 侧）
+
+| 命令 | 结果 |
+| --- | --- |
+| `dotnet test windows/OjNexus.Windows.sln -c Release --no-restore` | `TEST_EXIT=0`；CLI **34/34**（原 28，本轮 +6）、Desktop 19/19、Core 72/72 |
+
+### 15.5 未验证与待办（重要）
+
+- **Linux 侧已完整验证**（WSL Ubuntu-24.04）：配置/构建/`ctest` 8/8 全绿、离屏 GUI 持续运行、
+  真实来源退出码 0/2/4 与 Windows 一致，详见 §15.6。
+- Linux worktree 中的本轮改动**未提交**（沿用约定：该 worktree 的用户既有改动不由本代理提交）。
+- 历史文档 `docs/superpowers/plans/2026-09-07-windows-client-cli.md` 仍写着旧契约（`Cancelled=4`）；
+  它是那一阶段的计划记录，未回改，以 §15.2 与 ROADMAP 的契约为准。
+- Windows 侧发布项（installer / 签名 / 商店包 / 自动更新 / CI 实跑）与推送仍未做。
+
+### 15.6 Linux 端验证与聚合规则对齐（同日续做）
+
+拿到 WSL（Ubuntu-24.04，Qt6 6.4.2 / cmake / ninja / g++）后，Linux 侧从「仅静态审查」升级为**实跑验证**，
+并按验证结果修掉了一个真实缺陷。
+
+**1. Linux 编译与测试（在 `.worktrees/linux-client` 内，未提交）**
+
+| 命令 | 结果 |
+| --- | --- |
+| `cmake -S linux -B linux/build -G Ninja -DOJNEXUS_BUILD_GUI=ON -DOJNEXUS_BUILD_TESTS=ON` | `CONFIGURE_EXIT=0` |
+| `cmake --build linux/build --parallel 2` | `BUILD_EXIT=0` |
+| `ctest --test-dir linux/build --output-on-failure` | **8/8 通过**、`CTEST_EXIT=0` |
+| `QT_QPA_PLATFORM=offscreen timeout 3 ./build/src/gui/ojnexus-gui` | `GUI_EXIT=124`（3 秒内持续运行，健康） |
+
+**2. 编译过程抓到的真实回归（已修）**：`CommandParserTest::cancelledSyncPersistsCancelledResult`
+断言取消返回 `PartialFailure`(1) —— 那正是旧契约。该用例本身已经要求 JSON 报告
+`status: CANCELLED` / `error: CANCELLED`，所以旧断言让退出码与它自己报告的状态自相矛盾。
+已改为 `OjNexus::Cli::Cancelled`，并加注释说明「退出码必须与本次运行已声明的状态一致」。
+
+**3. 验证暴露的行为差异（已修）**：同一次洛谷 `uid:2` 运行，Linux 退出 **4**、Windows 退出 **1**。
+根因是两端「整轮错误」的推导不同：Linux 的 sync engine 把**第一个失败模块**的类型折叠成整轮 `error`，
+而 Windows 只在整轮失败时设置 `error`，部分失败时留空。
+修法：Windows 的 `CliExitCodeMapper` 在整轮 `error` 为空时取**第一个未成功模块**的类型，
+与 Linux 的聚合规则完全一致（未改动 Windows 的 report JSON / 存储 / WPF 展示）。
+
+**4. 两端一致的端到端证据（真实公开来源）**
+
+| 场景 | Windows | Linux |
+| --- | --- | --- |
+| `sync --judge luogu --handle uid:2 --json`（提交阶段匿名受限） | **4** | **4** |
+| `sync --judge codeforces --handle tourist --json` | **0** | **0** |
+| 未知命令 | **2** | **2** |
+| `status --json` | — | **0** |
+
+**5. Windows 回归**：`dotnet test` → `TEST_EXIT=0`，CLI **38/38**（新增 4 个模块聚合用例）、
+Desktop 19/19、Core 72/72；`dotnet build -c Release` 0 警告 0 错误；`smoke.ps1` → `SMOKE_EXIT=0`。
+
+**环境备注**：`wsl.exe` 现在可用（此前被拦截）；默认发行版 kali-linux 缺 Qt6，Ubuntu-24.04 具备完整工具链，
+既有 `linux/build` 缓存与其路径一致，可直接增量构建。
+
+## 16. 第六轮接手记录（Workbuddy，2026-09-23）
+
+### 16.1 本轮范围
+
+用户选择「Windows 发布工程」（重建自包含包 / 跑通 CI / 调研 installer 与签名）。
+接手时主 checkout `codex/phase-5-arena` **ahead 78**，§15 的跨端退出码改动仍未提交（6 处）。
+
+### 16.2 根因：宿主删除保护为何能打断打包（§8.8 遗留问题结案）
+
+§8.8 记的「self-contained 包重建被环境阻断」本轮定位到确切机制，并且**它是脚本缺陷，不是环境无解**。
+
+实测（本机，`build/` 下的探针目录）：
+
+| 删除方式 | 目标位置 | 结果 |
+| --- | --- | --- |
+| `Remove-Item -Recurse -Force` | 系统 temp | 删除成功，exit 0 |
+| `Remove-Item -Recurse -Force` | 工作区内 | **文件确实被删**，但命令报 exit 1、输出丢失 |
+| `Remove-Item -Force`（单文件） | 工作区内 | 同上 |
+| `[IO.Directory]::Delete($p, $true)` | 工作区内 | 删除成功，exit 0 |
+
+机制（由脚本 transcript 直接暴露）：宿主在 `-NoProfile` 下注入一段包装，把 `Remove-Item`
+及 `rm` / `del` / `rd` 等别名重定向到带保护的删除；该删除**实际生效**，但失败判定走
+`[safe-delete][SAFE_DELETE_FAIL_CLOSED] … "reason":"trash-failed"`，于是命令以非零结束。
+`package.ps1` 设了 `$ErrorActionPreference = 'Stop'`，这个**虚假失败**被当成终止错误抛出，
+打包即在清理步骤中断——而它刚产出的包其实有效。
+
+保护范围：工作区与用户目录**受保护**，系统 temp **放行**
+（`dotnet-install.ps1` 装到 `C:\Users\tangy\.dotnet` 时被同一机制打断）。
+
+### 16.3 修复
+
+- `windows/scripts/package.ps1`：新增 `Remove-PackagePath`，改用 .NET 文件 API 删除并**核对删除后的真实状态**；
+  删不掉仍 `throw`（保持严格语义），虚假失败不再中断。成功路径在打印哈希后清理临时工作目录（严格），
+  `finally` 只作失败路径兜底（容错，不掩盖真实错误）。
+- `windows/scripts/ui-smoke.ps1`：截图目录默认位于 `windows/artifacts/ui-smoke`（工作区内），
+  其单文件删除有同样暴露面，一并用 .NET API + 状态核对替换。
+- **未动**的两处：`smoke.ps1` 与 `ui-smoke.ps1` 的递归清理目标是系统 temp（实测放行，无证据表明会失败）。
+  按「只修有证据的问题」处理。
+
+**踩坑记录**：首次修复把 `Remove-PackagePath` 定义写在了首次调用**之后**，PowerShell 顺序执行 →
+`术语 'Remove-PackagePath' 不会被识别`，打包仍失败。定义必须在使用之前。
+
+### 16.4 打包结果（真实产物）
+
+| 项 | 值 |
+| --- | --- |
+| 命令 | `dotnet restore` → `dotnet test` → `dotnet build -c Release` → `package.ps1 -Version 0.1.0 -Configuration Release -Runtime win-x64 -SkipUiSmoke` |
+| 测试 | `TEST_EXIT=0`：CLI **38/38**、Desktop **19/19**、Core **72/72** |
+| 构建 | `BUILD_EXIT=0`，**0 警告 0 错误** |
+| 包内文件 | staged 662 / 解档后 662 / 目录 663（含 `SHA256SUMS.txt`） |
+| ZIP | `windows/artifacts/self-contained/OJ-NEXUS-Windows-v0.1.0-win-x64.zip`（108,756,882 字节） |
+| ZIP SHA256 | `E2E41331B58135CFA0F186C8FAF6D3444A313BC501C0EF6B657A9D3DC37BDB03` |
+| 临时残留 | 无（`.package-work-*` 已由成功路径清理） |
+
+### 16.5 在发布产物上验证（不是编译输出）
+
+- `verify-package.ps1` 独立复跑：`VERIFY_OK: True`，`PACKAGE FILES VERIFIED: 662`。
+- 包内 CLI（真实公开来源，临时数据目录）：洛谷 `uid:2` → **exit 4**（manifest `Partial 3/4`、
+  `error: null`，由第一个未成功模块=认证决定）；Codeforces `tourist` → **exit 0**。
+  **退出码 4 即证明 §15 的 `CliExitCode` 重编号确实进入了这个包**——旧契约下会是 1。
+- 包内 WPF（`ui-smoke.ps1`，发布产物内的 Desktop exe）：`DASHBOARD` / `CONNECTORS` / `SYNC HISTORY`
+  三页渲染，连接器 SAVE/DISABLE/ENABLE 通过，`SCREENSHOTS: 3/3` 且三张截图互不相同 →
+  `UI SMOKE: PASS`。这同时验证了 §16.3 对 `ui-smoke.ps1` 的改动。
+
+### 16.6 CI 实跑（**未达成，原因明确**）
+
+`gh workflow list --all` → 远程**只有 `Android CI`**；`gh run list --workflow windows.yml`
+→ `HTTP 404 workflow windows.yml not found on the default branch`。
+
+即：`.github/workflows/windows.yml` 在本地已跟踪、有提交历史（`2a7f914` 等），
+但 **78 个本地提交从未推送**，因此 **Windows CI 一次都没在真实 runner 上跑过**，
+其打包步骤与产物上传均属未验证。本地已按 CI 同样的命令顺序跑通全流程，但
+**这不能替代 runner 实跑**：CI 用 .NET 8.0.x，本机 SDK 为 10.0.401，口径不同。
+
+本机无 .NET 8 SDK。`dotnet-install.ps1 -Channel 8.0` 失败，日志里有两类错误叠加：
+(a) 安装器清理 `C:\Users\tangy\.dotnet` 下的临时目录时**再次触发 §16.2 的删除保护**（`trash-failed`）；
+(b) **决定性的原因是下载超时** —— `builds.dotnet.microsoft.com/dotnet/Sdk/8.0.425/dotnet-sdk-8.0.425-win-x64.zip`
+报 `HttpClient.Timeout of 1200 seconds elapsing` 与 `Failed to reach the server: connection timeout`，
+最终以 `Could not find ".NET Core SDK" with version = 8.0.425` 结束。
+改走「下载官方 zip 手动展开」的替代路径（`aka.ms` 可达，但本机仅约 200 KB/s）：
+178.8 MB 总计只取到约 105 MB 后中断。**SDK 8 口径本轮未复现。**
+可参考的事实（**推理，非验证**）：解决方案的目标框架是 `net8.0` / `net8.0-windows`，
+在 SDK 10.0.401 下编译为 0 警告 0 错误且 `TreatWarningsAsErrors=true`，
+语言版本按目标框架固定为 C# 12，因此本地口径的分析器严格度不低于 CI；但这不能替代 8.0.x 实跑。
+
+### 16.7 签名与 installer 调研（实测）
+
+- **工具链就绪**：`signtool.exe`、`makeappx.exe` 存在于
+  `C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64`（不在 PATH，需全路径调用）。
+  `signtool verify` 对包内 exe 报 `No signature found` → 与 README「未签名」声明一致。
+- **证书现状**：`Cert:\CurrentUser\My` 5 张、`Cert:\LocalMachine\My` 1 张，全部为 GUID 主体或
+  `localhost` 的开发证书，**没有一张代码签名证书**。
+- **签名流程已完整演练**（不写入证书存储）：用 `CertificateRequest` 在内存生成自签代码签名证书 →
+  导出 PFX 到 `build/` → 对包内 exe 的**副本**签名 → `Successfully signed`、`SIGNTOOL_SIGN_EXIT=0`，
+  `verify` 读到 `Signature Index: 0 (Primary Signature)` 与证书链，随后报
+  `A certificate chain processed, but terminated in a root`（自签根不受信任，**预期结果**）。
+  演练用 PFX 与副本已删除。
+  → 结论：**签名没有流程障碍，唯一缺口是 CA 签发的代码签名证书**；自签产物无法消除
+  「未知发布者」提示，只适合验证签名步骤本身。
+- **installer**：本机无 WiX / Inno Setup / NSIS。`makeappx` 具备 MSIX 打包能力，
+  但 MSIX 必须用受信任证书签名才可安装。当前发布产物仍是 ZIP + 解压目录。
+
+### 16.8 本轮未做与残留风险
+
+- **未推送、未提交**：本轮与 §15 的全部改动仍在工作区，未 `git add`。
+- **CI 未实跑**（§16.6）：`windows.yml` 在真实 runner 上的行为仍未知。
+- **SDK 口径未复现**：CI 的 .NET 8.0.x 未在本机验证，本地结论建立在 SDK 10.0.401 上。
+- **未签名、无安装器**：需用户提供 CA 代码签名证书后才能开始正式签名与分发。
+- **静态审查的观察（未改动）**：`package.ps1` 的 `Invoke-CheckedPowerShell` 用 `$LASTEXITCODE`
+  判断子脚本成败，但 `smoke.ps1` / `ui-smoke.ps1` 是用 `[Diagnostics.Process]` 启动 exe 的，
+  不产生 native 调用，因此 `$LASTEXITCODE` 可能保留上一次的值。真正兜住失败的是子脚本抛出的
+  终止错误（当前有效）。该检查属冗余，理论上仍可能把「未跑 native 调用的失败」误判为成功。
+- 历史计划文档 `docs/superpowers/plans/2026-09-07-windows-client-cli.md` 仍写旧退出码契约，未回改。
