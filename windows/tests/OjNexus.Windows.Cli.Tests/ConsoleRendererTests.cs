@@ -49,9 +49,12 @@ public sealed class ConsoleRendererTests
     [Theory]
     [InlineData(SyncOperationStatus.Success, null, 0)]
     [InlineData(SyncOperationStatus.Partial, null, 1)]
+    [InlineData(SyncOperationStatus.Partial, SyncError.Api, 1)]
     [InlineData(SyncOperationStatus.Error, SyncError.InvalidConfiguration, 2)]
     [InlineData(SyncOperationStatus.Offline, SyncError.Offline, 3)]
-    [InlineData(SyncOperationStatus.Cancelled, SyncError.Cancelled, 4)]
+    [InlineData(SyncOperationStatus.Error, SyncError.Network, 3)]
+    [InlineData(SyncOperationStatus.Partial, SyncError.Authentication, 4)]
+    [InlineData(SyncOperationStatus.Cancelled, SyncError.Cancelled, 5)]
     public void FromReport_MapsEveryDocumentedExitCategory(
         SyncOperationStatus status,
         SyncError? error,
