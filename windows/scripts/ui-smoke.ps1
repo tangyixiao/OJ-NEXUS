@@ -30,7 +30,13 @@ New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 foreach ($screenshotName in @('dashboard.png', 'connectors.png', 'history.png')) {
     $staleScreenshot = Join-Path $OutputDirectory $screenshotName
     if (Test-Path -LiteralPath $staleScreenshot -PathType Leaf) {
-        Remove-Item -LiteralPath $staleScreenshot -Force
+        # Remove-Item -Force can report a failure on hosts that guard deletions inside a
+        # workspace even when the file is already gone; this script stops on errors, so that
+        # false report would abort the smoke run. Delete through the .NET API and verify.
+        [IO.File]::Delete($staleScreenshot)
+        if (Test-Path -LiteralPath $staleScreenshot) {
+            throw "Failed to remove a stale screenshot: $staleScreenshot"
+        }
     }
 }
 

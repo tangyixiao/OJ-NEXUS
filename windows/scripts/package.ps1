@@ -49,13 +49,41 @@ if (-not $SkipUiSmoke -and -not (Test-Path -LiteralPath $uiSmokePath -PathType L
     throw "UI smoke script is missing: $uiSmokePath"
 }
 
+function Remove-PackagePath {
+    <#
+    Deletes a staged or temporary path.
+
+    Recursive deletion through Remove-Item can be reported as a failure by hosts that guard
+    deletions inside a workspace even when the directory is in fact already gone. This script
+    runs with $ErrorActionPreference = 'Stop', so that false report aborts packaging halfway
+    through and a perfectly good build looks broken. Delete through the .NET API and then check
+    the real filesystem state, so a path that genuinely could not be removed still fails loudly
+    instead of being silently skipped.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+
+    if (Test-Path -LiteralPath $Path -PathType Container) {
+        [IO.Directory]::Delete($Path, $true)
+    }
+    else {
+        [IO.File]::Delete($Path)
+    }
+
+    if (Test-Path -LiteralPath $Path) {
+        throw "Failed to remove $Path."
+    }
+}
+
 New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
-if (Test-Path -LiteralPath $packageRoot) {
-    Remove-Item -LiteralPath $packageRoot -Recurse -Force
-}
-if (Test-Path -LiteralPath $archivePath) {
-    Remove-Item -LiteralPath $archivePath -Force
-}
+Remove-PackagePath -Path $packageRoot
+Remove-PackagePath -Path $archivePath
 New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
 
 function Invoke-CheckedNative {
@@ -172,9 +200,18 @@ try {
     Write-Host "PACKAGE FILES: $packageFileCount"
     Write-Host "PACKAGE ZIP: $archivePath"
     Write-Host "PACKAGE ZIP SHA256: $archiveHash"
+
+    Remove-PackagePath -Path $workRoot
 }
 finally {
     if (Test-Path -LiteralPath $workRoot -PathType Container) {
-        Remove-Item -LiteralPath $workRoot -Recurse -Force
+        # Backstop for the failure path only: the success path already removed the work directory
+        # above. A cleanup problem here must not replace the error that actually stopped packaging.
+        try {
+            Remove-PackagePath -Path $workRoot
+        }
+        catch {
+            Write-Warning "Could not remove temporary work directory: $workRoot"
+        }
     }
 }
