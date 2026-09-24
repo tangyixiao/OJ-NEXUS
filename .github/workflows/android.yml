@@ -73,19 +73,12 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
-          # This runner has no hardware acceleration, so the system can still be starting its
-          # services when the emulator already reports boot complete. The app install then fails
-          # with "Can't find service: package" and zero tests run, so wait for the package
-          # manager to answer before handing the device to Gradle.
+          # The emulator runner executes this script line by line, so the wait must be a single
+          # line. Without hardware acceleration the emulator can report boot complete before the
+          # package service exists, which makes the app install fail with zero tests run.
           script: |
             adb wait-for-device
-            for attempt in $(seq 1 60); do
-              if adb shell pm path android > /dev/null 2>&1; then
-                echo "package service ready after $attempt attempt(s)"
-                break
-              fi
-              sleep 5
-            done
+            for attempt in $(seq 1 60); do adb shell pm path android > /dev/null 2>&1 && echo "package service ready after $attempt attempt(s)" && break; sleep 5; done
             adb shell pm path android > /dev/null 2>&1 || echo "package service still not ready; continuing"
             ./gradlew connectedDebugAndroidTest
 
