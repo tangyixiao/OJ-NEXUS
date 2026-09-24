@@ -90,7 +90,12 @@ class ProblemLibraryTrainingHandoffComposeTest {
         composeRule.waitUntil(60_000) {
             composeRule.onAllNodesWithText("ATTEMPTS 1").fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("ATTEMPTS 1").assertIsDisplayed()
-        composeRule.onAllNodesWithContentDescription("Open problem details")[0].assertIsDisplayed()
+        // The refreshed row can sit below the fold on shorter screens (the CI device is
+        // 411x731dp), where it is present in the semantics tree but scrolled out of view.
+        // Scroll to both nodes so the assertions verify rendered content at any screen height.
+        composeRule.onNodeWithText("ATTEMPTS 1").performScrollTo().assertIsDisplayed()
+        composeRule.onAllNodesWithContentDescription("Open problem details")[0]
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 }
