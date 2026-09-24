@@ -11,7 +11,10 @@ import com.ojnexus.core.database.entity.ProblemTagCrossRef
 import com.ojnexus.core.database.entity.ProblemTagEntity
 import com.ojnexus.core.database.entity.ReviewEntity
 import com.ojnexus.core.database.entity.TrainingTaskEntity
+import com.ojnexus.core.data.repository.TrainingRepository
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import java.time.Clock
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -156,5 +159,37 @@ class OjNexusDatabaseTest {
         assertTrue(inReview.inReview)
         assertFalse(notInReview.inReview)
         assertNotNull(inReview.tags)
+    }
+
+    @Test
+    fun `training candidate query stays bounded for scroll performance`() = runBlocking {
+        repeat(40) { index ->
+            database.problemDao().insert(problem("codeforces", "candidate-$index"))
+        }
+
+        val candidates = database.problemDao().observeTrainingCandidates(0L, limit = 20).first()
+
+        assertEquals(20, candidates.size)
+    }
+
+    @Test
+    fun `policy aware candidate pool keeps an old due item outside recent unsolved rows`() = runBlocking {
+        val oldDueId = database.problemDao().insert(
+            problem("codeforces", "old-due").copy(solved = true, updatedAt = 1L),
+        )
+        database.reviewDao().upsert(
+            ReviewEntity(problemId = oldDueId, stage = 0, dueAt = 1L, dueDayIndex = 0L, createdAt = 1L),
+        )
+        repeat(30) { index ->
+            database.problemDao().insert(
+                problem("codeforces", "recent-$index").copy(updatedAt = 10_000L + index),
+            )
+        }
+
+        val candidates = TrainingRepository(database, Clock.systemUTC())
+            .observeCandidateRows(todayEpochDay = 0L, limit = 20)
+            .first()
+
+        assertTrue(candidates.any { it.id == oldDueId })
     }
 }

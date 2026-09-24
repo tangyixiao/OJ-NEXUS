@@ -2,16 +2,16 @@
 
 ## Module Layout
 
-Phase 0–2: single `app` module with strict package boundaries. Real Gradle modularization only
+Phase 0–6: single `app` module with strict package boundaries. Real Gradle modularization only
 when the codebase justifies it (no premature 20-module split).
 
 ```
 com.ojnexus
 ├── OjNexusApplication      # manual DI container (AppContainer): db, clock, repositories
-├── MainActivity            # single activity, edge-to-edge, NexusTheme
+├── MainActivity            # single AppCompat activity, edge-to-edge, locale-aware NexusTheme
 ├── app/                    # shell: NexusApp (NavHost), NexusDestination, NexusBottomBar
 ├── core/
-│   ├── database/           # Room v2: entities, DAOs, relations, migrations (schema exported)
+│   ├── database/           # Room v3: entities, DAOs, relations, migrations (schema exported)
 │   ├── data/               # local repositories, DataResult and sync state models
 │   ├── designsystem/       # tokens (colors/typography/spacing/motion) + components
 │   ├── domain/             # pure engines: ReviewScheduler, StreakCalculator,
@@ -21,7 +21,7 @@ com.ojnexus
 └── feature/
     ├── dashboard/  problems/ (library, form, detail)  training/ (queue, tasks,
     │                          sessions, review session)  analytics/  profile/
-    └── contests/ settings/   # Phase 2 entry points; arena/knowledge later
+    └── contests/ settings/   # Multi-OJ entry points and Arena focus
 ```
 
 ## Dependency Injection
@@ -31,7 +31,7 @@ Manual container (`AppContainer` in `OjNexusApplication`), provided to Compose v
 brand-new AGP 9 built-in-Kotlin toolchain — stability beats framework dogma. ViewModels are
 created with `ContainerViewModelFactory`; composables never touch repositories or DAOs.
 
-## Data Flow (Phase 2)
+## Data Flow (Phase 3)
 
 ```
 Room (Flow) → Repository (transactions, derived fields) → ViewModel (combine → Loadable<T>)
@@ -48,11 +48,15 @@ Room (Flow) → Repository (transactions, derived fields) → ViewModel (combine
 ## Rules
 
 - Composables render state; they never perform I/O or business logic.
-- Local First: Phase 1 data and all synced Phase 2 data remain readable without a network.
-- Codeforces network DTOs stay in `judge/codeforces`; `CodeforcesSyncCoordinator` runs ordered
-  stages and repositories persist each page/module before the next request.
+- Local First: all training history and synced Phase 2/3 data remain readable without a network.
+- Each judge's DTOs stay in its `judge/<judge>` package. Coordinators run ordered stages and
+  repositories persist each page/module before the next request.
+- `JudgeDataRepository` is a judge-agnostic Room read facade for feature screens; it never
+  starts network work. Unsupported capabilities are absent rather than stubbed.
 - Settings binds a public handle and enqueues unique WorkManager work. Dashboard, Profile,
   Analytics, Contests and the remote Problems catalog observe Room only.
+- App language uses AndroidX AppCompat per-app locales: an empty app locale follows the system,
+  while `en` and `zh-CN` are explicit in-app choices and trigger Activity recreation.
 - Deterministic engines (Mastery, Training, Review scheduling, Sync) are pure Kotlin —
   unit-testable without Android.
 - Day-key discipline: UTC epoch millis stored, local epoch days precomputed at write time.

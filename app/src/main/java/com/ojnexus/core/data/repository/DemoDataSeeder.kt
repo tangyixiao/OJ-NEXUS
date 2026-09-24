@@ -74,7 +74,7 @@ class DemoDataSeeder(
      */
     private suspend fun addAttemptAt(problemId: Long, verdict: Verdict, at: Instant) {
         database.withTransaction {
-            val dayIndex = LocalDate.ofInstant(at, clock.zone).toEpochDay()
+            val dayIndex = at.atZone(clock.zone).toLocalDate().toEpochDay()
             database.attemptDao().insert(
                 AttemptEntity(
                     problemId = problemId,

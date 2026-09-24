@@ -28,8 +28,67 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
+      - name: Run debug lint
+        run: ./gradlew lintDebug
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+
+  emulator:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache Android emulator
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/avd
+            ~/.android/adbjs
+          key: ${{ runner.os }}-android-avd-api35-pixel2
+
+      - name: Run connected Android tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          force-avd-creation: false
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          # The emulator runner executes this script line by line, so the wait must be a single
+          # line. Without hardware acceleration the emulator can report boot complete before the
+          # package service exists, which makes the app install fail with zero tests run.
+          script: |
+            adb wait-for-device
+            for attempt in $(seq 1 60); do adb shell pm path android > /dev/null 2>&1 && echo "package service ready after $attempt attempt(s)" && break; sleep 5; done
+            adb shell pm path android > /dev/null 2>&1 || echo "package service still not ready; continuing"
+            ./gradlew connectedDebugAndroidTest
+
+      - name: Upload Android test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: connected-test-reports
+          if-no-files-found: ignore
+          path: |
+            app/build/reports/androidTests
+            app/build/outputs/androidTest-results
+            app/build/outputs/connected_android_test_additional_output

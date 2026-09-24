@@ -10,16 +10,23 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
 import kotlinx.coroutines.flow.StateFlow
 import com.ojnexus.core.designsystem.NexusRadius
+import com.ojnexus.core.designsystem.NexusMotion
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
@@ -47,15 +57,23 @@ import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusStatus
 import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
+import com.ojnexus.core.designsystem.component.foregroundColor
+import com.ojnexus.core.model.SessionProblem
 import com.ojnexus.core.model.SessionState
 import com.ojnexus.core.model.TrainingSession
 import com.ojnexus.core.model.TrainingType
+import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.formatDateTime
 import com.ojnexus.core.ui.formatDuration
 import com.ojnexus.core.ui.labelRes
+import com.ojnexus.core.ui.tone
+
+private val SessionStatusRailWidth = 3.dp
+private val SessionProgressRailHeight = 4.dp
+private val SessionOpenHeight = 48.dp
 
 /**
  * Session surface, one route for three states:
@@ -68,6 +86,8 @@ import com.ojnexus.core.ui.labelRes
 fun SessionScreen(
     sessionId: Long?,
     onDone: () -> Unit,
+    onOpenProblem: (Long) -> Unit,
+    onOpenReview: (Long) -> Unit,
 ) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<SessionViewModel>(
@@ -77,6 +97,7 @@ fun SessionScreen(
                 sessionId = sessionId,
                 trainingRepository = it.trainingRepository,
                 problemRepository = it.problemRepository,
+                reviewRepository = it.reviewRepository,
             )
         },
     )
@@ -105,16 +126,23 @@ fun SessionScreen(
                         },
                     )
                     surface.session.state == SessionState.FINISHED ||
-                        surface.session.state == SessionState.CANCELLED -> SessionSummaryView(
+                    surface.session.state == SessionState.CANCELLED -> SessionSummaryView(
                         session = surface.session,
                         summary = surface.summary,
+                        problems = surface.problems,
                         onDone = onDone,
+                        onOpenProblem = onOpenProblem,
+                        onOpenReview = onOpenReview,
+                        onScheduleReviews = { ids -> viewModel.scheduleReviews(ids) },
+                        actionError = surface.actionError,
                     )
                     else -> SessionRunningView(
                         session = surface.session,
                         liveProblemCount = surface.liveProblemCount,
+                        problems = surface.problems,
                         actionError = surface.actionError,
                         viewModel = viewModel,
+                        onOpenProblem = onOpenProblem,
                     )
                 }
             }
@@ -238,11 +266,31 @@ private fun SessionCreationForm(
 private fun SessionRunningView(
     session: TrainingSession,
     liveProblemCount: Int?,
+    problems: List<SessionProblem>,
     actionError: SessionActionError?,
     viewModel: SessionViewModel,
+    onOpenProblem: (Long) -> Unit,
 ) {
     val colors = NexusTheme.colors
     val paused = session.pausedAt != null
+    var selectedProblemId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val lastLoggedProblemId by viewModel.lastLoggedProblemId.collectAsStateWithLifecycle()
+    val lastLoggedSequence by viewModel.lastLoggedSequence.collectAsStateWithLifecycle()
+    val normalizedSelection = normalizeSessionSelection(selectedProblemId, problems)
+    val selectedProblem = problems.firstOrNull { it.problemId == normalizedSelection }
+    LaunchedEffect(problems, selectedProblemId) {
+        if (selectedProblemId != normalizedSelection) {
+            selectedProblemId = normalizedSelection
+        }
+    }
+    LaunchedEffect(lastLoggedSequence, lastLoggedProblemId) {
+        if (lastLoggedSequence > 0L && lastLoggedProblemId != null) {
+            val next = problems.firstOrNull {
+                !it.solved && it.problemId != lastLoggedProblemId
+            } ?: problems.firstOrNull { !it.solved }
+            selectedProblemId = next?.problemId ?: lastLoggedProblemId
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -291,6 +339,34 @@ private fun SessionRunningView(
         }
 
         Spacer(modifier = Modifier.height(NexusSpacing.md))
+        SessionProgressBoard(
+            problems = problems,
+            selectedProblemId = normalizedSelection,
+            onSelectProblem = { selectedProblemId = it },
+            onOpenProblem = onOpenProblem,
+        )
+
+        Spacer(modifier = Modifier.height(NexusSpacing.md))
+        SessionMomentumRail(
+            session = session,
+            problems = problems,
+            selectedProblemId = normalizedSelection,
+            elapsedFlow = viewModel.elapsedMs,
+            onOpenNext = { problemId ->
+                selectedProblemId = problemId
+                onOpenProblem(problemId)
+            },
+        )
+
+        selectedProblem?.let { problem ->
+            Spacer(modifier = Modifier.height(NexusSpacing.md))
+            SessionQuickActions(
+                selectedProblem = problem,
+                onLogResult = { verdict -> viewModel.logAttempt(problem.problemId, verdict) },
+            )
+        }
+
+        Spacer(modifier = Modifier.height(NexusSpacing.md))
         if (actionError != null) {
             Text(
                 text = when (actionError) {
@@ -327,7 +403,12 @@ private fun SessionRunningView(
 private fun SessionSummaryView(
     session: TrainingSession,
     summary: SessionSummary?,
+    problems: List<SessionProblem>,
     onDone: () -> Unit,
+    onOpenProblem: (Long) -> Unit,
+    onOpenReview: (Long) -> Unit,
+    onScheduleReviews: (List<Long>) -> Unit,
+    actionError: SessionActionError?,
 ) {
     val colors = NexusTheme.colors
     Column(
@@ -425,49 +506,473 @@ private fun SessionSummaryView(
             }
         }
 
-        if (summary != null && summary.problems.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(NexusSpacing.md))
-            NexusDivider()
-            Spacer(modifier = Modifier.height(NexusSpacing.md))
-            NexusSection(label = stringResource(R.string.session_label_problems)) {
-                summary.problems.forEachIndexed { index, problem ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(NexusSize.tableRowHeight),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = problem.title,
-                            style = NexusTheme.typography.data,
-                            color = colors.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            text = problem.attempts.toString(),
-                            style = NexusTheme.typography.dataSmall,
-                            color = colors.textSecondary,
-                            modifier = Modifier.padding(end = NexusSpacing.sm),
-                        )
-                        NexusTag(
-                            text = if (problem.solved) {
-                                stringResource(R.string.verdict_ac)
-                            } else {
-                                stringResource(R.string.problems_filter_unsolved)
-                            },
-                            tone = if (problem.solved) NexusTone.Success else NexusTone.Neutral,
-                        )
-                    }
-                    if (index != summary.problems.lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
-                }
-            }
+        Spacer(modifier = Modifier.height(NexusSpacing.md))
+        if (actionError != null) {
+            Text(
+                text = when (actionError) {
+                    SessionActionError.ActiveExists -> stringResource(R.string.session_active_exists)
+                    is SessionActionError.Generic -> actionError.message
+                },
+                style = NexusTheme.typography.dataSmall,
+                color = colors.danger,
+            )
+            Spacer(modifier = Modifier.height(NexusSpacing.xs))
         }
+        SessionDebriefPanel(
+            problems = problems,
+            onOpenProblem = onOpenProblem,
+            onOpenReview = onOpenReview,
+            onScheduleReviews = onScheduleReviews,
+        )
 
         Spacer(modifier = Modifier.height(NexusSpacing.lg))
         ActionButton(stringResource(R.string.action_close), accent = true) { onDone() }
         Spacer(modifier = Modifier.height(NexusSpacing.xxl))
+    }
+}
+
+@Composable
+private fun SessionDebriefPanel(
+    problems: List<SessionProblem>,
+    onOpenProblem: (Long) -> Unit,
+    onOpenReview: (Long) -> Unit,
+    onScheduleReviews: (List<Long>) -> Unit,
+) {
+    val colors = NexusTheme.colors
+    val reduceMotion = NexusTheme.reduceMotion
+    var selectedLane by rememberSaveable { mutableStateOf<SessionDebriefLane?>(null) }
+    val pulse = deriveSessionDebriefPulse(problems)
+    val visibleProblems = filterSessionDebrief(problems, selectedLane)
+    val reviewCandidates = sessionReviewCandidates(problems)
+    val queuedReviewCount = problems.count { it.inReview }
+
+    NexusSection(label = stringResource(R.string.session_debrief_title)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxxs),
+        ) {
+            DebriefFilter(
+                label = stringResource(R.string.session_debrief_all),
+                selected = selectedLane == null,
+                onClick = { selectedLane = null },
+            )
+            DebriefFilter(
+                label = stringResource(R.string.session_debrief_solved),
+                selected = selectedLane == SessionDebriefLane.SOLVED,
+                onClick = { selectedLane = SessionDebriefLane.SOLVED },
+            )
+            DebriefFilter(
+                label = stringResource(R.string.session_debrief_attention),
+                selected = selectedLane == SessionDebriefLane.ATTENTION,
+                onClick = { selectedLane = SessionDebriefLane.ATTENTION },
+            )
+            DebriefFilter(
+                label = stringResource(R.string.session_debrief_pending),
+                selected = selectedLane == SessionDebriefLane.PENDING,
+                onClick = { selectedLane = SessionDebriefLane.PENDING },
+            )
+        }
+        if (reviewCandidates.isNotEmpty() || queuedReviewCount > 0) {
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (reviewCandidates.isNotEmpty()) {
+                    Text(
+                        text = stringResource(
+                            R.string.session_debrief_review_candidates,
+                            reviewCandidates.size,
+                        ),
+                        style = NexusTheme.typography.dataSmall,
+                        color = colors.textSecondary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    ActionButton(
+                        label = stringResource(R.string.session_debrief_schedule_attention),
+                        accent = true,
+                        description = stringResource(
+                            R.string.session_debrief_schedule_attention_cd,
+                            reviewCandidates.size,
+                        ),
+                    ) {
+                        onScheduleReviews(reviewCandidates.map { it.problemId })
+                    }
+                } else {
+                    NexusStatus(
+                        label = stringResource(R.string.session_debrief_review_ready),
+                        tone = NexusTone.Accent,
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+        ) {
+            NexusMetric(
+                label = stringResource(R.string.session_debrief_solved),
+                value = pulse.solved.toString(),
+                changeTone = NexusTone.Success,
+                modifier = Modifier.weight(1f),
+            )
+            NexusMetric(
+                label = stringResource(R.string.session_debrief_attention),
+                value = pulse.attention.toString(),
+                changeTone = NexusTone.Warning,
+                modifier = Modifier.weight(1f),
+            )
+            NexusMetric(
+                label = stringResource(R.string.session_debrief_pending),
+                value = pulse.pending.toString(),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
+        Column(
+            modifier = Modifier.animateContentSize(
+                animationSpec = if (reduceMotion) snap() else tween(
+                    NexusMotion.DURATION_NORMAL,
+                    easing = NexusMotion.EasingStandard,
+                ),
+            ),
+        ) {
+            if (visibleProblems.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.session_debrief_empty),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textTertiary,
+                )
+            } else {
+                visibleProblems.forEachIndexed { index, problem ->
+                    SessionDebriefRow(
+                        problem = problem,
+                        onOpenProblem = onOpenProblem,
+                        onOpenReview = onOpenReview,
+                    )
+                    if (index != visibleProblems.lastIndex) {
+                        NexusDivider(insetEnd = NexusSpacing.xxs)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DebriefFilter(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    NexusTag(
+        text = label,
+        tone = NexusTone.Accent,
+        selected = selected,
+        modifier = Modifier.clickable(role = Role.Button, onClick = onClick),
+    )
+}
+
+@Composable
+private fun SessionDebriefRow(
+    problem: SessionProblem,
+    onOpenProblem: (Long) -> Unit,
+    onOpenReview: (Long) -> Unit,
+) {
+    val colors = NexusTheme.colors
+    val lane = problem.debriefLane()
+    val laneTone = when (lane) {
+        SessionDebriefLane.SOLVED -> NexusTone.Success
+        SessionDebriefLane.ATTENTION -> NexusTone.Warning
+        SessionDebriefLane.PENDING -> NexusTone.Neutral
+    }
+    val laneLabel = when (lane) {
+        SessionDebriefLane.SOLVED -> R.string.session_debrief_solved
+        SessionDebriefLane.ATTENTION -> R.string.session_debrief_attention
+        SessionDebriefLane.PENDING -> R.string.session_debrief_pending
+    }
+    val actionLabel = if (problem.inReview) {
+        R.string.session_debrief_open_review
+    } else {
+        R.string.session_debrief_open
+    }
+    val actionText = stringResource(actionLabel)
+    val actionDescription = stringResource(R.string.session_debrief_open_cd, actionText)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = NexusSpacing.xxs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(SessionStatusRailWidth)
+                .height(NexusSize.tableRowHeight)
+                .background(laneTone.foregroundColor(colors), NexusRadius.xs),
+        )
+        Spacer(modifier = Modifier.width(NexusSpacing.xs))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = problem.judge?.uppercase().orEmpty(),
+                    style = NexusTheme.typography.sectionLabel,
+                    color = colors.accent,
+                )
+                Spacer(modifier = Modifier.width(NexusSpacing.xxs))
+                Text(
+                    text = problem.externalId.orEmpty(),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textSecondary,
+                )
+                Spacer(modifier = Modifier.width(NexusSpacing.xxs))
+                problem.latestVerdict?.let { verdict ->
+                    NexusTag(
+                        text = stringResource(verdict.labelRes()),
+                        tone = verdict.tone(),
+                        selected = verdict == Verdict.AC,
+                    )
+                }
+            }
+            Text(
+                text = problem.title,
+                style = NexusTheme.typography.data,
+                color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(laneLabel),
+                    style = NexusTheme.typography.dataSmall,
+                    color = laneTone.foregroundColor(colors),
+                )
+                Spacer(modifier = Modifier.width(NexusSpacing.xs))
+                Text(
+                    text = stringResource(R.string.session_debrief_attempts, problem.attempts),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textTertiary,
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(NexusSpacing.xxs))
+        Box(
+            modifier = Modifier
+                .height(SessionOpenHeight)
+                .widthIn(min = SessionOpenHeight)
+                .semantics { contentDescription = actionDescription }
+                .clickable(role = Role.Button) {
+                    if (problem.inReview) onOpenReview(problem.problemId) else onOpenProblem(problem.problemId)
+                }
+                .padding(horizontal = NexusSpacing.xxs),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = actionText,
+                style = NexusTheme.typography.dataSmall,
+                color = colors.accent,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SessionProgressBoard(
+    problems: List<SessionProblem>,
+    selectedProblemId: Long?,
+    onSelectProblem: (Long) -> Unit,
+    onOpenProblem: (Long) -> Unit,
+) {
+    val colors = NexusTheme.colors
+    val pulse = deriveSessionProgressPulse(problems)
+    val targetFraction = sessionProgressFraction(pulse)
+    val animatedFraction by animateFloatAsState(
+        targetValue = targetFraction,
+        animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+            NexusMotion.DURATION_NORMAL,
+            easing = NexusMotion.EasingStandard,
+        ),
+        label = "session progress rail",
+    )
+
+    NexusSection(label = stringResource(R.string.session_section_pulse)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+        ) {
+            NexusMetric(
+                label = stringResource(R.string.session_label_problems),
+                value = pulse.total.toString(),
+                modifier = Modifier.weight(1f),
+            )
+            NexusMetric(
+                label = stringResource(R.string.session_progress_solved),
+                value = pulse.solved.toString(),
+                changeTone = NexusTone.Success,
+                modifier = Modifier.weight(1f),
+            )
+            NexusMetric(
+                label = stringResource(R.string.session_progress_attempted),
+                value = pulse.attempted.toString(),
+                changeTone = NexusTone.Warning,
+                modifier = Modifier.weight(1f),
+            )
+            NexusMetric(
+                label = stringResource(R.string.session_progress_pending),
+                value = pulse.pending.toString(),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(SessionProgressRailHeight)
+                .background(colors.border, NexusRadius.xs),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(animatedFraction)
+                    .fillMaxHeight()
+                    .background(
+                        if (pulse.total > 0) colors.accent else colors.border,
+                        NexusRadius.xs,
+                    ),
+            )
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.xxs))
+        Text(
+            text = if (problems.isEmpty()) {
+                stringResource(R.string.session_queue_empty)
+            } else {
+                stringResource(R.string.session_progress_complete, pulse.solved, pulse.total)
+            },
+            style = NexusTheme.typography.dataSmall,
+            color = if (problems.isEmpty()) colors.textTertiary else colors.textSecondary,
+        )
+        Spacer(modifier = Modifier.height(NexusSpacing.md))
+        NexusSection(label = stringResource(R.string.session_queue_title)) {
+            Column(
+                modifier = Modifier.animateContentSize(
+                    animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+                        NexusMotion.DURATION_NORMAL,
+                        easing = NexusMotion.EasingStandard,
+                    ),
+                ),
+            ) {
+                problems.forEachIndexed { index, problem ->
+                    SessionProblemQueueRow(
+                        problem = problem,
+                        selected = problem.problemId == selectedProblemId,
+                        onSelect = { onSelectProblem(problem.problemId) },
+                        onOpenProblem = onOpenProblem,
+                    )
+                    if (index != problems.lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SessionProblemQueueRow(
+    problem: SessionProblem,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    onOpenProblem: (Long) -> Unit,
+) {
+    val colors = NexusTheme.colors
+    val openDescription = stringResource(R.string.session_problem_open_cd)
+    val selectedDescription = stringResource(R.string.session_problem_selected)
+    val statusTone = when {
+        problem.solved -> NexusTone.Success
+        problem.attempts > 0 -> NexusTone.Warning
+        else -> NexusTone.Neutral
+    }
+    val statusLabel = when {
+        problem.solved -> R.string.session_progress_solved
+        problem.attempts > 0 -> R.string.session_progress_attempted
+        else -> R.string.session_progress_pending
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (selected) Modifier.border(NexusSize.dividerThickness, colors.accent, NexusRadius.sm)
+                else Modifier,
+            )
+            .padding(vertical = NexusSpacing.xxs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(SessionStatusRailWidth)
+                .height(NexusSize.tableRowHeight)
+                .background(statusTone.foregroundColor(colors), NexusRadius.xs),
+        )
+        Spacer(modifier = Modifier.width(NexusSpacing.xs))
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .semantics {
+                    if (selected) contentDescription = selectedDescription
+                }
+                .clickable(role = Role.Button, onClick = onSelect),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = problem.judge?.uppercase().orEmpty(),
+                    style = NexusTheme.typography.sectionLabel,
+                    color = colors.accent,
+                )
+                Spacer(modifier = Modifier.width(NexusSpacing.xxs))
+                Text(
+                    text = problem.externalId.orEmpty(),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textSecondary,
+                )
+                Spacer(modifier = Modifier.width(NexusSpacing.xxs))
+                NexusTag(
+                    text = stringResource(statusLabel),
+                    tone = statusTone,
+                    selected = problem.solved,
+                )
+            }
+            Text(
+                text = problem.title,
+                style = NexusTheme.typography.data,
+                color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = stringResource(R.string.session_summary_attempts) + " " + problem.attempts,
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textTertiary,
+            )
+        }
+        Spacer(modifier = Modifier.width(NexusSpacing.xxs))
+        Box(
+            modifier = Modifier
+                .height(SessionOpenHeight)
+                .border(NexusSize.dividerThickness, colors.accent, NexusRadius.xs)
+                .clickable(
+                    role = Role.Button,
+                    onClickLabel = openDescription,
+                ) { onOpenProblem(problem.problemId) }
+                .semantics { contentDescription = openDescription }
+                .padding(horizontal = NexusSpacing.xs),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(R.string.session_problem_open),
+                style = NexusTheme.typography.sectionLabel,
+                color = colors.accent,
+            )
+        }
     }
 }
 
@@ -526,7 +1031,13 @@ private fun LabeledInput(label: String, value: String, onValueChange: (String) -
 }
 
 @Composable
-private fun ActionButton(label: String, accent: Boolean, danger: Boolean = false, onClick: () -> Unit) {
+private fun ActionButton(
+    label: String,
+    accent: Boolean,
+    danger: Boolean = false,
+    description: String? = null,
+    onClick: () -> Unit,
+) {
     val colors = NexusTheme.colors
     val foreground = when {
         danger -> colors.danger
@@ -537,6 +1048,9 @@ private fun ActionButton(label: String, accent: Boolean, danger: Boolean = false
         modifier = Modifier
             .background(colors.surface, NexusRadius.sm)
             .border(1.dp, foreground, NexusRadius.sm)
+            .semantics {
+                description?.let { contentDescription = it }
+            }
             .clickable(role = Role.Button) { onClick() }
             .padding(horizontal = NexusSpacing.md, vertical = NexusSpacing.xs),
     ) {

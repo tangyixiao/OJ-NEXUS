@@ -13,6 +13,8 @@ import androidx.room.PrimaryKey
 data class SyncStateEntity(
     /** [com.ojnexus.core.model.JudgeId] id. */
     @PrimaryKey val judge: String,
+    /** Active account whose cursor this row belongs to. */
+    @ColumnInfo(name = "account_id") val accountId: Long? = null,
     /** [com.ojnexus.core.data.sync.SyncPhase] name: IDLE/SYNCING/SUCCESS/PARTIAL/ERROR. */
     val state: String = "IDLE",
     @ColumnInfo(name = "started_at") val startedAt: Long? = null,
@@ -32,4 +34,6 @@ data class SyncStateEntity(
     @ColumnInfo(name = "problemset_synced_at") val problemsetSyncedAt: Long? = null,
     /** Highest synced remote submission id — the incremental sync cursor. */
     @ColumnInfo(name = "latest_external_submission_id") val latestExternalSubmissionId: Long? = null,
+    /** Timestamp cursor used by judges such as AtCoder. */
+    @ColumnInfo(name = "latest_submission_time_seconds") val latestSubmissionTimeSeconds: Long? = null,
 )

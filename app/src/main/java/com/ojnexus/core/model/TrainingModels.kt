@@ -10,6 +10,7 @@ data class Problem(
     val title: String,
     /** Unified difficulty; null = unknown (the judge defines none). */
     val difficulty: Int?,
+    val difficultySource: DifficultySource = DifficultySource.UNKNOWN,
     val createdAt: Long,
     val updatedAt: Long,
     val firstSolvedAt: Long?,
@@ -123,6 +124,10 @@ data class SessionProblem(
     val difficulty: Int?,
     val solved: Boolean,
     val attempts: Int,
+    val judge: String? = null,
+    val externalId: String? = null,
+    val latestVerdict: Verdict? = null,
+    val inReview: Boolean = false,
 )
 
 /** A training session with derived timing handled by SessionClock. */

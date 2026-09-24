@@ -24,6 +24,7 @@ data class ReviewQueueItem(
     val dueAt: Long,
     val dueDayIndex: Long,
     val lastResult: ReviewResult?,
+    val externalId: String? = null,
 )
 
 /** One row of the cross-judge recent activity feed. */

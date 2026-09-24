@@ -6,7 +6,11 @@ import androidx.test.core.app.ApplicationProvider
 import com.ojnexus.core.data.DataError
 import com.ojnexus.core.data.DataResult
 import com.ojnexus.core.database.OjNexusDatabase
+import com.ojnexus.core.database.entity.AttemptEntity
+import com.ojnexus.core.database.entity.ProblemEntity
 import com.ojnexus.core.model.TrainingType
+import com.ojnexus.core.model.Verdict
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -40,6 +44,7 @@ class TrainingRepositorySessionTest {
 
     private lateinit var database: OjNexusDatabase
     private lateinit var problemRepository: ProblemRepository
+    private lateinit var reviewRepository: ReviewRepository
     private lateinit var trainingRepository: TrainingRepository
 
     @Before
@@ -50,6 +55,7 @@ class TrainingRepositorySessionTest {
             .build()
         val clock = Clock.fixed(Instant.parse("2026-08-29T12:00:00Z"), ZoneId.of("UTC"))
         problemRepository = ProblemRepository(database, clock)
+        reviewRepository = ReviewRepository(database, clock)
         trainingRepository = TrainingRepository(database, clock)
     }
 
@@ -113,6 +119,204 @@ class TrainingRepositorySessionTest {
         assertEquals(1, database.sessionDao().countActive())
         assertEquals(1, totalSessions())
     }
+
+    @Test
+    fun `session progress counts only attempts inside session window`() = runBlocking {
+        val firstProblem = insertProblem("1A", "Alpha", 800)
+        val secondProblem = insertProblem("1B", "Beta", 900)
+        val created = trainingRepository.createAndStartSession(
+            TrainingType.PRACTICE,
+            null,
+            null,
+            listOf(firstProblem, secondProblem),
+        ) as DataResult.Success
+        val startedAt = database.sessionDao().findById(created.value)!!.startedAt
+
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = firstProblem,
+                timestamp = startedAt - 1_000L,
+                dayIndex = 0L,
+                verdict = "WA",
+            ),
+        )
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = firstProblem,
+                timestamp = startedAt,
+                dayIndex = 0L,
+                verdict = "AC",
+            ),
+        )
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = secondProblem,
+                timestamp = startedAt + 2_000L,
+                dayIndex = 0L,
+                verdict = "WA",
+            ),
+        )
+
+        val rows = trainingRepository.observeSessionProblems(created.value).first()
+
+        assertEquals(listOf(firstProblem, secondProblem), rows.map { it.problemId })
+        assertEquals(listOf(1, 1), rows.map { it.attempts })
+        assertEquals(listOf(true, false), rows.map { it.solved })
+    }
+
+    @Test
+    fun `repository attempt refreshes active session progress`() = runBlocking {
+        val problemId = insertProblem("1C", "Gamma", 1000)
+        val created = trainingRepository.createAndStartSession(
+            TrainingType.PRACTICE,
+            null,
+            null,
+            listOf(problemId),
+        ) as DataResult.Success
+
+        assertEquals(0, trainingRepository.observeSessionProblems(created.value).first().single().attempts)
+        assertTrue(problemRepository.addAttempt(problemId, Verdict.WA) is DataResult.Success)
+
+        val refreshed = trainingRepository.observeSessionProblems(created.value)
+            .first { rows -> rows.single().attempts == 1 }
+        assertEquals(Verdict.WA, refreshed.single().latestVerdict)
+    }
+
+    @Test
+    fun `session progress exposes latest in-window verdict and existing review`() = runBlocking {
+        val problemId = insertProblem("1D", "Delta", 1100)
+        assertTrue(reviewRepository.scheduleReview(problemId) is DataResult.Success)
+        val created = trainingRepository.createAndStartSession(
+            TrainingType.PRACTICE,
+            null,
+            null,
+            listOf(problemId),
+        ) as DataResult.Success
+        val startedAt = database.sessionDao().findById(created.value)!!.startedAt
+
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = problemId,
+                timestamp = startedAt - 1_000L,
+                dayIndex = 0L,
+                verdict = "WA",
+            ),
+        )
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = problemId,
+                timestamp = startedAt,
+                dayIndex = 0L,
+                verdict = "WA",
+            ),
+        )
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = problemId,
+                timestamp = startedAt,
+                dayIndex = 0L,
+                verdict = "AC",
+            ),
+        )
+
+        val row = trainingRepository.observeSessionProblems(created.value).first().single()
+
+        assertEquals(2, row.attempts)
+        assertEquals(Verdict.AC, row.latestVerdict)
+        assertTrue(row.inReview)
+    }
+
+    @Test
+    fun `batch review scheduling inserts every candidate in one result`() = runBlocking {
+        val firstProblem = insertProblem("2A", "Alpha", 800)
+        val secondProblem = insertProblem("2B", "Beta", 900)
+
+        val result = reviewRepository.scheduleReviews(listOf(firstProblem, secondProblem))
+
+        assertTrue(result is DataResult.Success)
+        assertEquals(2, (result as DataResult.Success).value)
+        assertTrue(reviewRepository.findByProblem(firstProblem) != null)
+        assertTrue(reviewRepository.findByProblem(secondProblem) != null)
+    }
+
+    @Test
+    fun `batch review scheduling is a no-op for empty input`() = runBlocking {
+        val result = reviewRepository.scheduleReviews(emptyList())
+
+        assertTrue(result is DataResult.Success)
+        assertEquals(0, (result as DataResult.Success).value)
+    }
+
+    @Test
+    fun `batch review scheduling validates all ids before writing`() = runBlocking {
+        val existingProblem = insertProblem("2C", "Gamma", 1000)
+
+        val result = reviewRepository.scheduleReviews(listOf(existingProblem, 999L))
+
+        assertTrue(result is DataResult.Failure)
+        assertTrue((result as DataResult.Failure).error is DataError.NotFound)
+        assertTrue(reviewRepository.findByProblem(existingProblem) == null)
+    }
+
+    @Test
+    fun `session progress is empty when no problems are attached`() = runBlocking {
+        val created = trainingRepository.createAndStartSession(
+            TrainingType.PRACTICE,
+            null,
+            null,
+            emptyList(),
+        ) as DataResult.Success
+
+        assertTrue(trainingRepository.observeSessionProblems(created.value).first().isEmpty())
+    }
+
+    @Test
+    fun `finished session excludes attempts after its finish time`() = runBlocking {
+        val problemId = insertProblem("1C", "Gamma", 1000)
+        val created = trainingRepository.createAndStartSession(
+            TrainingType.PRACTICE,
+            null,
+            null,
+            listOf(problemId),
+        ) as DataResult.Success
+        val startedAt = database.sessionDao().findById(created.value)!!.startedAt
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = problemId,
+                timestamp = startedAt,
+                dayIndex = 0L,
+                verdict = "WA",
+            ),
+        )
+        assertTrue(trainingRepository.finishSession(created.value) is DataResult.Success)
+        val finishedAt = database.sessionDao().findById(created.value)!!.finishedAt!!
+        database.attemptDao().insert(
+            AttemptEntity(
+                problemId = problemId,
+                timestamp = finishedAt + 1_000L,
+                dayIndex = 0L,
+                verdict = "AC",
+            ),
+        )
+
+        val row = trainingRepository.observeSessionProblems(created.value).first().single()
+
+        assertEquals(1, row.attempts)
+        assertTrue(!row.solved)
+        assertEquals(Verdict.WA, row.latestVerdict)
+    }
+
+    private suspend fun insertProblem(externalId: String, title: String, difficulty: Int): Long =
+        database.problemDao().insert(
+            ProblemEntity(
+                judge = "codeforces",
+                externalId = externalId,
+                title = title,
+                difficulty = difficulty,
+                createdAt = 1L,
+                updatedAt = 1L,
+            ),
+        )
 
     private suspend fun totalSessions(): Int = database.sessionDao().countAll()
 }

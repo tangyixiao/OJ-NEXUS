@@ -119,7 +119,7 @@ class CodeforcesSyncRepository(
         }
 
     suspend fun syncProblemset(account: JudgeAccountEntity, force: Boolean): StageOutcome =
-        runStage(account, SyncStage.PROBLEMSET, force, SyncPolicy.PROBLEMSET_FRESH_MS) {
+        runStage(account, SyncStage.PROBLEMS, force, SyncPolicy.PROBLEMSET_FRESH_MS) {
             val problemset = adapter.fetchProblemset()
             val merged = com.ojnexus.judge.codeforces.mapper.CfMappers.run {
                 mergeProblemset(problemset.problems, problemset.problemStatistics)
@@ -215,7 +215,8 @@ class CodeforcesSyncRepository(
                     judge = JudgeId.CODEFORCES.id,
                     externalId = externalProblemId,
                     title = problemDto.name,
-                    difficulty = problemDto.rating,
+                        difficulty = problemDto.rating,
+                        difficultySource = com.ojnexus.core.model.DifficultySource.OFFICIAL.name,
                     createdAt = clock.millis(),
                     updatedAt = clock.millis(),
                     sourceUrl = com.ojnexus.judge.codeforces.CodeforcesUrls.problem(
@@ -238,6 +239,7 @@ class CodeforcesSyncRepository(
                 id = existing.id,
                 title = problemDto.name,
                 difficulty = problemDto.rating,
+                difficultySource = com.ojnexus.core.model.DifficultySource.OFFICIAL.name,
                 sourceUrl = finalUrl,
                 updatedAt = clock.millis(),
             )
@@ -349,7 +351,7 @@ class CodeforcesSyncRepository(
             SyncStage.PROFILE -> state?.profileSyncedAt
             SyncStage.RATING -> state?.ratingSyncedAt
             SyncStage.CONTESTS -> state?.contestsSyncedAt
-            SyncStage.PROBLEMSET -> state?.problemsetSyncedAt
+            SyncStage.PROBLEMS -> state?.problemsetSyncedAt
             else -> null
         }
         if (!force && lastSync != null && clock.millis() - lastSync < freshnessMs) {
@@ -386,7 +388,7 @@ class CodeforcesSyncRepository(
                 SyncStage.RATING -> state.copy(ratingSyncedAt = now)
                 SyncStage.SUBMISSIONS -> state.copy(submissionsSyncedAt = now)
                 SyncStage.CONTESTS -> state.copy(contestsSyncedAt = now)
-                SyncStage.PROBLEMSET -> state.copy(problemsetSyncedAt = now)
+                SyncStage.PROBLEMS -> state.copy(problemsetSyncedAt = now)
                 else -> state
             },
         )

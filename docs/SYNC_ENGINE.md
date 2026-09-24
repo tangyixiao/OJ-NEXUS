@@ -1,8 +1,9 @@
 # OJ NEXUS — Sync Engine
 
 `CodeforcesSyncCoordinator` runs `PROFILE → RATING → SUBMISSIONS → CONTESTS → PROBLEMSET`.
-The Worker owns WorkManager lifecycle and result mapping; the coordinator owns ordering and
-disconnect checks; `CodeforcesSyncRepository` owns persistence and per-stage outcomes.
+`AtCoderSyncCoordinator` runs `SUBMISSIONS → CONTESTS → PROBLEMSET` using the community
+source. The shared worker dispatches by judge plus account ID; each coordinator owns ordering,
+disconnect checks, persistence, and per-stage outcomes.
 
 ## Submission policy
 
@@ -14,6 +15,11 @@ ID is the idempotency key, so reruns update instead of duplicating attempts.
 Each page is persisted in its own Room transaction. The cursor and imported count are updated
 after the page commits, providing backpressure and durable partial progress. An accepted result
 promotes a problem to solved; later failures never unset that sticky local fact.
+
+AtCoder starts at zero for an initial sync and overlaps incremental sync by 120 seconds. Full
+pages advance to their maximum timestamp, repeated boundary rows are deduplicated by submission
+ID, and a repeated full-page signature without a new ID produces a partial stalled outcome
+without advancing the durable cursor past the saturated timestamp.
 
 ## WorkManager and failure behavior
 
@@ -28,7 +34,7 @@ sessions are retained.
 
 ## Verification
 
-The Phase 2 suite covers request spacing/retry, API envelopes and error mapping, DTO mappers,
-contest phases, migration 1→2, account binding, merge/idempotency/rejudge/sticky-solved
-invariants, partial sync and freshness. The repository currently contains 122 `@Test` methods;
-the authoritative completion check is `tools/gradlew-local.bat clean test assembleDebug`.
+The Phase 3 suite covers independent request spacing/retry, API envelopes and error mapping,
+DTO mappers, contest phases, migrations 1→2 and 2→3, account binding, merge/idempotency/
+rejudge/sticky-solved invariants, AtCoder timestamp pagination, partial sync and freshness.
+The authoritative completion check is `tools/gradlew-local.bat clean test assembleDebug`.

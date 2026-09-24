@@ -1,6 +1,7 @@
 package com.ojnexus.feature.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,22 +11,31 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
 import com.ojnexus.core.designsystem.NexusRadius
+import com.ojnexus.core.designsystem.NexusMotion
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
@@ -42,6 +52,7 @@ import com.ojnexus.core.model.ReviewQueueItem
 import com.ojnexus.core.model.TaskType
 import com.ojnexus.core.model.TrainingTask
 import com.ojnexus.core.model.Verdict
+import com.ojnexus.core.database.entity.SubmissionJobEntity
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.formatCount
 import com.ojnexus.core.ui.formatDate
@@ -55,6 +66,7 @@ private val ActivityTimeColumnWidth = 52.dp
 private val TaskCodeColumnWidth = 88.dp
 private val MetricSeparatorHeight = 36.dp
 private val TrainingLoadHeight = 48.dp
+private val CommandCellHeight = 64.dp
 private val LoadBarAlphaMin = 0.25f
 private const val LoadBarAlphaStep = 0.1875f
 
@@ -62,6 +74,12 @@ private const val LoadBarAlphaStep = 0.1875f
 fun DashboardScreen(
     onOpenContests: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenLuoguSetup: () -> Unit = {},
+    onOpenTraining: () -> Unit = {},
+    onOpenReview: () -> Unit = {},
+    onOpenProblems: () -> Unit = {},
+    onOpenSubmissions: () -> Unit = {},
+    onOpenAction: ((DashboardAction) -> Unit)? = null,
 ) {
     val container = com.ojnexus.core.ui.LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<DashboardViewModel>(
@@ -71,8 +89,9 @@ fun DashboardScreen(
                 reviewRepository = it.reviewRepository,
                 analyticsRepository = it.analyticsRepository,
                 clock = it.clock,
-                syncRepository = it.codeforcesSyncRepository,
-                accountRepository = it.judgeAccountRepository,
+                judgeDataRepository = it.judgeDataRepository,
+                actionableSubmission = it.luoguSubmissionRepository.observeActionableJob(),
+                localDaySource = it.localDaySource,
             )
         },
     )
@@ -97,6 +116,12 @@ fun DashboardScreen(
                 state = s.value,
                 onOpenContests = onOpenContests,
                 onOpenSettings = onOpenSettings,
+                onOpenLuoguSetup = onOpenLuoguSetup,
+                onOpenTraining = onOpenTraining,
+                onOpenReview = onOpenReview,
+                onOpenProblems = onOpenProblems,
+                onOpenSubmissions = onOpenSubmissions,
+                onOpenAction = onOpenAction,
             )
         }
     }
@@ -107,8 +132,38 @@ private fun DashboardContent(
     state: DashboardUiState,
     onOpenContests: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenLuoguSetup: () -> Unit,
+    onOpenTraining: () -> Unit,
+    onOpenReview: () -> Unit,
+    onOpenProblems: () -> Unit,
+    onOpenSubmissions: () -> Unit,
+    onOpenAction: ((DashboardAction) -> Unit)?,
 ) {
     val colors = NexusTheme.colors
+    val reduceMotion = NexusTheme.reduceMotion
+    val luoguSetupDescription = stringResource(R.string.dash_connect_luogu_cd)
+    val animatedDueReviews by animateIntAsState(
+        targetValue = state.summary.dueReviews,
+        animationSpec = if (reduceMotion) snap() else tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard),
+        label = "dashboard due reviews",
+    )
+    val animatedSolvedThisWeek by animateIntAsState(
+        targetValue = state.summary.solvedThisWeek,
+        animationSpec = if (reduceMotion) snap() else tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard),
+        label = "dashboard solved this week",
+    )
+    val animatedConnectedJudges by animateIntAsState(
+        targetValue = state.summary.connectedJudges,
+        animationSpec = if (reduceMotion) snap() else tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard),
+        label = "dashboard connected judges",
+    )
+    val countdown = dashboardCountdown(state.summary.nextContestRemainingSeconds)
+    val countdownText = when {
+        countdown == null -> stringResource(R.string.dash_countdown_pending)
+        countdown.days > 0L -> stringResource(R.string.dash_countdown_days, countdown.days, countdown.hours)
+        countdown.hours > 0L -> stringResource(R.string.dash_countdown_hours, countdown.hours, countdown.minutes)
+        else -> stringResource(R.string.dash_countdown_minutes, countdown.minutes)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -117,42 +172,137 @@ private fun DashboardContent(
     ) {
         Spacer(modifier = Modifier.height(NexusSpacing.md))
 
+        NexusSection(label = stringResource(R.string.dash_section_command)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
+            ) {
+                SummaryReadout(
+                    label = stringResource(R.string.dash_summary_due),
+                    value = formatCount(animatedDueReviews),
+                    modifier = Modifier.weight(1f),
+                )
+                SummaryReadout(
+                    label = stringResource(R.string.dash_summary_solved),
+                    value = formatCount(animatedSolvedThisWeek),
+                    modifier = Modifier.weight(1f),
+                )
+                SummaryReadout(
+                    label = stringResource(R.string.dash_summary_next),
+                    value = countdownText,
+                    modifier = Modifier.weight(1f),
+                )
+                SummaryReadout(
+                    label = stringResource(R.string.dash_summary_oj),
+                    value = formatCount(animatedConnectedJudges),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
+            ) {
+                CommandCell(
+                    label = stringResource(R.string.dash_command_training),
+                    contentDescription = stringResource(R.string.dash_command_training_cd),
+                    onClick = onOpenTraining,
+                    modifier = Modifier.weight(1f),
+                )
+                CommandCell(
+                    label = stringResource(R.string.dash_command_review),
+                    contentDescription = stringResource(R.string.dash_command_review_cd),
+                    onClick = onOpenReview,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Spacer(modifier = Modifier.height(NexusSpacing.xs))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
+            ) {
+                CommandCell(
+                    label = stringResource(R.string.dash_command_problems),
+                    contentDescription = stringResource(R.string.dash_command_problems_cd),
+                    onClick = onOpenProblems,
+                    modifier = Modifier.weight(1f),
+                )
+                CommandCell(
+                    label = stringResource(R.string.dash_command_submissions),
+                    contentDescription = stringResource(R.string.dash_command_submissions_cd),
+                    onClick = onOpenSubmissions,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        SectionGap()
+
+        DashboardCommandSurfaceSection(
+            surface = deriveDashboardCommandSurface(state),
+            onTarget = { target ->
+                when (target) {
+                    DashboardSurfaceTarget.TRAINING -> onOpenTraining()
+                    DashboardSurfaceTarget.REVIEW -> onOpenReview()
+                    DashboardSurfaceTarget.CONTESTS -> onOpenContests()
+                    DashboardSurfaceTarget.SUBMISSIONS -> onOpenSubmissions()
+                    DashboardSurfaceTarget.SETTINGS -> onOpenSettings()
+                    DashboardSurfaceTarget.NONE -> Unit
+                }
+            },
+            onAction = onOpenAction,
+        )
+
+        SectionGap()
+
         // SYSTEM STATUS — honest connection state; rating only from a real synced profile.
         NexusSection(
             label = stringResource(R.string.dash_section_system),
             trailing = {
                 NexusTag(
-                    text = if (state.cfAccount != null) {
+                    text = if (state.judgeConnections.isNotEmpty()) {
                         stringResource(R.string.sync_state_synced)
                     } else {
                         stringResource(R.string.sync_source_local)
                     },
-                    tone = if (state.cfAccount != null) NexusTone.Accent else NexusTone.Neutral,
+                    tone = if (state.judgeConnections.isNotEmpty()) NexusTone.Accent else NexusTone.Neutral,
                     selected = true,
                 )
             },
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(NexusSize.tableRowHeight)
-                    .clickable { onOpenSettings() },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.dash_oj_connection),
-                    style = NexusTheme.typography.dataSmall,
-                    color = NexusTheme.colors.textPrimary,
-                    modifier = Modifier.weight(1f),
-                )
-                if (state.cfAccount != null) {
+            if (state.judgeConnections.isEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(NexusSize.tableRowHeight).clickable { onOpenSettings() },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.dash_oj_connection),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.textPrimary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    NexusStatus(label = stringResource(R.string.dash_not_connected), tone = NexusTone.Neutral)
+                }
+            } else {
+                state.judgeConnections.forEachIndexed { index, connection ->
+                    if (index > 0) NexusDivider(insetEnd = NexusSpacing.xxs)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(NexusSize.tableRowHeight).clickable { onOpenSettings() },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = connection.judge.displayName,
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.textPrimary,
+                            modifier = Modifier.weight(1f),
+                        )
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = state.cfAccount.canonicalHandle,
+                            text = connection.account.canonicalHandle,
                             style = NexusTheme.typography.dataSmall,
                             color = NexusTheme.colors.accent,
                         )
-                        val syncing = state.cfSyncState?.state == com.ojnexus.core.data.sync.SyncPhase.SYNCING.name
+                        val syncing = connection.syncState?.state == com.ojnexus.core.data.sync.SyncPhase.SYNCING.name
                         NexusStatus(
                             label = stringResource(
                                 if (syncing) R.string.settings_state_syncing else R.string.settings_state_connected,
@@ -160,12 +310,25 @@ private fun DashboardContent(
                             tone = if (syncing) NexusTone.Accent else NexusTone.Success,
                         )
                     }
-                } else {
-                    NexusStatus(
-                        label = stringResource(R.string.dash_not_connected),
-                        tone = NexusTone.Neutral,
-                    )
+                    }
                 }
+            }
+            if (shouldShowLuoguSetup(state.judgeConnections.map { it.judge }.toSet())) {
+                Spacer(Modifier.height(NexusSpacing.xs))
+                Text(
+                    text = stringResource(R.string.dash_connect_luogu),
+                    style = NexusTheme.typography.sectionLabel,
+                    color = colors.accent,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(colors.accentContainer, NexusRadius.sm)
+                        .border(NexusSize.dividerThickness, colors.accent, NexusRadius.sm)
+                        .clickable(role = Role.Button, onClick = onOpenLuoguSetup)
+                        .semantics {
+                            contentDescription = luoguSetupDescription
+                        }
+                        .padding(horizontal = NexusSpacing.sm, vertical = NexusSpacing.xs),
+                )
             }
             NexusDivider(insetEnd = NexusSpacing.xxs)
             Row(
@@ -415,10 +578,15 @@ private fun DashboardContent(
                 horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
             ) {
                 state.loadWeek.forEach { intensity ->
+                    val animatedBarHeight by animateDpAsState(
+                        targetValue = barHeight(intensity),
+                        animationSpec = if (reduceMotion) snap() else tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard),
+                        label = "dashboard training load",
+                    )
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(barHeight(intensity))
+                            .height(animatedBarHeight)
                             .background(
                                 colors.accent.copy(alpha = barAlpha(intensity)),
                                 NexusRadius.xs,
@@ -444,6 +612,57 @@ private fun DashboardContent(
 
         Spacer(modifier = Modifier.height(NexusSpacing.xxl))
     }
+}
+
+@Composable
+private fun SummaryReadout(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(vertical = NexusSpacing.xxs),
+    ) {
+        Text(
+            text = label,
+            style = NexusTheme.typography.sectionLabel,
+            color = NexusTheme.colors.textTertiary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = value,
+            style = NexusTheme.typography.dataLarge,
+            color = NexusTheme.colors.accent,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun CommandCell(
+    label: String,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = NexusTheme.colors
+    Text(
+        text = label,
+        style = NexusTheme.typography.sectionLabel,
+        color = colors.textPrimary,
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = CommandCellHeight)
+            .background(colors.surface, NexusRadius.sm)
+            .border(NexusSize.dividerThickness, colors.borderStrong, NexusRadius.sm)
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics {
+                this.contentDescription = contentDescription
+            }
+            .padding(horizontal = NexusSpacing.sm, vertical = NexusSpacing.sm),
+    )
 }
 
 @Composable

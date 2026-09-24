@@ -35,6 +35,7 @@ class ReviewRepository(
                 ReviewQueueItem(
                     problemId = row.review.problemId,
                     problemTitle = problem.title,
+                    externalId = problem.externalId,
                     judge = com.ojnexus.core.model.JudgeId.fromId(problem.judge)
                         ?: com.ojnexus.core.model.JudgeId.LOCAL,
                     difficulty = problem.difficulty,
@@ -73,6 +74,40 @@ class ReviewRepository(
                 )
             }
             scheduled
+        }
+    }
+
+    /** Adds several problems to stage 0 without overwriting any existing review rows. */
+    suspend fun scheduleReviews(problemIds: List<Long>): DataResult<Int> {
+        val ids = problemIds.distinct()
+        if (ids.isEmpty()) return DataResult.Success(0)
+
+        val missingId = ids.firstOrNull { database.problemDao().findById(it) == null }
+        if (missingId != null) {
+            return DataResult.Failure(DataError.NotFound("problem $missingId"))
+        }
+
+        return dataResult {
+            val scheduled = ReviewScheduler.initialSchedule(clock.instant(), clock.zone)
+            val createdAt = clock.millis()
+            var insertedCount = 0
+            database.withTransaction {
+                ids.forEach { problemId ->
+                    if (reviewDao.findByProblem(problemId) == null) {
+                        reviewDao.upsert(
+                            ReviewEntity(
+                                problemId = problemId,
+                                stage = scheduled.stage,
+                                dueAt = scheduled.dueAt,
+                                dueDayIndex = scheduled.dueDayIndex,
+                                createdAt = createdAt,
+                            ),
+                        )
+                        insertedCount++
+                    }
+                }
+            }
+            insertedCount
         }
     }
 

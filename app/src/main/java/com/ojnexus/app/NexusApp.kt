@@ -1,5 +1,7 @@
 package com.ojnexus.app
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,6 +13,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
@@ -27,13 +33,21 @@ import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.feature.analytics.AnalyticsScreen
 import com.ojnexus.feature.contests.ContestCenterScreen
+import com.ojnexus.feature.contests.ContestFocusScreen
 import com.ojnexus.feature.dashboard.DashboardScreen
+import com.ojnexus.feature.dashboard.DashboardAction
 import com.ojnexus.feature.profile.ProfileScreen
 import com.ojnexus.feature.problems.ProblemDetailScreen
 import com.ojnexus.feature.problems.ProblemFormScreen
+import com.ojnexus.feature.problems.LuoguProblemDetailScreen
 import com.ojnexus.feature.problems.ProblemsScreen
 import com.ojnexus.feature.settings.SettingsScreen
+import com.ojnexus.feature.submissions.SubmissionCenterScreen
 import com.ojnexus.feature.training.TrainingScreen
+import com.ojnexus.feature.training.ReviewRunScreen
+import com.ojnexus.feature.workspace.WorkspaceScreen
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 /** Route constants. Only stable IDs travel through routes; screens load the rest. */
 object NexusRoutes {
@@ -41,14 +55,74 @@ object NexusRoutes {
     const val PROBLEM_ADD = "problem/add"
     const val PROBLEM_EDIT = "problem/{problemId}/edit"
     const val REVIEW_SESSION = "review/{problemId}"
+    const val REVIEW_RUN = "review-run"
     const val SESSION_ACTIVE = "session/active"
     const val SESSION_DETAIL = "session/{sessionId}"
     const val CONTESTS = "contests"
+    const val CONTEST_FOCUS = "contest-focus/{judge}/{contestId}"
     const val SETTINGS = "settings"
+    const val SETTINGS_OPENAPP = "settings/openapp"
+    const val SETTINGS_LUOGU = "settings/luogu"
+    const val SUBMISSIONS = "submissions"
+    const val WORKSPACE = "workspace/{pid}?title={title}&sampleInput={sampleInput}&sampleOutput={sampleOutput}"
+    const val LUOGU_PROBLEM_DETAIL = "luogu-problem/{pid}"
+
+    fun problem(problemId: Long): String = "problem/$problemId"
+
+    fun review(problemId: Long): String = "review/$problemId"
+
+    fun workspace(
+        pid: String,
+        title: String? = null,
+        sampleInput: String? = null,
+        sampleOutput: String? = null,
+    ): String {
+        val base = "workspace/${encodeRouteValue(pid)}"
+        val query = listOf(
+            "title" to title?.trim()?.takeIf { it.isNotEmpty() },
+            "sampleInput" to sampleInput?.takeIf { it.isNotBlank() },
+            "sampleOutput" to sampleOutput?.takeIf { it.isNotBlank() },
+        ).mapNotNull { (key, value) ->
+            value?.let { normalized ->
+                "$key=${encodeRouteValue(normalized)}"
+            }
+        }
+        return if (query.isEmpty()) base else "$base?${query.joinToString("&")}"
+    }
+
+    private fun encodeRouteValue(value: String): String =
+        URLEncoder.encode(value, StandardCharsets.UTF_8.toString()).replace("+", "%20")
 }
 
-private val fadeEnter = fadeIn(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard))
-private val fadeExit = fadeOut(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingExit))
+enum class DashboardCommand {
+    TRAINING,
+    REVIEW,
+    PROBLEMS,
+    SUBMISSIONS,
+}
+
+internal fun dashboardCommandRoute(command: DashboardCommand): String = when (command) {
+    DashboardCommand.TRAINING,
+    DashboardCommand.REVIEW,
+    -> NexusDestination.TRAINING.route
+    DashboardCommand.PROBLEMS -> NexusDestination.PROBLEMS.route
+    DashboardCommand.SUBMISSIONS -> NexusRoutes.SUBMISSIONS
+}
+
+internal fun dashboardActionRoute(action: DashboardAction): String? = when (action) {
+    is DashboardAction.ResumeSession -> "session/${action.sessionId}"
+    is DashboardAction.OpenTask -> action.problemId?.let(NexusRoutes::problem)
+        ?: NexusDestination.TRAINING.route
+    is DashboardAction.OpenReview -> NexusRoutes.review(action.problemId)
+    is DashboardAction.OpenSubmission -> NexusRoutes.SUBMISSIONS
+    is DashboardAction.OpenContest ->
+        "contest-focus/${encodeDashboardRouteValue(action.judge)}/${encodeDashboardRouteValue(action.contestId)}"
+    DashboardAction.OpenSettings -> NexusRoutes.SETTINGS
+    DashboardAction.NoAction -> null
+}
+
+private fun encodeDashboardRouteValue(value: String): String =
+    URLEncoder.encode(value, StandardCharsets.UTF_8.toString()).replace("+", "%20")
 
 /**
  * Application shell: dark background, top-level NavHost and the flat bottom bar.
@@ -60,6 +134,25 @@ fun NexusApp(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    var commandPaletteOpen by rememberSaveable { mutableStateOf(false) }
+    var pendingProblemSearch by remember { mutableStateOf<PaletteQuery.SearchProblems?>(null) }
+    var pendingTrainingProblemIds by rememberSaveable { mutableStateOf<List<Long>?>(null) }
+    var pendingSubmissionRequestId by rememberSaveable { mutableStateOf<String?>(null) }
+    val reduceMotion = NexusTheme.reduceMotion
+    val enterTransition = remember(reduceMotion) {
+        if (reduceMotion) {
+            EnterTransition.None
+        } else {
+            fadeIn(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingStandard))
+        }
+    }
+    val exitTransition = remember(reduceMotion) {
+        if (reduceMotion) {
+            ExitTransition.None
+        } else {
+            fadeOut(tween(NexusMotion.DURATION_NORMAL, easing = NexusMotion.EasingExit))
+        }
+    }
 
     CompositionLocalProvider(LocalAppContainer provides container) {
         Box(
@@ -76,43 +169,174 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     navController = navController,
                     startDestination = NexusDestination.DASHBOARD.route,
                     modifier = Modifier.weight(1f),
-                    enterTransition = { fadeEnter },
-                    exitTransition = { fadeExit },
-                    popEnterTransition = { fadeEnter },
-                    popExitTransition = { fadeExit },
+                    enterTransition = { enterTransition },
+                    exitTransition = { exitTransition },
+                    popEnterTransition = { enterTransition },
+                    popExitTransition = { exitTransition },
                 ) {
                     composable(NexusDestination.DASHBOARD.route) {
                         DashboardScreen(
                             onOpenContests = { navController.navigate(NexusRoutes.CONTESTS) },
                             onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS) },
+                            onOpenLuoguSetup = { navController.navigate(NexusRoutes.SETTINGS_LUOGU) },
+                            onOpenTraining = {
+                                navController.navigateToTopLevel(dashboardCommandRoute(DashboardCommand.TRAINING))
+                            },
+                            onOpenReview = {
+                                navController.navigateToTopLevel(dashboardCommandRoute(DashboardCommand.REVIEW))
+                            },
+                            onOpenProblems = {
+                                navController.navigateToTopLevel(dashboardCommandRoute(DashboardCommand.PROBLEMS))
+                            },
+                            onOpenSubmissions = {
+                                navController.navigate(dashboardCommandRoute(DashboardCommand.SUBMISSIONS))
+                            },
+                            onOpenAction = { action ->
+                                val route = dashboardActionRoute(action) ?: return@DashboardScreen
+                                if (action is DashboardAction.OpenSubmission) {
+                                    pendingSubmissionRequestId = action.requestId
+                                }
+                                navController.navigate(route)
+                            },
                         )
                     }
                     composable(NexusDestination.PROBLEMS.route) {
                         ProblemsScreen(
                             onOpenProblem = { id -> navController.navigate("problem/$id") },
                             onAddProblem = { navController.navigate(NexusRoutes.PROBLEM_ADD) },
+                            onBuildTraining = { problemIds ->
+                                pendingTrainingProblemIds = problemIds
+                                navController.navigateToTopLevel(NexusDestination.TRAINING.route)
+                            },
+                            onOpenWorkspace = { pid ->
+                                navController.navigate(NexusRoutes.workspace(pid))
+                            },
+                            onOpenLuoguDetail = { pid ->
+                                navController.navigate("luogu-problem/${android.net.Uri.encode(pid)}")
+                            },
+                            initialQuery = pendingProblemSearch?.query,
+                            initialJudge = pendingProblemSearch?.judge,
+                            onInitialSearchConsumed = { pendingProblemSearch = null },
                         )
                     }
                     composable(NexusDestination.TRAINING.route) {
                         TrainingScreen(
+                            onOpenProblem = { id -> navController.navigate("problem/$id") },
                             onOpenSession = { id ->
                                 navController.navigate(
                                     if (id == null) NexusRoutes.SESSION_ACTIVE else "session/$id",
                                 )
                             },
                             onOpenReview = { id -> navController.navigate("review/$id") },
+                            onOpenReviewRun = { navController.navigate(NexusRoutes.REVIEW_RUN) },
+                            initialProblemIds = pendingTrainingProblemIds.orEmpty(),
+                            onInitialProblemIdsConsumed = { pendingTrainingProblemIds = null },
                         )
                     }
                     composable(NexusDestination.ANALYTICS.route) { AnalyticsScreen() }
                     composable(NexusDestination.PROFILE.route) {
-                        ProfileScreen(onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS) })
+                        ProfileScreen(
+                            onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS) },
+                            onOpenSubmissions = { navController.navigate(NexusRoutes.SUBMISSIONS) },
+                        )
                     }
 
                     composable(route = NexusRoutes.CONTESTS) {
-                        ContestCenterScreen(onBack = { navController.popBackStack() })
+                        ContestCenterScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenFocus = { judge, contestId ->
+                                navController.navigate("contest-focus/${android.net.Uri.encode(judge)}/${android.net.Uri.encode(contestId)}")
+                            },
+                        )
+                    }
+                    composable(
+                        route = NexusRoutes.CONTEST_FOCUS,
+                        arguments = listOf(
+                            navArgument("judge") { type = NavType.StringType },
+                            navArgument("contestId") { type = NavType.StringType },
+                        ),
+                    ) { entry ->
+                        val judge = entry.arguments?.getString("judge") ?: return@composable
+                        val contestId = entry.arguments?.getString("contestId") ?: return@composable
+                        ContestFocusScreen(
+                            judge = judge,
+                            contestId = contestId,
+                            onBack = { navController.popBackStack() },
+                        )
                     }
                     composable(route = NexusRoutes.SETTINGS) {
                         SettingsScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable(route = NexusRoutes.SETTINGS_OPENAPP) {
+                        SettingsScreen(
+                            onBack = { navController.popBackStack() },
+                            focusOpenApp = true,
+                        )
+                    }
+                    composable(route = NexusRoutes.SETTINGS_LUOGU) {
+                        SettingsScreen(
+                            onBack = { navController.popBackStack() },
+                            focusLuogu = true,
+                        )
+                    }
+                    composable(route = NexusRoutes.SUBMISSIONS) {
+                        SubmissionCenterScreen(
+                            onBack = { navController.popBackStack() },
+                            initialRequestId = pendingSubmissionRequestId,
+                            onInitialRequestConsumed = { pendingSubmissionRequestId = null },
+                            onOpenWorkspace = { pid, title ->
+                                navController.navigate(NexusRoutes.workspace(pid, title))
+                            },
+                        )
+                    }
+                    composable(
+                        route = NexusRoutes.WORKSPACE,
+                        arguments = listOf(
+                            navArgument("pid") { type = NavType.StringType },
+                            navArgument("title") {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            },
+                            navArgument("sampleInput") {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            },
+                            navArgument("sampleOutput") {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            },
+                        ),
+                    ) { entry ->
+                        val pid = entry.arguments?.getString("pid") ?: return@composable
+                        val title = entry.arguments?.getString("title")
+                        val sampleInput = entry.arguments?.getString("sampleInput")
+                        val sampleOutput = entry.arguments?.getString("sampleOutput")
+                        WorkspaceScreen(
+                            pid = pid,
+                            title = title,
+                            sampleInput = sampleInput,
+                            sampleOutput = sampleOutput,
+                            onBack = { navController.popBackStack() },
+                            onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS_OPENAPP) },
+                        )
+                    }
+                    composable(
+                        route = NexusRoutes.LUOGU_PROBLEM_DETAIL,
+                        arguments = listOf(navArgument("pid") { type = NavType.StringType }),
+                    ) { entry ->
+                        val pid = entry.arguments?.getString("pid") ?: return@composable
+                        LuoguProblemDetailScreen(
+                            pid = pid,
+                            onBack = { navController.popBackStack() },
+                            onOpenWorkspace = { problemPid, title, sampleInput, sampleOutput ->
+                                navController.navigate(
+                                    NexusRoutes.workspace(problemPid, title, sampleInput, sampleOutput),
+                                )
+                            },
+                        )
                     }
 
                     composable(
@@ -125,6 +349,7 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             onBack = { navController.popBackStack() },
                             onEdit = { id -> navController.navigate("problem/$id/edit") },
                             onOpenReview = { id -> navController.navigate("review/$id") },
+                            onOpenWorkspace = { pid -> navController.navigate(NexusRoutes.workspace(pid)) },
                         )
                     }
                     composable(route = NexusRoutes.PROBLEM_ADD) {
@@ -136,6 +361,9 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     ) { entry ->
                         val problemId = entry.arguments?.getLong("problemId") ?: return@composable
                         ProblemFormScreen(editProblemId = problemId, onDone = { navController.popBackStack() })
+                    }
+                    composable(route = NexusRoutes.REVIEW_RUN) {
+                        ReviewRunScreen(onDone = { navController.popBackStack() })
                     }
                     composable(
                         route = NexusRoutes.REVIEW_SESSION,
@@ -151,6 +379,12 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         com.ojnexus.feature.training.SessionScreen(
                             sessionId = null,
                             onDone = { navController.popBackStack() },
+                            onOpenProblem = { problemId ->
+                                navController.navigate(NexusRoutes.problem(problemId))
+                            },
+                            onOpenReview = { problemId ->
+                                navController.navigate(NexusRoutes.review(problemId))
+                            },
                         )
                     }
                     composable(
@@ -161,6 +395,12 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         com.ojnexus.feature.training.SessionScreen(
                             sessionId = sessionId,
                             onDone = { navController.popBackStack() },
+                            onOpenProblem = { problemId ->
+                                navController.navigate(NexusRoutes.problem(problemId))
+                            },
+                            onOpenReview = { problemId ->
+                                navController.navigate(NexusRoutes.review(problemId))
+                            },
                         )
                     }
                 }
@@ -173,8 +413,30 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             navController.navigateToTopLevel(destination.route)
                         }
                     },
+                    onOpenCommandPalette = { commandPaletteOpen = true },
                 )
             }
+        }
+        if (commandPaletteOpen) {
+            CommandPalette(
+                onDismiss = { commandPaletteOpen = false },
+                onExecute = { command ->
+                    commandPaletteOpen = false
+                    when (command) {
+                        "dashboard", "problems", "training", "analytics", "profile" ->
+                            navController.navigateToTopLevel(command)
+                        "contests" -> navController.navigate(NexusRoutes.CONTESTS)
+                        "submissions" -> navController.navigate(NexusRoutes.SUBMISSIONS)
+                        "add_problem" -> navController.navigate(NexusRoutes.PROBLEM_ADD)
+                        "settings" -> navController.navigate(NexusRoutes.SETTINGS)
+                    }
+                },
+                onSearchProblems = { search ->
+                    pendingProblemSearch = search
+                    commandPaletteOpen = false
+                    navController.navigateToTopLevel(NexusDestination.PROBLEMS.route)
+                },
+            )
         }
     }
 }

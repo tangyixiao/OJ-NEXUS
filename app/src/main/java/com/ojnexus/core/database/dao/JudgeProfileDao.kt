@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface JudgeProfileDao {
 
+    @Query("SELECT * FROM judge_profiles ORDER BY judge")
+    fun observeAll(): Flow<List<JudgeProfileEntity>>
+
     @Query("SELECT * FROM judge_profiles WHERE judge = :judge")
     fun observeByJudge(judge: String): Flow<JudgeProfileEntity?>
 

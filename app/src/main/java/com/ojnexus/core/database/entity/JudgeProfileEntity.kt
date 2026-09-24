@@ -30,5 +30,16 @@ data class JudgeProfileEntity(
     @ColumnInfo(name = "last_online_time_seconds") val lastOnlineTimeSeconds: Long? = null,
     val avatar: String? = null,
     @ColumnInfo(name = "title_photo") val titlePhoto: String? = null,
+    /** Luogu public profile fields; null for judges that do not expose them. */
+    val introduction: String? = null,
+    val slogan: String? = null,
+    val badge: String? = null,
+    val ranking: Int? = null,
+    @ColumnInfo(name = "follower_count") val followerCount: Int? = null,
+    @ColumnInfo(name = "following_count") val followingCount: Int? = null,
+    @ColumnInfo(name = "passed_problem_count") val passedProblemCount: Int? = null,
+    @ColumnInfo(name = "submitted_problem_count") val submittedProblemCount: Int? = null,
+    @ColumnInfo(name = "ccf_level") val ccfLevel: Int? = null,
+    @ColumnInfo(name = "xcpc_level") val xcpcLevel: Int? = null,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )

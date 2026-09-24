@@ -1,0 +1,48 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OjNexus.Windows.Core", "src\OjNexus.Windows.Core\OjNexus.Windows.Core.csproj", "{A6517F2B-8B5F-4D0A-A1B2-6A11C4B6C7E1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OjNexus.Windows.Cli", "src\OjNexus.Windows.Cli\OjNexus.Windows.Cli.csproj", "{0A1C8D5F-1C40-48A5-9E2E-9C5C72B7D791}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OjNexus.Windows.Desktop", "src\OjNexus.Windows.Desktop\OjNexus.Windows.Desktop.csproj", "{B0B83235-40FD-4D49-B8F1-3B8A4E0A9B72}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OjNexus.Windows.Core.Tests", "tests\OjNexus.Windows.Core.Tests\OjNexus.Windows.Core.Tests.csproj", "{D0E8AE3E-3E1C-4705-9A97-CB9B2DE7C77A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OjNexus.Windows.Cli.Tests", "tests\OjNexus.Windows.Cli.Tests\OjNexus.Windows.Cli.Tests.csproj", "{8A3C1E0D-6B2F-4A09-8DF0-07B0C2B61A27}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OjNexus.Windows.Desktop.Tests", "tests\OjNexus.Windows.Desktop.Tests\OjNexus.Windows.Desktop.Tests.csproj", "{8ABF648D-956F-4D49-B539-722B2D671B2E}"
+EndProject
+Global
+    GlobalSection(SolutionConfigurationPlatforms) = preSolution
+        Debug|Any CPU = Debug|Any CPU
+        Release|Any CPU = Release|Any CPU
+    EndGlobalSection
+    GlobalSection(ProjectConfigurationPlatforms) = postSolution
+        {A6517F2B-8B5F-4D0A-A1B2-6A11C4B6C7E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {A6517F2B-8B5F-4D0A-A1B2-6A11C4B6C7E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {A6517F2B-8B5F-4D0A-A1B2-6A11C4B6C7E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {A6517F2B-8B5F-4D0A-A1B2-6A11C4B6C7E1}.Release|Any CPU.Build.0 = Release|Any CPU
+        {0A1C8D5F-1C40-48A5-9E2E-9C5C72B7D791}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {0A1C8D5F-1C40-48A5-9E2E-9C5C72B7D791}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {0A1C8D5F-1C40-48A5-9E2E-9C5C72B7D791}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {0A1C8D5F-1C40-48A5-9E2E-9C5C72B7D791}.Release|Any CPU.Build.0 = Release|Any CPU
+        {B0B83235-40FD-4D49-B8F1-3B8A4E0A9B72}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {B0B83235-40FD-4D49-B8F1-3B8A4E0A9B72}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {B0B83235-40FD-4D49-B8F1-3B8A4E0A9B72}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {B0B83235-40FD-4D49-B8F1-3B8A4E0A9B72}.Release|Any CPU.Build.0 = Release|Any CPU
+        {D0E8AE3E-3E1C-4705-9A97-CB9B2DE7C77A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {D0E8AE3E-3E1C-4705-9A97-CB9B2DE7C77A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {D0E8AE3E-3E1C-4705-9A97-CB9B2DE7C77A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {D0E8AE3E-3E1C-4705-9A97-CB9B2DE7C77A}.Release|Any CPU.Build.0 = Release|Any CPU
+        {8A3C1E0D-6B2F-4A09-8DF0-07B0C2B61A27}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {8A3C1E0D-6B2F-4A09-8DF0-07B0C2B61A27}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {8A3C1E0D-6B2F-4A09-8DF0-07B0C2B61A27}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {8A3C1E0D-6B2F-4A09-8DF0-07B0C2B61A27}.Release|Any CPU.Build.0 = Release|Any CPU
+        {8ABF648D-956F-4D49-B539-722B2D671B2E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {8ABF648D-956F-4D49-B539-722B2D671B2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {8ABF648D-956F-4D49-B539-722B2D671B2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {8ABF648D-956F-4D49-B539-722B2D671B2E}.Release|Any CPU.Build.0 = Release|Any CPU
+    EndGlobalSection
+EndGlobal

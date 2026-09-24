@@ -13,10 +13,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -25,30 +31,41 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
 import com.ojnexus.core.designsystem.NexusRadius
+import com.ojnexus.core.designsystem.NexusMotion
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.designsystem.component.NexusDivider
+import com.ojnexus.core.designsystem.component.NexusMetric
 import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusStatus
 import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
 import com.ojnexus.core.model.ReviewQueueItem
+import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.model.TaskType
+import com.ojnexus.core.model.TrainingTarget
+import com.ojnexus.core.model.TrainingTargetPolicy
 import com.ojnexus.core.model.TrainingSession
 import com.ojnexus.core.model.TrainingTask
 import com.ojnexus.core.model.TrainingType
+import com.ojnexus.core.data.repository.KnowledgeAreaState
+import com.ojnexus.core.domain.MasteryReason
+import com.ojnexus.core.domain.TrainingReason
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.formatDate
 import com.ojnexus.core.ui.formatDuration
+import com.ojnexus.core.ui.formatCount
 import com.ojnexus.core.ui.labelRes
 import com.ojnexus.core.ui.tone
 
@@ -56,6 +73,10 @@ import com.ojnexus.core.ui.tone
 fun TrainingScreen(
     onOpenSession: (Long?) -> Unit,
     onOpenReview: (Long) -> Unit,
+    onOpenReviewRun: () -> Unit,
+    onOpenProblem: (Long) -> Unit,
+    initialProblemIds: List<Long> = emptyList(),
+    onInitialProblemIdsConsumed: () -> Unit = {},
 ) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<TrainingViewModel>(
@@ -64,12 +85,16 @@ fun TrainingScreen(
                 trainingRepository = it.trainingRepository,
                 reviewRepository = it.reviewRepository,
                 problemRepository = it.problemRepository,
+                knowledgeRepository = it.knowledgeRepository,
                 clock = it.clock,
+                localDaySource = it.localDaySource,
+                preferencesRepository = it.userPreferencesRepository,
             )
         },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
     val problems by viewModel.problems.collectAsStateWithLifecycle()
+    val sessionStartState by viewModel.sessionStartState.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -86,10 +111,21 @@ fun TrainingScreen(
                 viewModel = viewModel,
                 onOpenSession = onOpenSession,
                 onOpenReview = onOpenReview,
+                onOpenReviewRun = onOpenReviewRun,
+                onOpenProblem = onOpenProblem,
+                sessionStartState = sessionStartState,
+                initialProblemIds = initialProblemIds,
+                onInitialProblemIdsConsumed = onInitialProblemIdsConsumed,
             )
         }
     }
 }
+
+internal fun trainingDialogInitialProblemIds(
+    focusSprintMode: Boolean,
+    focusSprintIds: List<Long>,
+    libraryProblemIds: List<Long>,
+): List<Long> = if (focusSprintMode) focusSprintIds else libraryProblemIds
 
 @Composable
 private fun CenteredError(message: String) {
@@ -109,10 +145,46 @@ private fun TrainingContent(
     viewModel: TrainingViewModel,
     onOpenSession: (Long?) -> Unit,
     onOpenReview: (Long) -> Unit,
+    onOpenReviewRun: () -> Unit,
+    onOpenProblem: (Long) -> Unit,
+    sessionStartState: TrainingSessionStartState,
+    initialProblemIds: List<Long>,
+    onInitialProblemIdsConsumed: () -> Unit,
 ) {
     var showTaskDialog by rememberSaveable { mutableStateOf(false) }
     var showSessionDialog by rememberSaveable { mutableStateOf(false) }
+    var focusSprintMode by rememberSaveable { mutableStateOf(false) }
+    var focusSprintIds by rememberSaveable { mutableStateOf(emptyList<Long>()) }
+    var libraryProblemIds by rememberSaveable { mutableStateOf(emptyList<Long>()) }
     var showTaskProblemPicker by rememberSaveable { mutableStateOf(false) }
+    var showCalibration by rememberSaveable { mutableStateOf(false) }
+    var reviewFilter by rememberSaveable { mutableStateOf(ReviewQueueFilter.ALL) }
+    val reduceMotion = NexusTheme.reduceMotion
+    val reviewSummary = reviewQueueSummary(uiState.reviews)
+    val visibleReviews = filterReviewBuckets(uiState.reviews, reviewFilter)
+    val focusSprintPlan = buildFocusSprintPlan(uiState.reviews, uiState.recommendations)
+
+    LaunchedEffect(sessionStartState) {
+        if (sessionStartState is TrainingSessionStartState.Started) {
+            showSessionDialog = false
+            focusSprintMode = false
+            focusSprintIds = emptyList()
+            libraryProblemIds = emptyList()
+            viewModel.clearSessionStartState()
+            onOpenSession(null)
+        }
+    }
+
+    LaunchedEffect(initialProblemIds) {
+        if (initialProblemIds.isNotEmpty()) {
+            viewModel.clearSessionStartState()
+            focusSprintMode = false
+            focusSprintIds = emptyList()
+            libraryProblemIds = initialProblemIds
+            showSessionDialog = true
+            onInitialProblemIdsConsumed()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -126,7 +198,39 @@ private fun TrainingContent(
         SessionSection(
             activeSession = uiState.activeSession,
             onOpenSession = onOpenSession,
-            onNewSession = { showSessionDialog = true },
+            focusSprintPlan = focusSprintPlan,
+            onNewSession = {
+                viewModel.clearSessionStartState()
+                focusSprintMode = false
+                focusSprintIds = emptyList()
+                libraryProblemIds = emptyList()
+                showSessionDialog = true
+            },
+            onFocusSprint = {
+                viewModel.clearSessionStartState()
+                focusSprintIds = focusSprintPlan.ids
+                libraryProblemIds = emptyList()
+                focusSprintMode = true
+                showSessionDialog = true
+            },
+        )
+
+        SectionGap()
+
+        TrainingCalibrationSection(
+            targets = uiState.trainingTargets,
+            showEditor = showCalibration,
+            onOpenEditor = { showCalibration = true },
+            onDismiss = { showCalibration = false },
+            onSave = viewModel::setTrainingTarget,
+            onClear = viewModel::clearTrainingTarget,
+        )
+
+        SectionGap()
+
+        ReviewPulse(
+            summary = reviewSummary,
+            onStartRun = onOpenReviewRun,
         )
 
         SectionGap()
@@ -136,9 +240,17 @@ private fun TrainingContent(
             label = stringResource(R.string.review_section_queue),
             trailing = {
                 Text(
-                    text = uiState.reviews.dueNowCount.toString(),
+                    text = (
+                        visibleReviews.overdue.size +
+                            visibleReviews.dueToday.size +
+                            visibleReviews.upcoming.size
+                        ).toString(),
                     style = NexusTheme.typography.data,
-                    color = if (uiState.reviews.dueNowCount > 0) {
+                    color = if (
+                        visibleReviews.overdue.isNotEmpty() ||
+                        visibleReviews.dueToday.isNotEmpty() ||
+                        visibleReviews.upcoming.isNotEmpty()
+                    ) {
                         NexusTheme.colors.accent
                     } else {
                         NexusTheme.colors.textTertiary
@@ -146,21 +258,43 @@ private fun TrainingContent(
                 )
             },
         ) {
-            val reviews = uiState.reviews
-            if (reviews.isEmpty) {
-                SectionEmpty(stringResource(R.string.review_queue_empty))
-            } else {
-                if (reviews.overdue.isNotEmpty()) {
-                    QueueGroup(stringResource(R.string.review_filter_overdue), reviews.overdue, onOpenReview)
-                }
-                if (reviews.dueToday.isNotEmpty()) {
-                    QueueGroup(stringResource(R.string.review_filter_due), reviews.dueToday, onOpenReview)
-                }
-                if (reviews.upcoming.isNotEmpty()) {
-                    QueueGroup(stringResource(R.string.review_filter_upcoming), reviews.upcoming, onOpenReview)
+            ReviewFilterControls(
+                selected = reviewFilter,
+                onSelected = { reviewFilter = it },
+            )
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            Column(
+                modifier = Modifier.animateContentSize(
+                    animationSpec = if (reduceMotion) snap() else tween(
+                        NexusMotion.DURATION_NORMAL,
+                        easing = NexusMotion.EasingStandard,
+                    ),
+                ),
+            ) {
+                val reviews = visibleReviews
+                if (reviews.isEmpty) {
+                    SectionEmpty(
+                        stringResource(
+                            if (uiState.reviews.isEmpty) R.string.review_queue_empty else R.string.review_filter_empty,
+                        ),
+                    )
+                } else {
+                    ReviewQueueGroups(
+                        reviews = reviews,
+                        todayEpochDay = uiState.todayEpochDay,
+                        onOpenReview = onOpenReview,
+                    )
                 }
             }
         }
+
+        SectionGap()
+
+        RecommendationSection(uiState.recommendations, onOpenProblem)
+
+        SectionGap()
+
+        KnowledgeSection(uiState.knowledge)
 
         SectionGap()
 
@@ -232,13 +366,460 @@ private fun TrainingContent(
     if (showSessionDialog) {
         NewSessionDialog(
             problems = problems,
+            initialType = if (focusSprintMode) TrainingType.FOCUS else TrainingType.PRACTICE,
+            initialDuration = if (focusSprintMode) "25" else "",
+            initialTag = when {
+                focusSprintMode -> stringResource(R.string.training_focus_sprint_tag)
+                libraryProblemIds.isNotEmpty() -> stringResource(R.string.training_library_view_tag)
+                else -> ""
+            },
+            initialSelectedIds = trainingDialogInitialProblemIds(
+                focusSprintMode = focusSprintMode,
+                focusSprintIds = focusSprintIds,
+                libraryProblemIds = libraryProblemIds,
+            ),
+            startState = sessionStartState,
             onConfirm = { type, duration, tag, problemIds ->
                 viewModel.startSession(type, duration, tag, problemIds)
-                showSessionDialog = false
-                onOpenSession(null)
             },
-            onDismiss = { showSessionDialog = false },
+            onDismiss = {
+                showSessionDialog = false
+                focusSprintMode = false
+                focusSprintIds = emptyList()
+                libraryProblemIds = emptyList()
+                viewModel.clearSessionStartState()
+            },
         )
+    }
+}
+
+@Composable
+private fun TrainingCalibrationSection(
+    targets: List<TrainingTarget>,
+    showEditor: Boolean,
+    onOpenEditor: () -> Unit,
+    onDismiss: () -> Unit,
+    onSave: (JudgeId?, Int, Int) -> Unit,
+    onClear: (JudgeId?) -> Unit,
+) {
+    val defaultTarget = targets.firstOrNull { it.judge == null }
+    val openDescription = stringResource(R.string.training_calibration_open_cd)
+    var selectedKey by rememberSaveable { mutableStateOf("default") }
+    var centerText by rememberSaveable { mutableStateOf("") }
+    var toleranceText by rememberSaveable { mutableStateOf(TrainingTargetPolicy.DEFAULT_TOLERANCE.toString()) }
+    val selectedJudge = JudgeId.entries.firstOrNull { it.id == selectedKey }
+    val selectedTarget = targets.firstOrNull { it.judge == selectedJudge }
+    fun openTarget(judge: JudgeId?) {
+        selectedKey = judge?.id ?: "default"
+        val target = targets.firstOrNull { it.judge == judge }
+        centerText = target?.center?.toString().orEmpty()
+        toleranceText = (target?.tolerance ?: TrainingTargetPolicy.DEFAULT_TOLERANCE).toString()
+        onOpenEditor()
+    }
+
+    NexusSection(label = stringResource(R.string.training_calibration_title)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = defaultTarget?.let {
+                    stringResource(R.string.training_calibration_value, it.center ?: 0, it.tolerance)
+                } ?: stringResource(R.string.training_calibration_none),
+                style = NexusTheme.typography.dataSmall,
+                color = NexusTheme.colors.textSecondary,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = stringResource(R.string.training_calibration_open),
+                style = NexusTheme.typography.sectionLabel,
+                color = NexusTheme.colors.accent,
+                modifier = Modifier
+                    .clickable(role = Role.Button, onClickLabel = openDescription) {
+                        openTarget(null)
+                    }
+                    .semantics { contentDescription = openDescription }
+                    .padding(NexusSpacing.xs),
+            )
+        }
+    }
+
+    if (showEditor) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = onDismiss,
+            containerColor = NexusTheme.colors.surface,
+            titleContentColor = NexusTheme.colors.textPrimary,
+            textContentColor = NexusTheme.colors.textSecondary,
+            title = { Text(stringResource(R.string.training_calibration_title), style = NexusTheme.typography.title) },
+            text = {
+                Column {
+                    Text(
+                        text = stringResource(R.string.training_calibration_judge),
+                        style = NexusTheme.typography.sectionLabel,
+                        color = NexusTheme.colors.textTertiary,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxxs)) {
+                        (listOf<JudgeId?>(null) + JudgeId.entries.filter { it != JudgeId.LOCAL }).forEach { judge ->
+                            NexusTag(
+                                text = judge?.displayName ?: stringResource(R.string.training_calibration_default),
+                                tone = NexusTone.Accent,
+                                selected = selectedKey == (judge?.id ?: "default"),
+                                modifier = Modifier.clickable(role = Role.Button) { openTarget(judge) },
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(NexusSpacing.sm))
+                    NexusPlainField(
+                        label = stringResource(R.string.training_calibration_center),
+                        value = centerText,
+                        onValueChange = { centerText = it },
+                        number = true,
+                    )
+                    Spacer(Modifier.height(NexusSpacing.xxs))
+                    NexusPlainField(
+                        label = stringResource(R.string.training_calibration_tolerance),
+                        value = toleranceText,
+                        onValueChange = { toleranceText = it },
+                        number = true,
+                    )
+                    val candidate = TrainingTarget(
+                        judge = selectedJudge,
+                        center = centerText.toIntOrNull(),
+                        tolerance = toleranceText.toIntOrNull() ?: -1,
+                    )
+                    if (!TrainingTargetPolicy.isValid(candidate)) {
+                        Text(
+                            text = stringResource(R.string.training_calibration_invalid),
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.danger,
+                            modifier = Modifier.padding(top = NexusSpacing.xs),
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                val center = centerText.toIntOrNull()
+                val tolerance = toleranceText.toIntOrNull()
+                val enabled = TrainingTargetPolicy.isValid(
+                    TrainingTarget(selectedJudge, center, tolerance ?: -1),
+                )
+                Text(
+                    text = stringResource(R.string.training_calibration_save),
+                    style = NexusTheme.typography.data,
+                    color = if (enabled) NexusTheme.colors.accent else NexusTheme.colors.textTertiary,
+                    modifier = Modifier
+                        .clickable(enabled = enabled, role = Role.Button) {
+                            onSave(selectedJudge, center!!, tolerance!!)
+                            onDismiss()
+                        }
+                        .padding(NexusSpacing.xs),
+                )
+            },
+            dismissButton = {
+                Row {
+                    if (selectedTarget != null) {
+                        Text(
+                            text = stringResource(R.string.training_calibration_clear),
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.warning,
+                            modifier = Modifier
+                                .clickable(role = Role.Button) {
+                                    onClear(selectedJudge)
+                                    onDismiss()
+                                }
+                                .padding(NexusSpacing.xs),
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.action_cancel),
+                        style = NexusTheme.typography.data,
+                        color = NexusTheme.colors.textSecondary,
+                        modifier = Modifier
+                            .clickable(role = Role.Button, onClick = onDismiss)
+                            .padding(NexusSpacing.xs),
+                    )
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun RecommendationSection(
+    recommendations: List<TrainingRecommendation>,
+    onOpenProblem: (Long) -> Unit,
+) {
+    NexusSection(label = stringResource(R.string.training_section_targets)) {
+        if (recommendations.isEmpty()) {
+            SectionEmpty(stringResource(R.string.training_target_empty))
+        } else {
+            recommendations.take(5).forEachIndexed { index, recommendation ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(role = Role.Button) { onOpenProblem(recommendation.problemId) }
+                        .padding(vertical = NexusSpacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = recommendation.judge.uppercase(),
+                                style = NexusTheme.typography.sectionLabel,
+                                color = NexusTheme.colors.textTertiary,
+                                modifier = Modifier.padding(end = NexusSpacing.xxs),
+                            )
+                            Text(
+                                text = recommendation.externalId,
+                                style = NexusTheme.typography.data,
+                                color = NexusTheme.colors.accent,
+                            )
+                        }
+                        Text(
+                            text = recommendation.title,
+                            style = NexusTheme.typography.label,
+                            color = NexusTheme.colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    TrainingReason.entries.filter { it in recommendation.reasons }.take(2).forEach { reason ->
+                        NexusTag(
+                            text = stringResource(reason.labelRes()),
+                            tone = NexusTone.Warning,
+                            modifier = Modifier.padding(end = NexusSpacing.xxs),
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.training_priority, recommendation.priority),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.accent,
+                    )
+                }
+                if (index != recommendations.take(5).lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewPulse(
+    summary: ReviewQueueSummary,
+    onStartRun: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    val reduceMotion = NexusTheme.reduceMotion
+    val nextProblemId = summary.nextDueProblemId
+    val actionDescription = stringResource(
+        if (nextProblemId == null) R.string.training_pulse_nothing_due_cd
+        else R.string.training_pulse_start_next_cd,
+    )
+
+    NexusSection(label = stringResource(R.string.training_section_pulse)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
+        ) {
+            PulseMetric(
+                label = stringResource(R.string.training_pulse_overdue),
+                value = summary.overdue,
+                modifier = Modifier.weight(1f),
+            )
+            PulseMetric(
+                label = stringResource(R.string.training_pulse_today),
+                value = summary.dueToday,
+                modifier = Modifier.weight(1f),
+            )
+            PulseMetric(
+                label = stringResource(R.string.training_pulse_upcoming),
+                value = summary.upcoming,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = NexusSize.dividerThickness,
+                    color = if (nextProblemId != null) colors.accent else colors.border,
+                    shape = NexusRadius.xs,
+                )
+                .clickable(
+                    enabled = nextProblemId != null,
+                    role = Role.Button,
+                    onClickLabel = actionDescription,
+                ) {
+                    nextProblemId?.let { onStartRun() }
+                }
+                .semantics { contentDescription = actionDescription }
+                .padding(horizontal = NexusSpacing.sm, vertical = NexusSpacing.xs),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text(
+                text = stringResource(
+                    if (nextProblemId == null) R.string.training_pulse_nothing_due
+                    else R.string.training_pulse_start_next,
+                ),
+                style = NexusTheme.typography.sectionLabel,
+                color = if (nextProblemId != null) colors.accent else colors.textTertiary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PulseMetric(label: String, value: Int, modifier: Modifier = Modifier) {
+    val animatedValue by animateIntAsState(
+        targetValue = value,
+        animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+            NexusMotion.DURATION_NORMAL,
+            easing = NexusMotion.EasingStandard,
+        ),
+        label = "review pulse $label",
+    )
+    NexusMetric(label = label, value = formatCount(animatedValue), modifier = modifier)
+}
+
+@Composable
+private fun ReviewFilterControls(
+    selected: ReviewQueueFilter,
+    onSelected: (ReviewQueueFilter) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+    ) {
+        ReviewFilterButton(
+            filter = ReviewQueueFilter.ALL,
+            label = stringResource(R.string.training_filter_all),
+            description = stringResource(R.string.training_filter_all_cd),
+            selected = selected == ReviewQueueFilter.ALL,
+            onClick = onSelected,
+            modifier = Modifier.weight(1f),
+        )
+        ReviewFilterButton(
+            filter = ReviewQueueFilter.DUE_NOW,
+            label = stringResource(R.string.training_filter_due_now),
+            description = stringResource(R.string.training_filter_due_now_cd),
+            selected = selected == ReviewQueueFilter.DUE_NOW,
+            onClick = onSelected,
+            modifier = Modifier.weight(1f),
+        )
+        ReviewFilterButton(
+            filter = ReviewQueueFilter.UPCOMING,
+            label = stringResource(R.string.training_filter_upcoming),
+            description = stringResource(R.string.training_filter_upcoming_cd),
+            selected = selected == ReviewQueueFilter.UPCOMING,
+            onClick = onSelected,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun ReviewFilterButton(
+    filter: ReviewQueueFilter,
+    label: String,
+    description: String,
+    selected: Boolean,
+    onClick: (ReviewQueueFilter) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = NexusTheme.colors
+    Box(
+        modifier = modifier
+            .height(NexusSize.commandBarHeight)
+            .background(if (selected) colors.surface else colors.background, NexusRadius.xs)
+            .border(
+                width = NexusSize.dividerThickness,
+                color = if (selected) colors.accent else colors.border,
+                shape = NexusRadius.xs,
+            )
+            .clickable(role = Role.Button, onClickLabel = description) { onClick(filter) }
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = NexusTheme.typography.sectionLabel,
+            color = if (selected) colors.accent else colors.textTertiary,
+        )
+    }
+}
+
+@Composable
+private fun ReviewQueueGroups(
+    reviews: ReviewBuckets,
+    todayEpochDay: Long,
+    onOpenReview: (Long) -> Unit,
+) {
+    if (reviews.overdue.isNotEmpty()) {
+        QueueGroup(
+            label = stringResource(R.string.review_filter_overdue),
+            items = reviews.overdue,
+            todayEpochDay = todayEpochDay,
+            onOpenReview = onOpenReview,
+        )
+    }
+    if (reviews.dueToday.isNotEmpty()) {
+        QueueGroup(
+            label = stringResource(R.string.review_filter_due),
+            items = reviews.dueToday,
+            todayEpochDay = todayEpochDay,
+            onOpenReview = onOpenReview,
+        )
+    }
+    if (reviews.upcoming.isNotEmpty()) {
+        QueueGroup(
+            label = stringResource(R.string.review_filter_upcoming),
+            items = reviews.upcoming,
+            todayEpochDay = todayEpochDay,
+            onOpenReview = onOpenReview,
+        )
+    }
+}
+
+@Composable
+private fun KnowledgeSection(areas: List<KnowledgeAreaState>) {
+    NexusSection(
+        label = stringResource(R.string.training_section_knowledge),
+        trailing = {
+            Text(
+                text = stringResource(R.string.knowledge_area_count, areas.size),
+                style = NexusTheme.typography.sectionLabel,
+                color = NexusTheme.colors.textTertiary,
+            )
+        },
+    ) {
+        areas.forEachIndexed { index, area ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = NexusSpacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(area.area.labelRes()),
+                    style = NexusTheme.typography.data,
+                    color = NexusTheme.colors.textPrimary,
+                    modifier = Modifier.weight(1f),
+                )
+                area.reasons.take(2).forEach { reason ->
+                    NexusTag(
+                        text = stringResource(reason.labelRes()),
+                        tone = if (reason == MasteryReason.FAILURE_LOG) NexusTone.Danger else NexusTone.Warning,
+                        modifier = Modifier.padding(end = NexusSpacing.xxs),
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.knowledge_score, area.score),
+                    style = NexusTheme.typography.dataSmall,
+                    color = if (area.score >= 80) NexusTheme.colors.success else NexusTheme.colors.accent,
+                )
+            }
+            if (index != areas.lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
+        }
     }
 }
 
@@ -263,7 +844,9 @@ private fun SectionEmpty(text: String) {
 private fun SessionSection(
     activeSession: TrainingSession?,
     onOpenSession: (Long?) -> Unit,
+    focusSprintPlan: FocusSprintPlan,
     onNewSession: () -> Unit,
+    onFocusSprint: () -> Unit,
 ) {
     val colors = NexusTheme.colors
     NexusSection(
@@ -307,6 +890,11 @@ private fun SessionSection(
                         color = colors.accent,
                     )
                 }
+                Spacer(modifier = Modifier.height(NexusSpacing.md))
+                FocusSprintPanel(
+                    plan = focusSprintPlan,
+                    onLaunch = onFocusSprint,
+                )
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     NexusTag(
@@ -348,7 +936,162 @@ private fun SessionSection(
 }
 
 @Composable
-private fun QueueGroup(label: String, items: List<ReviewQueueItem>, onOpenReview: (Long) -> Unit) {
+private fun FocusSprintPanel(
+    plan: FocusSprintPlan,
+    onLaunch: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    val reduceMotion = NexusTheme.reduceMotion
+    val launchEnabled = plan.items.isNotEmpty()
+    val launchDescription = stringResource(R.string.training_focus_sprint_launch_cd)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.background, NexusRadius.sm)
+            .animateContentSize(
+                animationSpec = if (reduceMotion) snap() else tween(
+                    NexusMotion.DURATION_NORMAL,
+                    easing = NexusMotion.EasingStandard,
+                ),
+            )
+            .padding(NexusSpacing.md),
+    ) {
+        Row(verticalAlignment = Alignment.Top) {
+            Box(
+                modifier = Modifier
+                    .width(NexusSize.focusSprintRailWidth)
+                    .height(NexusSize.focusSprintRailHeight)
+                    .background(colors.accent, NexusRadius.xs),
+            )
+            Spacer(modifier = Modifier.width(NexusSpacing.sm))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.training_focus_sprint_title),
+                    style = NexusTheme.typography.sectionLabel,
+                    color = colors.accent,
+                )
+                Text(
+                    text = if (launchEnabled) {
+                        stringResource(R.string.training_focus_sprint_ready)
+                    } else {
+                        stringResource(R.string.training_focus_sprint_empty)
+                    },
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textSecondary,
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+        ) {
+            NexusMetric(
+                label = stringResource(R.string.training_focus_sprint_total),
+                value = plan.items.size.toString(),
+                changeTone = if (launchEnabled) NexusTone.Accent else NexusTone.Neutral,
+                modifier = Modifier.weight(1f),
+            )
+            NexusMetric(
+                label = stringResource(R.string.training_focus_sprint_due),
+                value = plan.dueCount.toString(),
+                changeTone = if (plan.dueCount > 0) NexusTone.Warning else NexusTone.Neutral,
+                modifier = Modifier.weight(1f),
+            )
+            NexusMetric(
+                label = stringResource(R.string.training_focus_sprint_targets),
+                value = plan.targetCount.toString(),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        if (plan.items.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            plan.items.take(3).forEachIndexed { index, item ->
+                FocusSprintPreview(item)
+                if (index != plan.items.take(3).lastIndex) {
+                    NexusDivider(insetEnd = NexusSpacing.xxs)
+                }
+            }
+            if (plan.items.size > 3) {
+                Text(
+                    text = stringResource(R.string.training_focus_sprint_more, plan.items.size - 3),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textTertiary,
+                    modifier = Modifier.padding(top = NexusSpacing.xxs),
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
+        Box(
+            modifier = Modifier
+                .background(
+                    if (launchEnabled) colors.surface else colors.background,
+                    NexusRadius.xs,
+                )
+                .clickable(
+                    enabled = launchEnabled,
+                    role = Role.Button,
+                    onClickLabel = launchDescription,
+                    onClick = onLaunch,
+                )
+                .semantics { contentDescription = launchDescription }
+                .padding(horizontal = NexusSpacing.md, vertical = NexusSpacing.xs),
+        ) {
+            Text(
+                text = stringResource(R.string.training_focus_sprint_launch),
+                style = NexusTheme.typography.data,
+                color = if (launchEnabled) colors.accent else colors.textTertiary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FocusSprintPreview(item: FocusSprintItem) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = NexusSpacing.xxs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = buildString {
+                    append(item.judge)
+                    item.externalId?.let { append(" ").append(it) }
+                },
+                style = NexusTheme.typography.sectionLabel,
+                color = NexusTheme.colors.textTertiary,
+            )
+            Text(
+                text = item.title,
+                style = NexusTheme.typography.dataSmall,
+                color = NexusTheme.colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        NexusTag(
+            text = stringResource(
+                if (item.source == FocusSprintSource.DUE) {
+                    R.string.training_focus_sprint_due_source
+                } else {
+                    R.string.training_focus_sprint_target_source
+                },
+            ),
+            tone = if (item.source == FocusSprintSource.DUE) NexusTone.Warning else NexusTone.Neutral,
+        )
+    }
+}
+
+@Composable
+private fun QueueGroup(
+    label: String,
+    items: List<ReviewQueueItem>,
+    todayEpochDay: Long,
+    onOpenReview: (Long) -> Unit,
+) {
     Text(
         text = "$label · ${items.size}",
         style = NexusTheme.typography.sectionLabel,
@@ -356,14 +1099,14 @@ private fun QueueGroup(label: String, items: List<ReviewQueueItem>, onOpenReview
         modifier = Modifier.padding(vertical = NexusSpacing.xxs),
     )
     items.forEachIndexed { index, item ->
-        QueueRow(item, onOpenReview)
+        QueueRow(item, todayEpochDay, onOpenReview)
         if (index != items.lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
     }
     Spacer(modifier = Modifier.height(NexusSpacing.xxs))
 }
 
 @Composable
-private fun QueueRow(item: ReviewQueueItem, onOpenReview: (Long) -> Unit) {
+private fun QueueRow(item: ReviewQueueItem, todayEpochDay: Long, onOpenReview: (Long) -> Unit) {
     val colors = NexusTheme.colors
     Row(
         modifier = Modifier
@@ -403,7 +1146,7 @@ private fun QueueRow(item: ReviewQueueItem, onOpenReview: (Long) -> Unit) {
         Text(
             text = formatDate(item.dueAt),
             style = NexusTheme.typography.dataSmall,
-            color = if (item.dueDayIndex <= java.time.LocalDate.now().toEpochDay()) colors.accent else colors.textTertiary,
+            color = if (item.dueDayIndex <= todayEpochDay) colors.accent else colors.textTertiary,
         )
     }
 }
@@ -647,24 +1390,28 @@ private fun ProblemPickerDialog(problems: List<com.ojnexus.core.model.Problem>, 
 @Composable
 private fun NewSessionDialog(
     problems: List<com.ojnexus.core.model.Problem>,
+    initialType: TrainingType = TrainingType.PRACTICE,
+    initialDuration: String = "",
+    initialTag: String = "",
+    initialSelectedIds: List<Long> = emptyList(),
+    startState: TrainingSessionStartState = TrainingSessionStartState.Idle,
     onConfirm: (TrainingType, Int?, String?, List<Long>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var type by rememberSaveable { mutableStateOf(TrainingType.PRACTICE) }
-    var duration by rememberSaveable { mutableStateOf("") }
-    var tag by rememberSaveable { mutableStateOf("") }
-    val selected = rememberSaveable { mutableStateOf(setOf<Long>()) }
+    var type by rememberSaveable(initialType) { mutableStateOf(initialType) }
+    var duration by rememberSaveable(initialDuration) { mutableStateOf(initialDuration) }
+    var tag by rememberSaveable(initialTag) { mutableStateOf(initialTag) }
+    val selected = rememberSaveable(initialSelectedIds) { mutableStateOf(initialSelectedIds.toSet()) }
+    val canDismiss = canDismissSessionDialog(startState)
 
     androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (canDismiss) onDismiss() },
         containerColor = NexusTheme.colors.surface,
         titleContentColor = NexusTheme.colors.textPrimary,
         textContentColor = NexusTheme.colors.textSecondary,
         title = { Text(text = stringResource(R.string.session_create_title), style = NexusTheme.typography.title) },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-            ) {
+            Column {
                 Text(
                     text = stringResource(R.string.task_field_type),
                     style = NexusTheme.typography.sectionLabel,
@@ -742,6 +1489,23 @@ private fun NewSessionDialog(
                         }
                     }
                 }
+                when (startState) {
+                    TrainingSessionStartState.Starting -> Text(
+                        text = stringResource(R.string.session_starting),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.accent,
+                        modifier = Modifier.padding(top = NexusSpacing.xs),
+                    )
+                    is TrainingSessionStartState.Failed -> Text(
+                        text = startState.message,
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.danger,
+                        modifier = Modifier.padding(top = NexusSpacing.xs),
+                    )
+                    TrainingSessionStartState.Idle,
+                    TrainingSessionStartState.Started,
+                    -> Unit
+                }
             }
         },
         confirmButton = {
@@ -750,7 +1514,10 @@ private fun NewSessionDialog(
                 style = NexusTheme.typography.data,
                 color = NexusTheme.colors.accent,
                 modifier = Modifier
-                    .clickable(role = Role.Button) {
+                    .clickable(
+                        enabled = startState !is TrainingSessionStartState.Starting,
+                        role = Role.Button,
+                    ) {
                         onConfirm(type, duration.trim().toIntOrNull(), tag.trim(), selected.value.toList())
                     }
                     .padding(NexusSpacing.xs),
@@ -760,9 +1527,9 @@ private fun NewSessionDialog(
             Text(
                 text = stringResource(R.string.action_cancel),
                 style = NexusTheme.typography.data,
-                color = NexusTheme.colors.textSecondary,
+                color = if (canDismiss) NexusTheme.colors.textSecondary else NexusTheme.colors.textTertiary,
                 modifier = Modifier
-                    .clickable(role = Role.Button) { onDismiss() }
+                    .clickable(enabled = canDismiss, role = Role.Button) { onDismiss() }
                     .padding(NexusSpacing.xs),
             )
         },

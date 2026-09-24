@@ -4,6 +4,7 @@ import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.database.dao.DailyAttemptRow
 import com.ojnexus.core.database.dao.DailyReviewRow
 import com.ojnexus.core.database.dao.DailyTrainingRow
+import com.ojnexus.core.database.dao.TagPerformanceRow
 import com.ojnexus.core.database.dao.VerdictCountRow
 import com.ojnexus.core.domain.DayActivity
 import com.ojnexus.core.domain.StreakCalculator
@@ -23,14 +24,14 @@ class AnalyticsRepository(
     private val analyticsDao = database.analyticsDao()
 
     /** Daily activity for the last [days] local days (missing days come back as zero rows). */
-    fun observeDailyActivity(days: Int): Flow<List<DayActivity>> {
-        val fromDay = clock.dayIndex() - (days - 1)
+    fun observeDailyActivity(days: Int, todayEpochDay: Long = clock.dayIndex()): Flow<List<DayActivity>> {
+        val fromDay = todayEpochDay - (days - 1)
         return combine(
             analyticsDao.observeDailyAttempts(fromDay),
             analyticsDao.observeDailyReviews(fromDay),
             analyticsDao.observeDailyTraining(fromDay),
         ) { attempts, reviews, training ->
-            mergeDailyActivity(days, attempts, reviews, training)
+            mergeDailyActivity(days, todayEpochDay, attempts, reviews, training)
         }
     }
 
@@ -39,6 +40,26 @@ class AnalyticsRepository(
 
     fun observeDifficultyCounts(): Flow<List<Pair<Int?, Int>>> =
         analyticsDao.observeSolvedDifficultyCounts().map { rows -> rows.map { it.difficulty to it.count } }
+
+    fun observeJudgeAttemptCounts(): Flow<List<Pair<JudgeId, Int>>> =
+        analyticsDao.observeAttemptCountsByJudge().map { rows ->
+            rows.mapNotNull { row -> JudgeId.fromId(row.judge)?.let { it to row.count } }
+        }
+
+    fun observeDifficultyCountsByJudge(): Flow<Map<JudgeId, List<Pair<Int?, Int>>>> =
+        analyticsDao.observeDifficultyCountsByJudge().map { rows ->
+            rows.mapNotNull { row ->
+                JudgeId.fromId(row.judge)?.let { Triple(it, row.difficulty, row.count) }
+            }.groupBy({ it.first }, { it.second to it.third })
+        }
+
+    fun observeFirstTryAc(): Flow<FirstTryAc> =
+        analyticsDao.observeFirstTryAc().map { row ->
+            FirstTryAc(row.attemptedProblems, row.firstTryAc)
+        }
+
+    fun observeTagPerformance(): Flow<List<TagPerformance>> =
+        analyticsDao.observeTagPerformance().map { rows -> rows.map(TagPerformanceRow::toModel) }
 
     fun observeTotals(): Flow<Totals> = combine(
         analyticsDao.observeAttemptTotal(),
@@ -50,11 +71,11 @@ class AnalyticsRepository(
     }
 
     /** Current/longest streak over the combined activity window, plus active-day count. */
-    fun observeStreaks(days: Int = 365): Flow<Streaks> =
-        observeDailyActivity(days).map { daily ->
+    fun observeStreaks(days: Int = 365, todayEpochDay: Long = clock.dayIndex()): Flow<Streaks> =
+        observeDailyActivity(days, todayEpochDay).map { daily ->
             val active = StreakCalculator.activeDayIndexes(daily)
             Streaks(
-                current = StreakCalculator.currentStreak(active, clock.dayIndex()),
+                current = StreakCalculator.currentStreak(active, todayEpochDay),
                 longest = StreakCalculator.longestStreak(active),
                 activeDays = active.size,
             )
@@ -62,16 +83,16 @@ class AnalyticsRepository(
 
     private fun mergeDailyActivity(
         days: Int,
+        todayEpochDay: Long,
         attempts: List<DailyAttemptRow>,
         reviews: List<DailyReviewRow>,
         training: List<DailyTrainingRow>,
     ): List<DayActivity> {
-        val today = clock.dayIndex()
         val attemptByDay = attempts.associateBy { it.dayIndex }
         val reviewByDay = reviews.associateBy { it.dayIndex }
         val trainingByDay = training.associateBy { it.dayIndex }
         return (0 until days).map { offset ->
-            val day = today - offset
+            val day = todayEpochDay - offset
             val a = attemptByDay[day]
             val r = reviewByDay[day]
             val t = trainingByDay[day]
@@ -113,6 +134,31 @@ class AnalyticsRepository(
 
     private fun VerdictCountRow.toPair(): Pair<Verdict, Int> =
     (Verdict.entries.firstOrNull { it.name == verdict } ?: Verdict.OTHER) to count
+
+data class FirstTryAc(
+    val attemptedProblems: Int,
+    val firstTryAc: Int,
+) {
+    val rate: Float
+        get() = if (attemptedProblems == 0) 0f else firstTryAc.toFloat() / attemptedProblems
+}
+
+data class TagPerformance(
+    val tag: String,
+    val attempts: Int,
+    val acCount: Int,
+    val problemCount: Int,
+) {
+    val acRate: Float
+        get() = if (attempts == 0) 0f else acCount.toFloat() / attempts
+}
+
+private fun TagPerformanceRow.toModel() = TagPerformance(
+    tag = tag,
+    attempts = attempts,
+    acCount = acCount,
+    problemCount = problemCount,
+)
 
 data class Totals(
     val attempts: Int,

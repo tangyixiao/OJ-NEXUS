@@ -86,11 +86,12 @@ object CfMappers {
         return RemoteProblemEntity(
             judge = judge.id,
             externalId = externalId,
-            contestId = contestId,
+            contestId = contestId?.toString(),
             index = index,
             name = name,
             type = type,
             rating = rating,
+            difficultySource = com.ojnexus.core.model.DifficultySource.OFFICIAL.name,
             points = points,
             tags = tags.joinToString(separator = "\u001F"),
             solvedCount = statistics?.solvedCount,
@@ -128,17 +129,14 @@ object CfMappers {
     ): AttemptEntity = AttemptEntity(
         problemId = problemId,
         timestamp = creationTimeSeconds * 1000,
-        dayIndex = LocalDate.ofInstant(
-            java.time.Instant.ofEpochSecond(creationTimeSeconds),
-            zone,
-        ).toEpochDay(),
+        dayIndex = java.time.Instant.ofEpochSecond(creationTimeSeconds).atZone(zone).toLocalDate().toEpochDay(),
         verdict = submissionVerdict(verdict).name,
         rawVerdict = verdict,
         language = programmingLanguage,
         note = null,
         sourceJudge = JudgeId.CODEFORCES.id,
         externalSubmissionId = id.toString(),
-        contestId = contestId,
+        contestId = contestId?.toString(),
         participantType = participantType,
         testset = testset,
         passedTestCount = passedTestCount,
@@ -152,7 +150,7 @@ object CfMappers {
         RatingChangeEntity(
             judge = judge.id,
             handle = handle,
-            contestId = contestId,
+            contestId = contestId.toString(),
             contestName = contestName,
             rank = rank,
             oldRating = oldRating,
@@ -165,7 +163,7 @@ object CfMappers {
     fun CfContestDto.toContestEntity(judge: JudgeId, updatedAt: Long): ContestEntity =
         ContestEntity(
             judge = judge.id,
-            externalContestId = id,
+            externalContestId = id.toString(),
             name = name,
             type = type,
             phase = phase,

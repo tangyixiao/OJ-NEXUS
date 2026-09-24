@@ -46,7 +46,7 @@ class ReviewSessionViewModel(
             Loadable.Ready(ReviewSessionUiState(detail = detail, lastOutcome = outcome))
         }
     }
-        .catch { emit(Loadable.Failed(it.message ?: "Load failed")) }
+        .catch { emit(Loadable.Failed(it.message ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_load_failed))) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
 
     fun record(result: ReviewResult) {

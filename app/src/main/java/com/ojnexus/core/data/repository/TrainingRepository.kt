@@ -7,6 +7,7 @@ import com.ojnexus.core.data.dataResult
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.database.dao.SessionDao
 import com.ojnexus.core.database.dao.TaskDao
+import com.ojnexus.core.database.dao.TrainingCandidateRow
 import com.ojnexus.core.database.entity.TrainingSessionEntity
 import com.ojnexus.core.database.entity.TrainingSessionProblemEntity
 import com.ojnexus.core.database.entity.TrainingTaskEntity
@@ -21,6 +22,7 @@ import com.ojnexus.core.model.TrainingTask
 import com.ojnexus.core.model.TrainingType
 import java.time.Clock
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 /**
@@ -35,6 +37,19 @@ class TrainingRepository(
 ) {
     private val taskDao: TaskDao = database.taskDao()
     private val sessionDao: SessionDao = database.sessionDao()
+
+    fun observeCandidateRows(todayEpochDay: Long, limit: Int = 20): Flow<List<TrainingCandidateRow>> {
+        val poolLimit = limit.coerceAtLeast(0).coerceAtMost(MAX_TRAINING_POOL)
+        val dao = database.problemDao()
+        return combine(
+            dao.observeDueTrainingCandidates(todayEpochDay, DUE_POOL_CAP),
+            dao.observeRecentUnsolvedTrainingCandidates(RECENT_POOL_CAP, todayEpochDay),
+            dao.observeFailureHeavyTrainingCandidates(FAILURE_POOL_CAP, todayEpochDay),
+            dao.observeKnowledgeLinkedTrainingCandidates(WEAK_AREA_POOL_CAP, todayEpochDay),
+        ) { due, recent, failures, weakAreas ->
+            mergeTrainingCandidatePools(due, recent, failures, weakAreas, poolLimit)
+        }
+    }
 
     // --- Today tasks ---
 
@@ -86,6 +101,23 @@ class TrainingRepository(
 
     fun observeSessionProblemCount(sessionId: Long): Flow<Int> =
         sessionDao.observeSessionProblemCount(sessionId)
+
+    fun observeSessionProblems(sessionId: Long): Flow<List<SessionProblem>> =
+        sessionDao.observeSessionProblemProgress(sessionId).map { rows ->
+            rows.map { row ->
+                SessionProblem(
+                    problemId = row.problemId,
+                    judge = row.judge,
+                    externalId = row.externalId,
+                    title = row.title,
+                    difficulty = row.difficulty,
+                    solved = row.solved,
+                    attempts = row.attempts,
+                    latestVerdict = row.latestVerdict?.let(com.ojnexus.core.model.Verdict::fromRaw),
+                    inReview = row.inReview,
+                )
+            }
+        }
 
     fun observeSession(id: Long): Flow<TrainingSession?> =
         sessionDao.observeById(id).map { it?.toDomain() }
@@ -222,3 +254,21 @@ class TrainingRepository(
         )
     }
 }
+
+fun mergeTrainingCandidatePools(
+    due: List<TrainingCandidateRow>,
+    recent: List<TrainingCandidateRow>,
+    failures: List<TrainingCandidateRow>,
+    weakAreas: List<TrainingCandidateRow>,
+    limit: Int,
+): List<TrainingCandidateRow> = if (limit <= 0) {
+    emptyList()
+} else {
+    (due + failures + weakAreas + recent).distinctBy { it.id }.take(limit)
+}
+
+private const val MAX_TRAINING_POOL = 60
+private const val DUE_POOL_CAP = 60
+private const val FAILURE_POOL_CAP = 40
+private const val WEAK_AREA_POOL_CAP = 40
+private const val RECENT_POOL_CAP = 40

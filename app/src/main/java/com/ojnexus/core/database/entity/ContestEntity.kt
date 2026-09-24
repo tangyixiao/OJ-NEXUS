@@ -20,7 +20,7 @@ import androidx.room.Index
 data class ContestEntity(
     /** [com.ojnexus.core.model.JudgeId] id. */
     val judge: String,
-    @ColumnInfo(name = "external_contest_id") val externalContestId: Long,
+    @ColumnInfo(name = "external_contest_id") val externalContestId: String,
     val name: String,
     val type: String? = null,
     /** Raw judge-side phase string (BEFORE / CODING / FINISHED / …). */

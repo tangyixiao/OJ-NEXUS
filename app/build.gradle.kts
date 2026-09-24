@@ -15,8 +15,8 @@ android {
         applicationId = "com.ojnexus"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 75
+        versionName = "0.3.75"
 
         // Room schema history is exported and committed to verify future migrations.
         ksp {
@@ -55,6 +55,7 @@ kotlin {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.appcompat)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
@@ -75,6 +76,7 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.browser)
     implementation(libs.coil.compose)
+    implementation(libs.androidx.datastore.preferences)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 
@@ -83,4 +85,10 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.mockwebserver)
     testImplementation(libs.androidx.room.testing)
+
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.espresso.core)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

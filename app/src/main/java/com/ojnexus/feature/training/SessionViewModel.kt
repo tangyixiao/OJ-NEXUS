@@ -5,12 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.ojnexus.core.data.DataError
 import com.ojnexus.core.data.DataResult
 import com.ojnexus.core.data.repository.ProblemRepository
+import com.ojnexus.core.data.repository.ReviewRepository
 import com.ojnexus.core.data.repository.TrainingRepository
 import com.ojnexus.core.domain.SessionClock
 import com.ojnexus.core.model.Problem
 import com.ojnexus.core.model.SessionProblem
 import com.ojnexus.core.model.TrainingSession
 import com.ojnexus.core.model.TrainingType
+import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.ui.Loadable
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -60,6 +62,8 @@ data class SessionSurfaceState(
     val liveProblemCount: Int?,
     /** Fully computed once the session is finished. */
     val summary: SessionSummary?,
+    /** Reactive progress rows for the active or historical session. */
+    val problems: List<SessionProblem> = emptyList(),
     val actionError: SessionActionError? = null,
 )
 
@@ -67,6 +71,7 @@ class SessionViewModel(
     private val sessionId: Long?,
     private val trainingRepository: TrainingRepository,
     private val problemRepository: ProblemRepository,
+    private val reviewRepository: ReviewRepository,
 ) : ViewModel() {
 
     /**
@@ -85,7 +90,33 @@ class SessionViewModel(
         else -> trainingRepository.observeSession(sessionId)
     }
 
-    private val actionError = MutableStateFlow<SessionActionError?>(null)
+    private val _actionError = MutableStateFlow<SessionActionError?>(null)
+    private val _lastLoggedProblemId = MutableStateFlow<Long?>(null)
+    private val _lastLoggedSequence = MutableStateFlow(0L)
+    private val _actionInFlight = MutableStateFlow(false)
+
+    /** Latest local session action error, or null after a successful action. */
+    val actionError: StateFlow<SessionActionError?> = _actionError.asStateFlow()
+
+    /** Problem id for the most recent successful local verdict action. */
+    val lastLoggedProblemId: StateFlow<Long?> = _lastLoggedProblemId.asStateFlow()
+
+    /** Monotonic success token so repeated results for the same problem remain observable. */
+    val lastLoggedSequence: StateFlow<Long> = _lastLoggedSequence.asStateFlow()
+
+    /** True while the local verdict transaction is running. */
+    val actionInFlight: StateFlow<Boolean> = _actionInFlight.asStateFlow()
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val sessionProblems: StateFlow<List<SessionProblem>> = sessionFlow
+        .flatMapLatest { session ->
+            if (session == null) {
+                flowOf(emptyList())
+            } else {
+                trainingRepository.observeSessionProblems(session.id)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val problems: StateFlow<List<Problem>> = problemRepository.observeLibrary()
         .catch { emit(emptyList()) }
@@ -126,18 +157,22 @@ class SessionViewModel(
         sessionFlow,
         liveProblemCount,
         finishedSummary,
-        actionError.asStateFlow(),
-    ) { session, liveCount, summary, error ->
+        actionError,
+        sessionProblems,
+    ) { session, liveCount, summary, error, problems ->
         Loadable.Ready(
             SessionSurfaceState(
                 session = session,
                 liveProblemCount = liveCount,
                 summary = summary,
+                problems = problems,
                 actionError = error,
             ),
         )
     }
-        .catch<Loadable<SessionSurfaceState>> { emit(Loadable.Failed(it.message ?: "Load failed")) }
+        .catch<Loadable<SessionSurfaceState>> {
+            emit(Loadable.Failed(it.message ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_load_failed)))
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
 
     val elapsedMs: StateFlow<Long> = combine(sessionFlow, ticker) { session, now ->
@@ -156,8 +191,26 @@ class SessionViewModel(
     fun createSession(type: TrainingType, targetDurationMin: Int?, targetTag: String?, problemIds: List<Long>) {
         viewModelScope.launch {
             when (val result = trainingRepository.createAndStartSession(type, targetDurationMin, targetTag, problemIds)) {
-                is DataResult.Success -> actionError.value = null
-                is DataResult.Failure -> actionError.value = result.error.toActionError()
+                is DataResult.Success -> _actionError.value = null
+                is DataResult.Failure -> _actionError.value = result.error.toActionError()
+            }
+        }
+    }
+
+    fun logAttempt(problemId: Long, verdict: Verdict) {
+        if (!_actionInFlight.compareAndSet(expect = false, update = true)) return
+        viewModelScope.launch {
+            try {
+                when (val result = problemRepository.addAttempt(problemId, verdict)) {
+                    is DataResult.Success -> {
+                        _actionError.value = null
+                        _lastLoggedProblemId.value = problemId
+                        _lastLoggedSequence.value += 1L
+                    }
+                    is DataResult.Failure -> _actionError.value = result.error.toActionError()
+                }
+            } finally {
+                _actionInFlight.value = false
             }
         }
     }
@@ -170,11 +223,20 @@ class SessionViewModel(
 
     fun finish(sessionId: Long) = launchAction { trainingRepository.finishSession(sessionId) }
 
+    fun scheduleReviews(problemIds: List<Long>) {
+        viewModelScope.launch {
+            when (val result = reviewRepository.scheduleReviews(problemIds)) {
+                is DataResult.Success -> _actionError.value = null
+                is DataResult.Failure -> _actionError.value = result.error.toActionError()
+            }
+        }
+    }
+
     private fun launchAction(block: suspend () -> DataResult<Unit>) {
         viewModelScope.launch {
             when (val result = block()) {
-                is DataResult.Success -> actionError.value = null
-                is DataResult.Failure -> actionError.value = result.error.toActionError()
+                is DataResult.Success -> _actionError.value = null
+                is DataResult.Failure -> _actionError.value = result.error.toActionError()
             }
         }
     }

@@ -3,6 +3,628 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## WINDOWS VERTICAL SLICE — Native client and CLI
+
+The `windows/` solution now contains a native WPF client with `DASHBOARD`, `CONNECTORS`, and
+`SYNC HISTORY` views, plus the `status`, `sync`, `history`, `data`, and `config show` CLI commands.
+History is bounded to five visible rows per selected judge and exposes typed full-sync retry for
+non-success operations.
+Both clients use the Windows Core SQLite ledger and accept public handles only. Windows CI runs
+the full solution test/build gate, self-contained `win-x64` packaging, package hash verification,
+and a temporary-data CLI/WPF smoke check. The current Windows artifact is an unsigned directory/ZIP
+bundle; installer, signing, and store packaging remain separate work.
+/ `windows/` 方案现在包含原生 WPF 客户端（`DASHBOARD`、`CONNECTORS`、`SYNC HISTORY`）以及
+`status`、`sync`、`history`、`data`、`config show` 命令。两端共用 Windows Core SQLite 账本，
+仅接受公开 handle。Windows CI 运行完整测试/构建门禁、自包含 `win-x64` 打包、包哈希校验和
+临时数据 CLI/WPF 冒烟；当前 Windows 产物是未签名的目录/ZIP 包，安装包、签名和商店发布仍是后续工作。
+
+Windows handle replacement now follows the same identity hygiene as the native clients: changing
+a judge-specific handle clears only the old handle's local payload snapshots inside the account
+update transaction, while retaining sync operations as history. / Windows handle 更换现在与其他原生客户端遵循相同的身份清理规则：
+更换某个评测平台的 handle 时，只在账号更新事务内清理旧 handle 的本地 payload 快照，同时保留同步操作作为历史记录。
+
+The Windows Dashboard now exposes `SYNC ALL`, which runs only configured and enabled connectors in
+order and keeps each typed operation in the shared local history. / Windows Dashboard 现在提供“全部同步”，
+按顺序运行已配置且启用的连接器，并将每次类型化操作保留在共享本地历史中。
+
+## CLI EXIT CODE CONTRACT
+
+Both command-line clients now emit the same number for the same outcome. The contract is
+severity-ordered, and each platform emits only the categories it can actually produce, so a number
+never means one thing on Windows and something else on Linux. / 两个命令行客户端现在对同一结果使用同一数字。
+契约按严重程度排序，各端只发出自己能够产生的类别；同一个数字不会在 Windows 上表示一种含义、在 Linux 上表示另一种。
+
+| code | contract name | Windows enum | Linux enum |
+| --- | --- | --- | --- |
+| 0 | success | `Success` | `Ok` |
+| 1 | partial / uncategorized failure | `Partial` | `PartialFailure` |
+| 2 | usage or argument error | `InvalidArguments` | `UsageError` |
+| 3 | unavailable (offline, network, unobtainable resource) | `Unavailable` | `NetworkError` |
+| 4 | authentication refused for public access | `Authentication` | `AuthenticationError` |
+| 5 | cancelled by the user | `Cancelled` | `Cancelled` |
+| 6 | local storage failure | `Storage` (declared, not emitted yet) | `StorageError` |
+| 7 | unexpected internal error | `GeneralError` | `GeneralError` (declared, not emitted yet) |
+
+Before this change the two clients disagreed on 3, 4 and 5: Linux reported an authentication limit
+as 3 while Windows used 3 for `Unavailable`, so automation could not read one shared table. Windows
+additionally folded an authentication limit into `Partial`. Both clients were renumbered onto the
+table above, an authentication limit is now its own category on both sides, a fully cancelled batch
+gets `5` on both sides instead of falling into `PartialFailure` on Linux, and the test suites on both
+platforms pin every value. / 变更前两端在 3、4、5 上含义相反：Linux 把认证受限报告为 3，而 Windows 的 3 是
+`Unavailable`，脚本无法只读一张表；Windows 还把认证受限并入 `Partial`。两端现已按上表重新编号，认证受限在两端都是独立类别，
+整批取消在两端都是 5（此前在 Linux 会落进 `PartialFailure`），且两端测试都钉住了每个数值。
+
+The category is derived the same way on both clients. A run-level error decides first. When a run is
+only partial the run-level error is empty, so the first module that did not succeed decides it:
+authentication → 4, network/offline/unsupported judge → 3, anything else → 1. Both clients were
+checked against the same real run: Luogu `uid:2` reports `AUTHENTICATION` for its submissions stage
+and exits 4 on Windows and on Linux, while Codeforces `tourist` exits 0 on both.
+/ 类别的推导规则在两端一致：整轮错误优先；整轮只是部分失败时整轮错误为空，于是由**第一个未成功的模块**决定——
+认证 → 4，网络/离线/不支持的平台 → 3，其余 → 1。两端已用同一次真实运行核对：洛谷 `uid:2` 的提交阶段报告
+`AUTHENTICATION`，Windows 与 Linux 都退出 4；Codeforces `tourist` 两端都退出 0。
+
+This is a breaking change for any local script that hard-coded the old numbers. CI expectations did
+not need editing: both CI workflows only assert exit code 0 on the success path. / 对硬编码旧数字的本地脚本
+属破坏性变更。CI 期望值无需修改：两个 CI 工作流都只在成功路径断言退出码 0。
+
+## WINDOWS PACKAGING HARDENING
+
+The self-contained `win-x64` package is rebuilt from the current CLI and Desktop sources, and it
+now carries the renumbered exit-code contract. Replacing the previous package used to be
+impossible on this host: the environment substitutes a guarded delete for `Remove-Item` that
+reports failure even when the directory is already gone, and `package.ps1` runs with
+`$ErrorActionPreference = 'Stop'`, so packaging aborted on its own cleanup step while the package
+it had just built was already valid. Packaging now removes staged and temporary paths through the
+.NET file APIs and verifies the resulting filesystem state, so a genuine deletion failure still
+fails the run while a false report no longer does. `ui-smoke.ps1` carried the same exposure when
+its screenshot directory sat inside the workspace, and was fixed the same way. / 自包含
+`win-x64` 包已用当前 CLI 与 Desktop 源码重建,并已带上重新编号的退出码契约。在本机,替换旧包此前完全做不到:
+该环境把 `Remove-Item` 换成带保护的删除,即使目录已经消失也会报告失败,而 `package.ps1` 以
+`$ErrorActionPreference = 'Stop'` 运行,于是打包在自身的清理步骤上中断——而它刚构建出的包其实是有效的。
+现在打包通过 .NET 文件 API 删除暂存与临时路径,并核对删除后的真实文件系统状态:真正的删除失败仍会让打包失败,
+虚假的失败报告不再中断。`ui-smoke.ps1` 在截图目录位于工作区内时有同样的暴露面,已按相同方式修复。
+
+The package was verified on a published artifact rather than on build output: `verify-package.ps1`
+accepts all entries, the packaged CLI exits 4 for Luogu `uid:2` and 0 for Codeforces `tourist`,
+and the packaged WPF client renders all three views with three distinct screenshots. / 该包是在**发布产物**上
+验证的,而不是在编译输出上:`verify-package.ps1` 全部条目通过,包内 CLI 对洛谷 `uid:2` 退出 4、对 Codeforces
+`tourist` 退出 0,包内 WPF 客户端渲染全部三个视图并产出三张互不相同的截图。
+
+`windows.yml` has still never run on a real runner: the workflow exists in local commits only, and
+the remote repository exposes the Android workflow alone, so the Windows job, its packaging step,
+and its artifact upload remain unverified. / `windows.yml` 仍从未在真实 runner 上运行过:
+该工作流只存在于本地提交中,而远程仓库仅发布了 Android 工作流,因此 Windows 任务、其打包步骤与产物上传仍未经验证。
+
+`signtool` and `makeappx` are available with the Windows SDK, and the signing step was exercised
+end to end against a certificate generated in memory; only a CA-issued code signing certificate is
+missing. No installer toolchain is installed. / 本机随 Windows SDK 提供 `signtool` 与 `makeappx`,
+并已用内存中生成的证书把签名步骤完整演练过一遍;缺的只有 CA 签发的代码签名证书。未安装安装包工具链。
+
+## CURRENT PACKAGE IDENTITY
+
+The current Android package identity is `versionName=0.3.75` and `versionCode=75`. It carries
+the Phase 77 Note Index work described below; the release artifact, signing, and device
+installation gates for this identity have not been re-run yet. / 当前 Android 安装包身份为
+`versionName=0.3.75`、`versionCode=75`，对应下面的第 77 阶段笔记索引；该身份的发布产物、签名和设备安装门禁尚未重新执行。
+
+## PHASE 77 — Note Index / 笔记索引
+
+Saved local notes are now readable, searchable, and reviewable offline. The problem library gains a
+third scope, `NOTE INDEX`, listing every problem whose saved notes carry text, newest note first.
+Rows show the judge, public problem id, problem title, a text status, and a preview of the selected
+note field. The index searches the note text of the chosen field scope, the problem title, and the
+public id; it also filters by judge and by unsolved-only. Empty and filtered-to-nothing states are
+distinct, and a notes row emptied field by field leaves the index. / 本地已保存的笔记现在可以离线阅读、检索和复习。
+题库新增第三个范围「笔记索引」，按笔记更新时间倒序列出所有笔记非空的题目。行内展示评测平台、公开题号、题名、文字状态，
+以及当前所选笔记字段的预览。索引会搜索所选字段范围、题名和公开题号，并支持按评测平台和「仅未解决」筛选。
+空状态与筛选无结果状态彼此区分；逐字段清空的笔记行会退出索引。
+
+This phase is a local read-only projection. Reading notes adds no network request, no database
+migration, no Room version bump, and no new table; `problem_notes` and its problem identity join are
+read through one bounded query. The screen writes nothing: filtering and previewing never rewrite or
+re-sort stored notes. No main-site password, Cookie, Session, CSRF login, cloud account, cross-device
+sync, local compiler, custom-input runner, background submission, or automatic POST retry is added.
+Earlier phase notes and published Releases remain intact. / 本阶段是本地只读投影。读取笔记不新增网络请求、数据库迁移、
+Room 版本升级或新数据表；`problem_notes` 与其题目身份的联表通过一条有界查询读取。界面不写入任何内容：筛选与预览都不会改写或重排已存笔记。
+不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试。
+此前阶段说明和已发布 Releases 保持不变。
+
+## PHASE 76 — Sync Operations Ledger / 同步操作账本
+
+The connector center now projects a bounded recent history from Room, including per-module
+outcomes and text status semantics. Failed stages expose an explicit retry action; adapters without
+safe stage retry capability fall back to a full sync. Data-generation mismatches are recorded as
+stale operations and cannot be retried against the current local dataset. CI now runs unit tests,
+debug lint, release assembly, and the committed connected Android suite in a separate emulator job.
+/ 连接中心现在从 Room 投影有界的近期历史，包含逐模块结果和文本状态语义；失败阶段提供明确的重试操作，不支持安全阶段重试的适配器回退到完整同步。数据代际不匹配会记录为过时操作，不能针对当前本地数据集重试。CI 现在运行单元测试、debug lint、release 构建，并在独立模拟器任务中运行已提交的连接测试套件。
+
+Android Settings now exposes the persisted public-account lifecycle as `ENABLE` / `DISABLE`.
+Disabled accounts remain visible with their local profile, receipt, and history data, are excluded
+from `SYNC ALL`, and do not queue manual sync; re-enabling restores the periodic worker without
+starting an unsolicited immediate refresh. / Android 设置页现在提供持久化公开账号的“启用 / 停用”生命周期控制。停用账号仍保留本地 profile、回执和历史数据，会从“全部同步”中排除且不会排队手动同步；重新启用时恢复周期 worker，但不会未经用户请求立即刷新。
+
+Phase 75 stores optional default and per-judge difficulty targets, exposes localized calibration
+controls near Focus Sprint, and ranks a bounded candidate pool from due reviews, recent unsolved
+problems, failure history, and linked weak knowledge areas. Recommendations retain deterministic
+reason codes and never infer a target from a missing rating. / 第 75 阶段保存可选的默认及按 OJ
+难度目标，在 Focus Sprint 附近提供本地化校准控件，并从到期复习、近期未解决题、失败历史和关联薄弱知识区构建有界候选池。
+推荐仍使用确定性的原因码，不会从缺失的 rating 推断目标。
+
+Phase 74 keeps date-sensitive streams current across local midnight and app resume. Dashboard
+commands now carry exact stable identifiers for sessions, tasks, reviews, submissions, and
+contests; a submission request can be handed to the Submission Center as one-shot focus context.
+Cells use minimum sizing so large text remains readable. / 第 74 阶段保证日期敏感数据在本地跨日和应用恢复后保持最新；Dashboard 动作携带会话、任务、复习、提交和竞赛的稳定标识，提交请求可通过一次性上下文交给提交中心聚焦；单元格使用最小尺寸，保证大字体仍可读。
+
+## PHASE 73 — Safe Restore / 安全恢复
+
+Database imports are validated against the current Room schema, SQLite quick/integrity checks,
+and every required application table before staging. Startup recovery runs before Room opens,
+uses a journaled same-directory replacement, retains WAL/SHM rollback companions, and converges
+back to the old database when validation or replacement fails. Sync and Luogu result work carries
+the local data generation and exits before adapter/OpenApp access when stale. Settings exposes a
+dismissible localized restore outcome. / 数据库导入会在暂存前校验当前 Room schema、SQLite quick/integrity 检查以及所有必需应用表；启动恢复在 Room 打开前运行，通过带日志的同目录替换并保留 WAL/SHM 回滚副本，在验证或替换失败时回到旧数据库。同步和洛谷结果任务携带本地数据代际，过期时会在访问适配器/OpenApp 前退出；设置页显示可关闭的本地化恢复结果。
+
+The release adds no credential or problem-content fields to backup metadata. Invalid SQLite,
+schema, missing-table, integrity, replacement, and rollback failures remain stable categories. /
+本版本不向备份元数据增加凭据或题面内容字段；SQLite、schema、缺表、完整性、替换和回滚失败均保持为稳定分类。
+
+## PHASE 72 — Dashboard Command Surface / Dashboard 指挥面
+
+Dashboard now opens with a local `NOW / NEXT / SIGNAL` surface beneath the existing command deck.
+`NOW` selects the first incomplete task, `NEXT` selects the due review before an upcoming contest,
+and `SIGNAL` reports sync attention, linked OJs, or local-ready state. Each actionable cell uses
+an existing navigation callback; an empty next slot remains visibly non-actionable. / Dashboard 现在在已有指挥台下方展示本地“当前 / 下一步 / 信号”指挥面。“当前”选择第一项未完成任务，“下一步”优先选择到期复习，其次选择即将开始的竞赛，“信号”报告同步异常、已连接 OJ 或本地就绪状态。每个可操作单元都复用已有导航回调；没有下一步时仍明确显示不可操作状态。
+
+The projection is derived from existing Room-backed state and adds no network request, fake
+metric, credential flow, database migration, automatic submission, or looping animation. / 该投影依据已有 Room 状态生成，不新增网络请求、虚假指标、凭据流程、数据库迁移、自动提交或循环动画。
+
+## PHASE 71 — OJ Connector Center / OJ 连接中心
+
+Settings now starts with a consolidated connector surface for every registered judge. Each row
+shows whether a public handle is connected, its persisted sync phase, receipt coverage, last
+successful sync age, and active stage. `SYNC ALL` queues one explicit manual refresh per connected
+judge that advertises `BACKGROUND_SYNC`; duplicate taps are ignored while the queue operation is
+in flight. / 设置页现在首先展示每个已注册 OJ 的统一连接中心。每行显示公开用户名是否已连接、持久化同步阶段、回执覆盖、最近成功同步时间和当前阶段。“全部同步”会为每个声明支持 `BACKGROUND_SYNC` 的已连接 OJ 明确排队一次手动刷新；排队期间的重复点击会被忽略。
+
+The center is a projection over existing Room data and the existing `JudgeSyncWorker` path. It
+does not add credentials, cookies, main-site sessions, automatic submission, database migrations,
+or background work beyond the already registered periodic worker. / 连接中心只是对已有 Room 数据和 `JudgeSyncWorker` 链路的投影，不新增凭据、Cookie、主站会话、自动提交、数据库迁移，也不增加已有周期 worker 之外的后台任务。
+
+## PHASE 70 — Session Momentum / 训练节奏
+
+An active training session now exposes a local `NOW / NEXT / LEFT` momentum rail. Recording a
+verdict advances the ephemeral selection to the next pending queue row when one exists; `OPEN
+NEXT` routes through the existing local problem detail action, and an all-resolved queue reports
+completion without inventing a next item. / 活动训练会话现在提供本地“当前 / 下一题 / 剩余”训练节奏栏。记录 verdict 后，若仍有待处理题目，临时选中状态会推进到下一题；“打开下一题”复用已有的本地题目详情入口，全部解决时展示完成状态而不虚构下一题。
+
+The projection and action guard use existing Room-backed flows and `ProblemRepository.addAttempt`.
+Target time has a zero floor, failed actions keep the current selection visible, and repeated
+actions are ignored while a local transaction is in flight. This phase adds no network request,
+database migration, persisted selection, automatic OJ submission, credential flow, or background
+work. / 训练节奏投影和动作保护复用已有 Room 流与 `ProblemRepository.addAttempt`。剩余时间不会低于零，失败动作会保留当前选中题目，本地事务进行中会忽略重复动作。本阶段不新增网络请求、数据库迁移、持久化选中状态、自动 OJ 提交、凭据流程或后台任务。
+
+## PHASE 69 — Session Command Deck / 训练会话指挥台
+
+An active training session now lets the user select one problem in `PROBLEM QUEUE` and expose a
+`LOG RESULT` rail for the existing AC/WA/TLE/MLE/RE/CE/PE/OTHER verdicts. Each action is visibly
+labeled and accessible; the selected row has an accent border and selection text, while `OPEN`
+remains available as a separate route to local problem details. / 活动训练会话现在可以在“题目队列”中选中一道题，并显示已有
+AC/WA/TLE/MLE/RE/CE/PE/OTHER verdict 的“记录结果”操作栏。每个操作都有可见文字和无障碍描述；选中行使用强调边框和选中说明，
+“打开”仍然作为独立入口进入本地题目详情。
+
+Verdicts reuse `ProblemRepository.addAttempt`, so Room remains the source of truth for attempt
+counts, latest verdict, solved state, and the session progress pulse. The selection is ephemeral
+and disappears with the running screen. This phase adds no automatic OJ submission, network
+request, credential flow, schema migration, new session state, or persisted selection. /
+verdict 复用 `ProblemRepository.addAttempt`，因此 Room 仍是尝试次数、最近 verdict、解决状态和会话进度脉冲的唯一数据源。
+选中状态是临时的，离开活动会话页面即消失。本阶段不新增自动 OJ 提交、网络请求、凭据流程、数据库迁移、会话状态或持久化选中状态。
+
+## PHASE 68 — Problem Library to Training Handoff / 题库到训练会话
+
+The local problem library now exposes `BUILD FROM VIEW` below the current pulse. It opens the
+existing Training form with the visible local problem IDs preselected, defaults to `PRACTICE`
+and the editable `LIBRARY VIEW` tag, and keeps the existing `START` transaction as the only
+session creator. Empty and remote views do not expose the action. / 本地题库现在在当前脉冲下方提供“从当前视图构建训练”，
+打开已有训练表单并预选当前显示的本地题目，默认类型为 `PRACTICE`，标签为可编辑的“题库视图”；现有“开始”事务仍是唯一的会话创建入口。
+空视图和远端视图不显示该操作。
+
+This phase uses a one-shot in-memory navigation handoff and reuses the existing session form,
+view model, repository, and transaction. It adds no network request, remote training flow,
+database migration, credential storage, background work, compiler, or new persisted state. /
+本阶段使用一次性内存导航上下文，复用现有会话表单、ViewModel、仓储和事务；不新增网络请求、远端训练流程、数据库迁移、凭据存储、后台任务、本地编译器或新的持久化状态。
+
+## PHASE 67 — Command Palette Direct Jump / 命令面板直达
+
+COMMANDS now recognizes deterministic local query forms such as `cf 1029e`, `atcoder abc 242g`,
+`luogu p4551`, and `search segment tree`. A highlighted `DIRECT QUERY` result opens the existing
+Problems library with the parsed judge and query prefilled; ordinary route commands and the
+existing no-match state remain intact. / 命令面板现在识别 `cf 1029e`、`atcoder abc 242g`、
+`luogu p4551` 和 `search segment tree` 等确定性的本地查询。“直达查询”结果会打开已有题库并预填解析出的 OJ 与搜索词，
+普通页面命令和原有的无匹配状态保持不变。
+
+This phase is local-only and one-shot. It reuses the existing Problems filter, adds no network
+request, remote catalog access, schema migration, credential flow, compiler, or persisted search
+state. / 本阶段仅限本地且一次性消费；复用已有题库筛选，不新增网络请求、远端题库访问、数据库迁移、凭据流程、本地编译器或持久化搜索状态。
+
+## PHASE 66 — Focus Sprint / 专注冲刺
+
+Training now derives a deterministic local focus plan from due reviews and ranked targets. The
+inactive session section shows a `FOCUS SPRINT` preview with source counts and up to five problem
+rows; `BUILD SPRINT` opens the existing session form pre-filled with `FOCUS`, 25 minutes, a
+localized sprint tag, and the selected IDs. Users can edit the preset before the existing session
+transaction starts. / 训练页现在从到期复习和排序后的训练目标中生成确定性的本地专注计划。没有活动会话时，会话区域展示“专注冲刺”预览、来源数量和最多五道题；“构建冲刺”打开已有会话表单，预填“专注”、25 分钟、本地化冲刺标签和选中题目 ID。用户可以在已有会话事务启动前编辑计划。
+
+This phase is local-only and snapshot-based. It adds no schema migration, network request,
+background work, compiler, credential flow, or new session state; no data is written until the
+user confirms the existing form. / 本阶段仅限本地并基于快照；在用户确认已有表单前不会写入数据，不新增数据库迁移、网络请求、后台任务、本地编译器、凭据流程或会话状态。
+
+## PHASE 65 — Review Run / 连续复习
+
+Training's due-review pulse now opens a no-argument `REVIEW RUN` route. The run captures due
+items once in due-time/problem-ID order, records PASS/HARD/FAIL/SKIP through the existing review
+transaction, shows a progress rail, and advances explicitly after each result. Completed rows
+never re-enter the current run, and errors keep the current item visible. / 训练页的到期复习脉冲现在打开无参数的“连续复习”路由；运行开始时按到期时间和题目 ID 固定候选顺序，通过现有复习事务记录 PASS/HARD/FAIL/SKIP，展示进度轨，并在每次结果后显式进入下一题。已完成题目不会重新进入当前运行，发生错误时当前题目仍保持可见。
+
+## PHASE 64 — Session Review Actions / 会话复习操作
+
+The terminal debrief now derives a local review-candidate set from ATTENTION and PENDING rows.
+`SCHEDULE ATTENTION` inserts only missing stage-0 review rows in one transaction; existing review
+rows are preserved. Room reactivity then changes each affected row to `OPEN REVIEW`, while a quiet
+`REVIEW QUEUE READY` state replaces the bulk action when nothing remains to schedule. / 终端复盘现在从“需关注”和“待处理”行中计算本地复习候选；“安排需关注”在一个事务内只插入缺失的初始复习记录，不覆盖已有复习记录。Room 响应式更新会让受影响的行切换为“打开复习”，没有待排程题目时则显示安静的“复习队列已就绪”状态。
+
+## PHASE 63 — Session Debrief / 会话复盘
+
+Terminal sessions now expose a local `SESSION DEBRIEF` with solved, attention, and pending lanes,
+latest verdicts constrained to the session window, and existing review-state signals. Filters
+keep the report focused; each row routes to `OPEN REVIEW` when a review already exists, otherwise
+to local problem details. / 已结束会话现在提供本地“会话复盘”，按已解决、需关注和待处理分组，最近 verdict 严格限制在会话时间窗内，并展示已有复习状态。
+筛选器让报告保持聚焦；已有复习记录的题目进入“打开复习”，其他题目进入本地题目详情。
+
+This phase is local-only and read-only. It adds no schema migration, network request, background
+submission, compiler, credential flow, or new session state. / 本阶段仅限本地只读，不新增数据库迁移、网络请求、后台提交、本地编译器、凭据流程或会话状态。
+
+## PHASE 62 — Live Session Board / 实时训练队列
+
+Training sessions now expose a local `SESSION PULSE` with total, solved, attempted, and pending
+counts, plus a determinate progress rail. The `PROBLEM QUEUE` uses the persisted session window
+to show each attached problem's judge/external ID, status, attempt count, and a direct `OPEN`
+route to local problem details. / 训练会话现在提供本地“会话脉冲”，展示总题数、已解决、已尝试和待处理数量，并提供确定性进度轨。
+“题目队列”依据会话持久化时间窗口展示每道附加题的评测机/外部编号、状态、尝试次数，并可直接打开本地题目详情。
+
+This phase is local-only and read-only at the progress layer. It adds no schema migration,
+network request, background submission, compiler, credential flow, or new session state. / 本阶段仅限本地，进度层只读；
+不新增数据库迁移、网络请求、后台提交、本地编译器、凭据流程或会话状态。
+
+## PHASE 61 — Submission Ops Deck / 提交运营台
+
+Submission Center now exposes manual `CHECK PENDING` and `QUEUE FAILED` actions over the existing
+local request snapshot. Recent requests render as compact inspector rows by default; `DETAILS`
+reveals the stored request, compile, judge, output, and resource metadata with reduced-motion-safe
+expansion. / 提交中心现在基于已有本地请求快照提供手动“查询等待中”和“排队失败项”操作。最近请求默认以紧凑检查器行显示，“详情”可以展开请求、编译、评测、输出和资源元数据，并遵守减少动效设置。
+
+Bulk actions reuse existing per-request foreground polling and recovery guards, and expansion is
+screen-local. This phase adds no new jobs, network field, database migration, credential flow,
+cloud service, cross-device sync, local compiler, custom-input runner, background submission, or
+automatic POST retry. / 批量操作复用现有逐请求前台查询与恢复保护，展开状态仅存在于当前界面；本阶段不新增请求、网络字段、数据库迁移、凭据流程、云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试。
+
+## PHASE 60 — Workspace Execution Cockpit / 工作区执行驾驶舱
+
+Workspace now opens with a local `WORKSPACE PULSE` for mode, language, source lines, and draft
+state. The existing O2 request flag is exposed for both run and submit. Luogu detail navigation
+can carry its first sample pair into Workspace, where users can load or clear sample input and
+read expected output without editing it. / 工作区现在以本地“工作区脉冲”开场，展示模式、语言、源代码行数和草稿状态。
+现有 O2 请求字段已同时开放给运行和提交；洛谷题目详情导航可以把第一组样例带入工作区，用户可载入或清空样例输入，并查看只读期望输出。
+
+This phase is local-only and uses optional navigation context from the already loaded detail
+screen. It adds no Workspace fetch, network field, database migration, credential storage, cloud
+service, cross-device sync, local compiler, custom-input runner, background submission, or
+automatic POST retry. / 本阶段仅限本地，使用已加载题目详情提供的可选导航上下文；不新增工作区抓取、网络字段、数据库迁移、凭据存储、
+云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试。
+
+## PHASE 59 — Analytics Focus Lens / 分析聚焦透镜
+
+Analytics now opens with a local `ANALYTICS PULSE` for the selected 14D, 30D, or 90D activity
+window: solved, attempts, active days, and training time. The existing 365-day heatmap and
+all-time distributions remain unchanged; solve and training charts follow the selected window. /
+分析页现在以本地“分析脉冲”开场，可选择 14 天、30 天或 90 天活动窗口，展示已解决、尝试次数、活跃天数和训练时长。
+现有 365 天热力图与全量分布保持不变，解题趋势和训练图会随窗口切换。
+
+This phase is local-only and derives values from the existing Room/Flow activity snapshot. It
+does not fabricate activity or rewrite stored data, and adds no network field, database
+migration, credential flow, cloud service, cross-device sync, local compiler, custom-input
+runner, background submission, or automatic POST retry. / 本阶段仅限本地，数值来自已有 Room/Flow 活动快照，
+不伪造活动或改写已存数据；不新增网络字段、数据库迁移、凭据流程、云端服务、跨设备同步、本地编译器、
+自定义输入运行器、后台提交或自动提交重试。
+
+## PHASE 58 — Submission Control Tower / 提交控制塔
+
+Submission Center now opens with a local `SUBMISSION PULSE` for total, pending, ready, and failed
+request counts. Four local status filters isolate actionable history, while `CLEAR FILTER`
+restores the full list without changing stored jobs. Existing checks, retries, and workspace
+navigation remain intact. / 提交中心现在以本地“提交脉冲”开场，展示总数、等待中、已就绪和失败请求数量。
+四个本地状态筛选可以聚焦需要处理的历史记录，“清除筛选”会恢复完整列表而不改写已存请求；现有查询、重试和工作区导航保持不变。
+
+Summary values derive from the existing Room/Flow snapshot. Unknown statuses remain visible in
+ALL, and the phase adds no network field, database migration, credential flow, cloud service,
+cross-device sync, local compiler, custom-input runner, background submission, bulk retry, or
+automatic POST retry. Earlier phase notes and published Releases remain intact. / 摘要来自已有 Room/Flow 快照，
+未知状态在“全部”视图中继续可见。本阶段不新增网络字段、数据库迁移、凭据流程、云端服务、跨设备同步、本地编译器、
+自定义输入运行器、后台提交、批量重试或自动提交重试；此前阶段说明和已发布 Release 均保持不变。
+
+## PHASE 57 — Contest Command Center / 竞赛指挥中心
+
+Contests now opens with a local `CONTEST PULSE` for live, upcoming, recent, and next-contest
+state. Four local phase filters keep the visible groups focused, and `OPEN NEXT` opens the
+earliest upcoming contest through the existing focus route. / 竞赛页现在以本地“竞赛脉冲”开场，展示进行中、即将开始、最近和下一场竞赛状态。
+四个本地阶段筛选让可见分组保持聚焦，“打开下一场”通过现有 Arena 路由打开最早即将开始的竞赛。
+
+Pulse values derive from the existing Room/Flow contest snapshot and local clock. The phase is
+presentation, filtering, and navigation only: no network field, database migration, credential
+flow, cloud service, cross-device sync, local compiler, custom-input runner, background
+submission, or automatic POST retry is added. Earlier phase notes and published Releases remain
+intact. / 脉冲数值来自已有 Room/Flow 竞赛快照和本地时钟。本阶段仅限展示、筛选和导航，不新增网络字段、数据库迁移、凭据流程、
+云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试；此前阶段说明和已发布 Release 均保持不变。
+
+## PHASE 56 — Problem Library 2.0 / 题库 2.0
+
+The local problem library now opens with a four-value pulse for total, visible, solved, and
+review counts. Active filters expose `CLEAR FILTERS`, which resets both filter criteria and sort
+order without touching stored problems. Existing rows gain a restrained status rail and explicit
+favorite/delete accessibility actions. / 本地题库现在以四项脉冲开场，展示总数、当前显示、已解决和复习中数量。
+启用筛选时显示“清除筛选”，可在不修改已存题目的情况下同时恢复筛选条件和排序。现有题目行增加克制的状态标尺，
+并补充收藏/删除无障碍操作。
+
+Counts are derived from the existing Room/Flow library stream. The pulse, reset action, and row
+polish remain local-only, use reduced-motion-safe transitions, and add no network field, database
+migration, credential flow, cloud service, cross-device sync, local compiler, custom-input runner,
+background submission, or automatic POST retry. Earlier phase notes and published Releases remain
+intact. / 数量来自已有 Room/Flow 题库流。脉冲、恢复操作和题目行优化仅限本地，并遵守减少动效设置；不新增网络字段、数据库迁移、
+凭据流程、云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试；此前阶段说明和已发布 Release 均保持不变。
+
+## PHASE 55 — Review triage / 复习分诊台
+
+Training now begins with a local review pulse for overdue, today, and later work. Three explicit
+filters keep the queue readable, while `START NEXT` opens the earliest due review through the
+existing problem route. Counts, empty states, and due highlighting remain honest to the current
+local Room/Flow snapshot; reduced motion is respected. / 训练页现在以本地复习脉冲开场，展示逾期、今天和稍后任务。
+三个明确筛选让队列保持可读；“START NEXT”通过现有题目路由打开最早到期的复习。数量、空状态和到期高亮均忠实于当前
+本地 Room/Flow 快照，并遵守减少动效设置。
+
+This phase is local-only and does not add network fields, database migrations, credential flow,
+main-site passwords, Cookie, Session, CSRF state, cloud service, cross-device sync, local
+compiler, custom-input runner, background submission, or automatic POST retry. Earlier phase
+notes and published Releases remain intact. / 本阶段仅限本地，不新增网络字段、数据库迁移、凭据流程、主站密码、
+Cookie、Session、CSRF 状态、云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试；此前阶段说明和
+已发布 Release 均保持不变。
+
+## PHASE 54 — Dashboard command deck / Dashboard 指挥台
+
+Dashboard now starts with a compact local command readout for due reviews, solved problems this
+week, the next future contest countdown, and enabled judge connections. A four-cell command deck
+opens the existing Training, Review, Problems, and Submission Center surfaces with explicit
+accessibility descriptions. / Dashboard 现在以紧凑的本地指挥读数开场，展示待复习、本周解决题数、下一场未来竞赛倒计时和已启用的
+OJ 连接。四格命令台通过明确的无障碍描述打开现有的训练、复习、题库和提交中心页面。
+
+The readout is derived from existing Room/Flow state; a cancellable local clock tick keeps the
+countdown current while subscribed. Summary changes and training-load bars use restrained motion
+and immediately switch when reduce motion is enabled. This phase adds no network field, database
+migration, credential flow, main-site password, Cookie, Session, CSRF state, cloud service,
+cross-device sync, local compiler, custom-input runner, background submission, or automatic POST
+retry. Earlier phase notes and published Releases remain intact. / 读数来自已有 Room/Flow 状态；页面订阅期间由可取消的本地时钟更新倒计时。
+摘要变化和训练负荷柱使用克制的动效，启用减少动效后立即切换。本阶段不新增网络字段、数据库迁移、凭据流程、
+主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、自定义输入运行器、
+后台提交或自动提交 POST 重试；此前阶段说明和已发布 Release 均保持不变。
+
+## PHASE 53 — Submission title propagation / 提交题名传递
+
+When a terminal Luogu OpenApp result materializes a new local problem row, the repository now
+uses the already persisted local submission title. This keeps the title in the problem library
+even when no prior problem cache exists. Existing problem rows are not overwritten, and a
+missing title continues to fall back to the PID. / 洛谷 OpenApp 终态结果落库并新建本地题目记录时，现在会使用已保存的本地提交题名。
+即使此前没有题目缓存，也能让题库保留题名；已有题目记录不会被覆盖，缺失题名时继续回退到 PID。
+
+This phase changes local result materialization only. It adds no network field, credential flow,
+main-site password, Cookie, Session, CSRF state, cloud service, cross-device sync, local
+compiler, custom-input runner, background submission, or automatic POST retry. Earlier phase
+notes and published Releases remain intact. / 本阶段仅修改本地评测结果落库，不新增网络字段、凭据流程、主站密码、Cookie、Session、CSRF 状态、
+云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试；此前阶段说明和已发布 Release 均保持不变。
+
+## PHASE 52 — Legacy submission title backfill / 旧提交题名回填
+
+Upgrading a database created before Phase 50 now fills missing local submission titles from the
+cached `remote_problem_details` table first, then from the local `problems` table. Existing
+titles are never overwritten; blank cached titles and records without a matching cache remain
+PID-only. / 从第 50 阶段之前创建的数据库升级时，现在会优先从缓存的 `remote_problem_details` 表、再从本地 `problems` 表，
+为缺失的本地提交题名回填标题。已有题名绝不会被覆盖；缓存题名为空或没有匹配缓存的记录继续仅显示 PID。
+
+The 11→12 Room migration is local and non-destructive: it adds no network field, credential
+flow, main-site password, Cookie, Session, CSRF state, cloud service, cross-device sync, local
+compiler, custom-input runner, background submission, or automatic POST retry. Earlier phase
+notes and published Releases remain intact. / 11→12 Room 迁移是本地、非破坏性的：不新增网络字段、凭据流程、主站密码、Cookie、
+Session、CSRF 状态、云端服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动提交重试；此前阶段说明和已发布
+Release 均保持不变。
+
+## PHASE 51 — Submission workspace title restoration / 提交工作区题名恢复
+
+Opening a Luogu request from Submission Center now passes its locally stored public problem title
+through the existing encoded workspace route. PID remains the only submission identity; null or
+blank legacy titles use the existing PID-only route. / 从提交中心打开洛谷请求时，现在会通过现有编码工作区路由传递本地
+保存的公开题目标题。PID 仍是唯一提交身份；旧记录中的空或空白题名继续使用仅 PID 的路由。
+
+This phase changes local navigation/display context only. It adds no network field, database
+migration, credential flow, cloud service, cross-device sync, local compiler, custom-input runner,
+or automatic submission POST retry. Earlier phase notes and published Releases remain intact. /
+本阶段仅修改本地导航和展示上下文，不新增网络字段、数据库迁移、凭据流程、云端服务、跨设备同步、本地编译器、
+自定义输入运行器或自动提交 POST 重试；此前阶段说明和已发布 Release 均保留。
+
+## PHASE 49 — First-use guide / 首次使用指南
+
+The repository now includes a bilingual quick-start guide covering Release installation, public
+Luogu profile synchronization, remote problem search, native details, OpenApp configuration,
+foreground submission, and result recovery. It records the supported local-first boundary so a
+user can operate the released APK without guessing which credential or workflow is supported. /
+仓库现在提供双语首用指南，覆盖 Release 安装、洛谷公开资料同步、远端题目搜索、原生题面、OpenApp 配置、前台提交和结果恢复，
+并明确记录本地优先边界，使用户无需猜测支持哪种凭据或流程即可操作已发布 APK。
+
+This is documentation only; the v0.3.44 application behavior and all earlier phase notes,
+commits, tags, and Releases remain unchanged. / 本阶段仅增加文档；v0.3.44 应用行为以及此前所有阶段说明、commit、标签和 Release 均保持不变。
+
+## PHASE 48 — Foreground submission result convergence / 前台提交结果闭环
+
+After an explicit Luogu Open Platform submission, the workspace immediately uses the existing
+bounded foreground result poll. Terminal evaluations are rendered without a second tap; pending
+or partial evaluations remain visible and recoverable through the existing result-check action.
+Submission POST requests are never retried automatically. / 用户明确发起洛谷 Open Platform 提交后，工作区现在立即使用
+已有的有界前台结果轮询；终态评测无需再次点击即可展示，待处理或部分评测会继续可见，并可通过原有结果查询操作恢复。
+提交 POST 请求绝不自动重试。
+
+This phase changes only the explicit foreground submission flow. It adds no background submission,
+main-site password, Cookie, Session, CSRF state, cloud service, cross-device sync, local compiler,
+or custom-input runner. Earlier phases, commits, tags, and releases remain preserved. /
+本阶段仅修改用户明确触发的前台提交流程，不新增后台提交、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、
+本地编译器或自定义输入运行器；此前阶段、commit、标签和 Release 均继续保留。
+
+## PHASE 47 — Workspace problem context / 工作区题目上下文
+
+Opening a workspace from native Luogu problem details now carries the live problem title as an
+optional UTF-8 percent-encoded query value while keeping the PID as the only required identity.
+The workspace displays the PID and title together; callers that only know a PID remain compatible.
+/ 从原生洛谷题目详情打开工作区时，现在会携带经过 UTF-8 百分号编码的实时题名作为可选查询值，同时继续将 PID 作为唯一
+必需身份。工作区会同时显示题号和题名；只知道 PID 的旧入口保持兼容。
+
+This is a local navigation/display-context change only. It does not add main-site passwords,
+Cookie, Session, CSRF state, cloud service, cross-device sync, local compiler, custom-input
+runner, or automatic POST retry. Earlier phases, commits, tags, and releases remain preserved.
+/ 本阶段仅修改本地导航和显示上下文，不新增主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、
+自定义输入运行器或自动 POST 重试；此前阶段、commit、标签和 Release 均继续保留。
+
+## PHASE 46 — Luogu sample-pair compatibility / 洛谷样例对兼容
+
+Live Luogu problem details may encode samples as nested `[input, output]` pairs, while older
+fixtures use a flat string list. The network DTO now accepts both shapes and flattens nested
+pairs into the existing ordered domain/cache contract, so native detail rendering can show real
+sample content. / 洛谷实时题目详情可能将样例编码为嵌套的 `[输入, 输出]` 样例对，而旧 fixture 使用扁平字符串
+列表。网络 DTO 现在同时接受两种格式，并将嵌套样例对按原顺序展开为现有领域/缓存契约，使原生详情页能够显示真实样例内容。
+
+This is a parsing compatibility fix only. It does not add main-site passwords, Cookie, Session,
+CSRF state, cloud service, cross-device sync, local compiler, custom-input runner, or automatic
+POST retry. Earlier phases, commits, tags, and releases remain preserved. / 本阶段仅修复解析兼容性，不新增主站
+密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、自定义输入运行器或自动 POST 重试；此前阶段、
+commit、标签和 Release 均继续保留。
+
+## PHASE 45 — Transaction-safe OpenApp credential replacement / 事务安全的 OpenApp 凭据更换
+
+Configured users can replace an OpenApp credential from a blank editor. The candidate is checked
+with the read-only `quotaAvailable` endpoint using candidate Basic authorization before the local
+Keystore-backed store is changed. Unauthorized, forbidden, network, API, and persistence failures
+keep the existing credential active; `CANCEL` leaves the stored value untouched. / 已配置用户可以
+通过空白编辑器更换 OpenApp 凭据。候选凭据会使用候选 Basic Auth 调用只读的 `quotaAvailable` 接口，
+验证成功后才修改本地 Keystore 存储；未授权、禁止访问、网络、API 或持久化失败都会保留现有凭据，
+`取消` 操作不会改动已保存值。
+
+This phase does not add main-site passwords, Cookie, Session, CSRF state, cloud service,
+cross-device sync, local compiler, custom-input runner, background submission, or automatic POST
+retry. Earlier phases, commits, tags, and releases remain preserved. / 本阶段不新增主站密码、Cookie、
+Session、CSRF 状态、云服务、跨设备同步、本地编译器、自定义输入运行器、后台提交或自动 POST 重试；
+此前阶段、commit、标签和 Release 均继续保留。
+
+## PHASE 44 — OpenApp credential input validation / OpenApp 凭据输入校验
+
+OpenApp user and secret input is trimmed and validated locally before any Keystore write or
+read-only quota verification. Missing fields receive specific localized feedback; valid input
+continues through the existing secure store and verification flow. / OpenApp 用户和密钥输入现在会在任何
+Keystore 写入或只读额度验证前去除首尾空白并本地校验；缺失字段显示对应的本地化提示，合法输入继续复用已有的安全存储和验证流程。
+
+This phase does not expose stored secrets and does not add in-place replacement, main-site
+password, Cookie, Session, CSRF state, cloud service, cross-device sync, local compiler,
+custom-input runner, or automatic POST retry. Earlier Release, tag, and notes remain preserved.
+/ 本阶段不显示已保存密钥，不新增原地更换、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、
+本地编译器、自定义输入运行器或自动 POST 重试；此前 Release、标签和说明继续保留。
+
+## PHASE 43 — Luogu settings focus correction / 洛谷设置定位修正
+
+The Dashboard `CONNECT LUOGU` route now scrolls the existing Settings screen to the Luogu
+public-account panel. OpenApp focus and ordinary Settings navigation remain unchanged; the
+coordinate guard now covers both supported focused routes. / Dashboard 的“连接洛谷”入口现在会将已有
+设置页滚动到洛谷公开账号面板。OpenApp 聚焦和普通设置导航保持不变；坐标守卫现在覆盖两个受支持的聚焦入口。
+
+This is a local navigation correction only. It adds no network request, credential type,
+main-site password, Cookie, Session, CSRF state, cloud service, cross-device sync, local
+compiler, custom-input runner, or automatic POST retry. Earlier Release, tag, and notes remain
+preserved. / 本阶段仅修正本地导航，不新增网络请求、凭据类型、主站密码、Cookie、Session、CSRF 状态、
+云服务、跨设备同步、本地编译器、自定义输入运行器或自动 POST 重试；此前 Release、标签和说明继续保留。
+
+## PHASE 42 — OpenApp action intent clarity / OpenApp 操作意图明确化
+
+The Luogu workspace primary action now displays `SUBMIT` when the actual OpenApp gateway submits
+code, and `RUN` only for a gateway whose capability explicitly supports custom-input execution.
+Busy work continues to display `WORKING`; submission callbacks, language forwarding, result
+polling, and persistence are unchanged. / 洛谷工作区主操作现在在真实 OpenApp 网关提交代码时显示
+`SUBMIT`，只有明确支持自定义输入运行的网关才显示 `RUN`。忙碌时仍显示 `WORKING`；提交回调、语言传递、
+结果查询和持久化保持不变。
+
+This is an intent-clarity correction only. It adds no local compiler, custom-input runner,
+main-site password, Cookie, Session, CSRF state, cloud service, cross-device sync, or automatic
+POST retry. Earlier Release, tag, and notes remain preserved. / 本阶段仅明确操作意图，不新增本地编译器、自定义
+输入运行器、主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步或自动 POST 重试；此前 Release、
+标签和说明继续保留。
+
+## PHASE 41 — Luogu first-use public sync loop / 洛谷首次使用公开同步闭环
+
+Dashboard now shows a localized `CONNECT LUOGU` action whenever no enabled Luogu account is
+connected. The action opens the dedicated `settings/luogu` route, which scrolls the existing
+Settings screen to the Luogu public-account panel; ordinary Settings and the OpenApp focus route
+remain unchanged. / 当没有启用的洛谷账号时，Dashboard 现在显示本地化的“连接洛谷”操作。该操作打开专用的
+`settings/luogu` 路由，将现有设置页滚动到洛谷公开账号面板；普通设置和 OpenApp 聚焦路由保持不变。
+
+The flow reuses the existing public handle connector, sync queue, profile/Rating/contest/problem
+stages, localized errors, and sync receipt. It adds no main-site password, Cookie, Session, CSRF
+state, cloud service, cross-device sync, local compiler, custom-input runner, or automatic POST
+retry. / 此流程复用已有公开用户名连接器、同步队列、资料/Rating/竞赛/题库阶段、本地化错误和同步回执，
+不新增主站密码、Cookie、Session、CSRF 状态、云服务、跨设备同步、本地编译器、自定义输入运行器或自动
+POST 重试。此前 Release、tag 和说明继续保留。
+
+## PHASE 40 — Installable Release build / 可安装 Release 构建
+
+The GitHub distribution is now built from the Android `release` variant rather than the Debug
+variant. It is signed locally for direct installation with the machine's standard Android debug
+keystore, while `BuildConfig.DEBUG=false` keeps development-only Demo controls out of the APK.
+The keystore is never committed. / GitHub 分发现在使用 Android `release` 变体，而不是 Debug 变体构建。
+产物使用本机标准 Android debug keystore 进行本地签名以支持直接安装，同时 `BuildConfig.DEBUG=false`
+确保开发专用 Demo 控件不会进入 APK。密钥库不会提交到仓库。
+
+The release identity is `v0.3.36`, `versionName=0.3.36`, and `versionCode=36`. A SHA-256 checksum
+asset accompanies the APK; earlier Debug releases, tags, and notes remain preserved. / 本次发布身份为
+`v0.3.36`、`versionName=0.3.36`、`versionCode=36`。APK 同时附带 SHA-256 校验文件；此前 Debug
+Release、标签和说明继续保留。
+
+## PHASE 39 — Luogu result query alignment / 洛谷结果查询对齐
+
+Luogu Open Platform result polling now uses the documented `GET /judge/result?id=<RequestId>`
+query form instead of embedding the request ID in the path. The contract test locks the exact
+request shape while preserving 204 Pending, partial-result handling, terminal-result handling,
+WebSocket wake-up, and local recovery. / 洛谷 Open Platform 结果轮询现在使用文档规定的
+`GET /judge/result?id=<RequestId>` query 形式，不再把请求 ID 放在路径中。契约测试锁定准确请求形式，
+同时保留 204 Pending、部分结果处理、终态结果处理、WebSocket 唤醒和本地恢复。
+
+This is an endpoint-shape correction only. No new login mode, main-site password, Cookie, Session,
+CSRF state, cloud service, local compiler, custom-input runner, automatic POST retry, or public
+submission-history import is added. / 本阶段仅修正接口请求形式，不新增登录模式、主站密码、Cookie、Session、
+CSRF 状态、云端服务、本地编译器、自定义输入运行器、自动 POST 重试或公开提交历史导入。
+
+## PHASE 38 — Release identity / 发布版本身份
+
+The Android APK now carries `versionName=0.3.34` and `versionCode=34`, matching the `v0.3.34`
+GitHub Release identity. This makes the installed package, release page, and upgrade metadata
+describe the same build while preserving all earlier tags, releases, and notes. / Android APK
+现在携带 `versionName=0.3.34` 和 `versionCode=34`，与 `v0.3.34` GitHub Release 身份一致。
+这样已安装包、发布页面和升级元数据描述同一个构建，同时保留此前所有标签、Release 和说明。
+
+This is a release-metadata and documentation change only. No Luogu endpoint, credential flow,
+database migration, cloud service, cross-device sync, local compiler, custom-input runner, or
+automatic submission retry is added. / 本阶段仅修改发布元数据和文档，不新增洛谷接口、凭据流程、数据库迁移、
+云端服务、跨设备同步、本地编译器、自定义输入运行器或自动提交重试。
+
 ## PHASE 0 — Foundation ✅ (this milestone)
 Gradle/AGP 9 toolchain, design system (tokens + core components), app shell (edge-to-edge,
 navigation, bottom bar), five skeleton screens (Dashboard / Problems / Training / Analytics /
@@ -26,25 +648,525 @@ submissions, remote problem catalog, contests, local-first UI, and unique WorkMa
 The branch is locally complete; push/PR/CI remain separate release actions requiring explicit
 authorization.
 
-## PHASE 3 — Analytics (next)
-Heatmap (tap-through day detail), verdict/difficulty/knowledge distributions, rating chart,
-trend metrics, weak tags — all computed from local data, drawn with Compose.
+## PHASE 3 — Multi-OJ + AtCoder ✅
+Judge-independent adapter/registry/sync contracts, Room v3 migration, AtCoder Problems
+transport and mapping, soft public-handle binding, timestamp-cursor submission sync, catalog
+and contest caching, per-judge WorkManager identity, and judge-labelled local-first UI.
+The branch is locally complete; push/PR/CI remain separate release actions requiring explicit
+authorization.
 
-## PHASE 4 — AtCoder + Luogu
-Second and third adapters under the isolation rules; multi-judge dashboard/aggregation;
-unified timeline across judges.
+## PHASE 4 — Analytics ✅ (current milestone)
+Heatmap tap-through day detail, verdict/difficulty distributions, Codeforces rating chart,
+solve/training trends, first-try AC rate, weak-tag performance, and per-judge difficulty
+breakdowns — all computed from local data and drawn with Compose. Knowledge distribution waits
+for the problem-knowledge relation in Phase 6 rather than inventing data.
 
-## PHASE 5 — Arena
-Contest center polish (reminders, calendar) and the live-contest focus view: countdown,
-problem tracker, local markers, synced submission progress. No scraping, no auto-submit.
+## PHASE 5 — Arena ✅ (current milestone)
+Contest center now opens a live/upcoming Arena focus view with a ticking countdown, cached
+problem tracker, local-only marker cycle, and submission progress joined from local attempts.
+Contest and problem links use Custom Tabs; no scraping, auto-submit, passwords, or cookies.
+See [docs/ARENA.md](ARENA.md).
 
-## PHASE 6 — Knowledge + Training Engine
-Knowledge tree UI, problem-knowledge relations, explainable Mastery Engine, deterministic
-Training Engine (priority + reasons), review integration.
+## PHASE 6 — Knowledge + Mastery ✅ (current milestone)
+Explicit problem-knowledge relations, Room v5 migration, complete knowledge-tree display in
+Training, SQL evidence aggregation, and explainable deterministic Mastery Engine with reason
+codes are implemented. Problem detail edits relations, and Training now displays a real local
+candidate feed ranked by the pure candidate-level `TrainingPlanner`. See
+[docs/KNOWLEDGE.md](KNOWLEDGE.md).
 
-## PHASE 7 — Achievements + Player Card
-Achievement set with unlock detection, Player Card, share-image generation.
+## PHASE 7 — Achievements + Player Card ✅ (current milestone)
+Deterministic local achievement unlocks, Profile Player Card achievement display, and verified
+token-colored PNG sharing through `FileProvider` are implemented.
 
-## PHASE 8 — Polish + Performance + Tests
-Reduce-motion + haptics settings, command palette, data export/import/backup, theme slots,
-startup/scroll performance pass, test coverage on engines/adapters/repositories.
+## PHASE 8 — Polish + Performance + Tests ✅
+Settings now exports a verified copy of the local Room database through the Android document
+picker, and reduce-motion/haptics preferences persist through DataStore. The export contains
+local study data only and never requires credentials. A global command palette now searches
+local navigation and study actions without network access. Database backups can be imported,
+schema-validated, and restored before the next app start. The visual system now exposes three
+named dark accent slots while preserving one accent per theme. The bounded-feed audit and
+repository coverage are recorded in [docs/PERFORMANCE.md](PERFORMANCE.md). The phase is locally
+complete; publishing remains a separate release action requiring explicit authorization.
+
+## PHASE 9 — Luogu public sync ✅
+
+Luogu public profile, rating/ELO history, paginated problem catalog, and paginated contest
+catalog are synchronized through a typed content-only JSON transport into local Room v6.
+Manual and WorkManager sync use bounded retries, rate spacing, freshness timestamps, idempotent
+upserts, per-page persistence, and partial-result reporting. Anonymous submission records are
+explicitly `AUTH_REQUIRED` and never fabricated. The implementation is locally verified;
+publishing remains a separate release action requiring explicit authorization.
+
+## PHASE 10 — Authorized submission workflow ✅ (safe local slice)
+
+The first slice uses the official Luogu Open Platform HTTP Basic API: local Keystore-protected
+OpenApp credentials, Compose code workspace, explicit foreground `/judge/problem` action,
+and user-triggered `/judge/result/{id}` polling. POST requests are not automatically retried, and the
+workspace persists only request metadata, restores the latest local task after a restart, and
+materializes terminal user-originated results as idempotent local attempts; it does not persist
+source code or standard input. No plaintext main-site passwords, harvested browser cookies,
+background submissions, WebView shell, local bundled compiler, or cloud synchronization is
+permitted. Local Android runtime verification with a real OpenApp credential remains separate
+from the unit-test/build verification. Main-site login, background automation, custom-input execution,
+local compilation,
+and cloud/cross-device sync remain intentionally out of scope for this safe slice.
+
+The local submission center is now included in this slice. It lists recent Open Platform request
+metadata from Room, shows pending/ready/failed state and available evaluation metadata, lets the
+user manually query pending or failed requests, and reopens the related problem workspace. It is
+reachable from Profile and the command palette; the five primary bottom-bar destinations remain
+unchanged. The center is local-only and does not turn anonymous Luogu history into fabricated
+submissions. Settings also provides a user-triggered foreground query of Open Platform available
+quota points; the response is transient UI state only and is not persisted or synchronized.
+Settings also links to the official OpenApp documentation next to the credential form so users can
+verify the credential source before configuring it.
+The workspace editor also exposes the supported Open Platform language identifiers and forwards
+the selected language in each explicit submit request. The remote problem catalog now exposes
+LUOGU alongside Codeforces and AtCoder and maps saved Luogu problems to their canonical URLs.
+Remote catalog rows also provide a direct canonical source-page action before a problem is added
+to the local library; Luogu rows also open the Open Platform workspace directly.
+Analytics renders each judge's rating history independently, and Profile includes the Luogu
+connection and current public rating when available. Contest Center now exposes a Luogu filter,
+and the Luogu Arena header/problem actions open canonical Luogu contest and problem pages. Luogu
+contest listings remain metadata-only until a supported public contest-problem endpoint is verified;
+the app does not invent contest membership from unrelated problem catalog rows.
+
+## PHASE 11 — Luogu native problem details / 洛谷原生题目详情
+
+Remote Luogu rows can now open a native Compose detail screen backed by the public
+`problem/{pid}` content-only response. The screen handles loading and failure states, renders
+safe native blocks for headings, paragraphs, lists, quotes, code, and dividers, and shows samples
+and first-level time/memory limits. / 洛谷远端题库条目现在可以打开由公开
+`problem/{pid}` content-only 响应驱动的原生 Compose 详情页。页面处理加载和失败状态，使用原生
+组件安全展示标题、段落、列表、引用、代码和分隔线，并展示样例以及首组时间/内存限制。
+
+The source-page and local Open Platform workspace actions remain explicit foreground actions;
+the detail screen does not embed a WebView or store remote content in the cloud. / 原题页面和本地
+Open Platform 工作区仍必须由用户前台主动点击；详情页不嵌入 WebView，也不把远端内容存入云端。
+
+## PHASE 12 — Luogu Arena contest details / 洛谷 Arena 竞赛详情
+
+Luogu Arena now reads the public `contest/{id}` content-only response when the selected judge is
+Luogu. It displays the official contest description, participant count, and the server-provided
+`contestProblems` membership with score, index, PID, and title. / 选择洛谷时，Arena 现在读取公开的
+`contest/{id}` content-only 响应，展示官方竞赛说明、参赛人数，以及服务器返回的
+`contestProblems` 题目成员关系、分值、编号、PID 和题名。
+
+The app does not infer membership from unrelated catalog rows; each listed problem comes from the
+contest detail payload and can be opened explicitly on the canonical Luogu page. / 应用不会从无关
+题库行推断竞赛归属；列表中的每道题都来自竞赛详情响应，并可由用户主动打开标准洛谷页面。
+
+## PHASE 13 — Luogu on-demand problem search / 洛谷按需题库搜索
+
+The remote problem catalog remains Room-first. When a non-blank Luogu keyword has no local hit,
+the app requests the matching public `problem/list?keyword=...` page, maps the response through the
+judge boundary, and upserts it into the local catalog. This avoids requiring a user to wait for the
+entire public catalog before the first search. / 远端题库仍然坚持 Room 优先；当非空洛谷关键词在
+本地没有命中时，应用才请求公开的 `problem/list?keyword=...` 页面，经 OJ 边界映射后写入本地
+题库，从而不要求用户等待完整公开题库同步结束后才能首次搜索。
+
+Blank queries remain local-only; later pages use the same public keyword endpoint on demand and are
+cached page by page. The Settings panel also exposes the current background sync stage so a long
+bounded catalog refresh is observable. / 空关键词仍只读本地缓存；后续分页会按需使用同一公开
+关键词接口并逐页写入缓存。设置页同时显示后台同步当前阶段，使较长的有界题库刷新过程可见。
+
+## PHASE 14 — Observable sync and paged Luogu search / 可见同步与洛谷分页搜索
+
+The page provider now receives the requested offset, so a cached first page can be followed by
+on-demand retrieval of page two and beyond. Room remains the source returned to the UI after each
+upsert, preserving offline reads and solved-state joins. Settings renders the persisted sync stage
+alongside SYNCING. / 分页提供者现在接收用户请求的 offset，因此首屏缓存后可以继续按需获取第二页
+及更多页面；每次写入后仍由 Room 返回 UI，保留离线读取和已解决状态关联。设置页在 SYNCING
+状态旁显示已持久化的同步阶段。
+The provider is public-data-only and does not add Luogu main-site passwords, cookies, sessions,
+CSRF state, cloud accounts, or cross-device synchronization. / 空关键词和后续分页目前仍只读
+本地缓存，未来如需扩展会单独定义分页策略；本阶段仍只使用公开数据，不新增洛谷主站密码、
+Cookie、Session、CSRF、云端账号或跨设备同步。
+
+## PHASE 15 — First-use catalog guidance / 首次使用题库提示
+
+When the remote catalog has no cached rows, the empty state now tells the user to enter a keyword.
+It no longer claims that an OJ account is required, which matches the public Luogu keyword path;
+other judges still remain local-cache-only until their own provider is registered. / 远端题库没有
+缓存条目时，空状态现在提示用户输入关键词，不再声称必须连接 OJ 账号，这与公开洛谷关键词
+路径一致；其他 OJ 在注册各自提供者前仍只读取本地缓存。
+
+## PHASE 16 — Bidirectional problem scope navigation / 题库范围双向导航
+
+The problem scope switcher now wires both local-library and remote-catalog transitions, so the
+remote view can return directly to the local library without leaving the Problems screen. The
+navigation boundary is covered by a focused unit test. / 题库范围切换器现在同时接通本地题库和远端
+题库的切换回调，用户无需离开题库页面即可从远端视图直接返回本地题库，并由聚焦单元测试覆盖
+该导航边界。
+
+This is a UI/navigation correction only; it does not add main-site passwords, cookies, sessions,
+CSRF state, cloud accounts, or cross-device synchronization. / 本阶段仅修正 UI 导航，不新增洛谷主站
+密码、Cookie、Session、CSRF 状态、云端账号或跨设备同步。
+
+## PHASE 17 — Luogu public profile surface / 洛谷公开资料展示
+
+The Profile screen now reads the synchronized Luogu `JudgeProfileEntity` snapshot and exposes its
+public ranking, passed/submitted problem counts, follower/following counts, slogan, and
+introduction. A clear empty state is used when no Luogu public snapshot is available, and the
+mapping rejects profiles from other judges. / Profile 页面现在读取已同步的洛谷
+`JudgeProfileEntity` 快照，展示公开排名、通过题数、提交题数、粉丝、关注、签名和简介；没有洛谷
+公开快照时显示明确空状态，映射也会拒绝其他 OJ 的资料。
+
+The phase is presentation-only over the existing local Room data. It does not add main-site
+passwords, cookies, sessions, CSRF state, cloud accounts, or cross-device synchronization. /
+本阶段只在现有本地 Room 数据之上增加展示，不新增洛谷主站密码、Cookie、Session、CSRF 状态、
+云端账号或跨设备同步。
+
+## PHASE 18 — Foreground OpenApp result polling / 前台 OpenApp 结果轮询
+
+After the user explicitly submits a Luogu problem through the Open Platform, the workspace now
+polls the result in the foreground for a bounded window. It stops after a terminal result or a
+fixed number of Pending responses, leaving the request visibly pending for a later manual check.
+POST submission is still never retried automatically, and no background submit worker is added. /
+用户通过 Open Platform 明确提交洛谷题目后，工作区现在会在前台有限轮询结果；遇到终态结果或达到
+固定次数的 Pending 响应后停止，并将仍在等待的请求明确保留，用户之后可以再次手动查询。POST 提交
+仍不会自动重试，也不会新增后台提交 Worker。
+
+The feature remains local-first and uses the existing Keystore-backed OpenApp credential boundary;
+it does not add main-site passwords, cookies, sessions, CSRF state, cloud accounts, or
+cross-device synchronization. / 本功能仍为本地优先，沿用现有 Keystore 保护的 OpenApp 凭据边界，
+不新增主站密码、Cookie、Session、CSRF 状态、云端账号或跨设备同步。
+
+## PHASE 22 — Partial Luogu result convergence / 洛谷部分评测结果收敛
+
+Luogu Open Platform results now distinguish HTTP 204 Pending, HTTP 200 InProgress, and terminal
+Ready results. A non-terminal 200 response remains local `PENDING`, keeps its latest compile/judge/run
+details, and continues through the bounded foreground poll window; only a terminal result creates or
+updates a finished local attempt. / 洛谷 Open Platform 结果现在区分 HTTP 204 Pending、HTTP 200
+InProgress 和终态 Ready。非终态 200 响应保持本地 `PENDING`，保存最新的编译/评测/运行详情，并继续
+进入前台有界轮询；只有终态结果才会创建或更新完成的本地提交记录。
+
+The HTTP result remains authoritative after an optional official WebSocket wake-up signal. This phase
+continues the local-first, OpenApp-only boundary: no Luogu main-site password, cookies, sessions, CSRF
+state, cloud account, cross-device sync, background submission, automatic POST retry, local compiler,
+or custom-input execution is added. Previous phase notes and published Releases remain unchanged. /
+可选的官方 WebSocket 唤醒信号之后，HTTP 结果仍是唯一权威来源。本阶段继续保持本地优先和仅使用
+OpenApp 的边界：不新增洛谷主站密码、Cookie、Session、CSRF 状态、云端账号、跨设备同步、后台提交、
+POST 自动重试、本地编译器或自定义输入运行；此前阶段说明和已发布 Releases 保持不变。
+
+## PHASE 21 — Workspace result continuity / 工作区结果连续性
+
+Reopening a Luogu workspace now restores all locally persisted OpenApp evaluation details: compile
+success/message, output, exit code, execution time, and memory. The workspace renders an explicit
+localized compile outcome even when the upstream compiler message is empty. / 重新打开洛谷工作区
+现在会恢复本地保存的 OpenApp 评测详情：编译成功/信息、输出、退出码、运行时间和内存；即使
+上游编译信息为空，工作区也会明确展示本地化的编译结果。
+
+This phase changes only local state restoration and foreground presentation. It keeps the existing
+local-first boundary and does not add main-site passwords, cookies, sessions, CSRF state, cloud
+accounts, cross-device sync, background submission, automatic POST retry, a local compiler, or
+custom-input execution. Previous phase notes and published Releases remain unchanged. /
+本阶段只改进本地状态恢复和前台展示，继续保持本地优先边界，不新增主站密码、Cookie、Session、
+CSRF 状态、云端账号、跨设备同步、后台提交、POST 自动重试、本地编译器或自定义输入运行；此前
+阶段说明和已发布 Releases 保持不变。
+
+## PHASE 20 — OpenApp evaluation usability / OpenApp 评测可用性
+
+Foreground OpenApp result checks can now wait for the official WebSocket `judge.result` notification
+as an optional wake-up signal. The notification never becomes a second authority: the existing
+authenticated HTTP result response still determines persistence and status, and bounded HTTP polling
+continues when the socket is unavailable or silent. / 前台 OpenApp 结果查询现在可以等待官方
+WebSocket 的 `judge.result` 通知作为可选唤醒信号。通知不会成为第二个权威来源：仍由原有鉴权
+HTTP 结果响应决定持久化和状态；Socket 不可用或没有通知时继续有限 HTTP 轮询。
+
+Room v8 adds nullable compile success/message, output, exit code, execution time, and memory fields
+to local submission jobs. The submission center renders available values and leaves missing upstream
+fields absent, so a user can inspect the same evaluation snapshot after navigation or process restart.
+/ Room v8 为本地提交任务增加可空的编译成功/信息、输出、退出码、运行时间和内存字段。提交
+中心展示上游实际返回的值，缺失字段保持为空，使用户在跳转或进程重启后仍能查看相同评测快照。
+
+This phase remains foreground-only and local-first. It does not add Luogu main-site login, passwords,
+cookies, sessions, CSRF state, cloud accounts, cross-device sync, automatic POST retry, a local
+compiler, or custom-input execution. Previous phase notes and published Releases remain unchanged.
+/ 本阶段仍仅限前台和本地优先，不新增洛谷主站登录、密码、Cookie、Session、CSRF 状态、云端账号、
+跨设备同步、POST 自动重试、本地编译器或自定义输入运行。此前阶段说明和已发布 Releases 保持不变。
+
+## PHASE 19 — Submission center result polling / 提交中心结果轮询
+
+The local submission center now shares the bounded foreground result polling helper with the problem
+workspace. A user can query a pending OpenApp request from either the workspace or the submission center
+and receive the same terminal-result or bounded-Pending behavior. / 本地提交中心现在与题目工作区共享前台
+有限结果轮询工具，用户可从任一入口查询 Pending 的 OpenApp 请求，并获得一致的终态结果或有限 Pending 行为。
+
+The helper only performs foreground GET result checks; POST submissions remain explicit and are never
+automatically retried. No main-site passwords, cookies, sessions, CSRF state, cloud accounts, or
+cross-device sync are added. / 该工具只在前台执行 GET 结果查询；POST 提交仍需明确触发且不会自动重试。
+不新增主站密码、Cookie、Session、CSRF 状态、云端账号或跨设备同步。
+
+## PHASE 23 — OpenApp credential verification / OpenApp 凭据连接测试
+
+Saving a Luogu OpenApp credential now performs an immediate read-only `quotaAvailable` verification.
+Success moves the Settings panel to the configured state and shows available points. Authorization
+rejection clears the rejected credential; network or other API failures preserve the Keystore value
+and expose a retryable error. / 保存洛谷 OpenApp 凭据后，现在会立即进行只读 `quotaAvailable` 验证。
+成功后设置页进入已配置状态并展示可用计费点；鉴权拒绝会清除被拒绝的凭据，网络或其他 API 失败则
+保留 Keystore 中的值并显示可重试错误。
+
+This phase keeps the existing OpenApp-only, Keystore-backed, local-first boundary. It adds no Luogu
+main-site password, Cookie, Session, CSRF login, cloud account, cross-device sync, background
+submission, or automatic POST retry. Previous phase notes and published Releases remain unchanged. /
+本阶段继续保持仅使用 OpenApp、Keystore 保护和本地优先的边界。不新增洛谷主站密码、Cookie、Session、
+CSRF 登录、云端账号、跨设备同步、后台提交或 POST 自动重试；此前阶段说明和已发布 Releases 保持不变。
+
+## PHASE 24 — Official problemset dump import / 官方题库导入
+
+Full local Luogu problem synchronization now prefers the official streamed gzip NDJSON export at
+`https://cdn.luogu.com.cn/problemset-open/latest.ndjson.gz`. The parser reads one JSON problem per
+line, maps the catalog fields needed by local search, and writes Room rows in bounded batches.
+Adapters that do not support this export retain the previous paginated endpoint as a fallback. /
+洛谷完整本地题库同步现在优先使用官方流式 gzip NDJSON 导出
+`https://cdn.luogu.com.cn/problemset-open/latest.ndjson.gz`。解析器逐行读取 JSON 题目，映射本地搜索
+所需的题库字段，并以有界批次写入 Room。不支持该导出的适配器继续保留此前的分页接口作为回退。
+
+Malformed nonblank lines and decompression failures surface as parse errors instead of claiming a
+complete catalog. Problem details remain on-demand; the phase stays public, local-first, and
+OpenApp-only, with no main-site password, cookies, sessions, CSRF login, cloud account,
+cross-device sync, background submission, or automatic POST retry. Previous phase notes and
+published Releases remain unchanged. / 非空行格式错误和解压失败会作为解析错误报告，不会误报题库已
+完整同步。题面详情仍按需获取；本阶段继续保持公开数据、本地优先和仅 OpenApp，不新增主站密码、
+Cookie、Session、CSRF 登录、云端账号、跨设备同步、后台提交或 POST 自动重试；此前阶段说明和已发布
+Releases 保持不变。
+
+## PHASE 25 — Offline-first Luogu problem details / 本地优先的洛谷题目详情
+
+Native Luogu problem details now use a new Room v9 cache keyed by judge and problem id. Opening a
+problem reads the cached public content-only snapshot first; a cache miss fetches and persists the
+network detail. An explicit refresh replaces the snapshot, and network/timeout failures can return
+the cached detail with a visible retryable warning. HTTP, authentication, and parse errors are not
+hidden by stale data. / 原生洛谷题目详情现在使用 Room v9 缓存，按评测平台和题号隔离。打开题目时
+优先读取已缓存的公开 content-only 快照；没有缓存时请求网络并持久化。显式刷新会替换快照，网络/超时
+失败时可以返回缓存并明确提示可重试；HTTP、鉴权和解析错误不会被旧数据掩盖。
+
+The existing safe native Markdown renderer remains the presentation boundary. This phase does not
+bulk-import all detail fields from the official problemset dump and adds no Luogu main-site
+password, cookies, sessions, CSRF login, cloud account, cross-device sync, background submission,
+or automatic POST retry. Earlier phase notes and published Releases remain unchanged. /
+现有安全原生 Markdown 渲染器仍是展示边界。本阶段不从官方题库导出批量导入全部题面详情，不新增
+洛谷主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、后台提交或 POST 自动重试；此前
+阶段说明和已发布 Releases 保持不变。
+
+## PHASE 26 — Foreground Luogu public catalog action / 前台洛谷公开题库操作
+
+The remote Problems scope now exposes an explicit Luogu `SYNC CATALOG` action. It can import the
+public catalog without a connected account, reuses the official-dump/paged-fallback writer, keeps
+Room as the read source, reports syncing and imported-item results, suppresses duplicate starts,
+and preserves rows already written by bounded batches when a run fails. / 远端题库范围现在提供显式
+洛谷“同步题库”操作。它无需连接账号即可导入公开题库，复用官方导出/分页回退写入逻辑，仍以 Room
+为读取源，显示同步中和导入数量结果，禁止重复启动；同步失败时保留有界批次已经写入的题目。
+
+The standalone public run preserves an existing account association in `sync_states`, but does not
+start background work. It remains public-data-only, local-first, and OpenApp-only; no main-site
+password, cookies, sessions, CSRF login, cloud account, cross-device sync, or automatic POST retry
+is added. Earlier phase notes and published Releases remain unchanged. / 独立公开同步会保留
+`sync_states` 中已有的账号关联，但不会创建后台任务；本阶段仍只使用公开数据、本地优先且仅
+OpenApp，不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步或 POST 自动重试；此前
+阶段说明和已发布 Releases 保持不变。
+
+## PHASE 27 — Local Luogu workspace drafts / 本地洛谷工作区草稿
+
+The native Luogu workspace now persists one Room draft per `(judge, pid)` with source code, optional
+input, selected language, and O2 state. It restores on open, uses a 300 ms latest-state debounce,
+shows loading/saving/saved/error state, and flushes the latest edit before page or system back.
+草稿按 `(评测平台、题号)` 保存在 Room 中，打开工作区时恢复，编辑采用 300 毫秒最新状态防抖，并显示
+加载中、保存中、已保存或错误；页面返回和系统返回前会先保存最新编辑。
+
+Schema 10 adds only the `workspace_drafts` table, so existing data and historical migrations remain
+intact. Drafts are included in the local Room backup, while `submission_jobs` still excludes source
+code and standard input. This remains local-first and OpenApp-only: no Luogu main-site password,
+Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, custom-input runner,
+or automatic POST retry is added. / Schema 10 只新增 `workspace_drafts` 表，既有数据和历史迁移保持不变；
+草稿随本地 Room 备份处理，而 `submission_jobs` 仍不保存源代码和标准输入。本阶段继续本地优先、仅
+OpenApp，不新增洛谷主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义
+输入运行器或自动提交重试。
+
+## PHASE 28 — Luogu OpenApp background result convergence / 洛谷 OpenApp 结果后台收敛
+
+After local submission metadata is persisted, each Luogu OpenApp request now enters a unique
+WorkManager result job. The worker performs only official `GET /judge/result/{requestId}`, requires
+network connectivity, uses bounded exponential retry, and reconciles at most 50 pending local jobs
+when the app starts. Existing foreground notification and polling remain unchanged. / 洛谷 OpenApp
+提交元数据落盘后，每个请求现在加入唯一的 WorkManager 结果任务；Worker 只执行官方
+`GET /judge/result/{requestId}`，要求网络连接，使用有界指数退避，并在应用启动时最多恢复 50 个本地
+待处理任务。已有前台通知和轮询保持不变。
+
+Transient network and retryable HTTP errors leave the local job pending; permanent credential,
+permission, resource, and malformed-response errors are visible as local failures. The worker input
+contains only the request ID and never source code, standard input, passwords, cookies, sessions, or
+CSRF state. No background submission, POST retry, local compiler, custom-input runner, cloud account,
+or cross-device sync is added. Earlier phase notes and published Releases remain intact. /
+瞬时网络和可重试 HTTP 错误会让本地任务保持待处理；永久凭据、权限、资源和格式错误会显示为本地失败。
+Worker 输入只包含 Request ID，绝不包含源代码、标准输入、密码、Cookie、Session 或 CSRF 状态。不新增后台
+提交、POST 重试、本地编译器、自定义输入运行器、云端账号或跨设备同步；此前阶段说明和已发布 Releases 保持不变。
+
+## PHASE 29 — Submission center manual recovery / 提交中心手动恢复
+
+The submission center now provides explicit `QUEUE CHECK` for pending requests and `QUEUE RETRY`
+for failed requests. Each action creates an immediate, unique local WorkManager result job without
+replacing the normal delayed queue; the existing bounded foreground `CHECK RESULT` poll remains
+available. / 提交中心现在为待处理请求提供“排队查询”，为失败请求提供“重新排队”。每次操作都会创建
+立即执行的本地唯一 WorkManager 结果任务，不替换正常的延迟队列；现有有界前台“查询结果”轮询仍然可用。
+
+The recovery button only sends the request ID to the official GET result worker. WorkManager keeps
+the connected-network constraint and `KEEP` uniqueness, while scheduler errors stay visible as a
+local action error. No submission is created, no POST is retried, and no main-site password,
+Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, or custom-input
+runner is added. Earlier phase notes and Releases remain intact. / 恢复按钮只向官方 GET 结果 Worker
+传递 Request ID。WorkManager 保持联网约束和 `KEEP` 唯一策略，调度错误会作为本地操作错误显示。
+该操作不会创建提交，也不会重试 POST；不新增主站密码、Cookie、Session、CSRF 登录、云端账号、
+跨设备同步、本地编译器或自定义输入运行器；此前阶段说明和 Releases 保持不变。
+
+## PHASE 30 — Background sync startup reconciliation / 后台同步启动校准
+
+Existing active accounts now have their six-hour periodic `JudgeSyncWorker` work reconciled at
+application startup. The pure bootstrap filters the registered judges by the real
+`BACKGROUND_SYNC` capability, skips missing or disabled accounts, and isolates individual
+scheduler failures so one platform cannot block another. / 应用启动时现在会为已有活跃账号校准六小时
+周期 `JudgeSyncWorker` 任务。纯校准器按已注册评测平台的真实 `BACKGROUND_SYNC` 能力筛选，跳过缺失或
+已禁用账号，并隔离单个平台的调度异常，避免阻塞其他平台。
+
+Settings exposes `BACKGROUND SYNC ENABLED — EVERY 6 HOURS` for connected capable judges. The
+startup pass restores scheduling only; it does not perform an immediate sync or create submission
+work. No main-site password, Cookie, Session, CSRF login, cloud account, cross-device sync, local
+compiler, or custom-input runner is added. Earlier phase notes and Releases remain intact. /
+设置页会为已连接且具备能力的评测平台显示“后台同步已启用 — 每 6 小时”。启动校准只恢复调度，不会
+立即执行同步，也不会创建提交任务。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、
+本地编译器或自定义输入运行器；此前阶段说明和 Releases 保持不变。
+
+## PHASE 31 — Luogu public sync boundary / 洛谷公开同步边界
+
+Luogu account synchronization now runs only the public stages advertised by its adapter:
+profile, rating, contests, and problems. The coordinator no longer calls the unsupported
+submission-record endpoint, so a successful public run is recorded as `SUCCESS` instead of
+being made `PARTIAL` by a known authorization failure. / 洛谷账号同步现在只执行适配器声明的公开
+资料、Rating、竞赛和题库阶段。协调器不再调用未支持的提交记录接口，因此公开同步成功时会记录为
+`SUCCESS`，不再因已知鉴权失败被人为标记为 `PARTIAL`。
+
+Private submission history remains unsupported by the public adapter and no fabricated attempts are
+created. Local Luogu OpenApp submission jobs remain a separate explicit workflow. No main-site
+password, Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, or
+custom-input runner is added. Earlier phase notes and Releases remain intact. / 私有提交历史仍不属于
+公开适配器，不会创建伪造提交记录；本地洛谷 OpenApp 提交任务仍是独立的明确操作流程。不新增主站
+密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器或自定义输入运行器；此前阶段
+说明和 Releases 保持不变。
+
+## PHASE 32 — Luogu workspace first-use setup / 洛谷工作区首次配置入口
+
+When a Luogu workspace has no OpenApp credential, it now keeps the existing warning and renders a
+localized, accessible `OPEN SETTINGS / 打开设置` action. The action is routed by `NexusApp` to the
+existing Settings destination, while the workspace execution action remains disabled until a
+credential is configured. / 未配置洛谷 OpenApp 凭据时，工作区现在保留原有警告，并显示本地化、可访问的
+“打开设置”操作。该操作由 `NexusApp` 导航到已有设置页；完成凭据配置前，工作区执行操作仍保持禁用。
+
+This is a local navigation improvement only. It makes no network request and adds no main-site
+password, Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, custom-input
+runner, or automatic submission retry. Earlier phase notes and published Releases remain intact. /
+本阶段仅改善本地导航，不发起网络请求，不新增主站密码、Cookie、Session、CSRF 登录、云端账号、跨设备
+同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布 Releases 保持不变。
+
+## PHASE 33 — Luogu OpenApp setup focus / 洛谷 OpenApp 设置定位
+
+The workspace setup action now uses a dedicated `settings/openapp` destination. After the route
+is laid out, the Settings screen calculates the OpenApp section position relative to its scroll
+viewport and moves it into view; the user, secret, and save controls are visible without manual
+searching. Ordinary `settings` navigation remains top-aligned. / 工作区配置操作现在使用独立的
+`settings/openapp` 路由。设置页完成布局后，会计算 OpenApp 区域相对于滚动视口的位置并自动定位；用户无需
+手动寻找即可看到用户名、密钥和保存控件。普通 `settings` 入口仍从顶部开始。
+
+The phase is local navigation only and does not make a network request. No Luogu main-site
+password, Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler,
+custom-input runner, or automatic submission retry is added. Earlier phase notes and published
+Releases remain intact. / 本阶段仅涉及本地导航，不发起网络请求，不新增洛谷主站密码、Cookie、Session、
+CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布
+Releases 保持不变。
+
+## PHASE 34 — Public sync queue visibility / 公开同步队列可见性
+
+Public judge sync now writes `QUEUED` to the existing local `sync_states` row before manual
+WorkManager scheduling. This makes the first sync after binding a Luogu public handle and every
+manual `SYNC NOW` request visible even while the connected-network constraint delays execution.
+The existing worker still owns the transition to `SYNCING` and terminal `SUCCESS`, `PARTIAL`, or
+`ERROR` states. / 公开评测平台同步现在会在手动 WorkManager 调度前，将 `QUEUED` 写入已有的本地
+`sync_states` 记录。绑定洛谷公开用户名后的首次同步，以及每次手动“立即同步”，即使因联网约束暂缓执行，
+也会立即可见。现有 Worker 仍负责转换到 `SYNCING` 以及最终的 `SUCCESS`、`PARTIAL` 或 `ERROR` 状态。
+
+Settings displays the queued state, active stage, and stable localized error categories for known
+rate-limit, account, network, timeout, server, and generic API failures. Raw server messages are
+not rendered. This phase remains local-first and public-data-only: no main-site password, Cookie,
+Session, CSRF login, cloud account, cross-device sync, local compiler, custom-input runner, or
+automatic submission retry is added. Earlier phase notes and published Releases remain intact. /
+设置页会显示排队状态、当前阶段，以及请求受限、账号、网络、超时、服务器和通用 API 错误的稳定本地化分类，
+不直接渲染服务器原始消息。本阶段继续本地优先和仅公开数据：不新增主站密码、Cookie、Session、CSRF 登录、
+云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布 Releases 保持不变。
+
+## PHASE 36 — Luogu synced data visibility / 洛谷同步数据可见性
+
+Analytics now treats a non-empty synchronized Rating history as content even when local
+attempts and problems are both zero. A user who has just synchronized Luogu Rating history can
+therefore see the per-judge Rating section instead of the generic empty state. / Analytics 现在将非空的
+同步 Rating 历史视为有效内容，即使本地提交和题目数量都为零。用户刚完成洛谷 Rating 同步后，可以看到按
+评测平台划分的 Rating 区域，而不会误进入通用空态。
+
+Profile’s rated-contest summary is now judge-independent: it shows the aggregate count from
+Codeforces, AtCoder, or Luogu whenever present, and a neutral no-history label otherwise. The
+obsolete Phase 2 guidance is no longer shown to users. / Profile 的 Rated 竞赛摘要现在不依赖具体评测平台：
+只要 Codeforces、AtCoder 或洛谷任一方有数据，就显示汇总数量；否则显示中性的无历史文案，不再向用户显示过期
+的 Phase 2 指引。
+
+This remains a local presentation change. No main-site password, Cookie, Session, CSRF login,
+cloud account, cross-device sync, local compiler, custom-input runner, or automatic submission
+retry is added. Earlier phase notes and published Releases remain intact. / 本阶段仅改变本地展示，不新增主站
+密码、Cookie、Session、CSRF 登录、云端账号、跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段
+说明和已发布 Releases 保持不变。
+
+## PHASE 35 — Luogu Rating history fallback / 洛谷 Rating 历史回退
+
+The Luogu public sync now selects a non-empty practice `elo` list and otherwise falls back to
+the public user-page `elo` list. This handles real accounts whose practice page returns an empty
+array while the profile page still exposes Rating history, preserving the existing idempotent
+Room import. / 洛谷公开同步现在优先选择非空的 practice `elo` 列表，否则回退到公开用户主页的 `elo` 列表。
+这样可以兼容 practice 页面返回空数组、而资料页仍提供 Rating 历史的真实账号，并继续使用已有的 Room
+幂等导入。
+
+The phase adds no endpoint or credential flow and remains public-data-only. No main-site password,
+Cookie, Session, CSRF login, cloud account, cross-device sync, local compiler, custom-input runner,
+or automatic submission retry is added. Earlier phase notes and published Releases remain intact. /
+## PHASE 37 — Sync receipt / 同步回执
+
+Settings now renders a localized sync receipt for every connected judge. The receipt is built from
+the adapter's declared capabilities and the existing per-module Room timestamps, so it lists only
+real profile, Rating, submissions, contest, and problemset modules. Each supported module shows
+`NEVER SYNCED` or a relative refresh age. / 设置页现在为每个已连接评测平台显示本地化同步回执。回执由适配器
+声明的能力和现有 Room 模块时间戳生成，因此只列出真实的资料、Rating、提交、竞赛和题库模块；每个支持的模块
+显示“从未同步”或相对更新时间。
+
+Queued and active runs keep the last stamped module time, and a failed stage never receives a
+fresh timestamp. Luogu's public capability set still does not claim private submission history;
+OpenApp submission remains a separate explicit workflow. This phase adds no endpoint, database
+migration, credential flow, cloud service, cross-device sync, local compiler, custom-input runner,
+or automatic POST retry. Earlier phase notes and published Releases remain intact. /
+排队或同步中的任务继续显示模块上一次已记录的时间，失败阶段不会获得新的时间戳。洛谷公开能力仍不声明私有提交
+历史；OpenApp 提交保持独立的明确流程。本阶段不新增接口、数据库迁移、凭据流程、云端服务、跨设备同步、本地编译器、
+自定义输入运行器或自动 POST 重试；此前阶段说明和 Releases 保持不变。
+本阶段不新增接口或凭据流程，继续只使用公开数据。不新增主站密码、Cookie、Session、CSRF 登录、云端账号、
+跨设备同步、本地编译器、自定义输入运行器或自动提交重试；此前阶段说明和已发布 Releases 保持不变。
+## PHASE 50 — Submission title context / 提交题名上下文
+
+Local Open Platform submission history now retains a nullable public problem title when a
+workspace submission already has one. The submission center shows the title beside the PID and
+keeps a separate title metadata line; legacy rows remain readable with PID-only context. The
+title is local display metadata only and is deliberately excluded from the official Open
+Platform request DTO. / 本地 Open Platform 提交历史现在会在工作区已有题名时保存可空的公开题目标题。
+提交中心会在 PID 旁显示题名，并保留独立的题名元数据行；旧记录仍可仅凭 PID 正常显示。题名只是本地展示元数据，
+会明确排除在官方 Open Platform 请求 DTO 之外。
+
+Room migration 10→11 adds the nullable `submission_jobs.title` column without deleting existing
+requests. This phase remains local-first and explicit: no main-site password, Cookie, Session,
+CSRF login, cloud account, cross-device sync, local compiler, custom-input runner, or automatic
+POST retry is added. Earlier phase notes and published Releases remain intact. / Room 10→11 迁移新增可空的
+`submission_jobs.title` 列，不删除已有请求。本阶段继续本地优先和明确操作：不新增主站密码、Cookie、Session、CSRF 登录、
+云端账号、跨设备同步、本地编译器、自定义输入运行器或自动 POST 重试；此前阶段说明和已发布 Release 均保留。

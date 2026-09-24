@@ -6,12 +6,16 @@ import com.ojnexus.core.data.DataResult
 import com.ojnexus.core.data.repository.ProblemRepository
 import com.ojnexus.core.database.entity.RemoteProblemEntity
 import com.ojnexus.core.model.JudgeId
+import com.ojnexus.core.model.NoteField
 import com.ojnexus.core.model.ProblemKey
 import com.ojnexus.core.model.Problem
 import com.ojnexus.core.model.ProblemStatus
 import com.ojnexus.core.ui.Loadable
-import com.ojnexus.judge.codeforces.CodeforcesSyncRepository
+import com.ojnexus.core.data.repository.JudgeDataRepository
 import com.ojnexus.judge.codeforces.CodeforcesUrls
+import com.ojnexus.judge.atcoder.AtCoderUrls
+import com.ojnexus.judge.luogu.LuoguUrls
+import com.ojnexus.judge.luogu.LuoguPublicCatalogSync
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -30,9 +34,11 @@ data class ProblemsUiState(
     val allTags: List<String>,
     val filter: ProblemFilter,
     val sort: ProblemSort,
+    val summary: ProblemLibrarySummary,
 )
 
 data class RemoteProblemsUiState(
+    val judge: JudgeId = JudgeId.CODEFORCES,
     val query: String = "",
     val solvedFilter: Int = 0,
     val problems: List<RemoteProblemEntity> = emptyList(),
@@ -41,12 +47,16 @@ data class RemoteProblemsUiState(
     val hasMore: Boolean = false,
     val loading: Boolean = false,
     val error: String? = null,
+    val catalogSyncing: Boolean = false,
+    val catalogSyncItems: Int? = null,
+    val catalogSyncError: String? = null,
 )
 
 class ProblemsViewModel(
     private val repository: ProblemRepository,
     private val demoSeeder: com.ojnexus.core.data.repository.DemoDataSeeder? = null,
-    private val syncRepository: CodeforcesSyncRepository? = null,
+    private val judgeDataRepository: JudgeDataRepository? = null,
+    private val publicCatalogSync: LuoguPublicCatalogSync? = null,
 ) : ViewModel() {
 
     private val filter = MutableStateFlow(ProblemFilter())
@@ -59,23 +69,50 @@ class ProblemsViewModel(
             filter,
             sort,
         ) { problems, tags, f, s ->
+            val visibleProblems = problems.applyFilterSort(f, s)
             Loadable.Ready(
                 ProblemsUiState(
                     totalCount = problems.size,
-                    problems = problems.applyFilterSort(f, s),
+                    problems = visibleProblems,
                     allTags = tags,
                     filter = f,
                     sort = s,
+                    summary = summarizeProblemLibrary(problems, visibleProblems),
                 ),
             )
         }
-            .catch<Loadable<ProblemsUiState>> { emit(Loadable.Failed(it.message ?: "Load failed")) }
+            .catch<Loadable<ProblemsUiState>> {
+                emit(Loadable.Failed(it.message ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_load_failed)))
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
+
+    private val noteFilter = MutableStateFlow(ProblemNoteFilter())
+
+    /**
+     * Local note index. Filters are applied to the repository flow only, so the screen never
+     * rewrites or re-sorts the stored notes.
+     */
+    val noteState: StateFlow<Loadable<NoteIndexUiState>> =
+        combine(repository.observeNoteIndex(), noteFilter) { entries, f ->
+            val visible = entries.applyNoteFilter(f)
+            Loadable.Ready(
+                NoteIndexUiState(
+                    entries = entries,
+                    visibleEntries = visible,
+                    filter = f,
+                    summary = summarizeNoteIndex(entries, visible),
+                ),
+            )
+        }
+            .catch<Loadable<NoteIndexUiState>> {
+                emit(Loadable.Failed(it.message ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_load_failed)))
+            }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
 
     private val remoteCatalog = kotlinx.coroutines.flow.MutableStateFlow(RemoteProblemsUiState())
     val remoteState: StateFlow<RemoteProblemsUiState> = remoteCatalog
     private var remoteLoadJob: Job? = null
-
+    private var catalogSyncJob: Job? = null
     fun enterRemoteCatalog() {
         if (remoteCatalog.value.problems.isEmpty() && !remoteCatalog.value.loading) reloadRemote()
     }
@@ -90,6 +127,58 @@ class ProblemsViewModel(
         reloadRemote()
     }
 
+    fun setRemoteJudge(judge: JudgeId) {
+        if (remoteCatalog.value.judge == judge) return
+        catalogSyncJob?.cancel()
+        remoteCatalog.update { it.copy(judge = judge, addedProblemIds = emptyMap()) }
+        reloadRemote()
+    }
+
+    /** Explicit foreground import of Luogu's public catalog; no account is required. */
+    fun syncLuoguCatalog() {
+        val current = remoteCatalog.value
+        if (current.judge != JudgeId.LUOGU || current.catalogSyncing || publicCatalogSync == null) return
+        remoteCatalog.update {
+            it.copy(
+                catalogSyncing = true,
+                catalogSyncItems = null,
+                catalogSyncError = null,
+            )
+        }
+        catalogSyncJob?.cancel()
+        catalogSyncJob = viewModelScope.launch {
+            try {
+                val outcome = publicCatalogSync.syncPublicProblemCatalog(force = true)
+                remoteCatalog.update {
+                    it.copy(
+                        catalogSyncing = false,
+                        catalogSyncItems = outcome.itemsProcessed,
+                        catalogSyncError = if (outcome.ok) {
+                            null
+                        } else {
+                            outcome.errorMessage
+                                ?: com.ojnexus.core.ui.localizedString(
+                                    com.ojnexus.R.string.error_remote_catalog_unavailable,
+                                )
+                        },
+                    )
+                }
+                if (outcome.ok) reloadRemote()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                remoteCatalog.update {
+                    it.copy(
+                        catalogSyncing = false,
+                        catalogSyncItems = null,
+                        catalogSyncError = e.message
+                            ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_remote_catalog_unavailable),
+                    )
+                }
+            }
+        }
+    }
+
     fun loadMoreRemote() {
         val current = remoteCatalog.value
         if (!current.hasMore || current.loading) return
@@ -97,26 +186,27 @@ class ProblemsViewModel(
     }
 
     fun addRemoteToLibrary(remote: RemoteProblemEntity) {
-        if (remoteCatalog.value.addedProblemIds.containsKey(remote.externalId)) return
+        val remoteKey = "${remote.judge}:${remote.externalId}"
+        if (remoteCatalog.value.addedProblemIds.containsKey(remoteKey)) return
         viewModelScope.launch {
             val result = repository.addProblem(
                 ProblemRepository.ProblemInput(
-                    key = ProblemKey(JudgeId.CODEFORCES, remote.externalId),
+                    key = ProblemKey(JudgeId.fromId(remote.judge) ?: return@launch, remote.externalId),
                     title = remote.name,
                     difficulty = remote.rating,
                     tags = remote.tags.split('\u001F').filter { it.isNotBlank() },
-                    sourceUrl = remote.contestId?.let { CodeforcesUrls.problem(it, remote.index ?: "") },
+                    sourceUrl = remoteProblemUrl(remote),
                 ),
             )
             val problemId = when (result) {
                 is DataResult.Success -> result.value
                 is DataResult.Failure -> repository.findProblemByKey(
-                    ProblemKey(JudgeId.CODEFORCES, remote.externalId),
+                    ProblemKey(JudgeId.fromId(remote.judge) ?: return@launch, remote.externalId),
                 )?.id
             }
             if (problemId != null) {
                 remoteCatalog.update {
-                    it.copy(addedProblemIds = it.addedProblemIds + (remote.externalId to problemId), error = null)
+                    it.copy(addedProblemIds = it.addedProblemIds + (remoteKey to problemId), error = null)
                 }
             } else if (result is DataResult.Failure) {
                 remoteCatalog.update { it.copy(error = result.error.message) }
@@ -143,7 +233,8 @@ class ProblemsViewModel(
         }
         delay(if (append) 0 else 250)
         try {
-            val page = syncRepository?.searchRemoteProblems(
+            val page = judgeDataRepository?.searchRemoteProblems(
+                judge = remoteCatalog.value.judge,
                 query = remoteCatalog.value.query,
                 solvedFilter = remoteCatalog.value.solvedFilter,
                 limit = REMOTE_PAGE_SIZE,
@@ -160,7 +251,12 @@ class ProblemsViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            remoteCatalog.update { it.copy(loading = false, error = e.message ?: "Remote catalog unavailable") }
+            remoteCatalog.update {
+                it.copy(
+                    loading = false,
+                    error = e.message ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_remote_catalog_unavailable),
+                )
+            }
         }
     }
 
@@ -178,7 +274,22 @@ class ProblemsViewModel(
         ProblemSort.entries[(current.ordinal + 1) % ProblemSort.entries.size]
     }
 
-    fun clearFilter() = filter.update { ProblemFilter() }
+    fun clearFilter() {
+        filter.update { ProblemFilter() }
+        sort.update { ProblemSort.UPDATED }
+    }
+
+    // --- Local note index ---
+
+    fun setNoteQuery(query: String) = noteFilter.update { it.copy(query = query) }
+
+    fun setNoteField(field: NoteField) = noteFilter.update { it.copy(field = field) }
+
+    fun setNoteJudge(judge: JudgeId?) = noteFilter.update { it.copy(judge = judge) }
+
+    fun toggleNoteUnsolvedOnly() = noteFilter.update { it.copy(unsolvedOnly = !it.unsolvedOnly) }
+
+    fun clearNoteFilter() = noteFilter.update { ProblemNoteFilter() }
 
     fun toggleFavorite(problemId: Long, current: Boolean) {
         viewModelScope.launch { repository.setFavorite(problemId, !current) }
@@ -201,3 +312,14 @@ class ProblemsViewModel(
         const val REMOTE_PAGE_SIZE = 50
     }
 }
+
+internal fun remoteProblemUrl(remote: RemoteProblemEntity): String? = when (JudgeId.fromId(remote.judge)) {
+    JudgeId.CODEFORCES -> remote.contestId?.toLongOrNull()
+        ?.let { CodeforcesUrls.problem(it, remote.index ?: "") }
+    JudgeId.ATCODER -> remote.contestId?.let { AtCoderUrls.problem(it, remote.externalId) }
+    JudgeId.LUOGU -> LuoguUrls.problem(remote.externalId)
+    else -> null
+}
+
+internal fun remoteWorkspaceAvailable(remote: RemoteProblemEntity): Boolean =
+    JudgeId.fromId(remote.judge) == JudgeId.LUOGU

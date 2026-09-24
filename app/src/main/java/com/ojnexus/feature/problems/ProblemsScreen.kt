@@ -21,8 +21,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateContentSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,10 +38,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
 import com.ojnexus.BuildConfig
 import com.ojnexus.R
 import com.ojnexus.core.model.JudgeId
@@ -45,17 +53,22 @@ import com.ojnexus.core.model.ProblemStatus
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
+import com.ojnexus.core.ui.UrlOpener
 import com.ojnexus.core.ui.labelRes
 import com.ojnexus.core.ui.tone
 import com.ojnexus.core.designsystem.NexusRadius
+import com.ojnexus.core.designsystem.NexusMotion
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
 import com.ojnexus.core.designsystem.NexusTone
 import com.ojnexus.core.designsystem.component.NexusDivider
+import com.ojnexus.core.designsystem.component.NexusMetric
 import com.ojnexus.core.designsystem.component.NexusSection
 import com.ojnexus.core.designsystem.component.NexusTag
 import com.ojnexus.core.designsystem.component.NexusTopBar
+import com.ojnexus.core.designsystem.component.foregroundColor
+import com.ojnexus.core.database.entity.RemoteProblemEntity
 
 // Library layout metrics.
 private val ProblemRowHeight = 56.dp
@@ -63,13 +76,38 @@ private val RatingColumnWidth = 56.dp
 private val StatusColumnWidth = 92.dp
 private val IconTouchSize = 32.dp
 private val RemoteProblemRowHeight = 82.dp
+private val ProblemStatusRailWidth = 3.dp
 
-private enum class ProblemScope { LIBRARY, CODEFORCES }
+internal enum class ProblemScope { LIBRARY, REMOTE, NOTES }
+
+internal data class ProblemSearchLaunch(
+    val filter: ProblemFilter,
+    val scope: ProblemScope,
+)
+
+internal fun problemSearchLaunch(query: String?, judge: JudgeId?): ProblemSearchLaunch? =
+    if (query == null && judge == null) {
+        null
+    } else {
+        ProblemSearchLaunch(
+            filter = ProblemFilter(query = query.orEmpty(), judge = judge),
+            scope = ProblemScope.LIBRARY,
+        )
+    }
+
+internal fun shouldSwitchProblemScope(selected: ProblemScope, target: ProblemScope): Boolean =
+    selected != target
 
 @Composable
 fun ProblemsScreen(
     onOpenProblem: (Long) -> Unit,
     onAddProblem: () -> Unit,
+    onBuildTraining: (List<Long>) -> Unit = {},
+    onOpenWorkspace: (String) -> Unit = {},
+    onOpenLuoguDetail: (String) -> Unit = {},
+    initialQuery: String? = null,
+    initialJudge: JudgeId? = null,
+    onInitialSearchConsumed: () -> Unit = {},
 ) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<ProblemsViewModel>(
@@ -77,13 +115,24 @@ fun ProblemsScreen(
             ProblemsViewModel(
                 repository = it.problemRepository,
                 demoSeeder = it.demoSeeder,
-                syncRepository = it.codeforcesSyncRepository,
+                judgeDataRepository = it.judgeDataRepository,
+                publicCatalogSync = it.luoguSyncRepository,
             )
         },
     )
+    var scope by rememberSaveable { mutableStateOf(ProblemScope.LIBRARY) }
+    LaunchedEffect(initialQuery, initialJudge) {
+        problemSearchLaunch(initialQuery, initialJudge)?.let { launch ->
+            scope = launch.scope
+            viewModel.setJudge(launch.filter.judge)
+            viewModel.setQuery(launch.filter.query)
+            onInitialSearchConsumed()
+        }
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val remoteState by viewModel.remoteState.collectAsStateWithLifecycle()
-    var scope by rememberSaveable { mutableStateOf(ProblemScope.LIBRARY) }
+    val notesState by viewModel.noteState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -93,9 +142,14 @@ fun ProblemsScreen(
         NexusTopBar(
             title = stringResource(R.string.nav_problems),
             trailing = {
+                val library = state
+                val notes = notesState
                 Text(
-                    text = when (val s = state) {
-                        is Loadable.Ready -> stringResource(R.string.problems_count, s.value.totalCount)
+                    text = when {
+                        scope == ProblemScope.NOTES && notes is Loadable.Ready ->
+                            stringResource(R.string.problems_notes_count, notes.value.summary.visible)
+                        library is Loadable.Ready ->
+                            stringResource(R.string.problems_count, library.value.summary.visible)
                         else -> ""
                     },
                     style = NexusTheme.typography.dataSmall,
@@ -106,26 +160,49 @@ fun ProblemsScreen(
         when (val s = state) {
             Loadable.Loading -> LoadingState()
             is Loadable.Failed -> ErrorState(s.message)
-            is Loadable.Ready -> if (scope == ProblemScope.LIBRARY) {
-                LibraryContent(
+            is Loadable.Ready -> when (scope) {
+                ProblemScope.LIBRARY -> LibraryContent(
                     uiState = s.value,
                     viewModel = viewModel,
                     onOpenProblem = onOpenProblem,
                     onAddProblem = onAddProblem,
+                    onBuildTraining = onBuildTraining,
                     onInsertDemo = { viewModel.insertDemoData() },
                     onClearDemo = { viewModel.clearDemoData() },
                     onOpenRemote = {
-                        scope = ProblemScope.CODEFORCES
+                        scope = ProblemScope.REMOTE
                         viewModel.enterRemoteCatalog()
                     },
+                    onOpenNotes = { scope = ProblemScope.NOTES },
                 )
-            } else {
-                RemoteCatalogContent(
+                ProblemScope.REMOTE -> RemoteCatalogContent(
                     state = remoteState,
                     viewModel = viewModel,
                     onBackToLibrary = { scope = ProblemScope.LIBRARY },
                     onOpenProblem = onOpenProblem,
+                    onOpenExternal = { remote -> UrlOpener.open(context, remoteProblemUrl(remote)) },
+                    onOpenWorkspace = onOpenWorkspace,
+                    onOpenLuoguDetail = onOpenLuoguDetail,
+                    onOpenNotes = { scope = ProblemScope.NOTES },
                 )
+                ProblemScope.NOTES -> when (val notes = notesState) {
+                    Loadable.Loading -> LoadingState()
+                    is Loadable.Failed -> ErrorState(notes.message)
+                    is Loadable.Ready -> NoteIndexContent(
+                        state = notes.value,
+                        onQueryChange = viewModel::setNoteQuery,
+                        onFieldChange = viewModel::setNoteField,
+                        onJudgeChange = viewModel::setNoteJudge,
+                        onToggleUnsolved = viewModel::toggleNoteUnsolvedOnly,
+                        onClearFilters = viewModel::clearNoteFilter,
+                        onOpenProblem = onOpenProblem,
+                        onOpenLibrary = { scope = ProblemScope.LIBRARY },
+                        onOpenRemote = {
+                            scope = ProblemScope.REMOTE
+                            viewModel.enterRemoteCatalog()
+                        },
+                    )
+                }
             }
         }
     }
@@ -165,9 +242,11 @@ private fun LibraryContent(
     viewModel: ProblemsViewModel,
     onOpenProblem: (Long) -> Unit,
     onAddProblem: () -> Unit,
+    onBuildTraining: (List<Long>) -> Unit,
     onInsertDemo: () -> Unit,
     onClearDemo: () -> Unit,
     onOpenRemote: () -> Unit,
+    onOpenNotes: () -> Unit,
 ) {
     var deleteTarget by remember { mutableStateOf<Problem?>(null) }
     val colors = NexusTheme.colors
@@ -178,7 +257,9 @@ private fun LibraryContent(
                 Spacer(modifier = Modifier.height(NexusSpacing.sm))
                 ScopeSwitcher(
                     selected = ProblemScope.LIBRARY,
+                    onSelectLibrary = {},
                     onSelectRemote = onOpenRemote,
+                    onSelectNotes = onOpenNotes,
                 )
                 Spacer(modifier = Modifier.height(NexusSpacing.xs))
                 SearchField(
@@ -186,6 +267,19 @@ private fun LibraryContent(
                     onQueryChange = viewModel::setQuery,
                     hintText = stringResource(R.string.problems_search_hint),
                 )
+                Spacer(modifier = Modifier.height(NexusSpacing.xs))
+                LibraryPulse(
+                    summary = uiState.summary,
+                    showClear = !isProblemLibraryDefaultView(uiState.filter, uiState.sort),
+                    onClear = viewModel::clearFilter,
+                )
+                if (uiState.problems.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(NexusSpacing.xs))
+                    LibraryTrainingActionRail(
+                        problemCount = uiState.problems.size,
+                        onClick = { onBuildTraining(buildTrainingProblemIds(uiState.problems)) },
+                    )
+                }
                 if (BuildConfig.DEBUG) {
                     Spacer(modifier = Modifier.height(NexusSpacing.xs))
                     Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
@@ -289,7 +383,7 @@ private fun LibraryContent(
 }
 
 @Composable
-private fun EmptyHint(title: String, hint: String) {
+internal fun EmptyHint(title: String, hint: String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -313,7 +407,94 @@ private fun EmptyHint(title: String, hint: String) {
 }
 
 @Composable
-private fun ScopeSwitcher(selected: ProblemScope, onSelectRemote: () -> Unit) {
+private fun LibraryPulse(
+    summary: ProblemLibrarySummary,
+    showClear: Boolean,
+    onClear: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    val reduceMotion = NexusTheme.reduceMotion
+    val clearDescription = stringResource(R.string.problems_clear_filters_cd)
+    NexusSection(
+        label = stringResource(R.string.problems_section_pulse),
+        trailing = if (showClear) {
+            {
+                Text(
+                    text = stringResource(R.string.problems_clear_filters),
+                    style = NexusTheme.typography.sectionLabel,
+                    color = colors.accent,
+                    modifier = Modifier
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = clearDescription,
+                            onClick = onClear,
+                        )
+                        .semantics { contentDescription = clearDescription },
+                )
+            }
+        } else {
+            null
+        },
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize(
+                    animationSpec = if (reduceMotion) snap() else tween(
+                        NexusMotion.DURATION_NORMAL,
+                        easing = NexusMotion.EasingStandard,
+                    ),
+                ),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
+        ) {
+            PulseMetric(
+                label = stringResource(R.string.problems_pulse_total),
+                value = summary.total,
+                modifier = Modifier.weight(1f),
+            )
+            PulseMetric(
+                label = stringResource(R.string.problems_pulse_visible),
+                value = summary.visible,
+                modifier = Modifier.weight(1f),
+            )
+            PulseMetric(
+                label = stringResource(R.string.problems_pulse_solved),
+                value = summary.solved,
+                modifier = Modifier.weight(1f),
+            )
+            PulseMetric(
+                label = stringResource(R.string.problems_pulse_review),
+                value = summary.review,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun PulseMetric(label: String, value: Int, modifier: Modifier = Modifier) {
+    val animatedValue by animateIntAsState(
+        targetValue = value,
+        animationSpec = if (NexusTheme.reduceMotion) snap() else tween(
+            NexusMotion.DURATION_NORMAL,
+            easing = NexusMotion.EasingStandard,
+        ),
+        label = "library pulse $label",
+    )
+    NexusMetric(
+        label = label,
+        value = com.ojnexus.core.ui.formatCount(animatedValue),
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal fun ScopeSwitcher(
+    selected: ProblemScope,
+    onSelectLibrary: () -> Unit,
+    onSelectRemote: () -> Unit,
+    onSelectNotes: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
@@ -321,18 +502,35 @@ private fun ScopeSwitcher(selected: ProblemScope, onSelectRemote: () -> Unit) {
         FilterChip(
             label = stringResource(R.string.problems_scope_library),
             selected = selected == ProblemScope.LIBRARY,
-            onClick = {},
+            onClick = {
+                if (shouldSwitchProblemScope(selected, ProblemScope.LIBRARY)) {
+                    onSelectLibrary()
+                }
+            },
         )
         FilterChip(
-            label = stringResource(R.string.problems_scope_codeforces),
-            selected = selected == ProblemScope.CODEFORCES,
-            onClick = onSelectRemote,
+            label = stringResource(R.string.problems_scope_remote),
+            selected = selected == ProblemScope.REMOTE,
+            onClick = {
+                if (shouldSwitchProblemScope(selected, ProblemScope.REMOTE)) {
+                    onSelectRemote()
+                }
+            },
+        )
+        FilterChip(
+            label = stringResource(R.string.problems_scope_notes),
+            selected = selected == ProblemScope.NOTES,
+            onClick = {
+                if (shouldSwitchProblemScope(selected, ProblemScope.NOTES)) {
+                    onSelectNotes()
+                }
+            },
         )
     }
 }
 
 @Composable
-private fun SearchField(
+internal fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     hintText: String,
@@ -389,15 +587,39 @@ private fun RemoteCatalogContent(
     viewModel: ProblemsViewModel,
     onBackToLibrary: () -> Unit,
     onOpenProblem: (Long) -> Unit,
+    onOpenExternal: (RemoteProblemEntity) -> Unit,
+    onOpenWorkspace: (String) -> Unit,
+    onOpenLuoguDetail: (String) -> Unit,
+    onOpenNotes: () -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item(key = "remote-controls") {
             Column(modifier = Modifier.padding(horizontal = NexusSpacing.screenHorizontal)) {
                 Spacer(modifier = Modifier.height(NexusSpacing.sm))
                 ScopeSwitcher(
-                    selected = ProblemScope.CODEFORCES,
+                    selected = ProblemScope.REMOTE,
+                    onSelectLibrary = onBackToLibrary,
                     onSelectRemote = {},
+                    onSelectNotes = onOpenNotes,
                 )
+                Spacer(modifier = Modifier.height(NexusSpacing.xs))
+                Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+                    FilterChip(
+                        label = com.ojnexus.core.model.JudgeId.CODEFORCES.displayName,
+                        selected = state.judge == com.ojnexus.core.model.JudgeId.CODEFORCES,
+                        onClick = { viewModel.setRemoteJudge(com.ojnexus.core.model.JudgeId.CODEFORCES) },
+                    )
+                    FilterChip(
+                        label = com.ojnexus.core.model.JudgeId.ATCODER.displayName,
+                        selected = state.judge == com.ojnexus.core.model.JudgeId.ATCODER,
+                        onClick = { viewModel.setRemoteJudge(com.ojnexus.core.model.JudgeId.ATCODER) },
+                    )
+                    FilterChip(
+                        label = com.ojnexus.core.model.JudgeId.LUOGU.displayName,
+                        selected = state.judge == com.ojnexus.core.model.JudgeId.LUOGU,
+                        onClick = { viewModel.setRemoteJudge(com.ojnexus.core.model.JudgeId.LUOGU) },
+                    )
+                }
                 Spacer(modifier = Modifier.height(NexusSpacing.xs))
                 SearchField(
                     query = state.query,
@@ -422,13 +644,56 @@ private fun RemoteCatalogContent(
                         onClick = { viewModel.setRemoteSolvedFilter(2) },
                     )
                 }
+                if (state.judge == com.ojnexus.core.model.JudgeId.LUOGU) {
+                    Spacer(modifier = Modifier.height(NexusSpacing.xxs))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.problems_luogu_catalog_hint),
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.textTertiary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        FilterChip(
+                            label = stringResource(
+                                if (state.catalogSyncing) {
+                                    R.string.problems_luogu_syncing_catalog
+                                } else {
+                                    R.string.problems_luogu_sync_catalog
+                                },
+                            ),
+                            selected = state.catalogSyncing,
+                            onClick = viewModel::syncLuoguCatalog,
+                        )
+                    }
+                    state.catalogSyncItems?.let { count ->
+                        if (!state.catalogSyncing && state.catalogSyncError == null) {
+                            Text(
+                                text = stringResource(R.string.problems_luogu_catalog_synced, count),
+                                style = NexusTheme.typography.dataSmall,
+                                color = NexusTheme.colors.success,
+                                modifier = Modifier.padding(top = NexusSpacing.xxxs),
+                            )
+                        }
+                    }
+                    state.catalogSyncError?.let { error ->
+                        Text(
+                            text = error,
+                            style = NexusTheme.typography.dataSmall,
+                            color = NexusTheme.colors.danger,
+                            modifier = Modifier.padding(top = NexusSpacing.xxxs),
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.height(NexusSpacing.sm))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = stringResource(R.string.problems_scope_codeforces),
+                        text = state.judge.displayName,
                         style = NexusTheme.typography.sectionLabel,
                         color = NexusTheme.colors.textTertiary,
                         modifier = Modifier.weight(1f),
@@ -464,12 +729,15 @@ private fun RemoteCatalogContent(
                 )
             }
         } else {
-            items(items = state.problems, key = { "remote-${it.externalId}" }) { problem ->
+            items(items = state.problems, key = { "remote-${it.judge}-${it.externalId}" }) { problem ->
                 RemoteProblemRow(
                     problem = problem,
-                    addedProblemId = state.addedProblemIds[problem.externalId],
+                    addedProblemId = state.addedProblemIds["${problem.judge}:${problem.externalId}"],
                     onAdd = { viewModel.addRemoteToLibrary(problem) },
                     onOpen = { id -> onOpenProblem(id) },
+                    onOpenExternal = { onOpenExternal(problem) },
+                    onOpenWorkspace = { onOpenWorkspace(problem.externalId) },
+                    onOpenLuoguDetail = { onOpenLuoguDetail(problem.externalId) },
                 )
                 NexusDivider(insetEnd = NexusSpacing.xxs)
             }
@@ -507,6 +775,9 @@ private fun RemoteProblemRow(
     addedProblemId: Long?,
     onAdd: () -> Unit,
     onOpen: (Long) -> Unit,
+    onOpenExternal: () -> Unit,
+    onOpenWorkspace: () -> Unit,
+    onOpenLuoguDetail: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -532,8 +803,14 @@ private fun RemoteProblemRow(
             }
             Text(
                 text = listOfNotNull(
-                    problem.rating?.toString(),
-                    problem.solvedCount?.let { "${it} AC" },
+                    problem.rating?.let { rating ->
+                        if (problem.difficultySource == com.ojnexus.core.model.DifficultySource.ESTIMATED.name) {
+                            stringResource(R.string.problems_estimated_difficulty, rating)
+                        } else {
+                            rating.toString()
+                        }
+                    },
+                    problem.solvedCount?.let { stringResource(R.string.problems_solved_count, it) },
                     problem.tags.split('\u001F').filter { it.isNotBlank() }.take(2).joinToString(" · "),
                 ).joinToString(" · ").ifEmpty { stringResource(R.string.problems_no_value) },
                 style = NexusTheme.typography.dataSmall,
@@ -542,19 +819,42 @@ private fun RemoteProblemRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        NexusTag(
-            text = if (addedProblemId == null) {
-                stringResource(R.string.problems_add_to_training)
-            } else {
-                stringResource(R.string.problems_in_library)
-            },
-            tone = if (addedProblemId == null) NexusTone.Accent else NexusTone.Success,
-            selected = addedProblemId == null,
-            modifier = Modifier.clickable(
-                role = Role.Button,
-                onClick = { if (addedProblemId == null) onAdd() else onOpen(addedProblemId) },
-            ),
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+            if (com.ojnexus.core.model.JudgeId.fromId(problem.judge) == com.ojnexus.core.model.JudgeId.LUOGU) {
+                NexusTag(
+                    text = stringResource(R.string.problems_open_detail),
+                    tone = NexusTone.Accent,
+                    selected = true,
+                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenLuoguDetail),
+                )
+            }
+            NexusTag(
+                text = stringResource(R.string.problems_open_source),
+                tone = NexusTone.Neutral,
+                modifier = Modifier.clickable(role = Role.Button, onClick = onOpenExternal),
+            )
+            if (remoteWorkspaceAvailable(problem)) {
+                NexusTag(
+                    text = stringResource(R.string.problems_open_workspace),
+                    tone = NexusTone.Accent,
+                    selected = true,
+                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenWorkspace),
+                )
+            }
+            NexusTag(
+                text = if (addedProblemId == null) {
+                    stringResource(R.string.problems_add_to_training)
+                } else {
+                    stringResource(R.string.problems_in_library)
+                },
+                tone = if (addedProblemId == null) NexusTone.Accent else NexusTone.Success,
+                selected = addedProblemId == null,
+                modifier = Modifier.clickable(
+                    role = Role.Button,
+                    onClick = { if (addedProblemId == null) onAdd() else onOpen(addedProblemId) },
+                ),
+            )
+        }
     }
 }
 
@@ -624,7 +924,7 @@ private fun FilterChipRow(
 }
 
 @Composable
-private fun FilterChip(
+internal fun FilterChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
@@ -684,6 +984,10 @@ private fun ProblemRow(
     onDelete: () -> Unit,
 ) {
     val colors = NexusTheme.colors
+    val favoriteDescription = stringResource(
+        if (problem.favorite) R.string.problems_favorite_on_cd else R.string.problems_favorite_off_cd,
+    )
+    val deleteDescription = stringResource(R.string.problems_delete_cd)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -691,6 +995,13 @@ private fun ProblemRow(
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Box(
+            modifier = Modifier
+                .width(ProblemStatusRailWidth)
+                .height(ProblemRowHeight)
+                .background(problem.status.tone().foregroundColor(colors)),
+        )
+        Spacer(modifier = Modifier.width(NexusSpacing.xs))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -717,7 +1028,12 @@ private fun ProblemRow(
         Box(
             modifier = Modifier
                 .size(IconTouchSize)
-                .clickable(role = Role.Button, onClick = onToggleFavorite)
+                .clickable(
+                    role = Role.Button,
+                    onClickLabel = favoriteDescription,
+                    onClick = onToggleFavorite,
+                )
+                .semantics { contentDescription = favoriteDescription }
                 .padding(8.dp)
                 .background(
                     if (problem.favorite) colors.accent else colors.surface,
@@ -726,7 +1042,13 @@ private fun ProblemRow(
                 .border(1.dp, if (problem.favorite) colors.accent else colors.borderStrong, RoundedCornerShape(2.dp)),
         )
         Text(
-            text = problem.difficulty?.toString() ?: stringResource(R.string.problems_no_value),
+            text = problem.difficulty?.let { difficulty ->
+                if (problem.difficultySource == com.ojnexus.core.model.DifficultySource.ESTIMATED) {
+                    stringResource(R.string.problems_estimated_difficulty, difficulty)
+                } else {
+                    difficulty.toString()
+                }
+            } ?: stringResource(R.string.problems_no_value),
             style = NexusTheme.typography.dataSmall,
             color = colors.textSecondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.End,
@@ -746,7 +1068,12 @@ private fun ProblemRow(
             Box(
                 modifier = Modifier
                     .size(IconTouchSize)
-                    .clickable(role = Role.Button, onClick = onDelete),
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = deleteDescription,
+                        onClick = onDelete,
+                    )
+                    .semantics { contentDescription = deleteDescription },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(

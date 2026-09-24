@@ -1,0 +1,61 @@
+name: Windows CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('windows/**/*.csproj', 'windows/NuGet.Config') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore Windows solution
+        run: dotnet restore windows/OjNexus.Windows.sln --configfile windows/NuGet.Config --runtime win-x64
+
+      - name: Run Windows tests
+        run: >-
+          dotnet test windows/OjNexus.Windows.sln --configuration Release --no-restore
+          --logger trx
+          --results-directory windows/artifacts/test-results
+
+      - name: Build Windows solution
+        run: dotnet build windows/OjNexus.Windows.sln --configuration Release --no-restore
+
+      - name: Package self-contained Windows client
+        shell: pwsh
+        run: >-
+          ./windows/scripts/package.ps1 -Version 0.1.0 -Configuration Release -Runtime win-x64
+          -SkipUiSmoke
+
+      - name: Upload self-contained Windows package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-self-contained-win-x64
+          if-no-files-found: ignore
+          path: windows/artifacts/self-contained
+
+      - name: Upload Windows test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-reports
+          if-no-files-found: ignore
+          path: windows/artifacts/test-results

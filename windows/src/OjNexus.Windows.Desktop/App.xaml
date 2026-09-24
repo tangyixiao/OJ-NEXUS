@@ -1,0 +1,249 @@
+<Application x:Class="OjNexus.Windows.Desktop.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+  <Application.Resources>
+    <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+    <SolidColorBrush x:Key="NexusBackgroundBrush" Color="#080C12" />
+    <SolidColorBrush x:Key="NexusSurfaceBrush" Color="#0D141D" />
+    <SolidColorBrush x:Key="NexusSurfaceRaisedBrush" Color="#111B27" />
+    <SolidColorBrush x:Key="NexusBorderBrush" Color="#26364A" />
+    <SolidColorBrush x:Key="NexusTextBrush" Color="#E7EDF5" />
+    <SolidColorBrush x:Key="NexusMutedTextBrush" Color="#8190A5" />
+    <SolidColorBrush x:Key="NexusAccentBrush" Color="#4DA3FF" />
+    <SolidColorBrush x:Key="NexusPositiveBrush" Color="#69D39A" />
+    <SolidColorBrush x:Key="NexusWarningBrush" Color="#E8B86A" />
+
+    <Style TargetType="{x:Type Window}">
+      <Setter Property="FontFamily" Value="Segoe UI" />
+      <Setter Property="Foreground" Value="{StaticResource NexusTextBrush}" />
+      <Setter Property="Background" Value="{StaticResource NexusBackgroundBrush}" />
+    </Style>
+
+    <Style x:Key="NavButton" TargetType="{x:Type Button}">
+      <Setter Property="Foreground" Value="{StaticResource NexusMutedTextBrush}" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Padding" Value="14,10" />
+      <Setter Property="Margin" Value="0,3,0,3" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type Button}">
+            <Border Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="4"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Foreground" Value="{StaticResource NexusTextBrush}" />
+          <Setter Property="Background" Value="{StaticResource NexusSurfaceRaisedBrush}" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style x:Key="ActionButton" TargetType="{x:Type Button}">
+      <Setter Property="Foreground" Value="{StaticResource NexusBackgroundBrush}" />
+      <Setter Property="Background" Value="{StaticResource NexusAccentBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource NexusAccentBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="16,9" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type Button}">
+            <Border Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="4"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="#73B8FF" />
+          <Setter Property="BorderBrush" Value="#73B8FF" />
+        </Trigger>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Opacity" Value="0.55" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style TargetType="{x:Type TextBox}">
+      <Setter Property="Foreground" Value="{StaticResource NexusTextBrush}" />
+      <Setter Property="Background" Value="{StaticResource NexusBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource NexusBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="10,8" />
+    </Style>
+
+    <Style x:Key="NexusScrollThumb" TargetType="{x:Type Thumb}">
+      <Setter Property="Background" Value="{StaticResource NexusBorderBrush}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type Thumb}">
+            <Border Background="{TemplateBinding Background}" CornerRadius="2" />
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="NexusScrollRepeatButton" TargetType="{x:Type RepeatButton}">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type RepeatButton}">
+            <Border Background="{TemplateBinding Background}" />
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type ScrollBar}">
+      <Setter Property="Background" Value="{StaticResource NexusBackgroundBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource NexusBorderBrush}" />
+      <Setter Property="Width" Value="10" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type ScrollBar}">
+            <Grid Background="{TemplateBinding Background}">
+              <Track x:Name="PART_Track"
+                     Orientation="{TemplateBinding Orientation}"
+                     IsDirectionReversed="True"
+                     Maximum="{TemplateBinding Maximum}"
+                     Minimum="{TemplateBinding Minimum}"
+                     Value="{TemplateBinding Value}"
+                     ViewportSize="{TemplateBinding ViewportSize}">
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}"
+                                Style="{StaticResource NexusScrollRepeatButton}" />
+                </Track.DecreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb Style="{StaticResource NexusScrollThumb}" />
+                </Track.Thumb>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}"
+                                Style="{StaticResource NexusScrollRepeatButton}" />
+                </Track.IncreaseRepeatButton>
+              </Track>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="NexusComboBoxToggle" TargetType="{x:Type ToggleButton}">
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="Background" Value="{StaticResource NexusSurfaceRaisedBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource NexusBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1,0,0,0" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type ToggleButton}">
+            <Border Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}">
+              <Path Width="8" Height="5" Fill="{StaticResource NexusAccentBrush}"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Data="M 0 0 L 8 0 L 4 5 Z" />
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type ComboBoxItem}">
+      <Setter Property="Foreground" Value="{StaticResource NexusTextBrush}" />
+      <Setter Property="Background" Value="{StaticResource NexusBackgroundBrush}" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Padding" Value="10,7" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+            <Border x:Name="ItemBorder" Background="{TemplateBinding Background}"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource NexusSurfaceRaisedBrush}" />
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource NexusAccentBrush}" />
+                <Setter Property="Foreground" Value="{StaticResource NexusBackgroundBrush}" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type ComboBox}">
+      <Setter Property="Foreground" Value="{StaticResource NexusTextBrush}" />
+      <Setter Property="Background" Value="{StaticResource NexusBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource NexusBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="10,7" />
+      <Setter Property="OverridesDefaultStyle" Value="True" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type ComboBox}">
+            <Grid>
+              <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                      BorderBrush="{TemplateBinding BorderBrush}"
+                      BorderThickness="{TemplateBinding BorderThickness}"
+                      MinHeight="32">
+                <Grid>
+                  <ContentPresenter Margin="{TemplateBinding Padding}"
+                                    VerticalAlignment="Center"
+                                    Content="{TemplateBinding SelectionBoxItem}"
+                                    ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                    ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}" />
+                  <ToggleButton HorizontalAlignment="Right" Width="30"
+                                IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                Style="{StaticResource NexusComboBoxToggle}" />
+                </Grid>
+              </Border>
+              <Popup x:Name="PART_Popup" AllowsTransparency="True" Focusable="False"
+                     IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
+                     PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}"
+                     PopupAnimation="Fade">
+                <Border Background="{StaticResource NexusBackgroundBrush}"
+                        BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1"
+                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                  <ScrollViewer MaxHeight="300" SnapsToDevicePixels="True">
+                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                  </ScrollViewer>
+                </Border>
+              </Popup>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource NexusAccentBrush}" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Chrome" Property="Opacity" Value="0.55" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Application.Resources>
+</Application>
