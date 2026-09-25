@@ -42,6 +42,10 @@ jobs:
 
   emulator:
     runs-on: ubuntu-latest
+    # This runner has no hardware acceleration: the emulator alone needs ~13 minutes to boot and
+    # a full round takes about 25 minutes. A hung emulator would otherwise hold the runner for
+    # GitHub's default six-hour limit, so bound it with headroom over the measured duration.
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
