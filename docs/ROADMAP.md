@@ -90,10 +90,18 @@ and the packaged WPF client renders all three views with three distinct screensh
 验证的,而不是在编译输出上:`verify-package.ps1` 全部条目通过,包内 CLI 对洛谷 `uid:2` 退出 4、对 Codeforces
 `tourist` 退出 0,包内 WPF 客户端渲染全部三个视图并产出三张互不相同的截图。
 
-`windows.yml` has still never run on a real runner: the workflow exists in local commits only, and
-the remote repository exposes the Android workflow alone, so the Windows job, its packaging step,
-and its artifact upload remain unverified. / `windows.yml` 仍从未在真实 runner 上运行过:
-该工作流只存在于本地提交中,而远程仓库仅发布了 Android 工作流,因此 Windows 任务、其打包步骤与产物上传仍未经验证。
+`windows.yml` now runs on a real runner. The branch was merged to `main` and the Windows job —
+restore, tests, build, self-contained packaging, and artifact upload — passed there. The Android
+and Apple workflows passed as well, each for the first time. The Android emulator job turned out
+to be slow for a fixable reason rather than a platform limit: it ran without VM acceleration
+because the runner user could not access `/dev/kvm`, which the action reported as "hardware
+acceleration is not available". Granting that access brought the emulator boot from ~869 s to
+39.3 s and a full round from ~25 min to 6 min 41 s. Signing and installers are still outside the
+pipeline. / `windows.yml` 现已在真实 runner 上运行:分支合并进 `main` 后,Windows 任务——还原、
+测试、构建、自包含打包、产物上传——全部通过。Android 与 Apple 工作流同样通过,且都是首次。
+Android 的模拟器任务此前很慢,原因可修而非平台所限:它没有 VM 加速,因为 runner 用户访问不到
+`/dev/kvm`,该 action 据此报告 "hardware acceleration is not available"。放开该权限后,模拟器启动
+从约 869 秒降到 39.3 秒,整轮从约 25 分钟降到 6 分 41 秒。签名与安装器仍不在流水线内。
 
 `signtool` and `makeappx` are available with the Windows SDK, and the signing step was exercised
 end to end against a certificate generated in memory; only a CA-issued code signing certificate is

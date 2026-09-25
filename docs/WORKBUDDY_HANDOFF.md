@@ -958,3 +958,68 @@ Desktop 19/19、Core 72/72；`dotnet build -c Release` 0 警告 0 错误；`smok
 - **Windows CI 与 Android CI 仍未在真实 runner 上跑过**：两者都只监听 `main`，
   需要一个 base=`main` 的 PR 才能触发（本轮计划中的「跑通 CI」目标只能这样达成）。
 - 发布产物未签名、无安装器（§16.7）。
+
+> 本节的两项遗留已在 §18 处理：CI 已全部跑通；签名仍只差证书。
+
+## 18. 三个平台 CI 首次全绿，emulator 从 25 分钟降到 6 分 41 秒（Workbuddy，2026-09-25）
+
+> 本节了结 §16.6、§16.8、§17.4 列出的"CI 未实跑"遗留项。历史节的记述保留原样。
+
+### 18.1 遗留项对照
+
+| 遗留项（原文位置） | 现状 |
+| --- | --- |
+| `windows.yml` 从未在真实 runner 上跑过（§16.6、§16.8） | **已跑通**，见 18.2 |
+| `apple.yml` 从未在真实 runner 上跑过（§17.4） | **已跑通**（§17.3 修 4 轮后转绿） |
+| Android CI 只在 PR 上跑过单测与构建（§17.4） | **已跑通**，含 emulator 的 27 个 connected 测试 |
+| CI 的 .NET 8.0.x 口径未在本机复现（§16.6） | **由 CI 本身覆盖**，以 CI 结果为准 |
+| 签名 / installer（§16.7、§16.8） | **无变化**，仍只差 CA 证书，见 18.4 |
+
+### 18.2 合并与 main 上的首次全量 CI
+
+- **PR #4**（Phase 1–77 + 跨平台退出码契约 + 打包加固 + Apple 修复）→ 合并 `9e907319`
+  → **main 上三个工作流首次全量运行并全部通过**（Windows / Android / Apple）。
+- **PR #5** → 合并 `181917ad`：给 `emulator` job 加 `timeout-minutes: 45`。
+  此前无上限，卡死的模拟器会占用 GitHub 默认的 6 小时上限；45 分钟约为实测时长的 1.8 倍。
+- **PR #6** → 合并 `1e0ac9ac`：启用 KVM（见 18.3）。
+
+### 18.3 emulator 提速：根因是缺 KVM 权限，不是"Linux runner 不行"
+
+日志里的判据很明确：
+
+```
+You're running a Linux VM where hardware acceleration is not available.
+disable Linux hardware acceleration: true
+```
+
+按 `reactivecircus/android-emulator-runner` README 的 `Enable KVM group perms` 加 udev 规则后，
+日志变为 `disable Linux hardware acceleration: false`：
+
+| 指标 | 启用前 | 启用后 |
+| --- | --- | --- |
+| 模拟器 boot | 768–869 秒 | **39.3 秒** |
+| `emulator` job | 21–25 分钟 | **6 分 39 秒** |
+| 整轮 Android CI | 21–25 分钟 | **6 分 41 秒** |
+
+**注意**：官方 README 明确推荐 Ubuntu runner 而非 macOS（**快 2–3 倍且更便宜**），
+所以这一步不该通过换平台解决。
+
+启用 KVM 之前，这个 job 还暴露并修掉了三处真问题：
+
+1. `profile: Pixel_2` 并非合法设备 id —— `avdmanager list device` 里是 **`pixel_2`**，
+   名字用错导致 AVD 完全建不出来、测试一个都没跑；
+2. 该 action 的 `script` 输入是**逐行执行**的，多行 `for ... done` 会被拆碎成
+   `Syntax error: end of file unexpected`，**循环必须写成单行**；
+3. `ProblemLibraryTrainingHandoffComposeTest` 断言了一个**滚出视口**的元素
+   （语义树里有、屏幕上看不到）：CI 设备 pixel_2 是 411×731dp，比本机 Pixel 9 矮。
+   修法是先 `performScrollTo()` 再 `assertIsDisplayed()`——布局真有问题（例如高度为 0）时
+   该断言依然会失败，所以没有削弱验证力。**该失败在本机用
+   `adb shell wm size 1080x1920 && adb shell wm density 420` 复现**（80 秒一轮，替代 CI 的 25 分钟一轮）。
+
+### 18.4 仍未做
+
+- **签名与 installer**：§16.7 的结论依然成立——`signtool` / `makeappx` 就绪、签名步骤已完整演练，
+  **唯一缺口是 CA 签发的代码签名证书**。自签只能验证签名流程本身，无法消除"未知发布者"提示。
+  发布产物仍为未签名 ZIP + 解压目录。
+- **emulator job 的 AVD 快照缓存**：该 action 支持用 `actions/cache` 缓存 AVD 快照进一步缩短启动，
+  当前未启用（KVM 之后 39 秒的 boot 已不是瓶颈）。
