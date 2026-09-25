@@ -67,6 +67,16 @@ jobs:
             ~/.android/adbjs
           key: ${{ runner.os }}-android-avd-api35-pixel2
 
+      # The emulator's VM acceleration needs KVM. Without these rules the runner reports
+      # "hardware acceleration is not available" and falls back to software emulation, which
+      # stretched one round to ~25 minutes with a 13-minute boot. Ubuntu runners are the
+      # recommended platform for this — faster and cheaper than the macOS ones.
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: Run connected Android tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
