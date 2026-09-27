@@ -213,6 +213,26 @@ public sealed class SyncServiceTests
     }
 
     [Fact]
+    public async Task RunAsync_StoreWriteFailure_DoesNotReportNetworkFailure()
+    {
+        using var database = new TemporaryDatabase();
+        using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={database.DatabasePath};Pooling=False"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "CREATE TRIGGER reject_module BEFORE INSERT ON sync_modules BEGIN SELECT RAISE(ABORT, 'storage write failed'); END";
+            command.ExecuteNonQuery();
+        }
+
+        var account = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
+        var adapter = new RecordingAdapter(JudgeId.Codeforces,
+            [new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 1, 1, 0, null)]);
+
+        await Assert.ThrowsAsync<Microsoft.Data.Sqlite.SqliteException>(() =>
+            CreateService(adapter, database.Store).RunAsync(account, force: false, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task RunAsync_DuplicateStages_MoveLatestReplacementToEndInReportAndSqliteStore()
     {
         using var database = new TemporaryDatabase();

@@ -42,7 +42,7 @@ never means one thing on Windows and something else on Linux. / 两个命令行�
 | 3 | unavailable (offline, network, unobtainable resource) | `Unavailable` | `NetworkError` |
 | 4 | authentication refused for public access | `Authentication` | `AuthenticationError` |
 | 5 | cancelled by the user | `Cancelled` | `Cancelled` |
-| 6 | local storage failure | `Storage` (declared, not emitted yet) | `StorageError` |
+| 6 | local storage failure | `Storage` | `StorageError` |
 | 7 | unexpected internal error | `GeneralError` | `GeneralError` (declared, not emitted yet) |
 
 Before this change the two clients disagreed on 3, 4 and 5: Linux reported an authentication limit
@@ -66,6 +66,11 @@ and exits 4 on Windows and on Linux, while Codeforces `tourist` exits 0 on both.
 This is a breaking change for any local script that hard-coded the old numbers. CI expectations did
 not need editing: both CI workflows only assert exit code 0 on the success path. / 对硬编码旧数字的本地脚本
 属破坏性变更。CI 期望值无需修改：两个 CI 工作流都只在成功路径断言退出码 0。
+
+Windows now emits code 6 for local SQLite and data-directory failures. A failed sync ledger write
+propagates as a storage failure instead of being collapsed into a network report; CLI diagnostics
+remain fixed text without exception details. / Windows 现在会对本地 SQLite 和数据目录故障返回退出码 6。
+同步账本写入失败会作为存储故障向上传递，不再误报为网络故障；CLI 诊断信息保持固定文案，不输出异常细节。
 
 ## WINDOWS PACKAGING HARDENING
 

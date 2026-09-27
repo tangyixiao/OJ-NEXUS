@@ -69,44 +69,62 @@ public sealed class SyncService
         var status = SyncOperationStatus.Running;
         SyncError? error = null;
 
-        try
-        {
-            if (!validatedAccount.Enabled && !force)
-            {
-                status = SyncOperationStatus.Error;
-                error = SyncError.InvalidConfiguration;
-            }
-            else if (!_adapters.TryGetValue(account.Judge, out var adapter) || adapter is null)
-            {
-                status = SyncOperationStatus.Error;
-                error = SyncError.UnsupportedJudge;
-            }
-            else
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var outcomes = await adapter.SyncAsync(validatedAccount, cancellationToken);
-                foreach (var outcome in outcomes)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var storedOutcome = ToStoredOutcome(outcome);
-                    await _store.AppendModuleAsync(operationId, storedOutcome, _clock.UtcNow, CancellationToken.None);
-                    MoveReplacementToEnd(modules, storedOutcome);
-                }
-
-                status = modules.All(module => module.Status == SyncOperationStatus.Success)
-                    ? SyncOperationStatus.Success
-                    : SyncOperationStatus.Partial;
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            status = SyncOperationStatus.Cancelled;
-            error = SyncError.Cancelled;
-        }
-        catch (Exception)
+        if (!validatedAccount.Enabled && !force)
         {
             status = SyncOperationStatus.Error;
-            error = SyncError.Network;
+            error = SyncError.InvalidConfiguration;
+        }
+        else if (!_adapters.TryGetValue(account.Judge, out var adapter) || adapter is null)
+        {
+            status = SyncOperationStatus.Error;
+            error = SyncError.UnsupportedJudge;
+        }
+        else
+        {
+            IReadOnlyList<SyncModuleOutcome>? outcomes = null;
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                outcomes = await adapter.SyncAsync(validatedAccount, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                status = SyncOperationStatus.Cancelled;
+                error = SyncError.Cancelled;
+            }
+            catch (Exception)
+            {
+                status = SyncOperationStatus.Error;
+                error = SyncError.Network;
+            }
+
+            if (outcomes is null && status == SyncOperationStatus.Running)
+            {
+                status = SyncOperationStatus.Error;
+                error = SyncError.Network;
+            }
+            else if (outcomes is not null)
+            {
+                try
+                {
+                    foreach (var outcome in outcomes)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var storedOutcome = ToStoredOutcome(outcome);
+                        await _store.AppendModuleAsync(operationId, storedOutcome, _clock.UtcNow, CancellationToken.None);
+                        MoveReplacementToEnd(modules, storedOutcome);
+                    }
+
+                    status = modules.All(module => module.Status == SyncOperationStatus.Success)
+                        ? SyncOperationStatus.Success
+                        : SyncOperationStatus.Partial;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    status = SyncOperationStatus.Cancelled;
+                    error = SyncError.Cancelled;
+                }
+            }
         }
 
         var finishedAt = _clock.UtcNow;

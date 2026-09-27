@@ -61,11 +61,13 @@ number means the same thing on both clients. Windows emits the categories it can
 | 3 | unavailable — offline, network failure, or a resource this client cannot obtain |
 | 4 | authentication — public access was refused (anonymous authentication limit) |
 | 5 | cancelled — the user cancelled the run |
-| 6 | storage — part of the shared numbering only; this client never emits it |
+| 6 | storage — local SQLite or data-directory failure |
 | 7 | general error — unexpected internal failure |
 
 A run-level error decides the category first; when a run is only partial, the first module that did
 not succeed decides it (authentication → 4, network/offline/unsupported judge → 3, otherwise → 1).
+Storage failures during startup or SQLite access exit 6 with a fixed error message; a failed
+module write is never reported as a network failure. Exception details stay off the CLI output.
 Luogu `uid:2`, whose submissions stage is refused for anonymous callers, exits 4; Codeforces
 `tourist` exits 0.
 

@@ -164,11 +164,27 @@ public sealed class ProgramTests : IDisposable
 
         var (exitCode, output, error) = await RunAsync(["status", "--json"]);
 
-        Assert.Equal((int)CliExitCode.GeneralError, exitCode);
+        Assert.Equal((int)CliExitCode.Storage, exitCode);
         Assert.Equal(string.Empty, output.ToString());
-        Assert.StartsWith("CLI ERROR:", error.ToString(), StringComparison.Ordinal);
+        Assert.StartsWith("STORAGE ERROR:", error.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain("at OjNexus", error.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain("Exception", error.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_DataDirectoryCannotBeCreated_ReportsStorageFailure()
+    {
+        var blockedDirectory = Path.Combine(_dataDirectory, "blocked");
+        File.WriteAllText(blockedDirectory, "file occupies data directory path");
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["status", "--json"], output, error, CancellationToken.None, blockedDirectory);
+
+        Assert.Equal((int)CliExitCode.Storage, exitCode);
+        Assert.Equal(string.Empty, output.ToString());
+        Assert.Equal($"STORAGE ERROR: LOCAL DATA IS UNAVAILABLE.{Environment.NewLine}", error.ToString());
     }
 
     [Fact]

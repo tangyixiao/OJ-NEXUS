@@ -7,8 +7,7 @@ namespace OjNexus.Windows.Cli;
 /// contract — the same number means the same thing on every OJ NEXUS CLI — so renumbering is a
 /// breaking change for scripts and CI expectations.
 ///
-/// A platform only emits the categories it can actually produce. <see cref="Storage"/> is declared
-/// for contract completeness even though the Windows client has no storage failure category today.
+/// A platform only emits the categories it can actually produce.
 /// </summary>
 public enum CliExitCode
 {
@@ -30,7 +29,7 @@ public enum CliExitCode
     /// <summary>The user cancelled the run.</summary>
     Cancelled = 5,
 
-    /// <summary>Local storage failure. Linux only; declared here to keep the numbering shared.</summary>
+    /// <summary>Local storage failure.</summary>
     Storage = 6,
 
     /// <summary>Unexpected internal error.</summary>

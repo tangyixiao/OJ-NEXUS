@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
 
@@ -28,7 +29,17 @@ public static class Program
         try
         {
             var command = CliParser.Parse(args);
-            var bootstrap = Bootstrap.Create(dataDirectoryOverride, adapters);
+            Bootstrap bootstrap;
+            try
+            {
+                bootstrap = Bootstrap.Create(dataDirectoryOverride, adapters);
+            }
+            catch (Exception exception) when (exception is SqliteException or IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                await error.WriteLineAsync("STORAGE ERROR: LOCAL DATA IS UNAVAILABLE.");
+                return (int)CliExitCode.Storage;
+            }
+
             return await ExecuteAsync(command, bootstrap, output, error, cancellationToken);
         }
         catch (CliParseException exception)
@@ -40,6 +51,11 @@ public static class Program
         {
             await error.WriteLineAsync("SYNC: CANCELLED");
             return (int)CliExitCode.Cancelled;
+        }
+        catch (SqliteException)
+        {
+            await error.WriteLineAsync("STORAGE ERROR: LOCAL DATA IS UNAVAILABLE.");
+            return (int)CliExitCode.Storage;
         }
         catch (Exception)
         {
