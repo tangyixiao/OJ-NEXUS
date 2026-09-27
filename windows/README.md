@@ -67,7 +67,8 @@ number means the same thing on both clients. Windows emits the categories it can
 A run-level error decides the category first; when a run is only partial, the first module that did
 not succeed decides it (authentication → 4, network/offline/unsupported judge → 3, otherwise → 1).
 Storage failures during startup or SQLite access exit 6 with a fixed error message; a failed
-module write is never reported as a network failure. Exception details stay off the CLI output.
+module write is closed as an error when possible and is never reported as a network failure.
+Exception details stay off the CLI output.
 Luogu `uid:2`, whose submissions stage is refused for anonymous callers, exits 4; Codeforces
 `tourist` exits 0.
 

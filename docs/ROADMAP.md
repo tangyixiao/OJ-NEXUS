@@ -68,9 +68,11 @@ not need editing: both CI workflows only assert exit code 0 on the success path.
 属破坏性变更。CI 期望值无需修改：两个 CI 工作流都只在成功路径断言退出码 0。
 
 Windows now emits code 6 for local SQLite and data-directory failures. A failed sync ledger write
-propagates as a storage failure instead of being collapsed into a network report; CLI diagnostics
+is closed as an error when the ledger remains writable, then propagates as a storage failure instead
+of being collapsed into a network report; CLI diagnostics
 remain fixed text without exception details. / Windows 现在会对本地 SQLite 和数据目录故障返回退出码 6。
-同步账本写入失败会作为存储故障向上传递，不再误报为网络故障；CLI 诊断信息保持固定文案，不输出异常细节。
+同步账本写入失败时，若账本仍可写则将记录收束为错误状态，再将存储故障向上传递，不再误报为网络故障；
+CLI 诊断信息保持固定文案，不输出异常细节。
 
 ## WINDOWS PACKAGING HARDENING
 

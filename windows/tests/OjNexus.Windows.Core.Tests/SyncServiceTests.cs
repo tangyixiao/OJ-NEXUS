@@ -230,6 +230,11 @@ public sealed class SyncServiceTests
 
         await Assert.ThrowsAsync<Microsoft.Data.Sqlite.SqliteException>(() =>
             CreateService(adapter, database.Store).RunAsync(account, force: false, CancellationToken.None));
+
+        var operation = Assert.Single(await database.Store.GetRecentOperationsAsync(JudgeId.Codeforces, 10, CancellationToken.None));
+        Assert.Equal(SyncOperationStatus.Error, operation.Status);
+        Assert.Null(operation.Error);
+        Assert.Empty(operation.Modules);
     }
 
     [Fact]

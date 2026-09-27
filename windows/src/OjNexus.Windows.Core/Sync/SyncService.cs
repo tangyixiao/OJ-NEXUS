@@ -124,6 +124,22 @@ public sealed class SyncService
                     status = SyncOperationStatus.Cancelled;
                     error = SyncError.Cancelled;
                 }
+                catch (Exception)
+                {
+                    // Preserve the original failure. The ledger may still accept a terminal row
+                    // even when its module write failed, so avoid leaving it marked RUNNING.
+                    try
+                    {
+                        await _store.CloseOperationAsync(
+                            operationId, SyncOperationStatus.Error, null, _clock.UtcNow, CancellationToken.None);
+                    }
+                    catch (Exception)
+                    {
+                        // Storage may be unavailable for both writes.
+                    }
+
+                    throw;
+                }
             }
         }
 
