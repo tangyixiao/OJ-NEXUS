@@ -170,7 +170,14 @@
                       <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
                       <TextBlock Text="{Binding JudgeLabel}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
-                      <TextBlock Grid.Column="1" Text="{Binding Status}" Style="{StaticResource NexusStatusText}" HorizontalAlignment="Right" FontSize="11" FontWeight="SemiBold" />
+                      <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding Status}" Style="{StaticResource NexusStatusText}" HorizontalAlignment="Right" FontSize="11" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+                          <TextBlock Text="LAST SYNC" AutomationProperties.Name="LAST SYNC" FontSize="9" Foreground="{StaticResource NexusMutedTextBrush}" />
+                          <TextBlock Text="{Binding LastSync}" Margin="6,0,0,0" FontSize="9" Foreground="{StaticResource NexusMutedTextBrush}"
+                                     TextTrimming="CharacterEllipsis" ToolTip="{Binding LastSync}" />
+                        </StackPanel>
+                      </StackPanel>
                       <TextBlock Grid.Row="1" Grid.ColumnSpan="3" Text="{Binding Capability}" Margin="0,6,0,14" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
                       <StackPanel Grid.Row="2">
                         <TextBlock Text="PUBLIC HANDLE" Margin="0,0,0,5" FontSize="10" Foreground="{StaticResource NexusMutedTextBrush}" />

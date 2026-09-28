@@ -41,9 +41,10 @@ history and reports a non-success batch result without starting an unsolicited r
 
 The desktop shell marks the current page with a blue navigation rail and uses page-specific
 subtitles. An empty Dashboard points to `OPEN CONNECTORS`; after a public handle is saved, the
-account counts and `SYNC ALL` action update immediately. Connector editors have visible labels,
-and an empty history view offers a route back to connectors. Secondary actions use quiet outlines
-so the current primary action remains clear at both the default and minimum window sizes.
+account counts and `SYNC ALL` action update immediately. Connector editors have visible labels and
+show each judge's latest sync time. An empty history view offers a route back to connectors.
+Secondary actions use quiet outlines so the current primary action remains clear at both the default
+and minimum window sizes.
 
 ## Commands
 

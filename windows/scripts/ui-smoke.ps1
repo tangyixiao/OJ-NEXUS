@@ -381,6 +381,7 @@ try {
     foreach ($judgeName in @('CODEFORCES PUBLIC HANDLE', 'ATCODER PUBLIC HANDLE', 'LUOGU PUBLIC HANDLE')) {
         [void](Require-DescendantByName -Root $root -Name $judgeName)
     }
+    [void](Require-DescendantByName -Root $root -Name 'LAST SYNC')
 
     Set-EditValueByName -Root $root -Name 'CODEFORCES PUBLIC HANDLE' -Value 'tourist'
     Invoke-ButtonByName -Root $root -Name 'CONNECT'

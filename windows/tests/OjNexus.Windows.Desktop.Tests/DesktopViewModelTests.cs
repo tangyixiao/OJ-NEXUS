@@ -24,7 +24,9 @@ public sealed class DesktopViewModelTests
         Assert.Equal(1, viewModel.AccountCount);
         Assert.Equal(1, viewModel.ConnectedJudgeCount);
         Assert.Equal(3, viewModel.Connectors.Count);
-        Assert.Equal("SUCCESS", viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces).Status);
+        var codeforces = viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        Assert.Equal("SUCCESS", codeforces.Status);
+        Assert.Equal("2026-09-12 01:02:03 UTC", codeforces.LastSync);
         Assert.Equal(DesktopPage.Dashboard, viewModel.CurrentPage);
         Assert.Equal("DASHBOARD", viewModel.PageTitle);
         Assert.Equal("LOCAL ACCOUNT STATUS / QUICK ACTIONS", viewModel.PageSubtitle);
