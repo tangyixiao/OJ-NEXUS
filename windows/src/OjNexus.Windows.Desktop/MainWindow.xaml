@@ -29,16 +29,52 @@
       </StackPanel>
 
       <StackPanel Grid.Row="1">
-        <Button Content="DASHBOARD" Tag="Dashboard" Style="{StaticResource NavButton}" Click="Navigate_Click" />
-        <Button Content="CONNECTORS" Tag="Connectors" Style="{StaticResource NavButton}" Click="Navigate_Click" />
-        <Button Content="SYNC HISTORY" Tag="History" Style="{StaticResource NavButton}" Click="Navigate_Click" />
+        <Button Content="DASHBOARD" Tag="Dashboard" Click="Navigate_Click">
+          <Button.Style>
+            <Style TargetType="Button" BasedOn="{StaticResource NavButton}">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsDashboardVisible}" Value="True">
+                  <Setter Property="Foreground" Value="{StaticResource NexusAccentBrush}" />
+                  <Setter Property="Background" Value="{StaticResource NexusSurfaceRaisedBrush}" />
+                  <Setter Property="BorderBrush" Value="{StaticResource NexusAccentBrush}" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Button.Style>
+        </Button>
+        <Button Content="CONNECTORS" Tag="Connectors" Click="Navigate_Click">
+          <Button.Style>
+            <Style TargetType="Button" BasedOn="{StaticResource NavButton}">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsConnectorsVisible}" Value="True">
+                  <Setter Property="Foreground" Value="{StaticResource NexusAccentBrush}" />
+                  <Setter Property="Background" Value="{StaticResource NexusSurfaceRaisedBrush}" />
+                  <Setter Property="BorderBrush" Value="{StaticResource NexusAccentBrush}" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Button.Style>
+        </Button>
+        <Button Content="SYNC HISTORY" Tag="History" Click="Navigate_Click">
+          <Button.Style>
+            <Style TargetType="Button" BasedOn="{StaticResource NavButton}">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsHistoryVisible}" Value="True">
+                  <Setter Property="Foreground" Value="{StaticResource NexusAccentBrush}" />
+                  <Setter Property="Background" Value="{StaticResource NexusSurfaceRaisedBrush}" />
+                  <Setter Property="BorderBrush" Value="{StaticResource NexusAccentBrush}" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Button.Style>
+        </Button>
       </StackPanel>
 
       <StackPanel Grid.Row="2">
         <Border Height="1" Background="{StaticResource NexusBorderBrush}" Margin="0,0,0,16" />
         <TextBlock Text="DATA DIRECTORY" FontSize="10" Foreground="{StaticResource NexusMutedTextBrush}" />
-        <TextBlock Text="{Binding DataDirectory}" TextWrapping="Wrap" Margin="0,5,0,0" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
-        <TextBlock Text="{Binding StatusText}" Margin="0,16,0,0" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource NexusPositiveBrush}" />
+        <TextBlock Text="{Binding DataDirectory}" TextTrimming="CharacterEllipsis" ToolTip="{Binding DataDirectory}" Margin="0,5,0,0" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
+        <TextBlock Text="{Binding StatusText}" Style="{StaticResource NexusStatusText}" Margin="0,16,0,0" FontSize="11" FontWeight="SemiBold" />
       </StackPanel>
     </Grid>
 
@@ -56,9 +92,9 @@
         </Grid.ColumnDefinitions>
         <StackPanel>
           <TextBlock Text="{Binding PageTitle}" FontSize="28" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
-          <TextBlock Text="PUBLIC CONNECTIONS / PERSISTED LOCAL STATE" Margin="0,5,0,0" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
+          <TextBlock Text="{Binding PageSubtitle}" Margin="0,5,0,0" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
         </StackPanel>
-        <Button Grid.Column="1" Content="REFRESH" Style="{StaticResource ActionButton}" Click="Refresh_Click" />
+        <Button Grid.Column="1" Content="REFRESH" Style="{StaticResource QuietActionButton}" Click="Refresh_Click" />
       </Grid>
 
       <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
@@ -93,7 +129,25 @@
                 <TextBlock Text="{Binding LastError}" Margin="0,14,0,0" Foreground="{StaticResource NexusWarningBrush}" TextWrapping="Wrap" />
               </StackPanel>
             </Border>
-            <Button Content="SYNC ALL" Style="{StaticResource ActionButton}" IsEnabled="{Binding CanSyncAll}" Margin="0,18,0,0" Click="SyncAll_Click" />
+            <Border Background="{StaticResource NexusSurfaceBrush}" BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1"
+                    Padding="20" Margin="0,18,0,0" Visibility="{Binding HasNoAccounts, Converter={StaticResource BoolToVisibility}}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Margin="0,0,20,0">
+                  <TextBlock Text="NEXT ACTION" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
+                  <TextBlock Text="CONNECT A PUBLIC HANDLE" Margin="0,7,0,0" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
+                  <TextBlock Text="Add a judge to start a local sync." Margin="0,5,0,0" Foreground="{StaticResource NexusMutedTextBrush}" />
+                </StackPanel>
+                <Button Grid.Column="1" Content="OPEN CONNECTORS" Tag="Connectors" Style="{StaticResource ActionButton}"
+                        VerticalAlignment="Center" Click="Navigate_Click" />
+              </Grid>
+            </Border>
+            <Button Content="SYNC ALL" Style="{StaticResource ActionButton}" IsEnabled="{Binding CanSyncAll}"
+                    Visibility="{Binding HasAccounts, Converter={StaticResource BoolToVisibility}}"
+                    Width="160" HorizontalAlignment="Right" Margin="0,18,0,0" Click="SyncAll_Click" />
           </StackPanel>
 
           <StackPanel Visibility="{Binding IsConnectorsVisible, Converter={StaticResource BoolToVisibility}}">
@@ -116,15 +170,17 @@
                       <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
                       <TextBlock Text="{Binding JudgeLabel}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
-                      <TextBlock Grid.Column="1" Text="{Binding Status}" HorizontalAlignment="Right" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
+                      <TextBlock Grid.Column="1" Text="{Binding Status}" Style="{StaticResource NexusStatusText}" HorizontalAlignment="Right" FontSize="11" FontWeight="SemiBold" />
                       <TextBlock Grid.Row="1" Grid.ColumnSpan="3" Text="{Binding Capability}" Margin="0,6,0,14" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
-                      <TextBox Grid.Row="2"
-                               Text="{Binding Handle, UpdateSourceTrigger=PropertyChanged}"
-                               AutomationProperties.Name="{Binding JudgeLabel, StringFormat={}{0} PUBLIC HANDLE}"
-                               AutomationProperties.HelpText="Enter a public handle only. Credentials and cookies are not accepted."
-                               MinWidth="200" />
-                      <Button Grid.Row="2" Grid.Column="2" Content="{Binding ActionLabel}" Tag="{Binding}" Style="{StaticResource ActionButton}" Margin="12,0,0,0" IsEnabled="{Binding IsEnabled}" Click="ConnectorAction_Click" />
-                      <Button Grid.Row="2" Grid.Column="3" Content="{Binding ToggleLabel}" Tag="{Binding}" Style="{StaticResource ActionButton}" Margin="8,0,0,0" Visibility="{Binding IsConfigured, Converter={StaticResource BoolToVisibility}}" Click="ConnectorToggle_Click" />
+                      <StackPanel Grid.Row="2">
+                        <TextBlock Text="PUBLIC HANDLE" Margin="0,0,0,5" FontSize="10" Foreground="{StaticResource NexusMutedTextBrush}" />
+                        <TextBox Text="{Binding Handle, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.Name="{Binding JudgeLabel, StringFormat={}{0} PUBLIC HANDLE}"
+                                 AutomationProperties.HelpText="Enter a public handle only. Credentials and cookies are not accepted."
+                                 MinWidth="200" />
+                      </StackPanel>
+                      <Button Grid.Row="2" Grid.Column="2" Content="{Binding ActionLabel}" Tag="{Binding}" Style="{StaticResource ActionButton}" Margin="12,0,0,0" VerticalAlignment="Bottom" IsEnabled="{Binding IsEnabled}" Click="ConnectorAction_Click" />
+                      <Button Grid.Row="2" Grid.Column="3" Content="{Binding ToggleLabel}" Tag="{Binding}" Style="{StaticResource QuietActionButton}" Margin="8,0,0,0" VerticalAlignment="Bottom" Visibility="{Binding IsConfigured, Converter={StaticResource BoolToVisibility}}" Click="ConnectorToggle_Click" />
                     </Grid>
                   </Border>
                 </DataTemplate>
@@ -163,14 +219,23 @@
                         <TextBlock Text="{Binding ModuleSummary}" TextWrapping="Wrap" Foreground="{StaticResource NexusMutedTextBrush}" />
                         <TextBlock Text="{Binding StartedAt}" Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
                       </StackPanel>
-                      <TextBlock Grid.Column="3" Text="{Binding Status}" HorizontalAlignment="Right" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
-                      <Button Grid.Column="4" Content="RETRY" Tag="{Binding}" Style="{StaticResource ActionButton}" Visibility="{Binding CanRetry, Converter={StaticResource BoolToVisibility}}" Margin="16,0,0,0" Click="RetryHistory_Click" />
+                      <TextBlock Grid.Column="3" Text="{Binding Status}" Style="{StaticResource NexusStatusText}" HorizontalAlignment="Right" FontWeight="SemiBold" />
+                      <Button Grid.Column="4" Content="RETRY" Tag="{Binding}" Style="{StaticResource QuietActionButton}" Visibility="{Binding CanRetry, Converter={StaticResource BoolToVisibility}}" Margin="16,0,0,0" Click="RetryHistory_Click" />
                     </Grid>
                   </Border>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <TextBlock Text="NO OPERATIONS RECORDED" Visibility="{Binding HasNoHistory, Converter={StaticResource BoolToVisibility}}" Foreground="{StaticResource NexusMutedTextBrush}" Margin="0,16,0,0" />
+            <Border Background="{StaticResource NexusSurfaceBrush}" BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1"
+                    Padding="24" Margin="0,8,0,0" Visibility="{Binding HasNoHistory, Converter={StaticResource BoolToVisibility}}">
+              <StackPanel>
+                <TextBlock Text="NO RECEIPTS IN THIS VIEW" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
+                <TextBlock Text="Run a sync or choose another judge filter to see local receipts."
+                           Margin="0,8,0,16" Foreground="{StaticResource NexusMutedTextBrush}" TextWrapping="Wrap" />
+                <Button Content="OPEN CONNECTORS" Tag="Connectors" Style="{StaticResource QuietActionButton}"
+                        HorizontalAlignment="Left" Click="Navigate_Click" />
+              </StackPanel>
+            </Border>
           </StackPanel>
         </Grid>
       </ScrollViewer>

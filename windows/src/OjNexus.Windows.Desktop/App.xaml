@@ -15,6 +15,33 @@
     <SolidColorBrush x:Key="NexusPositiveBrush" Color="#69D39A" />
     <SolidColorBrush x:Key="NexusWarningBrush" Color="#E8B86A" />
 
+    <Style x:Key="NexusStatusText" TargetType="{x:Type TextBlock}">
+      <Setter Property="Foreground" Value="{StaticResource NexusMutedTextBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="READY">
+          <Setter Property="Foreground" Value="{StaticResource NexusPositiveBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="SUCCESS">
+          <Setter Property="Foreground" Value="{StaticResource NexusPositiveBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="SYNCING">
+          <Setter Property="Foreground" Value="{StaticResource NexusAccentBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="ERROR">
+          <Setter Property="Foreground" Value="{StaticResource NexusWarningBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="PARTIAL">
+          <Setter Property="Foreground" Value="{StaticResource NexusWarningBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="CANCELLED">
+          <Setter Property="Foreground" Value="{StaticResource NexusWarningBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="OFFLINE">
+          <Setter Property="Foreground" Value="{StaticResource NexusWarningBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
     <Style TargetType="{x:Type Window}">
       <Setter Property="FontFamily" Value="Segoe UI" />
       <Setter Property="Foreground" Value="{StaticResource NexusTextBrush}" />
@@ -25,21 +52,23 @@
       <Setter Property="Foreground" Value="{StaticResource NexusMutedTextBrush}" />
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderBrush" Value="Transparent" />
-      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderThickness" Value="0" />
       <Setter Property="HorizontalContentAlignment" Value="Left" />
-      <Setter Property="Padding" Value="14,10" />
-      <Setter Property="Margin" Value="0,3,0,3" />
+      <Setter Property="Padding" Value="15,12" />
+      <Setter Property="Margin" Value="0,2,0,2" />
+      <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="{x:Type Button}">
-            <Border Background="{TemplateBinding Background}"
-                    BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="4"
-                    Padding="{TemplateBinding Padding}">
-              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
-            </Border>
+            <Grid>
+              <Border Width="3" HorizontalAlignment="Left"
+                      Background="{TemplateBinding BorderBrush}" />
+              <Border Margin="3,0,0,0" Background="{TemplateBinding Background}"
+                      Padding="{TemplateBinding Padding}">
+                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+              </Border>
+            </Grid>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
@@ -47,6 +76,42 @@
         <Trigger Property="IsMouseOver" Value="True">
           <Setter Property="Foreground" Value="{StaticResource NexusTextBrush}" />
           <Setter Property="Background" Value="{StaticResource NexusSurfaceRaisedBrush}" />
+        </Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True">
+          <Setter Property="BorderBrush" Value="{StaticResource NexusAccentBrush}" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style x:Key="QuietActionButton" TargetType="{x:Type Button}">
+      <Setter Property="Foreground" Value="{StaticResource NexusAccentBrush}" />
+      <Setter Property="Background" Value="{StaticResource NexusSurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource NexusBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="14,9" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type Button}">
+            <Border Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="4" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="{StaticResource NexusSurfaceRaisedBrush}" />
+          <Setter Property="BorderBrush" Value="{StaticResource NexusAccentBrush}" />
+        </Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True">
+          <Setter Property="BorderBrush" Value="{StaticResource NexusAccentBrush}" />
+        </Trigger>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Opacity" Value="0.55" />
         </Trigger>
       </Style.Triggers>
     </Style>
@@ -77,6 +142,10 @@
           <Setter Property="Background" Value="#73B8FF" />
           <Setter Property="BorderBrush" Value="#73B8FF" />
         </Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True">
+          <Setter Property="BorderBrush" Value="{StaticResource NexusTextBrush}" />
+          <Setter Property="BorderThickness" Value="2" />
+        </Trigger>
         <Trigger Property="IsEnabled" Value="False">
           <Setter Property="Opacity" Value="0.55" />
         </Trigger>
@@ -89,6 +158,11 @@
       <Setter Property="BorderBrush" Value="{StaticResource NexusBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Padding" Value="10,8" />
+      <Style.Triggers>
+        <Trigger Property="IsKeyboardFocused" Value="True">
+          <Setter Property="BorderBrush" Value="{StaticResource NexusAccentBrush}" />
+        </Trigger>
+      </Style.Triggers>
     </Style>
 
     <Style x:Key="NexusScrollThumb" TargetType="{x:Type Thumb}">

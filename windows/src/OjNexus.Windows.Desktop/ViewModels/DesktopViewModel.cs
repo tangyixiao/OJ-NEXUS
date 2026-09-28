@@ -189,6 +189,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             if (SetField(ref _currentPage, value))
             {
                 OnPropertyChanged(nameof(PageTitle));
+                OnPropertyChanged(nameof(PageSubtitle));
                 OnPropertyChanged(nameof(IsDashboardVisible));
                 OnPropertyChanged(nameof(IsConnectorsVisible));
                 OnPropertyChanged(nameof(IsHistoryVisible));
@@ -203,6 +204,13 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         _ => "DASHBOARD",
     };
 
+    public string PageSubtitle => CurrentPage switch
+    {
+        DesktopPage.Connectors => "PUBLIC HANDLES / SYNC CONTROLS",
+        DesktopPage.History => "LOCAL SYNC RECEIPTS / OFFLINE ACCESS",
+        _ => "LOCAL ACCOUNT STATUS / QUICK ACTIONS",
+    };
+
     public bool IsDashboardVisible => CurrentPage == DesktopPage.Dashboard;
 
     public bool IsConnectorsVisible => CurrentPage == DesktopPage.Connectors;
@@ -212,8 +220,19 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     public int AccountCount
     {
         get => _accountCount;
-        private set => SetField(ref _accountCount, value);
+        private set
+        {
+            if (SetField(ref _accountCount, value))
+            {
+                OnPropertyChanged(nameof(HasAccounts));
+                OnPropertyChanged(nameof(HasNoAccounts));
+            }
+        }
     }
+
+    public bool HasAccounts => AccountCount > 0;
+
+    public bool HasNoAccounts => AccountCount == 0;
 
     public int ConnectedJudgeCount
     {
@@ -327,6 +346,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             row.IsConfigured = true;
             row.IsEnabled = account.Enabled;
             row.Status = "READY";
+            UpdateAccountSummary();
             LastError = string.Empty;
             StatusText = "READY";
             OnPropertyChanged(nameof(CanSyncAll));
@@ -443,6 +463,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             await _store.UpsertAccountAsync(account with { Enabled = enabled }, cancellationToken);
             row.IsConfigured = true;
             row.IsEnabled = enabled;
+            UpdateAccountSummary();
             StatusText = "READY";
             LastError = string.Empty;
             OnPropertyChanged(nameof(CanSyncAll));
@@ -620,8 +641,6 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     private void ProjectAccounts(IReadOnlyList<JudgeAccount> accounts, IReadOnlyList<SyncOperation> operations)
     {
         var accountByJudge = accounts.ToDictionary(account => account.Judge);
-        AccountCount = accounts.Count;
-        ConnectedJudgeCount = accounts.Count(account => account.Enabled);
         foreach (var row in Connectors)
         {
             accountByJudge.TryGetValue(row.Judge, out var account);
@@ -635,6 +654,8 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             row.LastSync = latest?.FinishedAt?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "NONE";
         }
 
+        UpdateAccountSummary();
+
         var latestOperation = operations.FirstOrDefault();
         LatestSignal = latestOperation is null
             ? "NO SYNC RECORDED"
@@ -642,6 +663,12 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         LastSync = latestOperation?.FinishedAt?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "NONE";
         LastError = latestOperation is null ? string.Empty : FormatOperationError(latestOperation);
         OnPropertyChanged(nameof(CanSyncAll));
+    }
+
+    private void UpdateAccountSummary()
+    {
+        AccountCount = Connectors.Count(row => row.IsConfigured);
+        ConnectedJudgeCount = Connectors.Count(row => row.IsConfigured && row.IsEnabled);
     }
 
     private static string FormatOperationError(SyncOperation operation)

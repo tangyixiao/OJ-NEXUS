@@ -369,7 +369,7 @@ try {
     }
     Write-Host 'DASHBOARD: RENDERED'
 
-    Invoke-ButtonByName -Root $root -Name 'CONNECTORS'
+    Invoke-ButtonByName -Root $root -Name 'OPEN CONNECTORS'
     [void](Wait-ForElement -Root $root -Name 'PUBLIC HANDLES')
     $editCondition = [System.Windows.Automation.PropertyCondition]::new(
         [System.Windows.Automation.AutomationElement]::ControlTypeProperty,

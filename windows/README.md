@@ -39,6 +39,12 @@ The Dashboard `SYNC ALL` action runs the configured and enabled connectors in or
 unconfigured rows are skipped; a cancellation or failed connector leaves its typed operation in
 history and reports a non-success batch result without starting an unsolicited retry.
 
+The desktop shell marks the current page with a blue navigation rail and uses page-specific
+subtitles. An empty Dashboard points to `OPEN CONNECTORS`; after a public handle is saved, the
+account counts and `SYNC ALL` action update immediately. Connector editors have visible labels,
+and an empty history view offers a route back to connectors. Secondary actions use quiet outlines
+so the current primary action remains clear at both the default and minimum window sizes.
+
 ## Commands
 
 ```powershell

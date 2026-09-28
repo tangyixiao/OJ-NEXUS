@@ -27,6 +27,9 @@ public sealed class DesktopViewModelTests
         Assert.Equal("SUCCESS", viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces).Status);
         Assert.Equal(DesktopPage.Dashboard, viewModel.CurrentPage);
         Assert.Equal("DASHBOARD", viewModel.PageTitle);
+        Assert.Equal("LOCAL ACCOUNT STATUS / QUICK ACTIONS", viewModel.PageSubtitle);
+        Assert.True(viewModel.HasAccounts);
+        Assert.False(viewModel.HasNoAccounts);
     }
 
     [Fact]
@@ -60,6 +63,9 @@ public sealed class DesktopViewModelTests
         connector.Handle = "tourist";
 
         await viewModel.SaveConnectorAsync(connector, CancellationToken.None);
+        Assert.Equal(1, viewModel.AccountCount);
+        Assert.True(viewModel.HasAccounts);
+        Assert.False(viewModel.HasNoAccounts);
         await viewModel.SyncConnectorAsync(connector, CancellationToken.None);
 
         var accounts = await store.GetAccountsAsync(CancellationToken.None);
@@ -81,6 +87,8 @@ public sealed class DesktopViewModelTests
         Assert.True(await viewModel.SetConnectorEnabledAsync(connector, false, CancellationToken.None));
 
         Assert.False(connector.IsEnabled);
+        Assert.Equal(1, viewModel.AccountCount);
+        Assert.Equal(0, viewModel.ConnectedJudgeCount);
         Assert.False((await store.GetAccountsAsync(CancellationToken.None)).Single().Enabled);
         Assert.False(await viewModel.SyncConnectorAsync(connector, CancellationToken.None));
         Assert.Equal("ACCOUNT DISABLED", viewModel.LastError);
