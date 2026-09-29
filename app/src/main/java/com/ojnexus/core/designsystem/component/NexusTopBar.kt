@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
 import com.ojnexus.core.designsystem.NexusTheme
@@ -37,9 +38,11 @@ fun NexusTopBar(
         ) {
             Text(
                 text = title,
-                style = NexusTheme.typography.sectionLabel,
-                color = colors.textSecondary,
+                style = NexusTheme.typography.screenTitle,
+                color = colors.textPrimary,
                 modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             trailing()
         }

@@ -33,7 +33,7 @@ object NexusRadius {
 object NexusSize {
     val topBarHeight = 48.dp
     val bottomBarHeight = 60.dp
-    val commandBarHeight = 36.dp
+    val commandBarHeight = 48.dp
     val commandPaletteMaxHeight = 360.dp
     val commandPaletteRailWidth = 3.dp
     val commandPaletteRailHeight = 40.dp

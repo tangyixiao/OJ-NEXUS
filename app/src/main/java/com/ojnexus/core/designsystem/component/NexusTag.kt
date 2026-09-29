@@ -48,7 +48,7 @@ fun NexusTag(
         modifier = modifier
             .background(background, NexusRadius.xs)
             .border(border, NexusRadius.xs)
-            .padding(horizontal = NexusSpacing.xs, vertical = NexusSpacing.xxxs),
+            .padding(horizontal = NexusSpacing.xs, vertical = NexusSpacing.xxs),
         contentAlignment = Alignment.Center,
     ) {
         Text(

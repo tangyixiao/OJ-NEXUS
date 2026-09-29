@@ -51,6 +51,7 @@ fun NexusBottomBar(
         NexusDivider()
         Row(
             modifier = Modifier.fillMaxWidth().height(NexusSize.commandBarHeight)
+                .clickable(role = Role.Button, onClick = onOpenCommandPalette)
                 .padding(horizontal = NexusSpacing.screenHorizontal),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
@@ -59,7 +60,6 @@ fun NexusBottomBar(
                 text = stringResource(R.string.command_palette_button),
                 style = NexusTheme.typography.sectionLabel,
                 color = colors.accent,
-                modifier = Modifier.clickable(role = Role.Button, onClick = onOpenCommandPalette),
             )
         }
         Row(

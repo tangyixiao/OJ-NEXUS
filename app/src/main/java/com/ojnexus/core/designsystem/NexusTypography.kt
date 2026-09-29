@@ -23,6 +23,8 @@ data class NexusTypography(
     val data: TextStyle,
     /** Dense data: table cells, tags, status labels. */
     val dataSmall: TextStyle,
+    /** Primary title for the current screen. */
+    val screenTitle: TextStyle,
     /** Uppercase section headers. Pass already-uppercased strings. */
     val sectionLabel: TextStyle,
     /** Screen/panel titles. */
@@ -59,10 +61,15 @@ data class NexusTypography(
                     fontSize = 12.sp,
                     letterSpacing = 0.2.sp,
                 ),
+                screenTitle = TextStyle(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp,
+                    letterSpacing = 0.2.sp,
+                ),
                 sectionLabel = TextStyle(
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 11.sp,
-                    letterSpacing = 1.4.sp,
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp,
                 ),
                 title = TextStyle(
                     fontWeight = FontWeight.SemiBold,
