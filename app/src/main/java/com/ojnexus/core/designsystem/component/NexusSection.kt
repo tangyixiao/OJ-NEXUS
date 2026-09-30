@@ -37,7 +37,7 @@ fun NexusSection(
             Text(
                 text = label,
                 style = NexusTheme.typography.sectionLabel,
-                color = NexusTheme.colors.textTertiary,
+                color = NexusTheme.colors.textSecondary,
             )
             trailing?.invoke()
         }

@@ -28,12 +28,12 @@ fun NexusMetric(
 ) {
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(NexusSpacing.xxxs),
+        verticalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
     ) {
         Text(
             text = label,
-            style = NexusTheme.typography.sectionLabel,
-            color = NexusTheme.colors.textTertiary,
+            style = NexusTheme.typography.label,
+            color = NexusTheme.colors.textSecondary,
         )
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
