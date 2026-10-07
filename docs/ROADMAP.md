@@ -3,6 +3,19 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## ANDROID SHARED LAYOUT — Font scaling
+
+Shared section headings now wrap within the space left by their trailing action, with a tokenized
+gap between them. Bottom navigation retains a 60dp minimum and grows to fit wrapped labels;
+all five tabs stay equally tall and their icons and label rows remain aligned. The full-width
+48dp command button and navigation-bar inset remain intact. / 共用区块标题现在在右侧操作剩余的空间内换行，
+并保留设计 token 定义的间距。底部导航保持 60dp 最小高度，按换行文字增高；五个入口等高，图标和标签行对齐。
+命令栏仍为整行 48dp 点击区域，并保留系统导航栏 inset。
+
+Device regression coverage checks long English/Chinese headings, all five destination callbacks,
+command-row edge taps, and title truncation at 320dp / 200% font scale. Validation evidence:
+[`2026-10-01-android-shared-layout.md`](verification/2026-10-01-android-shared-layout.md).
+
 ## WINDOWS VERTICAL SLICE — Native client and CLI
 
 The `windows/` solution now contains a native WPF client with `DASHBOARD`, `CONNECTORS`, and

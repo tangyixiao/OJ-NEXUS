@@ -32,12 +32,13 @@ fun NexusSection(
                 .fillMaxWidth()
                 .padding(bottom = NexusSpacing.xs),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
         ) {
             Text(
                 text = label,
                 style = NexusTheme.typography.sectionLabel,
                 color = NexusTheme.colors.textSecondary,
+                modifier = Modifier.weight(1f),
             )
             trailing?.invoke()
         }
