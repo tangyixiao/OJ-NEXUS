@@ -116,9 +116,15 @@ missing. No installer toolchain is installed. / 本机随 Windows SDK 提供 `si
 ## CURRENT PACKAGE IDENTITY
 
 The current Android package identity is `versionName=0.3.75` and `versionCode=75`. It carries
-the Phase 77 Note Index work described below; the release artifact, signing, and device
-installation gates for this identity have not been re-run yet. / 当前 Android 安装包身份为
-`versionName=0.3.75`、`versionCode=75`，对应下面的第 77 阶段笔记索引；该身份的发布产物、签名和设备安装门禁尚未重新执行。
+the Phase 77 Note Index work described below plus the shared-layout font-scaling fix. The full
+release gate was re-run on this identity: unit tests, debug/release assembly, lint, the 33-test
+device suite on Pixel_9 (API 37), debug-keystore signing verified with schemes v2 and v3, and a
+successful emulator install with a clean post-launch crash scan. Evidence:
+[`v0.3.75.md`](releases/v0.3.75.md). / 当前 Android 安装包身份为
+`versionName=0.3.75`、`versionCode=75`，包含下面的第 77 阶段笔记索引以及共用布局字体缩放修复。
+该身份的完整发布门禁已重跑：单元测试、Debug/Release 构建、Lint、Pixel_9（API 37）上的 33 项设备测试、
+经 v2 与 v3 签名方案校验的 debug-keystore 签名，以及模拟器安装成功且启动后崩溃扫描干净。证据见
+[`v0.3.75.md`](releases/v0.3.75.md)。
 
 ## PHASE 77 — Note Index / 笔记索引
 
