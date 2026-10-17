@@ -81,6 +81,12 @@ class AppContainer(context: android.content.Context) {
 
     fun currentDataGeneration(): String = restoreCoordinator.currentDataGeneration()
 
+    /**
+     * Application context for platform services the UI may reach directly (clipboard, share
+     * sheet). Never an activity, so it leaks nothing.
+     */
+    val appContext: android.content.Context = context.applicationContext
+
     val clock: Clock = Clock.systemDefaultZone()
     val localDaySource: LocalDaySource = SystemLocalDaySource(clock)
 

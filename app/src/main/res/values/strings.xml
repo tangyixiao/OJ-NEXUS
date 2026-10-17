@@ -432,6 +432,8 @@
     <string name="session_summary_wa">WA</string>
     <string name="session_summary_avg">AVG DIFF</string>
     <string name="session_summary_none">—</string>
+    <string name="session_summary_finished">FINISHED</string>
+    <string name="session_summary_cancelled">CANCELLED</string>
     <string name="session_history">RECENT SESSIONS</string>
     <string name="session_history_empty">NO SESSIONS YET</string>
     <string name="session_start">START</string>
@@ -456,6 +458,9 @@
     <string name="session_debrief_schedule_attention">SCHEDULE ATTENTION</string>
     <string name="session_debrief_schedule_attention_cd">Schedule %1$d session problems for review</string>
     <string name="session_debrief_review_ready">REVIEW QUEUE READY</string>
+    <string name="session_debrief_export">EXPORT</string>
+    <string name="session_debrief_export_cd">Export session debrief as Markdown</string>
+    <string name="session_debrief_export_hint">COPY OR SHARE THIS SESSION AS MARKDOWN</string>
 
     <!-- Training screen -->
     <string name="training_section_target">TODAY\'S TARGET</string>

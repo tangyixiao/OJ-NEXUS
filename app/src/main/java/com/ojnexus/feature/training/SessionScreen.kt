@@ -66,6 +66,7 @@ import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
+import com.ojnexus.core.ui.SessionDebriefShare
 import com.ojnexus.core.ui.formatDateTime
 import com.ojnexus.core.ui.formatDuration
 import com.ojnexus.core.ui.labelRes
@@ -74,6 +75,94 @@ import com.ojnexus.core.ui.tone
 private val SessionStatusRailWidth = 3.dp
 private val SessionProgressRailHeight = 4.dp
 private val SessionOpenHeight = 48.dp
+
+private fun exportPayload(
+    session: TrainingSession,
+    summary: SessionSummary?,
+    problems: List<SessionProblem>,
+    typeLabel: String,
+    stateLabel: String,
+    verdictLabels: Map<Verdict, String>,
+    laneLabels: Map<SessionDebriefLane, String>,
+    noneLabel: String,
+    durationLabel: String,
+): SessionDebriefExport = SessionDebriefExport(
+    title = "SESSION DEBRIEF",
+    typeLabel = typeLabel,
+    stateLabel = stateLabel,
+    startedAtLabel = formatDateTime(session.startedAt),
+    finishedAtLabel = session.finishedAt?.let { formatDateTime(it) },
+    durationLabel = summary?.let { "$durationLabel ${formatDuration(it.durationMs / 60_000)}" },
+    targetLabel = session.targetTag?.takeIf { it.isNotBlank() },
+    noteLabel = session.note?.takeIf { it.isNotBlank() },
+    solvedCount = summary?.solvedCount ?: 0,
+    attemptCount = summary?.attemptCount ?: 0,
+    reviewCount = problems.count { it.inReview },
+    rows = problems.map { problem ->
+        SessionDebriefExportRow(
+            judge = problem.judge?.uppercase().orEmpty(),
+            externalId = problem.externalId.orEmpty(),
+            title = problem.title,
+            difficulty = problem.difficulty,
+            attempts = problem.attempts,
+            lane = problem.debriefLane(),
+            verdictLabel = problem.latestVerdict?.let { verdictLabels[it] } ?: noneLabel,
+            reviewLabel = problem.inReview.takeIf { it }?.let {
+                laneLabels[SessionDebriefLane.ATTENTION]
+            },
+        )
+    },
+)
+
+/**
+ * Resolves the debrief labels once and hands back the export action. Keeping the label lookup in
+ * a composable keeps [buildSessionDebriefMarkdown] a pure function of its payload.
+ */
+@Composable
+private fun rememberSessionDebriefExport(context: android.content.Context): (TrainingSession, SessionSummary?, List<SessionProblem>) -> Unit {
+    val typeLabels = TrainingType.entries.associateWith { stringResource(it.labelRes()) }
+    val stateLabels = SessionState.entries.associateWith {
+        stringResource(
+            when (it) {
+                SessionState.FINISHED -> R.string.session_summary_finished
+                SessionState.CANCELLED -> R.string.session_summary_cancelled
+                else -> R.string.session_running_title
+            },
+        )
+    }
+    val verdictLabels = Verdict.entries.associateWith { stringResource(it.labelRes()) }
+    val laneLabels = SessionDebriefLane.entries.associateWith {
+        stringResource(
+            when (it) {
+                SessionDebriefLane.SOLVED -> R.string.session_debrief_solved
+                SessionDebriefLane.ATTENTION -> R.string.session_debrief_attention
+                SessionDebriefLane.PENDING -> R.string.session_debrief_pending
+            },
+        )
+    }
+    val noneLabel = stringResource(R.string.session_summary_none)
+    val durationUnit = stringResource(R.string.session_summary_duration)
+    return { session, summary, problems ->
+        val markdown = buildSessionDebriefMarkdown(
+            exportPayload(
+                session = session,
+                summary = summary,
+                problems = problems,
+                typeLabel = typeLabels[session.type].orEmpty(),
+                stateLabel = stateLabels[session.state].orEmpty(),
+                verdictLabels = verdictLabels,
+                laneLabels = laneLabels,
+                noneLabel = noneLabel,
+                durationLabel = durationUnit,
+            ),
+        )
+        runCatching {
+            context.getSystemService(android.content.ClipboardManager::class.java)
+                ?.setPrimaryClip(android.content.ClipData.newPlainText("SESSION DEBRIEF", markdown))
+        }
+        SessionDebriefShare.share(context, markdown)
+    }
+}
 
 /**
  * Session surface, one route for three states:
@@ -117,6 +206,7 @@ fun SessionScreen(
             }
             is Loadable.Ready -> {
                 val surface = s.value
+                val export = rememberSessionDebriefExport(container.appContext)
                 when {
                     surface.session == null -> SessionCreationForm(
                         problems = problems,
@@ -134,6 +224,7 @@ fun SessionScreen(
                         onOpenProblem = onOpenProblem,
                         onOpenReview = onOpenReview,
                         onScheduleReviews = { ids -> viewModel.scheduleReviews(ids) },
+                        onExport = { export(surface.session, surface.summary, surface.problems) },
                         actionError = surface.actionError,
                     )
                     else -> SessionRunningView(
@@ -408,6 +499,7 @@ private fun SessionSummaryView(
     onOpenProblem: (Long) -> Unit,
     onOpenReview: (Long) -> Unit,
     onScheduleReviews: (List<Long>) -> Unit,
+    onExport: () -> Unit,
     actionError: SessionActionError?,
 ) {
     val colors = NexusTheme.colors
@@ -520,6 +612,7 @@ private fun SessionSummaryView(
         }
         SessionDebriefPanel(
             problems = problems,
+            onExport = onExport,
             onOpenProblem = onOpenProblem,
             onOpenReview = onOpenReview,
             onScheduleReviews = onScheduleReviews,
@@ -534,6 +627,7 @@ private fun SessionSummaryView(
 @Composable
 private fun SessionDebriefPanel(
     problems: List<SessionProblem>,
+    onExport: () -> Unit,
     onOpenProblem: (Long) -> Unit,
     onOpenReview: (Long) -> Unit,
     onScheduleReviews: (List<Long>) -> Unit,
@@ -609,6 +703,23 @@ private fun SessionDebriefPanel(
         Spacer(modifier = Modifier.height(NexusSpacing.sm))
         Row(
             modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.session_debrief_export_hint),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textTertiary,
+                modifier = Modifier.weight(1f),
+            )
+            DebriefFilter(
+                label = stringResource(R.string.session_debrief_export),
+                selected = false,
+                onClick = onExport,
+            )
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
         ) {
             NexusMetric(
@@ -670,7 +781,11 @@ private fun DebriefFilter(
         text = label,
         tone = NexusTone.Accent,
         selected = selected,
-        modifier = Modifier.clickable(role = Role.Button, onClick = onClick),
+        modifier = Modifier
+            .clickable(
+                role = Role.Button,
+                onClickLabel = label,
+            ) { onClick() },
     )
 }
 

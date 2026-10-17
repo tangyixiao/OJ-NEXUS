@@ -397,6 +397,8 @@
     <string name="session_summary_wa">WA</string>
     <string name="session_summary_avg">平均难度</string>
     <string name="session_summary_none">—</string>
+    <string name="session_summary_finished">已完成</string>
+    <string name="session_summary_cancelled">已取消</string>
     <string name="session_history">最近会话</string>
     <string name="session_history_empty">暂无会话</string>
     <string name="session_start">开始</string>
@@ -421,6 +423,9 @@
     <string name="session_debrief_schedule_attention">安排需关注</string>
     <string name="session_debrief_schedule_attention_cd">将 %1$d 道会话题目加入复习</string>
     <string name="session_debrief_review_ready">复习队列已就绪</string>
+    <string name="session_debrief_export">导出</string>
+    <string name="session_debrief_export_cd">将会话复盘导出为 Markdown</string>
+    <string name="session_debrief_export_hint">复制或分享本次会话的 Markdown 复盘</string>
     <string name="training_section_target">今天的目标</string>
     <string name="training_section_weak">薄弱领域</string>
     <string name="training_section_targets">训练目标</string>

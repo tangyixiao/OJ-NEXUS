@@ -97,7 +97,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Constraints: formula documented and unit-tested; deterministic; no fake metrics.
 - DoD: doc updated with formula; tests pin boundary values (0 days, 30 days, cap).
 
-#### ⬜ PHASE 82 — Session debrief export (Markdown)
+#### ✅ PHASE 82 — Session debrief export (Markdown) (v0.3.80, 2026-10-18)
 - Goal: one-tap copy of a terminal session's debrief as Markdown to clipboard/share sheet.
 - Scope: session debrief screen; share via Android `ACTION_SEND`.
 - Constraints: generated text is English telemetry style; no new permissions.
