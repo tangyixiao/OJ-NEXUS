@@ -1,14 +1,20 @@
 package com.ojnexus.core.data.preferences
 
 import android.content.Context
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ojnexus.core.designsystem.NexusThemeSlot
 import com.ojnexus.core.model.JudgeId
+import com.ojnexus.core.model.NoteTemplate
+import com.ojnexus.core.model.NoteTemplateCodec
 import com.ojnexus.core.model.TrainingTarget
 import com.ojnexus.core.model.TrainingTargetPolicy
+import com.ojnexus.core.model.editorFields
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -20,7 +26,12 @@ data class UserPreferences(
     val themeSlot: NexusThemeSlot = NexusThemeSlot.NEXUS_BLUE,
 )
 
-private val Context.userPreferencesDataStore by preferencesDataStore(name = "oj-nexus-preferences")
+internal val Context.userPreferencesDataStore by preferencesDataStore(
+    name = "oj-nexus-preferences",
+)
+
+/** DataStore key for the note template payload; shared with tests that inject a corrupt value. */
+const val NOTE_TEMPLATE_KEY: String = "note_template"
 
 class UserPreferencesRepository(private val context: Context) {
     val preferences: Flow<UserPreferences> = context.userPreferencesDataStore.data
@@ -64,6 +75,29 @@ class UserPreferencesRepository(private val context: Context) {
         return true
     }
 
+    /**
+     * The user's note layout. A corrupt or hand-edited value degrades to
+     * [NoteTemplate.DEFAULT] instead of failing, so the editor always has a usable template.
+     */
+    val noteTemplate: Flow<NoteTemplate> = context.userPreferencesDataStore.data
+        .catch { error ->
+            if (error is IOException) emit(emptyPreferences()) else throw error
+        }
+        .map { values ->
+            values[Keys.NOTE_TEMPLATE]
+                ?.let { NoteTemplateCodec.decode(it) }
+                ?: NoteTemplate.DEFAULT
+        }
+
+    /** Persists [template]; returns false (and writes nothing) when it is invalid. */
+    suspend fun setNoteTemplate(template: NoteTemplate): Boolean {
+        if (!template.validate()) return false
+        context.userPreferencesDataStore.edit { values ->
+            values[Keys.NOTE_TEMPLATE] = NoteTemplateCodec.encode(template)
+        }
+        return true
+    }
+
     suspend fun clearTrainingTarget(judge: JudgeId?) {
         context.userPreferencesDataStore.edit { values ->
             val key = targetKey(judge)
@@ -87,24 +121,25 @@ class UserPreferencesRepository(private val context: Context) {
     private object Keys {
         val REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
         val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
-        val THEME_SLOT = androidx.datastore.preferences.core.stringPreferencesKey("theme_slot")
+        val THEME_SLOT = stringPreferencesKey("theme_slot")
+        val NOTE_TEMPLATE = stringPreferencesKey(NOTE_TEMPLATE_KEY)
     }
 
     private data class TargetKeys(
-        val center: androidx.datastore.preferences.core.Preferences.Key<Int>,
-        val tolerance: androidx.datastore.preferences.core.Preferences.Key<Int>,
+        val center: Preferences.Key<Int>,
+        val tolerance: Preferences.Key<Int>,
     )
 
     private fun targetKey(judge: JudgeId?): TargetKeys {
         val suffix = judge?.id ?: "default"
         return TargetKeys(
-            center = androidx.datastore.preferences.core.intPreferencesKey("training_target_${suffix}_center"),
-            tolerance = androidx.datastore.preferences.core.intPreferencesKey("training_target_${suffix}_tolerance"),
+            center = intPreferencesKey("training_target_${suffix}_center"),
+            tolerance = intPreferencesKey("training_target_${suffix}_tolerance"),
         )
     }
 
     private fun decodeTarget(
-        values: androidx.datastore.preferences.core.Preferences,
+        values: Preferences,
         judge: JudgeId?,
     ): TrainingTarget? {
         val key = targetKey(judge)

@@ -3,6 +3,28 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## NOTE FIELD TEMPLATES
+
+Problem notes now follow a per-user editable template instead of four fixed headings. The template
+lives in the preferences DataStore as an escaped `slot:label:hint` payload, so it survives a restart
+without a Room migration; a corrupt value degrades to the default layout rather than failing. The
+editor renders template fields in order first and then appends any remaining slot that still holds
+saved text, so a renamed or removed heading can never hide existing notes. Reordering, adding,
+renaming, hinting, removing, `RESET` and the `ROOT CAUSE / KEY INSIGHT / PITFALL` preset are all
+available in a bottom sheet behind the note section's `TEMPLATE` action. / 题目笔记现在遵循每用户可编辑的
+模板，而不再是四个固定标题。模板以转义后的 `slot:label:hint` 形式存放在设置 DataStore 中，重启后依然有效，
+且不需要 Room 迁移；损坏的取值会退回到默认布局而不是报错。编辑器先按模板顺序渲染字段，再追加仍然存有内容的
+其余字段，因此重命名或删除标题永远不会隐藏已有笔记。重排、新增、改名、提示、删除、`RESET` 以及
+`ROOT CAUSE / KEY INSIGHT / PITFALL` 预设都在笔记区的 `TEMPLATE` 操作唤起的底部弹层中完成。
+
+Coverage spans the template model (default and preset labels, ordering, cap at four fields, orphan
+saved text, escape-safe codec, malformed payload rejection) and the DataStore round trip including a
+corrupt stored value falling back to the default template. / 测试覆盖模板模型（默认与预设标签、排序、
+四个字段上限、孤立已存文本、转义安全的编解码、非法载荷拒绝）以及 DataStore 的写入读回，包括损坏取值退回默认模板。
+
+The editor adds no network request, no Room migration and no credential flow; it only reshapes local
+note text and a local preference. / 编辑器不引入任何网络请求、Room 迁移或凭据流程，只重组本地笔记文本与本地偏好。
+
 ## ANDROID SHARED LAYOUT — Font scaling
 
 Shared section headings now wrap within the space left by their trailing action, with a tokenized

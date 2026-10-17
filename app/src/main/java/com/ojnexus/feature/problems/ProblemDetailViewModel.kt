@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.ojnexus.core.data.repository.ProblemRepository
 import com.ojnexus.core.data.repository.ReviewRepository
 import com.ojnexus.core.data.repository.KnowledgeRepository
+import com.ojnexus.core.data.preferences.UserPreferencesRepository
 import com.ojnexus.core.model.FailureCategory
+import com.ojnexus.core.model.NoteTemplate
 import com.ojnexus.core.model.ProblemDetail
 import com.ojnexus.core.model.ProblemNotes
 import com.ojnexus.core.model.KnowledgeArea
@@ -47,6 +49,7 @@ data class ProblemDetailUiState(
     val notesDraft: NotesDraft?,
     val notesSaving: Boolean,
     val knowledge: Set<KnowledgeArea> = emptySet(),
+    val noteTemplate: NoteTemplate = NoteTemplate.DEFAULT,
 )
 
 class ProblemDetailViewModel(
@@ -54,6 +57,7 @@ class ProblemDetailViewModel(
     private val problemRepository: ProblemRepository,
     private val reviewRepository: ReviewRepository,
     private val knowledgeRepository: KnowledgeRepository,
+    private val preferencesRepository: UserPreferencesRepository,
 ) : ViewModel() {
 
     private val notesDraft = MutableStateFlow<NotesDraft?>(null)
@@ -63,7 +67,8 @@ class ProblemDetailViewModel(
     val state: StateFlow<Loadable<ProblemDetailUiState>> = kotlinx.coroutines.flow.combine(
         problemRepository.observeDetail(problemId),
         knowledgeRepository.observeRelations(problemId),
-    ) { detail, knowledge ->
+        preferencesRepository.noteTemplate,
+    ) { detail, knowledge, noteTemplate ->
             if (detail == null) {
                 Loadable.Failed(NOT_FOUND)
             } else {
@@ -83,6 +88,7 @@ class ProblemDetailViewModel(
                         notesDraft = notesDraft.value,
                         notesSaving = notesSaving.value,
                         knowledge = knowledge,
+                        noteTemplate = noteTemplate,
                     ),
                 )
             }
@@ -143,6 +149,13 @@ class ProblemDetailViewModel(
 
     fun completeReview(result: ReviewResult) {
         viewModelScope.launch { reviewRepository.completeReview(problemId, result) }
+    }
+
+    // --- Notes template (per-user layout applied to the editor) ---
+
+    /** Persists the note template; invalid templates are refused and nothing is written. */
+    fun setNoteTemplate(template: NoteTemplate) {
+        viewModelScope.launch { preferencesRepository.setNoteTemplate(template) }
     }
 
     // --- Notes (debounced auto-save) ---

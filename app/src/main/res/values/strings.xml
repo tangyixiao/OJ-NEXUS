@@ -279,6 +279,25 @@
     <string name="notes_general">GENERAL NOTES</string>
     <string name="notes_saved">SAVED</string>
     <string name="notes_saving">SAVING</string>
+    <string name="notes_template_action">TEMPLATE</string>
+    <string name="notes_template_title">NOTE TEMPLATE</string>
+    <string name="notes_template_summary">%1$d FIELDS · APPLIED TO NEW NOTES</string>
+    <string name="notes_template_empty">NO TEMPLATE FIELDS — RESET TO THE DEFAULT LAYOUT.</string>
+    <string name="notes_template_field_label">FIELD LABEL</string>
+    <string name="notes_template_field_hint">PROMPT (OPTIONAL)</string>
+    <string name="notes_template_move_up">Move field up</string>
+    <string name="notes_template_move_down">Move field down</string>
+    <string name="notes_template_remove">Remove field</string>
+    <string name="notes_template_add">ADD %1$s</string>
+    <string name="notes_template_slot_used">ALL SLOTS IN USE</string>
+    <string name="notes_template_reset">RESET</string>
+    <string name="notes_template_preset">PRESET: ROOT CAUSE</string>
+    <string name="notes_template_save">SAVE</string>
+    <string name="notes_template_cancel">CANCEL</string>
+    <string name="notes_template_invalid_label">EVERY FIELD NEEDS A LABEL.</string>
+    <string name="notes_template_invalid_empty">AT LEAST ONE FIELD IS REQUIRED.</string>
+    <string name="notes_template_last_field">THE LAST FIELD CANNOT BE REMOVED.</string>
+    <string name="notes_template_saved">TEMPLATE SAVED</string>
 
     <!-- Review -->
     <string name="review_state_none">NOT IN REVIEW</string>
