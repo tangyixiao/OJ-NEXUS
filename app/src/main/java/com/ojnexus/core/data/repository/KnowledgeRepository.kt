@@ -7,7 +7,9 @@ import com.ojnexus.core.domain.MasteryEngine
 import com.ojnexus.core.domain.MasteryReason
 import com.ojnexus.core.model.KnowledgeArea
 import com.ojnexus.core.model.pendingAutoLinks
+import com.ojnexus.core.time.LocalDaySource
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 
 data class KnowledgeAreaState(
@@ -17,41 +19,54 @@ data class KnowledgeAreaState(
     val attempts: Int,
     val failures: Int,
     val score: Int,
+    /** Points removed by time-since-last-AC decay; 0 when nothing decayed. */
+    val decay: Int = 0,
     val reasons: Set<MasteryReason>,
 )
 
 /** Owns explicit knowledge relations and maps SQL evidence through the pure mastery policy. */
-class KnowledgeRepository(private val database: OjNexusDatabase) {
+class KnowledgeRepository(
+    private val database: OjNexusDatabase,
+    private val localDaySource: LocalDaySource,
+) {
     private val knowledgeDao = database.knowledgeDao()
 
     fun observeRelations(problemId: Long): Flow<Set<KnowledgeArea>> = knowledgeDao
         .observeForProblem(problemId)
         .map { rows -> rows.mapNotNull { raw -> KnowledgeArea.entries.firstOrNull { it.name == raw } }.toSet() }
 
-    fun observeMastery(): Flow<List<KnowledgeAreaState>> = knowledgeDao
-        .observePerformance()
-        .map { rows ->
-            val byArea = rows.associateBy { it.area }
-            KnowledgeArea.entries.map { area ->
-                val row = byArea[area.name]
-                val evidence = KnowledgeEvidence(
-                    attemptedProblems = row?.attemptedProblems ?: 0,
-                    solvedProblems = row?.solvedProblems ?: 0,
-                    attempts = row?.attempts ?: 0,
-                    failures = row?.failures ?: 0,
-                )
-                val result = MasteryEngine.evaluate(area, evidence)
-                KnowledgeAreaState(
-                    area = area,
-                    attemptedProblems = evidence.attemptedProblems,
-                    solvedProblems = evidence.solvedProblems,
-                    attempts = evidence.attempts,
-                    failures = evidence.failures,
-                    score = result.score,
-                    reasons = result.reasons,
-                )
+    /**
+     * Mastery per area with the time-since-last-AC decay applied. The local day is read here, so
+     * [MasteryEngine] stays a pure function of its evidence.
+     */
+    fun observeMastery(): Flow<List<KnowledgeAreaState>> = localDaySource.day
+        .flatMapLatest { today ->
+                knowledgeDao.observePerformance(today)
+                    .map { rows ->
+                        val byArea = rows.associateBy { it.area }
+                        KnowledgeArea.entries.map { area ->
+                            val row = byArea[area.name]
+                            val evidence = KnowledgeEvidence(
+                                attemptedProblems = row?.attemptedProblems ?: 0,
+                                solvedProblems = row?.solvedProblems ?: 0,
+                                attempts = row?.attempts ?: 0,
+                                failures = row?.failures ?: 0,
+                                daysSinceLastSolved = row?.daysSinceLastSolved,
+                            )
+                            val result = MasteryEngine.evaluate(area, evidence)
+                            KnowledgeAreaState(
+                                area = area,
+                                attemptedProblems = evidence.attemptedProblems,
+                                solvedProblems = evidence.solvedProblems,
+                                attempts = evidence.attempts,
+                                failures = evidence.failures,
+                                score = result.score,
+                                decay = result.decay,
+                                reasons = result.reasons,
+                            )
+                        }
+                    }
             }
-        }
 
     suspend fun setRelation(problemId: Long, area: KnowledgeArea, selected: Boolean) {
         if (selected) {

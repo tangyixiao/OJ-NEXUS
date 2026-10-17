@@ -90,7 +90,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Constraints: deterministic matching only (exact/alias table in code); no inference, no ML.
 - DoD: unit test on alias matching; unlink persists; no network.
 
-#### ⬜ PHASE 81 — Mastery decay v2
+#### ✅ PHASE 81 — Mastery decay v2 (v0.3.79, 2026-10-18)
 - Goal: mastery score decays with time-since-last-AC per knowledge area; shown as
   `MASTERY 72 ▼ DECAY 8` with the exact formula in `docs/TRAINING_ENGINE.md`.
 - Scope: `core/model` mastery computation, analytics focus lens.

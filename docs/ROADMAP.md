@@ -3,6 +3,29 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## MASTERY DECAY V2
+
+Knowledge mastery now ages. The score keeps its coverage (70 points) and efficiency (30) terms,
+and time since the newest solved problem in the area then removes
+`floor(score * days / 30)` points, capped at 30. An area solved two months ago reads as stale;
+an area never solved has nothing to decay. The result carries both the score and the amount
+removed, so the training screen renders `MASTERY 72 ▼ DECAY 8` and a `STALE` reason tag from one
+evaluation. The engine reads no clock — the repository feeds it the local day delta from the
+existing mastery query — and the formula plus its boundary table live in `docs/TRAINING_ENGINE.md`.
+/ 知识掌握度现在会随时间衰减。分数保留覆盖率（70 分）与效率（30 分）两项，再用该区域内最新解题距今天数
+减去 `floor(score * days / 30)` 分，上限 30 分。两个月前解过的区域会显示为久未复习；从未解过的区域没有可衰减的
+内容。结果同时携带分数与被扣掉的分值，因此训练页可以用一次评估渲染 `MASTERY 72 ▼ DECAY 8` 与 `STALE` 原因标签。
+引擎不读时钟——由仓库把本地日差值从既有的掌握度查询中喂给它——公式与边界表记录在 `docs/TRAINING_ENGINE.md`。
+
+Coverage spans the engine boundaries (0 days, 8 days, the 30-day cap, past the cap, never solved,
+negative deltas, floor-not-round, determinism) and the SQL expression itself, including the null
+case for an area whose problems are attempted but unsolved. / 测试覆盖引擎边界（0 天、8 天、30 天上限、
+超过上限、从未解出、负差值、向下取整、确定性）以及 SQL 表达式本身，包括区域内题目有尝试但未解出时的空值情况。
+
+The feature adds no network request, no Room migration and no credential flow; it only reshapes
+locally stored mastery evidence into a fresher score. / 该功能不引入任何网络请求、Room 迁移或凭据流程，
+只把本地已存储的掌握度证据重组成更有时效的分数。
+
 ## KNOWLEDGE AUTO-LINKING
 
 Problem detail can now bridge local tags to knowledge areas in one tap. A fixed alias table in

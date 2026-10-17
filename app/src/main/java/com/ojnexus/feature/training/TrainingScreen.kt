@@ -816,7 +816,16 @@ private fun KnowledgeSection(areas: List<KnowledgeAreaState>) {
                     text = stringResource(R.string.knowledge_score, area.score),
                     style = NexusTheme.typography.dataSmall,
                     color = if (area.score >= 80) NexusTheme.colors.success else NexusTheme.colors.accent,
+                    modifier = Modifier.padding(start = NexusSpacing.xs),
                 )
+                if (area.decay > 0) {
+                    Text(
+                        text = stringResource(R.string.knowledge_decay, area.decay),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.textTertiary,
+                        modifier = Modifier.padding(start = NexusSpacing.xxs),
+                    )
+                }
             }
             if (index != areas.lastIndex) NexusDivider(insetEnd = NexusSpacing.xxs)
         }

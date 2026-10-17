@@ -36,6 +36,7 @@ fun MasteryReason.labelRes(): Int = when (this) {
     MasteryReason.NO_EVIDENCE -> R.string.mastery_reason_no_evidence
     MasteryReason.LOW_AC_RATE -> R.string.mastery_reason_low_ac
     MasteryReason.FAILURE_LOG -> R.string.mastery_reason_failures
+    MasteryReason.DECAY -> R.string.mastery_reason_decay
 }
 
 @StringRes

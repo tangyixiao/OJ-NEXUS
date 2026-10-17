@@ -91,7 +91,7 @@ class AppContainer(context: android.content.Context) {
     val trainingRepository: TrainingRepository = TrainingRepository(database, clock)
     val analyticsRepository: AnalyticsRepository = AnalyticsRepository(database, clock)
     val contestFocusRepository: ContestFocusRepository = ContestFocusRepository(database, clock)
-    val knowledgeRepository: KnowledgeRepository = KnowledgeRepository(database)
+    val knowledgeRepository: KnowledgeRepository = KnowledgeRepository(database, localDaySource)
     val backupRepository: BackupRepository = BackupRepository(database, context)
     val userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepository(context)
     val workspaceDraftRepository = RoomWorkspaceDraftRepository(database.workspaceDraftDao(), clock)
