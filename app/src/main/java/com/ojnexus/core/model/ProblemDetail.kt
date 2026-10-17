@@ -25,6 +25,8 @@ data class ReviewQueueItem(
     val dueDayIndex: Long,
     val lastResult: ReviewResult?,
     val externalId: String? = null,
+    /** Local knowledge tags; empty when the problem carries none. */
+    val tags: List<String> = emptyList(),
 )
 
 /** One row of the cross-judge recent activity feed. */

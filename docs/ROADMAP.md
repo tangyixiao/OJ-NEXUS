@@ -3,6 +3,30 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## REVIEW DECK SHUFFLE & CRAM MODE
+
+The review run now controls its own deck order. `SCHEDULE` keeps the due-day order; `SHUFFLE` permutes
+the same queue with a per-local-day seed, so the order is stable within one day and reshuffles the
+next; `CRAM` ignores the schedule and takes a user-picked judge plus an optional knowledge tag, then
+shuffles that slice with the same seed. The review queue now exposes each problem's local tags, so a
+cram slice can be as specific as "CODEFORCES + DP". The deck freezes once the first outcome is
+recorded, so a run never reorders under the user. / 连续复习现在可以自己控制组卷顺序。`SCHEDULE`
+保持到期日顺序；`SHUFFLE` 使用按本地日期生成的种子打乱同一队列，因此一天内顺序稳定、次日重新洗牌；
+`CRAM` 无视排期，只取用户选定的评测机加可选知识标签，再用同一种子打乱该切片。复习队列现在会带上每道题的
+本地标签，所以 cram 切片可以精确到「CODEFORCES + DP」。一旦记录了第一个结果，组卷即刻冻结，复习过程中不会重排。
+
+All ordering lives in a pure `ReviewDeck` helper (schedule comparator, seeded Fisher–Yates, cram
+filter) with a polled `java.util.Random` — no Android or clock dependency — and the view model only
+snapshots the mode, filter and seed. Mode switching, tag chips and the shuffle seed are covered by
+unit tests, including determinism, permutation invariants, an unusable cram filter being refused,
+and a run freezing after its first outcome. / 所有排序都在纯函数 `ReviewDeck` 中完成
+（排期比较器、带种子的 Fisher–Yates、cram 过滤），只依赖 `java.util.Random`，不碰 Android 或时钟；
+ViewModel 只快照模式、过滤条件和种子。模式切换、标签 chip 与随机种子均有单元测试，覆盖确定性、
+排列不变性、不可用 cram 过滤被拒绝、以及首次记录结果后冻结。
+
+The deck mode changes only the local ordering of an existing queue; it adds no network request, no
+Room migration and no credential flow. / 组卷模式只改变本地队列顺序，不引入网络请求、Room 迁移或凭据流程。
+
 ## NOTE FIELD TEMPLATES
 
 Problem notes now follow a per-user editable template instead of four fixed headings. The template

@@ -302,6 +302,18 @@
     <string name="review_run_close">结束复习</string>
     <string name="review_run_next_cd">进入下一道复习题</string>
     <string name="review_run_close_cd">结束连续复习</string>
+    <!-- Review deck shuffle & cram mode -->
+    <string name="review_deck_mode">组卷模式</string>
+    <string name="review_deck_schedule">计划顺序</string>
+    <string name="review_deck_shuffle">随机</string>
+    <string name="review_deck_cram"> cram 模式</string>
+    <string name="review_deck_cram_judge">评测机</string>
+    <string name="review_deck_cram_tag">标签</string>
+    <string name="review_deck_cram_hint">先选择评测机，可按标签继续收窄。</string>
+    <string name="review_deck_cram_empty">没有题目匹配该 cram 条件。</string>
+    <string name="review_deck_shuffle_seed">随机种子 %1$d</string>
+    <string name="review_deck_cram_selected"> cram 切片共 %1$d 题</string>
+    <string name="review_deck_cram_tag_hint">标签（可选）</string>
     <string name="training_section_session">会话</string>
     <string name="training_section_pulse">训练脉冲</string>
     <string name="training_pulse_overdue">逾期</string>

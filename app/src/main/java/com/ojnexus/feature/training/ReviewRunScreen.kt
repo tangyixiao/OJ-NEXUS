@@ -91,6 +91,8 @@ fun ReviewRunScreen(onDone: () -> Unit) {
                 onRecord = viewModel::record,
                 onNext = viewModel::next,
                 onDone = onDone,
+                onDeckMode = viewModel::setDeckMode,
+                onCramFilter = viewModel::setCramFilter,
             )
         }
     }
@@ -102,6 +104,8 @@ private fun ReviewRunContent(
     onRecord: (ReviewResult) -> Unit,
     onNext: () -> Unit,
     onDone: () -> Unit,
+    onDeckMode: (ReviewDeckMode) -> Unit,
+    onCramFilter: (ReviewCramFilter) -> Unit,
 ) {
     val colors = NexusTheme.colors
     val reduceMotion = NexusTheme.reduceMotion
@@ -120,6 +124,12 @@ private fun ReviewRunContent(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = NexusSpacing.screenHorizontal),
     ) {
+        Spacer(modifier = Modifier.height(NexusSpacing.md))
+        ReviewDeckControls(
+            uiState = uiState,
+            onDeckMode = onDeckMode,
+            onCramFilter = onCramFilter,
+        )
         Spacer(modifier = Modifier.height(NexusSpacing.md))
         NexusSection(label = stringResource(R.string.review_run_progress)) {
             Row(
@@ -388,5 +398,202 @@ private fun ReviewRunActionButton(
         contentAlignment = Alignment.Center,
     ) {
         Text(text = label, style = NexusTheme.typography.data, color = colors.accent)
+    }
+}
+
+/**
+ * Deck controls: schedule / shuffle / cram. Cram needs a judge (and optionally a tag) so the
+ * user can force a slice they actually want to drill instead of the schedule's order.
+ */
+@Composable
+private fun ReviewDeckControls(
+    uiState: ReviewRunUiState,
+    onDeckMode: (ReviewDeckMode) -> Unit,
+    onCramFilter: (ReviewCramFilter) -> Unit,
+) {
+    NexusSection(label = stringResource(R.string.review_deck_mode)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+        ) {
+            ReviewDeckMode.entries.forEach { mode ->
+                ReviewDeckModeChip(
+                    mode = mode,
+                    selected = uiState.mode == mode,
+                    onClick = { onDeckMode(mode) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        if (uiState.mode == ReviewDeckMode.SHUFFLE) {
+            Spacer(modifier = Modifier.height(NexusSpacing.xs))
+            Text(
+                text = stringResource(
+                    R.string.review_deck_shuffle_seed,
+                    uiState.deckSeed.toInt(),
+                ),
+                style = NexusTheme.typography.dataSmall,
+                color = NexusTheme.colors.textSecondary,
+            )
+        }
+        if (uiState.mode == ReviewDeckMode.CRAM) {
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            ReviewCramControls(
+                availableJudges = uiState.availableJudges,
+                availableTags = uiState.availableTags,
+                filter = uiState.cramFilter,
+                onFilter = onCramFilter,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewDeckModeChip(
+    mode: ReviewDeckMode,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = NexusTheme.colors
+    val label = stringResource(
+        when (mode) {
+            ReviewDeckMode.SCHEDULE -> R.string.review_deck_schedule
+            ReviewDeckMode.SHUFFLE -> R.string.review_deck_shuffle
+            ReviewDeckMode.CRAM -> R.string.review_deck_cram
+        },
+    )
+    val foreground = if (selected) colors.accent else colors.textSecondary
+    Box(
+        modifier = modifier
+            .height(NexusSize.reviewRunActionHeight)
+            .background(colors.surface, NexusRadius.sm)
+            .border(
+                width = if (selected) NexusSize.dividerThickness * 2 else NexusSize.dividerThickness,
+                color = foreground,
+                shape = NexusRadius.sm,
+            )
+            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text = label, style = NexusTheme.typography.data, color = foreground)
+    }
+}
+
+@Composable
+private fun ReviewCramControls(
+    availableJudges: List<String>,
+    availableTags: List<String>,
+    filter: ReviewCramFilter,
+    onFilter: (ReviewCramFilter) -> Unit,
+) {
+    val colors = NexusTheme.colors
+    if (availableJudges.isEmpty()) {
+        Text(
+            text = stringResource(R.string.review_deck_cram_empty),
+            style = NexusTheme.typography.dataSmall,
+            color = colors.danger,
+        )
+        return
+    }
+    Text(
+        text = stringResource(R.string.review_deck_cram_hint),
+        style = NexusTheme.typography.dataSmall,
+        color = colors.textSecondary,
+    )
+    Spacer(modifier = Modifier.height(NexusSpacing.xs))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+    ) {
+        availableJudges.forEach { judge ->
+            ReviewCramChoiceChip(
+                text = judge,
+                selected = filter.judge == judge,
+                onClick = {
+                    onFilter(
+                        filter.copy(
+                            judge = if (filter.judge == judge) null else judge,
+                            tag = "",
+                        ),
+                    )
+                },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+    if (filter.judge != null) {
+        Spacer(modifier = Modifier.height(NexusSpacing.xs))
+        Text(
+            text = stringResource(R.string.review_deck_cram_tag_hint),
+            style = NexusTheme.typography.dataSmall,
+            color = colors.textSecondary,
+        )
+        Spacer(modifier = Modifier.height(NexusSpacing.xs))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+        ) {
+            ReviewDeckKnownTagChips(
+                availableTags = availableTags,
+                filter = filter,
+                onFilter = onFilter,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewDeckKnownTagChips(
+    availableTags: List<String>,
+    filter: ReviewCramFilter,
+    onFilter: (ReviewCramFilter) -> Unit,
+) {
+    if (availableTags.isEmpty()) {
+        Text(
+            text = stringResource(R.string.review_deck_cram_empty),
+            style = NexusTheme.typography.dataSmall,
+            color = NexusTheme.colors.textSecondary,
+        )
+        return
+    }
+    availableTags.forEach { tag ->
+        ReviewCramChoiceChip(
+            text = tag,
+            selected = filter.tag.equals(tag, ignoreCase = true),
+            onClick = {
+                val next = if (filter.tag.equals(tag, ignoreCase = true)) "" else tag
+                onFilter(filter.copy(tag = next))
+            },
+        )
+    }
+}
+
+@Composable
+private fun ReviewCramChoiceChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = NexusTheme.colors
+    val foreground = if (selected) colors.accent else colors.textSecondary
+    Box(
+        modifier = modifier
+            .height(NexusSize.reviewRunActionHeight)
+            .background(colors.surface, NexusRadius.sm)
+            .border(NexusSize.dividerThickness, foreground, NexusRadius.sm)
+            .clickable(role = Role.Button, onClickLabel = text, onClick = onClick)
+            .semantics { contentDescription = text },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            style = NexusTheme.typography.data,
+            color = foreground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }

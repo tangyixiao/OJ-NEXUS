@@ -76,7 +76,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Constraints: local-only; no network; no Room version bump unless justified in the spec.
 - DoD: template applied on new note; existing notes untouched; unit test on template fill.
 
-#### ⬜ PHASE 79 — Review deck shuffle & cram mode
+#### ✅ PHASE 79 — Review deck shuffle & cram mode (v0.3.77, 2026-10-18)
 - Goal: Review Run gains deterministic shuffle (seeded by date) and a CRAM mode that ignores
   schedule and takes a user-picked judge+tag slice.
 - Scope: `feature/training` review run screen + view model.

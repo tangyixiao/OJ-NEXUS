@@ -335,6 +335,18 @@
     <string name="review_run_close">CLOSE RUN</string>
     <string name="review_run_next_cd">Advance to the next review item</string>
     <string name="review_run_close_cd">Close the review run</string>
+    <!-- Review deck shuffle & cram mode -->
+    <string name="review_deck_mode">DECK MODE</string>
+    <string name="review_deck_schedule">SCHEDULE</string>
+    <string name="review_deck_shuffle">SHUFFLE</string>
+    <string name="review_deck_cram">CRAM</string>
+    <string name="review_deck_cram_judge">JUDGE</string>
+    <string name="review_deck_cram_tag">TAG</string>
+    <string name="review_deck_cram_hint">PICK A JUDGE, THEN OPTIONALLY NARROW BY TAG.</string>
+    <string name="review_deck_cram_empty">NO PROBLEMS MATCH THIS CRAM FILTER.</string>
+    <string name="review_deck_shuffle_seed">SHUFFLE SEED %1$d</string>
+    <string name="review_deck_cram_selected">%1$d IN CRAM SLICE</string>
+    <string name="review_deck_cram_tag_hint">TAG (OPTIONAL)</string>
 
     <!-- Sessions -->
     <string name="training_section_session">SESSION</string>

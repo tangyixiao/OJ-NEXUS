@@ -111,6 +111,48 @@ class ReviewRunViewModelTest {
         assertEquals("LOAD FAILED", recovered.error)
     }
 
+    @Test
+    fun `deck mode and cram filter rebuild the deck before the first outcome`() = runBlocking {
+        val first = insertDueReview("4A", "Alpha", dueAt = 20L, tag = "DP")
+        val second = insertDueReview("4B", "Beta", dueAt = 10L, tag = "MATH")
+        val viewModel = ReviewRunViewModel(
+            reviewRepository = reviewRepository,
+            clock = clock,
+            localizedErrorMessage = { "LOAD FAILED" },
+        )
+
+        val schedule = awaitReady(viewModel) { it.total == 2 }
+        assertEquals(ReviewDeckMode.SCHEDULE, schedule.mode)
+        assertEquals(listOf(second, first), schedule.captured.map { it.problemId })
+        assertEquals(listOf("CODEFORCES"), schedule.availableJudges)
+        assertEquals(listOf("DP", "MATH"), schedule.availableTags)
+
+        viewModel.setDeckMode(ReviewDeckMode.SHUFFLE)
+        val shuffled = awaitReady(viewModel) { it.mode == ReviewDeckMode.SHUFFLE }
+        assertEquals(setOf(first, second), shuffled.captured.map { it.problemId }.toSet())
+        assertEquals(reviewDeckSeed(clock.instant().atZone(clock.zone).toLocalDate().toEpochDay()), shuffled.deckSeed)
+
+        // A cram slice that excludes everything empties the deck without dropping the mode.
+        viewModel.setDeckMode(ReviewDeckMode.CRAM)
+        viewModel.setCramFilter(ReviewCramFilter(judge = "ATCODER", tag = "DP"))
+        val empty = awaitReady(viewModel) { it.mode == ReviewDeckMode.CRAM && it.total == 0 }
+        assertEquals(ReviewDeckMode.CRAM, empty.mode)
+
+        // An unusable filter is refused while CRAM is active, so the deck stays runnable.
+        viewModel.setCramFilter(ReviewCramFilter(judge = null, tag = "DP"))
+        assertEquals(ReviewDeckMode.CRAM, awaitReady(viewModel) { it.total == 0 }.mode)
+
+        viewModel.setCramFilter(ReviewCramFilter(judge = "CODEFORCES", tag = "DP"))
+        val crammed = awaitReady(viewModel) { it.total == 1 }
+        assertEquals(listOf(first), crammed.captured.map { it.problemId })
+
+        // Once an outcome is recorded the deck freezes: mode changes are ignored.
+        viewModel.record(ReviewResult.PASS)
+        awaitReady(viewModel) { it.completedCount == 1 }
+        viewModel.setDeckMode(ReviewDeckMode.SCHEDULE)
+        assertEquals(ReviewDeckMode.CRAM, awaitReady(viewModel) { it.completedCount == 1 }.mode)
+    }
+
     private suspend fun awaitReady(
         viewModel: ReviewRunViewModel,
         predicate: (ReviewRunUiState) -> Boolean,
@@ -124,10 +166,15 @@ class ReviewRunViewModelTest {
         error("timed out waiting for review run state")
     }
 
-    private suspend fun insertDueReview(code: String, title: String, dueAt: Long): Long {
+    private suspend fun insertDueReview(
+        code: String,
+        title: String,
+        dueAt: Long,
+        tag: String? = null,
+    ): Long {
         val problemId = database.problemDao().insert(
             ProblemEntity(
-                judge = "CODEFORCES",
+                judge = "codeforces",
                 externalId = code,
                 title = title,
                 difficulty = 800,
@@ -135,6 +182,16 @@ class ReviewRunViewModelTest {
                 updatedAt = clock.millis(),
             ),
         )
+        if (tag != null) {
+            val tagId = database.problemDao().insertTag(
+                com.ojnexus.core.database.entity.ProblemTagEntity(name = tag),
+            )
+            database.problemDao().insertTagCrossRef(
+                com.ojnexus.core.database.entity.ProblemTagCrossRef(
+                    problemId = problemId,
+                    tagId = tagId,
+                ),
+            )        }
         database.reviewDao().upsert(
             ReviewEntity(
                 problemId = problemId,
