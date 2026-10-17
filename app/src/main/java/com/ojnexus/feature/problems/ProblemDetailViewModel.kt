@@ -11,6 +11,8 @@ import com.ojnexus.core.model.NoteTemplate
 import com.ojnexus.core.model.ProblemDetail
 import com.ojnexus.core.model.ProblemNotes
 import com.ojnexus.core.model.KnowledgeArea
+import com.ojnexus.core.model.autoLinkedKnowledgeAreas
+import com.ojnexus.core.model.pendingAutoLinks
 import com.ojnexus.core.model.ReviewResult
 import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.ui.Loadable
@@ -50,6 +52,8 @@ data class ProblemDetailUiState(
     val notesSaving: Boolean,
     val knowledge: Set<KnowledgeArea> = emptySet(),
     val noteTemplate: NoteTemplate = NoteTemplate.DEFAULT,
+    /** Areas the tag alias table matches but the user has not linked yet. */
+    val autoLinkCandidates: List<KnowledgeArea> = emptyList(),
 )
 
 class ProblemDetailViewModel(
@@ -89,6 +93,7 @@ class ProblemDetailViewModel(
                         notesSaving = notesSaving.value,
                         knowledge = knowledge,
                         noteTemplate = noteTemplate,
+                        autoLinkCandidates = pendingAutoLinks(detail.problem.tags, knowledge),
                     ),
                 )
             }
@@ -102,6 +107,27 @@ class ProblemDetailViewModel(
 
     fun setKnowledge(area: KnowledgeArea, selected: Boolean) {
         viewModelScope.launch { knowledgeRepository.setRelation(problemId, area, selected) }
+    }
+
+    /**
+     * Links every area the tag alias table matches for this problem. Deterministic: the same
+     * tags always produce the same links, and already-linked areas are never rewritten.
+     */
+    fun autoLinkKnowledge() {
+        viewModelScope.launch {
+            val detail = problemRepository.findProblem(problemId) ?: return@launch
+            knowledgeRepository.autoLink(problemId, detail.tags)
+        }
+    }
+
+    /** Removes the auto-linked areas only; hand-picked links are left untouched. */
+    fun clearAutoLinks() {
+        viewModelScope.launch {
+            val tags = problemRepository.findProblem(problemId)?.tags ?: return@launch
+            autoLinkedKnowledgeAreas(tags).forEach { area ->
+                knowledgeRepository.setRelation(problemId, area, false)
+            }
+        }
     }
 
     fun deleteProblem(onDeleted: () -> Unit) {

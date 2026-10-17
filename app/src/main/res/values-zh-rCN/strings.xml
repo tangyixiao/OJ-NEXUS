@@ -208,6 +208,11 @@
     <string name="detail_section_review">复习</string>
     <string name="detail_section_knowledge">知识点</string>
     <string name="knowledge_relation_hint">选择这道题训练的知识领域。</string>
+    <string name="knowledge_auto_link">自动</string>
+    <string name="knowledge_auto_link_hint">由本题标签匹配得出。</string>
+    <string name="knowledge_auto_link_count">已自动关联 %1$d 项</string>
+    <string name="knowledge_auto_link_clear">清除自动关联</string>
+    <string name="knowledge_auto_link_cd">自动关联该知识领域</string>
     <string name="detail_section_actions">操作</string>
     <string name="problem_field_first_ac">首次 AC</string>
     <string name="problem_field_last_attempt">最近提交</string>

@@ -62,6 +62,7 @@ import com.ojnexus.core.model.NoteTemplate
 import com.ojnexus.core.model.NoteTemplateField
 import com.ojnexus.core.model.ProblemDetail
 import com.ojnexus.core.model.KnowledgeArea
+import com.ojnexus.core.model.autoLinkedKnowledgeAreas
 import com.ojnexus.core.model.ReviewResult
 import com.ojnexus.core.model.Verdict
 import com.ojnexus.core.model.editorFields
@@ -298,6 +299,31 @@ private fun DetailContent(
                 color = colors.textTertiary,
                 modifier = Modifier.padding(bottom = NexusSpacing.xs),
             )
+            val autoLinked = autoLinkedKnowledgeAreas(detail.problem.tags)
+            val autoLinkedHere = autoLinked.filter { it in uiState.knowledge }
+            if (autoLinkedHere.isNotEmpty()) {
+                Text(
+                    text = stringResource(
+                        R.string.knowledge_auto_link_count,
+                        autoLinkedHere.size,
+                    ),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(bottom = NexusSpacing.xs),
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+                if (uiState.autoLinkCandidates.isNotEmpty()) {
+                    ActionChip(stringResource(R.string.knowledge_auto_link)) {
+                        viewModel.autoLinkKnowledge()
+                    }
+                }
+                if (autoLinkedHere.isNotEmpty()) {
+                    ActionChip(stringResource(R.string.knowledge_auto_link_clear)) {
+                        viewModel.clearAutoLinks()
+                    }
+                }
+            }
             KnowledgeArea.entries.chunked(2).forEach { rowAreas ->
                 Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
                     rowAreas.forEach { area ->

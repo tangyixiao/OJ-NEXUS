@@ -233,6 +233,11 @@
     <string name="detail_section_review">REVIEW</string>
     <string name="detail_section_knowledge">KNOWLEDGE</string>
     <string name="knowledge_relation_hint">SELECT THE KNOWLEDGE AREAS THIS PROBLEM TRAINS.</string>
+    <string name="knowledge_auto_link">AUTO</string>
+    <string name="knowledge_auto_link_hint">MATCHED FROM THIS PROBLEM\'S TAGS.</string>
+    <string name="knowledge_auto_link_count">%1$d AUTO-LINKED</string>
+    <string name="knowledge_auto_link_clear">CLEAR AUTO</string>
+    <string name="knowledge_auto_link_cd">Link this area automatically</string>
     <string name="detail_section_actions">ACTIONS</string>
     <string name="problem_field_first_ac">FIRST AC</string>
     <string name="problem_field_last_attempt">LAST ATTEMPT</string>

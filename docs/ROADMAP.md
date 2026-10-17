@@ -3,6 +3,31 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## KNOWLEDGE AUTO-LINKING
+
+Problem detail can now bridge local tags to knowledge areas in one tap. A fixed alias table in
+`core/model` maps judge tag spellings to the ten knowledge areas, matching is exact after
+normalization, and the result is returned in enum declaration order so the same tags always
+produce the same links. AUTO writes only the areas that are not linked yet, so a repeated tap
+changes nothing and a manual link is never overwritten; CLEAR AUTO removes only the derived set
+and leaves hand-picked links intact. The candidate count is derived inside the existing detail
+`combine`, so the actions appear and disappear with the data instead of adding a new flow. /
+题目详情现在可以一键把本地标签桥接到知识区域。`core/model` 中的固定别名表把评测机标签拼写映射到十个知识
+区域，匹配在归一化后精确进行，结果按枚举声明顺序返回，因此同样的标签总是产生同样的链接。AUTO 只写入尚未链接的
+区域，重复点击不会改变任何内容，手动链接也永不被覆盖；CLEAR AUTO 只移除自动派生的链接，手选链接保持不变。候选数量
+在既有的详情 `combine` 中推导，操作随数据出现与消失，不新增数据流。
+
+Coverage spans exact and case/whitespace-insensitive alias matching, Chinese aliases, one area per
+alias, declaration-order output, unknown and blank tags linking nothing, the alias table never
+mapping one alias to two areas, `pendingAutoLinks` subtracting the linked set, and determinism
+across repeated calls. / 测试覆盖精确与大小写/空格不敏感的别名匹配、中文别名、一个别名对应一个区域、
+按声明顺序输出、未知与空白标签不产生链接、别名表不会把同一别名映射到两个区域、`pendingAutoLinks` 减去已链接
+集合、以及重复调用的确定性。
+
+The feature adds no network request, no Room migration and no credential flow; it only links
+existing local tags to existing local knowledge areas. / 该功能不引入任何网络请求、Room 迁移或凭据流程，
+只把已有的本地标签链接到已有的本地知识区域。
+
 ## REVIEW DECK SHUFFLE & CRAM MODE
 
 The review run now controls its own deck order. `SCHEDULE` keeps the due-day order; `SHUFFLE` permutes

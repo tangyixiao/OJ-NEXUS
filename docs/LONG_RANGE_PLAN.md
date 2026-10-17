@@ -83,7 +83,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Constraints: reuses existing review transaction; no schema change; reduced-motion safe.
 - DoD: unit tests for ordering determinism; PASS/HARD/FAIL/SKIP unchanged.
 
-#### ⬜ PHASE 80 — Knowledge area auto-linking
+#### ✅ PHASE 80 — Knowledge area auto-linking (v0.3.78, 2026-10-18)
 - Goal: when a problem's tags contain a known knowledge-area name, auto-link it (user can
   unlink). Links feed Phase 75's weak-area ranking.
 - Scope: `core/model` knowledge tree, problem detail screen, repository join.
