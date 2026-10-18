@@ -71,6 +71,29 @@ bootstrap (periodic sync reconciliation, Luogu result work, backup schedule) lau
 | Span-chain accounting (injected clock) | deterministic | `StartupTracerTest` |
 | Device cold start | **PENDING** — `adb shell am force-stop` + cold launch, read the OJNEXUS-STARTUP line, 5-run median on a mid-range device | no device attached to this host; per repo rules the 1.5 s DoD number is recorded only from hardware |
 
+## Room index audit — Phase 106
+
+Schema v13→v14 adds two composite indices, chosen by an `EXPLAIN QUERY PLAN` audit of the ten
+hottest production queries (full table in
+[docs/superpowers/specs/2026-10-18-room-index-audit.md](superpowers/specs/2026-10-18-room-index-audit.md)):
+
+- `index_submission_jobs_judge_status_updated_at` on `submission_jobs (judge, status, updated_at)` —
+  the background Luogu job scan previously SCANed the table plus a temp B-tree sort.
+- `index_remote_problems_judge_external_id` on `remote_problems (judge, external_id)` —
+  the delta-sync fingerprint read previously searched `judge` then sorted `external_id`.
+
+`MIGRATION_13_14` is additive `CREATE INDEX IF NOT EXISTS` DDL only — non-destructive, tested by
+`RoomIndexAuditTest` (fresh v14 + a hand-built v13 database upgraded in place, rows preserved,
+plans assert `USING INDEX` text which is device-independent).
+
+| Query | Before (plan) | After (plan) | Robolectric wall clock |
+| --- | --- | --- | --- |
+| Pending Luogu jobs (`judge='luogu' AND status='PENDING' ORDER BY updated_at`) | SCAN + temp B-tree sort | SEARCH via new composite index | ~9.0 ms → ~1.1 ms |
+| Remote problems delta read (`judge=? ORDER BY external_id`) | SEARCH judge + sort | SEARCH via new composite index (sort eliminated) | ~7.5 ms → ~1.3 ms |
+
+Robolectric in-memory SQLite proves the plan shape, not device storage latency; device numbers stay
+**PENDING** until hardware runs (same policy as the cold-start budget).
+
 ## Library rendering — Phase 104
 
 The problem library renders through manual windowing: the LazyColumn tracks at most a 60-row

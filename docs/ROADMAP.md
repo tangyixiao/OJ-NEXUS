@@ -3,6 +3,28 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## ROOM INDEX AUDIT
+
+The ten hottest production queries were audited with `EXPLAIN QUERY PLAN` before any index was
+added. Two composites proved their worth and shipped through a non-destructive v13→v14 migration:
+`submission_jobs (judge, status, updated_at)` for the background Luogu job scan that previously
+scanned the table and sorted through a temp B-tree, and `remote_problems (judge, external_id)` for
+the delta-sync fingerprint read that previously searched `judge` then sorted. Every other hot
+query already hit an existing index, so nothing else was added — index write-cost is paid only
+where a plan regression was proven. The migration is additive `CREATE INDEX IF NOT EXISTS` DDL
+only; `RoomIndexAuditTest` builds a fresh v14 database and also hand-builds a real v13 database
+(captured DDL from a probe open), upgrades it in place, and asserts rows survive and both plans
+switch to `USING INDEX`. Robolectric timings prove the plan shape honestly; device numbers are
+recorded as PENDING in docs/PERFORMANCE.md rather than invented.
+/ 对最热的十条生产查询先做 `EXPLAIN QUERY PLAN` 审计，再决定加索引。两条复合索引以非破坏性
+v13→v14 迁移落地：`submission_jobs (judge, status, updated_at)` 服务后台洛谷任务扫描（此前全表
+扫描加临时 B-tree 排序），`remote_problems (judge, external_id)` 服务增量同步指纹读取（此前仅按
+judge 检索后排序）。其余热点查询均已命中既有索引，因此不再额外添加——索引写放大只在证明有计划
+回退的地方支付。迁移仅为增量式 `CREATE INDEX IF NOT EXISTS` DDL；`RoomIndexAuditTest` 既构建全新
+v14 库，也用探针库捕获的真实 v13 DDL 手工搭建旧库就地升级，断言数据保留且两个查询计划切换为
+`USING INDEX`。Robolectric 计时只诚实地证明计划形态；设备数值在 docs/PERFORMANCE.md 中保持
+PENDING，不做编造。
+
 ## COLD START TRACING
 
 Cold start is now measured, not guessed. `OjNexusApplication` opens a `StartupTracer` span at

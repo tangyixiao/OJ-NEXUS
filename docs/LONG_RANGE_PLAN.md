@@ -265,7 +265,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
   section records the harness + the PENDING device measurement honestly (no device attached to
   this host — the 1.5s DoD number is recorded only from hardware per repo rules).
 
-#### ⬜ PHASE 106 — Room index audit
+#### ✅ PHASE 106 — Room index audit (v0.3.98, 2026-10-18)
 - Goal: `EXPLAIN QUERY PLAN` audit of the top 10 queries; add indices where proven.
 - Constraints: migrations must be non-destructive and tested 12→13.
 - DoD: before/after timings in the phase spec.

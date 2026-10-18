@@ -82,7 +82,7 @@ import com.ojnexus.core.database.entity.WorkspaceDraftEntity
  *
  * v13 (Phase 76): bounded explicit sync operation history and committed module outcomes.
  */
-const val OJ_NEXUS_SCHEMA_VERSION = 13
+const val OJ_NEXUS_SCHEMA_VERSION = 14
 
 @Database(
     entities = [
@@ -660,6 +660,24 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_13_14: Migration = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Phase 106 index audit — additive, non-destructive DDL only.
+                // Covers the Luogu pending-jobs worker scan
+                // (judge='luogu' AND status='PENDING' ORDER BY updated_at).
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_submission_jobs_judge_status_updated_at` " +
+                        "ON `submission_jobs` (`judge`, `status`, `updated_at`)",
+                )
+                // Covers the problemset delta-fingerprint read
+                // (remote_problems WHERE judge=? ORDER BY external_id).
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_remote_problems_judge_external_id` " +
+                        "ON `remote_problems` (`judge`, `external_id`)",
+                )
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
                 .addMigrations(
@@ -675,6 +693,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
                     MIGRATION_10_11,
                     MIGRATION_11_12,
                     MIGRATION_12_13,
+                    MIGRATION_13_14,
                 )
                 .build()
     }
