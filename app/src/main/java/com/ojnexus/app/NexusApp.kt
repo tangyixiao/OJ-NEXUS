@@ -136,6 +136,8 @@ fun NexusApp(modifier: Modifier = Modifier) {
     val currentRoute = backStackEntry?.destination?.route
     var commandPaletteOpen by rememberSaveable { mutableStateOf(false) }
     var pendingProblemSearch by remember { mutableStateOf<PaletteQuery.SearchProblems?>(null) }
+    var pendingUnsolvedRange by remember { mutableStateOf<PaletteQuery.UnsolvedRange?>(null) }
+    var pendingSprintTarget by remember { mutableStateOf<Int?>(null) }
     var pendingTrainingProblemIds by rememberSaveable { mutableStateOf<List<Long>?>(null) }
     var pendingSubmissionRequestId by rememberSaveable { mutableStateOf<String?>(null) }
     val reduceMotion = NexusTheme.reduceMotion
@@ -216,7 +218,11 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             },
                             initialQuery = pendingProblemSearch?.query,
                             initialJudge = pendingProblemSearch?.judge,
-                            onInitialSearchConsumed = { pendingProblemSearch = null },
+                            initialUnsolvedRange = pendingUnsolvedRange,
+                            onInitialSearchConsumed = {
+                                pendingProblemSearch = null
+                                pendingUnsolvedRange = null
+                            },
                         )
                     }
                     composable(NexusDestination.TRAINING.route) {
@@ -229,6 +235,8 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             },
                             onOpenReview = { id -> navController.navigate("review/$id") },
                             onOpenReviewRun = { navController.navigate(NexusRoutes.REVIEW_RUN) },
+                            initialSprintTarget = pendingSprintTarget,
+                            onSprintTargetConsumed = { pendingSprintTarget = null },
                             initialProblemIds = pendingTrainingProblemIds.orEmpty(),
                             onInitialProblemIdsConsumed = { pendingTrainingProblemIds = null },
                         )
@@ -433,6 +441,20 @@ fun NexusApp(modifier: Modifier = Modifier) {
                 },
                 onSearchProblems = { search ->
                     pendingProblemSearch = search
+                    commandPaletteOpen = false
+                    navController.navigateToTopLevel(NexusDestination.PROBLEMS.route)
+                },
+                onReviewDue = {
+                    commandPaletteOpen = false
+                    navController.navigate(NexusRoutes.REVIEW_RUN)
+                },
+                onSprintPlan = { sprint ->
+                    pendingSprintTarget = sprint.target
+                    commandPaletteOpen = false
+                    navController.navigateToTopLevel(NexusDestination.TRAINING.route)
+                },
+                onUnsolvedRange = { range ->
+                    pendingUnsolvedRange = range
                     commandPaletteOpen = false
                     navController.navigateToTopLevel(NexusDestination.PROBLEMS.route)
                 },

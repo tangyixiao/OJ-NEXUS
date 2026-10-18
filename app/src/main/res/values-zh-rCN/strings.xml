@@ -15,6 +15,9 @@
     <string name="command_palette_direct_query_hint">打开本地题库</string>
     <string name="command_palette_direct_query_cd">打开本地题目搜索</string>
     <string name="command_palette_any_judge">全部 OJ</string>
+    <string name="command_palette_direct_review_due">开始复习冲刺——所有到期题目</string>
+    <string name="command_palette_direct_sprint">围绕 %1$d 的专注冲刺</string>
+    <string name="command_palette_direct_unsolved">未解决 %1$s · %2$s</string>
     <string name="command_open_dashboard">打开首页概览</string>
     <string name="command_open_problems">打开本地题库</string>
     <string name="command_open_training">打开训练和复习队列</string>

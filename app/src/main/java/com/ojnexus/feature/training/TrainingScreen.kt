@@ -75,6 +75,8 @@ fun TrainingScreen(
     onOpenReview: (Long) -> Unit,
     onOpenReviewRun: () -> Unit,
     onOpenProblem: (Long) -> Unit,
+    initialSprintTarget: Int? = null,
+    onSprintTargetConsumed: () -> Unit = {},
     initialProblemIds: List<Long> = emptyList(),
     onInitialProblemIdsConsumed: () -> Unit = {},
 ) {
@@ -114,6 +116,8 @@ fun TrainingScreen(
                 onOpenReviewRun = onOpenReviewRun,
                 onOpenProblem = onOpenProblem,
                 sessionStartState = sessionStartState,
+                initialSprintTarget = initialSprintTarget,
+                onSprintTargetConsumed = onSprintTargetConsumed,
                 initialProblemIds = initialProblemIds,
                 onInitialProblemIdsConsumed = onInitialProblemIdsConsumed,
             )
@@ -148,6 +152,8 @@ private fun TrainingContent(
     onOpenReviewRun: () -> Unit,
     onOpenProblem: (Long) -> Unit,
     sessionStartState: TrainingSessionStartState,
+    initialSprintTarget: Int?,
+    onSprintTargetConsumed: () -> Unit,
     initialProblemIds: List<Long>,
     onInitialProblemIdsConsumed: () -> Unit,
 ) {
@@ -160,13 +166,16 @@ private fun TrainingContent(
     var showCalibration by rememberSaveable { mutableStateOf(false) }
     var reviewFilter by rememberSaveable { mutableStateOf(ReviewQueueFilter.ALL) }
     var focusSprintBand by rememberSaveable { mutableStateOf(FocusSprintLadderBand.FIT) }
+    var pendingPaletteSprintTarget by rememberSaveable { mutableStateOf<Int?>(null) }
     val reduceMotion = NexusTheme.reduceMotion
     val reviewSummary = reviewQueueSummary(uiState.reviews)
     val visibleReviews = filterReviewBuckets(uiState.reviews, reviewFilter)
+    // A palette sprint request overrides the calibrated target for this ladder.
+    val sprintTarget = pendingPaletteSprintTarget ?: uiState.trainingTargets.firstOrNull()?.center
     val focusSprintLadderPlan = buildFocusSprintLadder(
         buckets = uiState.reviews,
         recommendations = uiState.recommendations,
-        targetDifficulty = uiState.trainingTargets.firstOrNull()?.center,
+        targetDifficulty = sprintTarget,
         band = focusSprintBand,
         todayEpochDay = uiState.todayEpochDay,
     )
@@ -179,6 +188,14 @@ private fun TrainingContent(
             libraryProblemIds = emptyList()
             viewModel.clearSessionStartState()
             onOpenSession(null)
+        }
+    }
+
+    LaunchedEffect(initialSprintTarget) {
+        if (initialSprintTarget != null) {
+            // A sprint launched from the palette anchors the ladder on the requested difficulty.
+            pendingPaletteSprintTarget = initialSprintTarget
+            onSprintTargetConsumed()
         }
     }
 

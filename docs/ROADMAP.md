@@ -3,6 +3,35 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## COMMAND PALETTE REVIEW / TRAINING / UNSOLVED QUERIES
+
+The palette's direct-query card is no longer search-only. The local command grammar gains three
+deterministic forms: `review due` jumps straight into the scheduled review run; `sprint <rating>`
+opens training with the focus-sprint ladder anchored on the requested difficulty for that visit;
+`unsolved <range>` and `<judge alias> unsolved <range>` open the library scoped to unsolved
+problems in an inclusive difficulty range (`1600`, `1600-1900`, `1600-`, `-1900`). Judge aliases
+(`@cf`, `ac`, `lg`, or bare) keep working in front of every form, and the card states exactly what
+the command will do before it is tapped.
+/ 命令面板的直达卡片不再只支持搜索。本地命令语法新增三种确定性形式：`review due` 直接进入到期复习冲刺；
+`sprint <难度>` 打开训练页，专注冲刺阶梯在本次访问内以该难度为锚；`unsolved <范围>` 与
+`<OJ 别名> unsolved <范围>` 打开按未解决题目和闭区间难度（`1600`、`1600-1900`、`1600-`、`-1900`）过滤的题库。
+`@cf`、`ac`、`lg` 或裸别名继续适用于所有形式，卡片在点击前就写明这条命令会做什么。
+
+Range filtering is a pure library predicate: bounds are inclusive, unknown difficulty is excluded
+by any concrete range rather than guessed into one, and the filter composes with judge/status/tag
+as before. The training target override is presentation-only state — it never writes the
+calibrated preference.
+/ 范围过滤是题库的纯谓词：边界闭区间，未知难度不会被猜进任何具体区间而是被排除，且与
+OJ/状态/标签照旧组合。训练目标覆盖只是展示层状态，从不写回校准偏好。
+
+Coverage includes the parser forms (aliases, tab/space normalization, malformed ranges, bounds),
+filter inclusivity, unknown-difficulty exclusion, and judge composition. / 测试覆盖解析形式
+（别名、空白归一、非法范围、边界）、过滤闭区间、未知难度排除以及 OJ 组合。
+
+The commands add no network request, no Room migration and no credential flow; they only route to
+screens the app already has and filter data it already holds. / 这些命令不引入任何网络请求、
+Room 迁移或凭据流程，只是路由到应用已有的页面并过滤应用已有的本地数据。
+
 ## TRAINING CALENDAR HEAT STREAKS
 
 Every heatmap cell now tells a screen-reader user which day it is. The cell description carries the

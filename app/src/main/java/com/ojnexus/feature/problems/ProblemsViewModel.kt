@@ -266,6 +266,9 @@ class ProblemsViewModel(
 
     fun setJudge(judge: JudgeId?) = filter.update { it.copy(judge = judge) }
 
+    fun setDifficultyRange(min: Int?, max: Int?) =
+        filter.update { it.copy(difficultyMin = min, difficultyMax = max) }
+
     fun setTag(tag: String?) = filter.update { it.copy(tag = tag) }
 
     fun toggleFavoriteOnly() = filter.update { it.copy(favoriteOnly = !it.favoriteOnly) }

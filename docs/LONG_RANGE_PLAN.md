@@ -116,7 +116,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Scope: `feature/analytics`, `core/model` streaks.
 - DoD: unit tests across timezone-free local dates; a11y descriptions present.
 
-#### ⬜ PHASE 85 — Command palette: review/training queries
+#### ✅ PHASE 85 — Command palette: review/training queries (v0.3.83, 2026-10-18)
 - Goal: parser recognizes `review due`, `sprint 1800`, `@cf unsolved 1600-1900`.
 - Scope: command palette parser + direct-jump handlers.
 - Constraints: text parser only, no LLM; reuse Phase 67 mechanism.

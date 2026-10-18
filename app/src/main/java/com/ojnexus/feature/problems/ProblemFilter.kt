@@ -21,6 +21,9 @@ data class ProblemFilter(
     val judge: JudgeId? = null,
     val favoriteOnly: Boolean = false,
     val tag: String? = null,
+    /** Inclusive difficulty range; null bounds are open. Unknown difficulty passes only open bounds. */
+    val difficultyMin: Int? = null,
+    val difficultyMax: Int? = null,
 ) {
     val isDefault: Boolean
         get() = this == ProblemFilter()
@@ -43,6 +46,12 @@ fun List<Problem>.applyFilterSort(filter: ProblemFilter, sort: ProblemSort): Lis
         if (filter.judge != null && problem.key.judge != filter.judge) return@filter false
         if (filter.favoriteOnly && !problem.favorite) return@filter false
         if (filter.tag != null && filter.tag !in problem.tags) return@filter false
+        val difficulty = problem.difficulty
+        if (filter.difficultyMin != null || filter.difficultyMax != null) {
+            if (difficulty == null) return@filter false
+            if (filter.difficultyMin != null && difficulty < filter.difficultyMin) return@filter false
+            if (filter.difficultyMax != null && difficulty > filter.difficultyMax) return@filter false
+        }
         true
     }
     return when (sort) {

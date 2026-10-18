@@ -107,6 +107,7 @@ fun ProblemsScreen(
     onOpenLuoguDetail: (String) -> Unit = {},
     initialQuery: String? = null,
     initialJudge: JudgeId? = null,
+    initialUnsolvedRange: com.ojnexus.app.PaletteQuery.UnsolvedRange? = null,
     onInitialSearchConsumed: () -> Unit = {},
 ) {
     val container = LocalAppContainer.current
@@ -121,7 +122,15 @@ fun ProblemsScreen(
         },
     )
     var scope by rememberSaveable { mutableStateOf(ProblemScope.LIBRARY) }
-    LaunchedEffect(initialQuery, initialJudge) {
+    LaunchedEffect(initialQuery, initialJudge, initialUnsolvedRange) {
+        if (initialUnsolvedRange != null) {
+            scope = ProblemScope.LIBRARY
+            viewModel.setJudge(initialUnsolvedRange.judge)
+            viewModel.setQuery("")
+            viewModel.setDifficultyRange(initialUnsolvedRange.min, initialUnsolvedRange.max)
+            onInitialSearchConsumed()
+            return@LaunchedEffect
+        }
         problemSearchLaunch(initialQuery, initialJudge)?.let { launch ->
             scope = launch.scope
             viewModel.setJudge(launch.filter.judge)
