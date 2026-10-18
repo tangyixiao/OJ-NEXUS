@@ -3,6 +3,26 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## MEMORY AUDIT
+
+LeakCanary now watches every debug build (debugImplementation only — release carries zero of it),
+and the codebase passed a host-verifiable static audit: every screen collects state through
+`collectAsStateWithLifecycle` (zero bare `collectAsState()` call sites), the only bitmap in the
+app is the transient Player Card render (created, compressed, immediately unreachable), the
+rating chart draws through Compose Canvas with no bitmap at all, `applicationScope` is a
+SupervisorJob so one failed bootstrap child cannot cancel siblings, and session tickers are
+collector-bound producers that stop with their composition. The supervisor-isolation and
+ticker-lifetime invariants are pinned by `MemoryAuditInvariantsTest`. The 20-minute
+main-navigation leak loop stays honestly PENDING until hardware runs — the debug build will
+produce the LeakCanary report automatically when it does.
+/ LeakCanary 现在守护每个 debug 构建（仅 debugImplementation——release 不含任何一部分），代码库也
+通过了可在主机验证的静态审计：所有界面都通过 `collectAsStateWithLifecycle` 收集状态（裸
+`collectAsState()` 调用点为零），应用中唯一的位图是一次性的球员卡渲染（创建、压缩后立即不可达），
+评分图表完全用 Compose Canvas 绘制不含位图，`applicationScope` 是 SupervisorJob——单个引导子任务
+失败不会波及兄弟任务，会话计时器是随组合销毁的生产者。Supervisor 隔离与计时器生命周期不变量由
+`MemoryAuditInvariantsTest` 钉住。20 分钟主导航泄漏循环在硬件运行前如实保持 PENDING——届时 debug
+构建会自动产出 LeakCanary 报告。
+
 ## SYNC BATTERY PROFILE
 
 Periodic sync now has a documented, unit-pinned battery profile. The worker builder reads its

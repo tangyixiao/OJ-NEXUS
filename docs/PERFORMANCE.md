@@ -101,3 +101,24 @@ window (grown 60 rows per SHOW MORE tap), so recomposition cost is flat in libra
 10,000-row filter+sort+window pass is unit-tested to finish well under a 250 ms CPU budget
 (`LibraryWindowTest`); scroll smoothness follows because Compose only tracks the window, not the
 full list.
+
+## Memory audit — Phase 108
+
+LeakCanary 3.0-alpha-8 ships as `debugImplementation` only — release builds carry none of it.
+Static audit results (all host-verifiable):
+
+- **Flow collection**: zero bare `collectAsState()` call sites; every screen uses
+  `collectAsStateWithLifecycle()`, so background screens neither recompose nor hold producers.
+- **Bitmaps**: one transient 1080×1350 ARGB_8888 bitmap in `PlayerCardShare` (created, compressed
+  to a cache file, immediately unreachable — no field holds it); the rating chart draws via
+  Compose `Canvas` with no bitmap. Library rows are text-only.
+- **Long-lived scopes**: `applicationScope` is a `SupervisorJob` — a failed bootstrap child
+  cannot cancel siblings; tickers (`SessionScreen`, `SessionCommandDeck`) are collector-bound
+  `flow { while(true) … }` producers. Both invariants are pinned by `MemoryAuditInvariantsTest`.
+- **Recomposition**: library rows are keyed by stable problem id inside the 60-row window; a
+  favorite toggle recomposes one row.
+
+| Measurement | Value | Source |
+| --- | --- | --- |
+| Static audit invariants | deterministic, unit-tested | `MemoryAuditInvariantsTest` |
+| 20-min main-navigation loop with LeakCanary | **PENDING** | no device attached to this host; debug build now reports leaks automatically the moment hardware runs |

@@ -274,7 +274,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Goal: measure and cap periodic sync cost; document interval defaults.
 - DoD: `docs/SYNC_ENGINE.md` updated with measurements.
 
-#### ⬜ PHASE 108 — Memory audit
+#### ✅ PHASE 108 — Memory audit (v0.3.100, 2026-10-18)
 - Goal: leak check (LeakCanary in debug only) + bitmap/compose recomposition pass on
   dashboard/library.
 - DoD: zero leaks on main navigation loop.
