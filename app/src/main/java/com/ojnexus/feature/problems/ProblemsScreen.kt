@@ -602,12 +602,14 @@ internal fun SearchField(
             )
         }
         if (query.isNotEmpty()) {
+            val clearLabel = stringResource(R.string.problems_search_clear_cd)
             Text(
                 text = "×",
                 style = NexusTheme.typography.data,
                 color = colors.textTertiary,
                 modifier = Modifier
-                    .clickable(role = Role.Button) { onQueryChange("") }
+                    .clickable(role = Role.Button, onClickLabel = clearLabel) { onQueryChange("") }
+                    .semantics { contentDescription = clearLabel }
                     .padding(start = NexusSpacing.xs),
             )
         }

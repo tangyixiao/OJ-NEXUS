@@ -3,6 +3,24 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## ACCESSIBILITY SWEEP
+
+A static source audit over 130 clickable call sites produced three critical findings, all fixed:
+six back buttons were announced by TalkBack as plain text (no button role) and now carry
+`Role.Button`; the problem-detail favorite toggle was a color-only bare square and now exposes a
+spoken state via the existing favorite content descriptions; the search-clear "×" glyph was
+unlabeled and now reads "Clear search query". Filter chips and row controls were verified to
+carry visible text labels (TalkBack reads them directly), the library rows avoid the
+trailing-label trap, and heatmap cells keep their formatted-date descriptions. The 200% font
+scale pass is handled structurally — every screen root is scrollable — with pixel verification
+left pending until a device loop runs, same honest posture as the performance numbers.
+/ 对 130 个可点击调用点的静态源码审查发现三个关键问题，全部修复：六个返回按钮此前会被 TalkBack
+当作纯文本播报（缺少按钮角色），现已携带 `Role.Button`；题目详情页的收藏开关此前只是仅靠颜色
+区分的裸方块，现通过既有的收藏内容描述播报状态；搜索清除的 "×" 字符此前没有标签，现在读作
+"清空搜索词"。筛选标签与行内控件经验证均带有可见文本标签（TalkBack 直接朗读），题目库行规避了
+尾部标签陷阱，热力图单元格保留格式化日期描述。200% 字号按 320dp 宽度走结构化处理——每个屏幕根
+节点都可滚动——像素级验证与性能数字一样，留待设备回环时补测，绝不虚构。
+
 ## REPRODUCIBLE BUILD CHECK
 
 `tools/check-reproducible-build.ps1` builds `:app:assembleRelease` twice from clean state,

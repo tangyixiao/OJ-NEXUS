@@ -177,6 +177,7 @@
         <item quantity="other">Build a training session from %1$d visible problems</item>
     </plurals>
     <string name="problems_favorite_on_cd">Remove problem from favorites</string>
+    <string name="problems_search_clear_cd">Clear search query</string>
     <string name="problems_favorite_off_cd">Add problem to favorites</string>
     <string name="problems_delete_cd">Delete problem</string>
     <string name="problems_sort_label">SORT</string>

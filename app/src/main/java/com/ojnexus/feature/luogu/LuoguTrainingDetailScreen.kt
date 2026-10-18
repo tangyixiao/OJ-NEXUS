@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -62,7 +63,7 @@ fun LuoguTrainingDetailScreen(
                     text = stringResource(R.string.action_back),
                     style = NexusTheme.typography.sectionLabel,
                     color = NexusTheme.colors.accent,
-                    modifier = Modifier.clickable(onClick = onBack),
+                    modifier = Modifier.clickable(role = Role.Button, onClick = onBack),
                 )
             },
         )

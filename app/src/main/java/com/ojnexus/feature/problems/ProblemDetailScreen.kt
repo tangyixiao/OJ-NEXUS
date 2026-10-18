@@ -543,10 +543,14 @@ private fun reviewDueLabel(dueAt: Long): String {
 @Composable
 private fun FavoriteToggle(favorite: Boolean, onToggle: () -> Unit) {
     val colors = NexusTheme.colors
+    val favoriteDescription = stringResource(
+        if (favorite) R.string.problems_favorite_on_cd else R.string.problems_favorite_off_cd,
+    )
     Box(
         modifier = Modifier
             .size(40.dp)
-            .clickable(role = Role.Button, onClick = onToggle)
+            .clickable(role = Role.Button, onClickLabel = favoriteDescription, onClick = onToggle)
+            .semantics { contentDescription = favoriteDescription }
             .padding(12.dp)
             .background(
                 if (favorite) colors.accent else colors.surface,

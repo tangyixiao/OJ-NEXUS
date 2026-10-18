@@ -105,7 +105,7 @@ fun ContestFocusScreen(
                     text = stringResource(R.string.action_back),
                     style = NexusTheme.typography.sectionLabel,
                     color = NexusTheme.colors.accent,
-                    modifier = Modifier.clickable(onClick = onBack),
+                    modifier = Modifier.clickable(role = Role.Button, onClick = onBack),
                 )
             },
         )

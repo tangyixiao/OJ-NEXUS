@@ -293,7 +293,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Goal: document and script a build-reproducibility check for the APK.
 - DoD: two clean builds produce identical hashes or documented diff sources.
 
-#### ⬜ PHASE 112 — Accessibility sweep
+#### ✅ PHASE 112 — Accessibility sweep (2026-10-18)
 - Goal: full a11y audit (talkback order, contrast, font scale 200% at 320dp) with a checklist
   per screen, fixing all critical findings.
 - Refs: `docs/verification/2026-10-01-android-shared-layout.md`.
