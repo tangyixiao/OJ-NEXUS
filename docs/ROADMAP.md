@@ -3,6 +3,31 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## WINDOWS REVIEW QUEUE
+
+The Windows client now carries its own spaced-repetition queue over the shared local SQLite
+ledger. Schema v7 adds two additive tables: `reviews` keyed (judge, external_id) holding the
+current stage, due timestamp (ISO-8601), local due day, last result, and last reviewed time; and
+`review_log`, an append-only history where every mark appends a row even after the stage caps.
+The interval ladder mirrors the Android scheduler exactly — 1, 3, 7, 21, 45, 90 days; PASS
+advances the stage (capped at 5) with a full interval, HARD repeats the stage on a half interval
+(minimum one day), FAIL drops a stage (floor 0) and retries the next day, SKIP repeats the stage
+on a full interval. There is no foreign key to `problems`: marking accepts any judge/identity the
+user names, and the due list joins the derived problem title and URL when a row exists. CLI
+parity ships as `review due [--judge] [--limit] [--json]` (default 50, ordered by due day, judge,
+external id) and `review mark --judge --problem --result pass|hard|fail|skip [--json]`, with
+argument errors for unknown results and non-positive limits. No credentials, no cookies, and no
+network access are involved; every row lives in the local ledger.
+/ Windows 客户端现在在共享本地 SQLite 账本上拥有自己的间隔重复队列。Schema v7 新增两张增量表：
+`reviews` 以 (judge, external_id) 为键，保存当前阶段、到期时间戳（ISO-8601）、本地到期日、最近
+结果与最近复习时间；`review_log` 为只追加历史，即使阶段封顶后每次标记仍会写入一行。间隔阶梯与
+Android 调度器完全一致——1、3、7、21、45、90 天；PASS 阶段 +1（封顶 5）并按完整间隔排期，HARD
+保持阶段并按半间隔（至少一天），FAIL 阶段 -1（下限 0）次日重试，SKIP 保持阶段并按完整间隔。
+`reviews` 不对 `problems` 设外键：标记接受用户命名的任意 OJ/身份，到期列表在存在派生行时联出
+题目标题与链接。CLI 对齐为 `review due [--judge] [--limit] [--json]`（默认 50 条，按到期日、OJ、
+身份排序）与 `review mark --judge --problem --result pass|hard|fail|skip [--json]`，未知结果或
+非法上限都会给出参数错误。全程不涉及凭据、Cookie 或网络访问；每一行都存于本地账本。
+
 ## WINDOWS PROBLEM LIBRARY VIEW
 
 The Windows client gains a PROBLEMS surface over the shared local SQLite ledger. Schema v6 adds

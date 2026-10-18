@@ -7,11 +7,11 @@ namespace OjNexus.Windows.Core.Tests;
 public sealed class SqliteSyncStoreTests
 {
     [Fact]
-    public void Migrate_FreshDatabase_SetsSchemaVersionSix()
+    public void Migrate_FreshDatabase_SetsSchemaVersionSeven()
     {
         using var database = new TemporaryDatabase();
 
-        Assert.Equal("6", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
     }
 
     [Fact]
@@ -24,19 +24,19 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("6", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("tourist", ReadAccountHandle(database.DatabasePath, "Codeforces"));
     }
 
     [Fact]
-    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionSix()
+    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionSeven()
     {
         using var database = new TemporaryDatabaseDirectory();
         ExecuteNonQuery(database.DatabasePath, VersionZeroSchemaSql);
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("6", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.Equal(1L, CountModules(database.DatabasePath, 7));
         Assert.Equal("Success", ReadString(database.DatabasePath, "SELECT status FROM sync_operations WHERE id = 7"));
@@ -53,7 +53,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("6", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.True(TableExists(database.DatabasePath, "codeforces_profiles"));
         Assert.True(TableExists(database.DatabasePath, "luogu_payloads"));
@@ -68,7 +68,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("6", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
         Assert.True(TableExists(database.DatabasePath, "atcoder_submissions"));
         Assert.True(TableExists(database.DatabasePath, "luogu_payloads"));
     }
@@ -83,7 +83,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("6", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
         Assert.True(ColumnExists(database.DatabasePath, "sync_operations", "handle"));
     }
 
@@ -260,7 +260,7 @@ public sealed class SqliteSyncStoreTests
             tableNames.Add(reader.GetString(0));
         }
 
-        Assert.Equal(new[] { "accounts", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "luogu_payloads", "problems", "schema_metadata", "sync_modules", "sync_operations" }, tableNames);
+        Assert.Equal(new[] { "accounts", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "luogu_payloads", "problems", "review_log", "reviews", "schema_metadata", "sync_modules", "sync_operations" }, tableNames);
     }
 
     [Fact]
@@ -408,6 +408,110 @@ public sealed class SqliteSyncStoreTests
         Assert.Equal(0L, CountModules(database.DatabasePath, completedIds[0]));
         Assert.Equal(20, otherJudgeOperations.Count);
         Assert.All(otherJudgeOperations, operation => Assert.Equal(JudgeId.AtCoder, operation.Account.Judge));
+    }
+
+    [Fact]
+    public void Migrate_VersionSix_AddsReviewTables()
+    {
+        using var database = new TemporaryDatabase();
+        ExecuteNonQuery(database.DatabasePath, "DROP TABLE reviews; DROP TABLE review_log; UPDATE schema_metadata SET value = '6' WHERE key = 'schema_version';");
+
+        SchemaMigrator.Migrate(database.ConnectionString);
+
+        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
+        Assert.True(TableExists(database.DatabasePath, "reviews"));
+        Assert.True(TableExists(database.DatabasePath, "review_log"));
+    }
+
+    [Fact]
+    public async Task Store_MarkReviewThenDueListUsesSharedLadderSemantics()
+    {
+        using var database = new TemporaryDatabase();
+        var now = DateTimeOffset.Parse("2026-10-18T09:00:00+00:00");
+
+        var first = await database.Store.MarkReviewAsync(JudgeId.Codeforces, "2134/C", ReviewResult.Fail, now, CancellationToken.None);
+        Assert.Equal(0, first.Stage);
+        Assert.Equal(ReviewResult.Fail, first.LastResult);
+        Assert.Equal(now.AddDays(1).ToLocalTime().ToString("yyyy-MM-dd"), first.DueDayIndex);
+
+        // A FAIL schedules the next day, so nothing is due today.
+        Assert.Empty(await database.Store.GetDueReviewsAsync(null, 10, CancellationToken.None));
+
+        var pass = await database.Store.MarkReviewAsync(JudgeId.Codeforces, "2134/C", ReviewResult.Pass, now.AddDays(1), CancellationToken.None);
+        Assert.Equal(1, pass.Stage);
+        Assert.Equal(now.AddDays(1 + 3).ToLocalTime().ToString("yyyy-MM-dd"), pass.DueDayIndex);
+
+        var hard = await database.Store.MarkReviewAsync(JudgeId.Codeforces, "2134/C", ReviewResult.Hard, now.AddDays(5), CancellationToken.None);
+        Assert.Equal(1, hard.Stage);
+        Assert.Equal(now.AddDays(5 + 1).ToLocalTime().ToString("yyyy-MM-dd"), hard.DueDayIndex);
+
+        var skip = await database.Store.MarkReviewAsync(JudgeId.Codeforces, "2134/C", ReviewResult.Skip, now.AddDays(7), CancellationToken.None);
+        Assert.Equal(1, skip.Stage);
+        Assert.Equal(now.AddDays(7 + 3).ToLocalTime().ToString("yyyy-MM-dd"), skip.DueDayIndex);
+
+        // Not due until the scheduled day arrives.
+        Assert.Empty(await database.Store.GetDueReviewsAsync(null, 10, CancellationToken.None));
+        ExecuteNonQuery(database.DatabasePath, "UPDATE reviews SET due_day_index = '2026-10-01' WHERE external_id = '2134/C'");
+        Assert.Single(await database.Store.GetDueReviewsAsync(null, 10, CancellationToken.None));
+        Assert.Empty(await database.Store.GetDueReviewsAsync(JudgeId.AtCoder, 10, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Store_MarkReviewCapsLadderAndJoinsProblemMetadata()
+    {
+        using var database = new TemporaryDatabase();
+        var now = DateTimeOffset.Parse("2026-10-18T09:00:00+00:00");
+        ExecuteNonQuery(
+            database.DatabasePath,
+            "INSERT INTO problems (judge, external_id, title, url, solved, first_seen_at, last_seen_at) VALUES ('AtCoder', 'abc100+abc100_a', 'A + B Problem 1', 'https://atcoder.jp/contests/abc100/tasks/abc100_a', 1, '2026-10-01T00:00:00.0000000+00:00', '2026-10-01T00:00:00.0000000+00:00');");
+
+        var stage = 0;
+        var at = now;
+        ReviewEntry entry = null!;
+        foreach (var _ in Enumerable.Range(0, 7))
+        {
+            entry = await database.Store.MarkReviewAsync(JudgeId.AtCoder, "abc100+abc100_a", ReviewResult.Pass, at, CancellationToken.None);
+            stage = entry.Stage;
+            at = at.AddDays(90);
+        }
+
+        Assert.Equal(ReviewIntervalLadder.MaxStageIndex, stage);
+        Assert.Equal(ReviewIntervalLadder.MaxStageIndex, entry.Stage);
+        Assert.Equal("A + B Problem 1", entry.Title);
+        Assert.Equal("https://atcoder.jp/contests/abc100/tasks/abc100_a", entry.Url);
+
+        Assert.Equal(7L, ReadScalarLong(database.DatabasePath, "SELECT COUNT(*) FROM review_log WHERE judge = 'AtCoder'"));
+        Assert.Equal(1L, ReadScalarLong(database.DatabasePath, "SELECT COUNT(*) FROM reviews"));
+    }
+
+    [Fact]
+    public async Task Store_MarkReviewAcceptsUnknownIdentityWithoutProblemRow()
+    {
+        using var database = new TemporaryDatabase();
+        var entry = await database.Store.MarkReviewAsync(JudgeId.Luogu, "P1001", ReviewResult.Pass, DateTimeOffset.Parse("2026-10-18T09:00:00+00:00"), CancellationToken.None);
+
+        Assert.Equal("P1001", entry.ExternalId);
+        Assert.Null(entry.Title);
+        Assert.Null(entry.Url);
+        Assert.Equal(1, entry.Stage);
+    }
+
+    [Fact]
+    public async Task Store_DueReviewsOrderAndLimitHonest()
+    {
+        using var database = new TemporaryDatabase();
+        var now = DateTimeOffset.Parse("2026-10-18T09:00:00+00:00");
+        await database.Store.MarkReviewAsync(JudgeId.Codeforces, "2134/D", ReviewResult.Fail, now, CancellationToken.None);
+        await database.Store.MarkReviewAsync(JudgeId.AtCoder, "abc100+abc100_b", ReviewResult.Fail, now, CancellationToken.None);
+        await database.Store.MarkReviewAsync(JudgeId.Codeforces, "2134/C", ReviewResult.Fail, now, CancellationToken.None);
+        ExecuteNonQuery(database.DatabasePath, "UPDATE reviews SET due_day_index = '2026-10-01'");
+
+        var due = await database.Store.GetDueReviewsAsync(null, 2, CancellationToken.None);
+
+        // ORDER BY due_day_index ASC, judge ASC, external_id ASC — AtCoder sorts before Codeforces.
+        Assert.Equal(2, due.Count);
+        Assert.Equal(new[] { "abc100+abc100_b", "2134/C" }, due.Select(row => row.ExternalId).ToArray());
+        Assert.All(due, row => Assert.Equal("2026-10-01", row.DueDayIndex));
     }
 
     [Fact]
@@ -598,6 +702,15 @@ public sealed class SqliteSyncStoreTests
     }
 
     private static string? ReadSchemaVersion(string databasePath) => ReadString(databasePath, "SELECT value FROM schema_metadata WHERE key = 'schema_version'");
+
+    private static long ReadScalarLong(string databasePath, string sql)
+    {
+        using var connection = new SqliteConnection($"Data Source={databasePath};Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        return Convert.ToInt64(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
 
     private static string? ReadAccountHandle(string databasePath, string judge)
     {

@@ -14,6 +14,7 @@ public sealed class InMemorySyncStore : ISyncStore
     private readonly Dictionary<string, IReadOnlyList<AtCoderSubmission>> _atcoderSubmissions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, LuoguPayloadState> _luoguPayloads = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ProblemEntry> _problems = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, StoredReview> _reviews = new(StringComparer.Ordinal);
     private long _nextOperationId = 1;
 
     public Task<IReadOnlyList<JudgeAccount>> GetAccountsAsync(CancellationToken cancellationToken)
@@ -128,6 +129,78 @@ public sealed class InMemorySyncStore : ISyncStore
                 .Take(limit)
                 .ToArray();
             return Task.FromResult<IReadOnlyList<ProblemEntry>>(rows);
+        }
+    }
+
+    public Task<IReadOnlyList<ReviewEntry>> GetDueReviewsAsync(
+        JudgeId? judge,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (limit <= 0)
+        {
+            return Task.FromResult<IReadOnlyList<ReviewEntry>>(Array.Empty<ReviewEntry>());
+        }
+
+        var today = ReviewIntervalLadder.DayIndexFor(DateTimeOffset.Now);
+        lock (_gate)
+        {
+            var rows = _reviews.Values
+                .Where(row => string.CompareOrdinal(row.DueDayIndex, today) <= 0)
+                .Where(row => judge is null || row.Judge == judge)
+                .OrderBy(row => row.DueDayIndex, StringComparer.Ordinal)
+                .ThenBy(row => row.Judge)
+                .ThenBy(row => row.ExternalId, StringComparer.Ordinal)
+                .Take(limit)
+                .Select(row =>
+                {
+                    _problems.TryGetValue($"{row.Judge}:{row.ExternalId}", out var problem);
+                    return new ReviewEntry(
+                        row.Judge,
+                        row.ExternalId,
+                        problem?.Title,
+                        problem?.Url,
+                        row.Stage,
+                        row.DueAt,
+                        row.DueDayIndex,
+                        row.LastResult,
+                        row.LastReviewedAt);
+                })
+                .ToArray();
+            return Task.FromResult<IReadOnlyList<ReviewEntry>>(rows);
+        }
+    }
+
+    public Task<ReviewEntry> MarkReviewAsync(
+        JudgeId judge,
+        string externalId,
+        ReviewResult result,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(externalId);
+        cancellationToken.ThrowIfCancellationRequested();
+        var trimmedId = externalId.Trim();
+        lock (_gate)
+        {
+            var key = $"{judge}:{trimmedId}";
+            var existing = _reviews.GetValueOrDefault(key);
+            var stage = existing?.Stage ?? 0;
+            var (newStage, dueAt, dueDayIndex) = ReviewIntervalLadder.ScheduleNext(result, stage, now);
+            var stored = new StoredReview(judge, trimmedId, newStage, dueAt, dueDayIndex, result, now, now);
+            _reviews[key] = stored;
+            _problems.TryGetValue(key, out var problem);
+            return Task.FromResult(new ReviewEntry(
+                judge,
+                trimmedId,
+                problem?.Title,
+                problem?.Url,
+                newStage,
+                dueAt,
+                dueDayIndex,
+                result,
+                now));
         }
     }
 
@@ -289,6 +362,16 @@ public sealed class InMemorySyncStore : ISyncStore
 
         public LuoguPayloadSnapshot ToSnapshot() => new(Profile, SubmissionsCount, ContestsCount, ProblemsCount);
     }
+
+    private sealed record StoredReview(
+        JudgeId Judge,
+        string ExternalId,
+        int Stage,
+        DateTimeOffset DueAt,
+        string DueDayIndex,
+        ReviewResult? LastResult,
+        DateTimeOffset LastReviewedAt,
+        DateTimeOffset CreatedAt);
 
     private sealed class StoredOperation(long id, JudgeAccount account, string dataGeneration, DateTimeOffset startedAt)
     {

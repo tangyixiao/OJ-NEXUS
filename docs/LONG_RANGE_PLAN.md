@@ -214,9 +214,10 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Refs: `docs/superpowers/specs/2026-09-07-windows-client-cli-design.md`.
 - DoD: `dotnet test` green; CLI gains `problems list --judge`. ✅ 145 tests, Release build clean.
 
-#### ⬜ PHASE 99 — Windows review queue view
+#### ✅ PHASE 99 — Windows review queue view (v0.3.96 ledger parity, 2026-10-18)
 - Goal: due-review list + PASS/HARD/FAIL recording on Windows writing to the shared ledger.
-- DoD: CLI `review due` / `review mark` parity.
+- DoD: CLI `review due` / `review mark` parity — schema v7 (reviews + review_log), ladder
+  [1,3,7,21,45,90] mirrored, both commands shipped and tested.
 
 #### ⬜ PHASE 100 — Windows installer (Inno Setup or MSIX)
 - Goal: signed-or-unsigned installer producing start-menu entry + uninstaller; packaging script

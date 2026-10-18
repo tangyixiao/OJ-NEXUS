@@ -19,6 +19,18 @@ public interface ISyncStore
         int limit,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ReviewEntry>> GetDueReviewsAsync(
+        JudgeId? judge,
+        int limit,
+        CancellationToken cancellationToken);
+
+    Task<ReviewEntry> MarkReviewAsync(
+        JudgeId judge,
+        string externalId,
+        ReviewResult result,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
+
     Task<CodeforcesPayloadSnapshot> GetCodeforcesPayloadAsync(
         string handle,
         CancellationToken cancellationToken);
