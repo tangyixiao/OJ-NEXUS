@@ -3,6 +3,22 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## DATABASE HOUSEKEEPING PANEL
+
+The settings data section now reports the database honestly: one line shows the DB size, WAL file
+size and free-page bytes computed from `PRAGMA page_size`, `PRAGMA page_count` and
+`PRAGMA freelist_count` — never invented. Below it, every maintenance table lists its live row
+count, using the same 22-table surface the restore path requires. A VACUUM action reclaims free
+pages on the IO dispatcher with an elapsed-seconds ticker and a cancel affordance; because SQLite
+VACUUM is atomic and cannot be interrupted through the framework API, a cancel that races a
+committing vacuum surfaces a FINISHED notice instead of pretending the operation was stopped.
+Stats refresh after the vacuum completes and on demand.
+/ 设置页数据区现在如实报告数据库状况：一行显示 DB 大小、WAL 文件大小与空闲页字节数，数值来自
+`PRAGMA page_size`、`PRAGMA page_count` 与 `PRAGMA freelist_count`，绝不臆造。下方逐一列出每个
+维护表的实时行数，与恢复路径所需的 22 张表保持一致。VACUUM 操作在 IO 线程回收空闲页，提供经过
+秒数的计时与取消入口；由于 SQLite VACUUM 原子执行且无法通过框架 API 中断，与提交赛跑的取消会
+显示“已完成”提示而不是假装操作被停止。统计会在整理结束后与手动点击时刷新。
+
 ## IMPORT CONFLICT PREVIEW
 
 Importing a snapshot archive no longer fires blindly. The settings screen now inspects the archive

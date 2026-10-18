@@ -709,6 +709,14 @@
     <string name="settings_restore_applied">RESTORE APPLIED — TAP TO DISMISS</string>
     <string name="settings_restore_rolled_back">RESTORE ROLLED BACK — TAP TO DISMISS</string>
     <string name="settings_restore_rejected">RESTORE REJECTED — TAP TO DISMISS</string>
+    <string name="settings_maintenance_title">DATABASE MAINTENANCE</string>
+    <string name="settings_maintenance_unavailable">MAINTENANCE STATS UNAVAILABLE</string>
+    <string name="settings_maintenance_size_line">DB %1$s · WAL %2$s · FREE %3$s</string>
+    <string name="settings_maintenance_vacuum">VACUUM (RECLAIM FREE PAGES)</string>
+    <string name="settings_maintenance_vacuum_running">VACUUM RUNNING… %1$d s</string>
+    <string name="settings_maintenance_vacuum_cancel">CANCEL</string>
+    <string name="settings_maintenance_vacuum_finished_anyway">VACUUM FINISHED — CANCEL ARRIVED AFTER COMMIT. TAP TO DISMISS</string>
+    <string name="settings_maintenance_refresh">REFRESH STATS</string>
     <string name="settings_import_conflict_title">IMPORT PREVIEW</string>
     <string name="settings_import_conflict_body">THIS SNAPSHOT WILL REPLACE THE LOCAL DATABASE. TABLE COUNTS BELOW ARE INCOMING → CURRENT.</string>
     <string name="settings_import_conflict_table_header">TABLE  INCOMING → CURRENT</string>

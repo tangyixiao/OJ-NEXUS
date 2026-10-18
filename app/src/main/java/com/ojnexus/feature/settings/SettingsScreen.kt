@@ -45,6 +45,8 @@ import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
 import com.ojnexus.core.data.backup.BackupCadence
+import com.ojnexus.core.data.repository.DatabaseMaintenanceRepository
+import com.ojnexus.core.data.repository.DatabaseMaintenanceStats
 import com.ojnexus.core.data.sync.SyncPhase
 import com.ojnexus.core.data.preferences.AppLanguage
 import com.ojnexus.core.data.preferences.UserPreferences
@@ -79,6 +81,7 @@ fun SettingsScreen(
                     it.judgeRegistry,
                     it.backupRepository,
                     it.userPreferencesRepository,
+                    it.databaseMaintenanceRepository,
                     it.luoguOpenCredentialStore,
                     it.luoguOpenClient,
                     it.luoguOpenClient,
@@ -118,6 +121,10 @@ fun SettingsScreen(
         }
     }
     val pendingImport by viewModel.pendingImportFlow.collectAsStateWithLifecycle()
+    val maintenanceStats by viewModel.maintenanceStatsFlow.collectAsStateWithLifecycle()
+    val vacuumRunning by viewModel.vacuumRunningFlow.collectAsStateWithLifecycle()
+    val vacuumElapsed by viewModel.vacuumElapsedFlow.collectAsStateWithLifecycle()
+    val vacuumCancelRaced by viewModel.vacuumCancelRacedFlow.collectAsStateWithLifecycle()
     val backupFolderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { tree ->
@@ -290,6 +297,17 @@ fun SettingsScreen(
                     onCadence = { cadence -> viewModel.setBackupCadence(context, cadence) },
                     onKeepCount = viewModel::setBackupKeepCount,
                     onDismissStatus = viewModel::dismissBackupStatus,
+                )
+                Spacer(Modifier.height(NexusSpacing.sm))
+                DatabaseMaintenanceSection(
+                    stats = maintenanceStats,
+                    vacuumRunning = vacuumRunning,
+                    vacuumElapsed = vacuumElapsed,
+                    cancelRaced = vacuumCancelRaced,
+                    onVacuum = viewModel::startVacuum,
+                    onCancel = viewModel::requestVacuumCancel,
+                    onDismissRaced = viewModel::dismissVacuumCancelRaced,
+                    onRefresh = viewModel::refreshMaintenanceStats,
                 )
             }
             Spacer(Modifier.height(NexusSpacing.xl))
@@ -1227,6 +1245,97 @@ private fun BackupCadenceChip(
             ),
             style = NexusTheme.typography.dataSmall,
             color = if (selected) colors.accent else colors.textSecondary,
+        )
+    }
+}
+
+@Composable
+private fun DatabaseMaintenanceSection(
+    stats: DatabaseMaintenanceStats?,
+    vacuumRunning: Boolean,
+    vacuumElapsed: Int,
+    cancelRaced: Boolean,
+    onVacuum: () -> Unit,
+    onCancel: () -> Unit,
+    onDismissRaced: () -> Unit,
+    onRefresh: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    Text(
+        text = stringResource(R.string.settings_maintenance_title),
+        style = NexusTheme.typography.data,
+        color = colors.textPrimary,
+    )
+    Spacer(Modifier.height(NexusSpacing.xs))
+    if (stats == null) {
+        Text(
+            text = stringResource(R.string.settings_maintenance_unavailable),
+            style = NexusTheme.typography.dataSmall,
+            color = colors.textTertiary,
+        )
+        return
+    }
+    Text(
+        text = stringResource(
+            R.string.settings_maintenance_size_line,
+            DatabaseMaintenanceRepository.formatBytes(stats.dbBytes),
+            DatabaseMaintenanceRepository.formatBytes(stats.walBytes),
+            DatabaseMaintenanceRepository.formatBytes(stats.freelistCount * stats.pageSize),
+        ),
+        style = NexusTheme.typography.dataSmall,
+        color = colors.textSecondary,
+    )
+    Spacer(Modifier.height(NexusSpacing.xs))
+    stats.rowCounts.forEach { (table, rows) ->
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = table,
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textTertiary,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = rows.toString(),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textSecondary,
+            )
+        }
+    }
+    Spacer(Modifier.height(NexusSpacing.xs))
+    if (vacuumRunning) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.settings_maintenance_vacuum_running, vacuumElapsed),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.accent,
+                modifier = Modifier.weight(1f),
+            )
+            DialogText(
+                label = stringResource(R.string.settings_maintenance_vacuum_cancel),
+                color = colors.danger,
+                onClick = onCancel,
+            )
+        }
+    } else {
+        SettingsAction(
+            label = stringResource(R.string.settings_maintenance_vacuum),
+            onClick = onVacuum,
+        )
+    }
+    Spacer(Modifier.height(NexusSpacing.xs))
+    Text(
+        text = stringResource(R.string.settings_maintenance_refresh),
+        style = NexusTheme.typography.dataSmall,
+        color = colors.textTertiary,
+        modifier = Modifier.clickable(role = Role.Button, onClick = onRefresh),
+    )
+    if (cancelRaced) {
+        Spacer(Modifier.height(NexusSpacing.xs))
+        Text(
+            text = stringResource(R.string.settings_maintenance_vacuum_finished_anyway),
+            style = NexusTheme.typography.dataSmall,
+            color = colors.success,
+            modifier = Modifier.clickable(role = Role.Button, onClick = onDismissRaced),
         )
     }
 }

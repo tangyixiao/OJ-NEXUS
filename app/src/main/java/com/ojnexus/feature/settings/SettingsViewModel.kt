@@ -14,6 +14,8 @@ import com.ojnexus.core.data.preferences.UserPreferencesRepository
 import com.ojnexus.core.data.restore.RestoreOutcome
 import com.ojnexus.core.designsystem.NexusThemeSlot
 import com.ojnexus.core.data.repository.BackupRepository
+import com.ojnexus.core.data.repository.DatabaseMaintenanceRepository
+import com.ojnexus.core.data.repository.DatabaseMaintenanceStats
 import com.ojnexus.core.data.repository.JudgeAccountRepository
 import com.ojnexus.core.data.repository.JudgeDataRepository
 import com.ojnexus.core.data.sync.SyncPhase
@@ -44,6 +46,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -100,6 +106,7 @@ class SettingsViewModel(
     private val registry: JudgeRegistry,
     private val backupRepository: BackupRepository,
     private val preferencesRepository: UserPreferencesRepository,
+    private val maintenanceRepository: DatabaseMaintenanceRepository? = null,
     private val openAppCredentialStore: OpenAppCredentialStore? = null,
     private val openAppQuotaReader: LuoguOpenQuotaReader? = null,
     private val openAppCredentialVerifier: LuoguOpenCredentialVerifier? = null,
@@ -421,6 +428,78 @@ class SettingsViewModel(
 
     private val backupStatusDismissed = MutableStateFlow(false)
     val backupStatusDismissedFlow: StateFlow<Boolean> = backupStatusDismissed.asStateFlow()
+
+    // --- Database housekeeping (Phase 90) ---
+
+    private val maintenanceStats = MutableStateFlow<DatabaseMaintenanceStats?>(null)
+    val maintenanceStatsFlow: StateFlow<DatabaseMaintenanceStats?> = maintenanceStats.asStateFlow()
+
+    private val vacuumRunning = MutableStateFlow(false)
+    val vacuumRunningFlow: StateFlow<Boolean> = vacuumRunning.asStateFlow()
+
+    /** Elapsed seconds while VACUUM runs — SQLite offers no real progress callback. */
+    private val vacuumElapsedSeconds = MutableStateFlow(0)
+    val vacuumElapsedFlow: StateFlow<Int> = vacuumElapsedSeconds.asStateFlow()
+
+    /** Set when a cancel raced a committing VACUUM; the vacuum finished atomically. */
+    private val vacuumCancelRaced = MutableStateFlow(false)
+    val vacuumCancelRacedFlow: StateFlow<Boolean> = vacuumCancelRaced.asStateFlow()
+
+    private var vacuumJob: Job? = null
+    private var vacuumCancelRequested = false
+
+    init {
+        refreshMaintenanceStats()
+    }
+
+    fun refreshMaintenanceStats() {
+        if (maintenanceRepository == null) return
+        viewModelScope.launch(Dispatchers.IO) {
+            maintenanceStats.value = runCatching { maintenanceRepository.maintenanceStats() }
+                .getOrDefault(null)
+        }
+    }
+
+    fun startVacuum() {
+        val repository = maintenanceRepository ?: return
+        if (vacuumRunning.value || vacuumJob?.isActive == true) return
+        vacuumCancelRequested = false
+        vacuumCancelRaced.value = false
+        vacuumRunning.value = true
+        vacuumElapsedSeconds.value = 0
+        vacuumJob = viewModelScope.launch(Dispatchers.IO) {
+            val ticker = launch {
+                while (isActive) {
+                    delay(1_000)
+                    vacuumElapsedSeconds.value += 1
+                }
+            }
+            try {
+                repository.vacuum()
+            } catch (exception: CancellationException) {
+                // The framework cannot interrupt a running VACUUM; it commits atomically.
+                if (vacuumCancelRequested) {
+                    vacuumCancelRaced.value = true
+                } else {
+                    throw exception
+                }
+            } finally {
+                ticker.cancel()
+                vacuumRunning.value = false
+                refreshMaintenanceStats()
+            }
+        }
+    }
+
+    /** Requests cancellation; VACUUM either stops before starting or finishes atomically. */
+    fun requestVacuumCancel() {
+        vacuumCancelRequested = true
+        vacuumJob?.cancel()
+    }
+
+    fun dismissVacuumCancelRaced() {
+        vacuumCancelRaced.value = false
+    }
 
     /** Persists a user-picked SAF folder and takes persistable read/write permissions. */
     fun chooseBackupFolder(context: Context, uri: Uri) {

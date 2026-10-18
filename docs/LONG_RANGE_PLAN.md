@@ -151,7 +151,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Scope: Phase 73 restore flow UI.
 - DoD: cancel leaves current db untouched (test).
 
-#### ⬜ PHASE 90 — Database size & housekeeping panel
+#### ✅ PHASE 90 — Database size & housekeeping panel (v0.3.88, 2026-10-18)
 - Goal: settings shows db size, row counts per table, and a VACUUM action.
 - Constraints: VACUUM runs off main thread with progress + cancel.
 - DoD: no schema change; sizes reported honestly from `PRAGMA`.
