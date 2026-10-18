@@ -227,10 +227,13 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
   Shipped: Inno Setup 6 script + build-installer.ps1 + verify-installer.ps1; CI compiles with
   choco innosetup and uploads the .exe; silent round trip documented as a manual clean-VM step.
 
-#### ⬜ PHASE 101 — Windows code signing
-- Goal: sign CLI + WPF + installer when a CA cert is available; document the exact
-  `signtool` invocation and cert storage rules (never committed).
+#### ✅ PHASE 101 — Windows code signing (2026-10-18)
+- Goal: sign CLI + WPF + installer when a CA cert is available; document the exact `signtool`
+  invocation and cert storage rules (never committed).
 - DoD: unsigned build still produced when cert absent; signing verified with `signtool /v`.
+  Shipped: docs/WINDOWS_SIGNING.md; sign-binaries.ps1 (sign /fd SHA256 /sha1 /tr timestamp +
+  verify /pa /v) wired into package.ps1 (executables before SHA256SUMS) and build-installer.ps1;
+  cert by thumbprint via env only, never committed.
 
 #### ⬜ PHASE 102 — Apple macOS slice advance (macOS host required)
 - Goal: `swift test --package-path apple` green; macOS app shows dashboard + connectors.

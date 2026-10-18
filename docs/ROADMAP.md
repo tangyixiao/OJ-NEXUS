@@ -3,6 +3,33 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## WINDOWS CODE SIGNING
+
+Windows artifacts can now be Authenticode-signed whenever a real CA certificate is available, and
+the contract is strictly opt-in: with no certificate configured every build still completes and
+ships unsigned. `docs/WINDOWS_SIGNING.md` records the storage rules — the PFX or token lives
+outside the repository, only a SHA-1 thumbprint is referenced, and it travels exclusively through
+the `OJ_NEXUS_SIGNING_CERT_THUMBPRINT` and `OJ_NEXUS_SIGNTOOL_PATH` environment variables; no
+key material, password, or thumbprint is ever committed. The shared `sign-binaries.ps1` runs the
+documented invocation — `signtool sign /fd SHA256 /sha1 <thumbprint> /tr
+http://timestamp.digicert.com /td SHA256 <file>` followed by `signtool verify /pa /v` — failing
+loudly when signing is requested but signtool or the certificate is missing. `package.ps1` signs
+the CLI and WPF executables immediately after publish and before `SHA256SUMS.txt` is written, so
+the deterministic manifest describes the signed bytes; `build-installer.ps1` signs the compiled
+Inno Setup installer the same way. All negative paths were probed on this machine: missing
+signtool, empty thumbprint, and a missing signing target each fail with explicit errors, and the
+unsigned end-to-end gate reports `SIGNING: SKIPPED` then succeeds.
+/ 当真实的 CA 证书可用时，Windows 产物现在可以进行 Authenticode 签名，且该契约严格可选：未配置
+证书时每次构建仍会完成并以未签名形式发布。`docs/WINDOWS_SIGNING.md` 记录了存储规则——PFX 或
+硬件令牌位于仓库之外，只引用 SHA-1 指纹，且仅通过 `OJ_NEXUS_SIGNING_CERT_THUMBPRINT` 与
+`OJ_NEXUS_SIGNTOOL_PATH` 环境变量传递；任何密钥材料、密码或指纹都不会提交入库。共享的
+`sign-binaries.ps1` 执行文档化调用——`signtool sign /fd SHA256 /sha1 <指纹> /tr
+http://timestamp.digicert.com /td SHA256 <文件>`，随后 `signtool verify /pa /v`——当请求签名但
+缺少 signtool 或证书时明确报错。`package.ps1` 在发布后、写入 `SHA256SUMS.txt` 之前签名 CLI 与
+WPF 可执行文件，使确定性清单描述的是签名后的字节；`build-installer.ps1` 以同样方式签名编译出的
+Inno Setup 安装程序。所有否定路径均在本机实测：缺少 signtool、空指纹、缺失签名目标都会以明确
+错误失败，未签名的端到端闸门输出 `SIGNING: SKIPPED` 后成功。
+
 ## WINDOWS INSTALLER
 
 The Windows client gains an Inno Setup 6 installer as a second distribution channel alongside the
