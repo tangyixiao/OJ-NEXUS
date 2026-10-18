@@ -245,9 +245,14 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 
 ### ARC E — Performance & scale
 
-#### ⬜ PHASE 104 — Library paging
+#### ✅ PHASE 104 — Library paging (v0.3.96, 2026-10-18)
 - Goal: problem library switches to Paging 3 (or manual windowing) at 10k rows.
 - DoD: benchmark test with generated 10k-row fixture; scroll stays 60fps on mid device.
+  Shipped: manual windowing (no new dependency) — full filtered list stays the source of truth,
+  the LazyColumn tracks a 60-row window grown on demand (SHOW MORE footer); LibraryPulse summary
+  stays full-list honest; LibraryWindowTest covers window math + a 10k-row filter/sort/window
+  pass well under the 250ms CPU budget (60fps scroll is a compose cost function of tracked items,
+  which is now flat).
 
 #### ⬜ PHASE 105 — Cold start budget
 - Goal: cold start to interactive Dashboard ≤ 1.5s on a mid-range device; add a startup

@@ -188,6 +188,7 @@
     <string name="problems_empty_title">EMPTY LIBRARY</string>
     <string name="problems_empty_hint">ADD A PROBLEM TO START TRACKING</string>
     <string name="problems_no_match">NO PROBLEMS MATCH THE FILTER</string>
+    <string name="problems_show_more">SHOW MORE (%1$d MORE)</string>
     <string name="problems_no_value">—</string>
     <string name="problems_estimated_difficulty">EST. %1$d</string>
     <string name="problems_solved_count">%1$d AC</string>

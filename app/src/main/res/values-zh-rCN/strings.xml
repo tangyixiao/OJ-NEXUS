@@ -167,6 +167,7 @@
     <string name="problems_empty_title">题库为空</string>
     <string name="problems_empty_hint">添加题目后开始记录</string>
     <string name="problems_no_match">没有符合筛选条件的题目</string>
+    <string name="problems_show_more">显示更多（还有 %1$d 条）</string>
     <string name="problems_no_value">—</string>
     <string name="problems_estimated_difficulty">估计难度 %1$d</string>
     <string name="problems_solved_count">%1$d 次 AC</string>

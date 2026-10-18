@@ -375,6 +375,28 @@ private fun LibraryContent(
                 )
                 NexusDivider(insetEnd = NexusSpacing.xxs)
             }
+            if (uiState.hasMoreLibrary) {
+                item(key = "show-more") {
+                    val moreLabel = stringResource(
+                        R.string.problems_show_more,
+                        uiState.summary.visible - uiState.problems.size,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button) { viewModel.loadMoreLibrary() }
+                            .padding(vertical = NexusSpacing.sm),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = moreLabel,
+                            style = NexusTheme.typography.data,
+                            color = NexusTheme.colors.accent,
+                        )
+                    }
+                    NexusDivider(insetEnd = NexusSpacing.xxs)
+                }
+            }
         }
         item(key = "footer-space") {
             Spacer(modifier = Modifier.height(NexusSpacing.xxl))

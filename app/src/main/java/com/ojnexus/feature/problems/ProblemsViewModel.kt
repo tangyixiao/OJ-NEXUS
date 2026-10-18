@@ -35,6 +35,8 @@ data class ProblemsUiState(
     val filter: ProblemFilter,
     val sort: ProblemSort,
     val summary: ProblemLibrarySummary,
+    val visibleCount: Int,
+    val hasMoreLibrary: Boolean,
 )
 
 data class RemoteProblemsUiState(
@@ -62,22 +64,28 @@ class ProblemsViewModel(
     private val filter = MutableStateFlow(ProblemFilter())
     private val sort = MutableStateFlow(ProblemSort.UPDATED)
 
+    /** Manual library window; grown on demand, reset on every filter/sort change. */
+    private val visibleCount = MutableStateFlow(LIBRARY_WINDOW_INITIAL)
+
     val state: StateFlow<Loadable<ProblemsUiState>> =
         combine(
             repository.observeLibrary(),
             repository.observeTags(),
             filter,
             sort,
-        ) { problems, tags, f, s ->
+            visibleCount,
+        ) { problems, tags, f, s, window ->
             val visibleProblems = problems.applyFilterSort(f, s)
             Loadable.Ready(
                 ProblemsUiState(
                     totalCount = problems.size,
-                    problems = visibleProblems,
+                    problems = windowList(visibleProblems, window),
                     allTags = tags,
                     filter = f,
                     sort = s,
                     summary = summarizeProblemLibrary(problems, visibleProblems),
+                    visibleCount = window,
+                    hasMoreLibrary = hasMoreLibrary(visibleProblems.size, window),
                 ),
             )
         }
@@ -260,26 +268,56 @@ class ProblemsViewModel(
         }
     }
 
-    fun setQuery(query: String) = filter.update { it.copy(query = query) }
+    fun setQuery(query: String) {
+        filter.update { it.copy(query = query) }
+        resetLibraryWindow()
+    }
 
-    fun setStatus(status: ProblemStatus?) = filter.update { it.copy(status = status) }
+    fun setStatus(status: ProblemStatus?) {
+        filter.update { it.copy(status = status) }
+        resetLibraryWindow()
+    }
 
-    fun setJudge(judge: JudgeId?) = filter.update { it.copy(judge = judge) }
+    fun setJudge(judge: JudgeId?) {
+        filter.update { it.copy(judge = judge) }
+        resetLibraryWindow()
+    }
 
-    fun setDifficultyRange(min: Int?, max: Int?) =
+    fun setDifficultyRange(min: Int?, max: Int?) {
         filter.update { it.copy(difficultyMin = min, difficultyMax = max) }
+        resetLibraryWindow()
+    }
 
-    fun setTag(tag: String?) = filter.update { it.copy(tag = tag) }
+    fun setTag(tag: String?) {
+        filter.update { it.copy(tag = tag) }
+        resetLibraryWindow()
+    }
 
-    fun toggleFavoriteOnly() = filter.update { it.copy(favoriteOnly = !it.favoriteOnly) }
+    fun toggleFavoriteOnly() {
+        filter.update { it.copy(favoriteOnly = !it.favoriteOnly) }
+        resetLibraryWindow()
+    }
 
-    fun cycleSort() = sort.update { current ->
-        ProblemSort.entries[(current.ordinal + 1) % ProblemSort.entries.size]
+    fun cycleSort() {
+        sort.update { current ->
+            ProblemSort.entries[(current.ordinal + 1) % ProblemSort.entries.size]
+        }
+        resetLibraryWindow()
     }
 
     fun clearFilter() {
         filter.update { ProblemFilter() }
         sort.update { ProblemSort.UPDATED }
+        resetLibraryWindow()
+    }
+
+    /** Grows the visible library window by one step (SHOW MORE footer). */
+    fun loadMoreLibrary() {
+        visibleCount.update { it + LIBRARY_WINDOW_STEP }
+    }
+
+    private fun resetLibraryWindow() {
+        visibleCount.value = LIBRARY_WINDOW_INITIAL
     }
 
     // --- Local note index ---

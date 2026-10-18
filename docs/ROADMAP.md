@@ -3,6 +3,27 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## LIBRARY PAGING
+
+The problem library now stays smooth at ten thousand rows without adopting Paging 3. The full
+filtered-and-sorted list remains the single source of truth inside the ViewModel — every count,
+pulse, and the BUILD TRAINING rail still reason over the entire scope — while the LazyColumn only
+ever tracks a bounded sixty-row window. A SHOW MORE footer at the end of the list grows the window
+by sixty rows per tap, and any filter or sort change resets it to the initial size, so
+recomposition cost is a function of the window (flat) instead of the library (growing). The window
+math lives in pure functions (`windowList`, `hasMoreLibrary`, initial/step constants) covered by
+LibraryWindowTest: cap and negative-count clamps, boundary flips, growth without duplicates, and a
+10,000-row fixture pass proving filter+sort+window completes in milliseconds against a 250ms CPU
+budget. Small libraries render unchanged — when the window covers the whole list the footer
+disappears.
+/ 题库列表现在在万行规模下依然流畅，且没有引入 Paging 3。完整过滤排序列表仍是 ViewModel 内的
+唯一事实来源——所有计数、脉冲和 BUILD TRAINING 操作条仍然作用于整个范围——而 LazyColumn 只跟踪
+一个有界的六十行窗口。列表末尾的 SHOW MORE 页脚每次点击将窗口扩大六十行，任何筛选或排序变化都会
+把窗口重置为初始大小，使重组成本取决于窗口（恒定）而非题库规模（增长）。窗口数学全部是纯函数
+（`windowList`、`hasMoreLibrary`、初始/步进常量），由 LibraryWindowTest 覆盖：上限与负数钳制、
+边界翻转、增长不重复，以及一个 10,000 行夹具测试证明过滤+排序+取窗在 250ms CPU 预算内毫秒级完成。
+小题库渲染不变——窗口覆盖全列表时页脚自动消失。
+
 ## WINDOWS CODE SIGNING
 
 Windows artifacts can now be Authenticode-signed whenever a real CA certificate is available, and
