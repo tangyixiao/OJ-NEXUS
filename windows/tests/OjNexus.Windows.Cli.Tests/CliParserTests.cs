@@ -92,4 +92,62 @@ public sealed class CliParserTests
 
         Assert.Contains("ONCE", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Parse_ProblemsListDefault_ReturnsDefaultLimit()
+    {
+        var command = Assert.IsType<ProblemsListCommand>(CliParser.Parse(["problems", "list"]));
+
+        Assert.Null(command.Judge);
+        Assert.Null(command.Status);
+        Assert.Equal(50, command.Limit);
+        Assert.False(command.Json);
+    }
+
+    [Fact]
+    public void Parse_ProblemsListWithAllOptions_ReturnsTypedCommand()
+    {
+        var command = Assert.IsType<ProblemsListCommand>(CliParser.Parse([
+            "problems", "list", "--judge", "codeforces", "--status", "solved", "--limit", "10", "--json",
+        ]));
+
+        Assert.Equal(JudgeId.Codeforces, command.Judge);
+        Assert.Equal(ProblemStatus.Solved, command.Status);
+        Assert.Equal(10, command.Limit);
+        Assert.True(command.Json);
+    }
+
+    [Fact]
+    public void Parse_ProblemsListWithoutListSubcommand_RejectsWithUsage()
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems"]));
+
+        Assert.Contains("list", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Parse_ProblemsListWithInvalidStatus_Rejects()
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems", "list", "--status", "great"]));
+
+        Assert.Contains("--status", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-3")]
+    public void Parse_ProblemsListWithNonPositiveLimit_Rejects(string limit)
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems", "list", "--limit", limit]));
+
+        Assert.Contains("--limit", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Parse_ProblemsListWithUnknownFlag_RejectsWithFlagName()
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems", "list", "--watch"]));
+
+        Assert.Contains("--watch", exception.Message, StringComparison.Ordinal);
+    }
 }

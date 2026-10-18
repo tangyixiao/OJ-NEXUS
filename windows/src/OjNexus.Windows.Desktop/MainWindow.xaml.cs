@@ -67,6 +67,7 @@ public partial class MainWindow : Window
                     DesktopPage.Dashboard => "dashboard.png",
                     DesktopPage.Connectors => "connectors.png",
                     DesktopPage.History => "history.png",
+                    DesktopPage.Problems => "problems.png",
                     _ => throw new ArgumentOutOfRangeException(nameof(page), page, null),
                 });
                 var temporaryPath = path + ".tmp";
@@ -138,6 +139,50 @@ public partial class MainWindow : Window
         }
 
         await _viewModel.SelectHistoryJudgeAsync(judgeFilter, _lifetime.Token);
+    }
+
+    private async void ProblemJudgeFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.AddedItems.Count == 0 || e.AddedItems[0] is not string judgeFilter)
+        {
+            return;
+        }
+
+        await _viewModel.SelectProblemJudgeAsync(judgeFilter, _lifetime.Token);
+    }
+
+    private async void ProblemStatusFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.AddedItems.Count == 0 || e.AddedItems[0] is not string statusFilter)
+        {
+            return;
+        }
+
+        await _viewModel.SelectProblemStatusAsync(statusFilter, _lifetime.Token);
+    }
+
+    private void OpenProblem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: ProblemRow row } || string.IsNullOrWhiteSpace(row.Url))
+        {
+            return;
+        }
+
+        try
+        {
+            using var process = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo(row.Url)
+                {
+                    UseShellExecute = true,
+                },
+            };
+            process.Start();
+        }
+        catch
+        {
+            // The shell may refuse the URL (offline or no browser); the ledger row stays unchanged.
+        }
     }
 
     private async void RetryHistory_Click(object sender, RoutedEventArgs e)

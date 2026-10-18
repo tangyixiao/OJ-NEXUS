@@ -15,6 +15,7 @@ public enum DesktopPage
     Dashboard,
     Connectors,
     History,
+    Problems,
 }
 
 public sealed class ConnectorRow : INotifyPropertyChanged
@@ -124,6 +125,17 @@ public sealed record HistoryRow(
     public bool CanRetry => Status is "PARTIAL" or "ERROR" or "CANCELLED" or "OFFLINE";
 }
 
+public sealed record ProblemRow(
+    string Judge,
+    string ExternalId,
+    string Title,
+    string Url,
+    string Status,
+    string LastSeenAt)
+{
+    public bool HasUrl => !string.IsNullOrWhiteSpace(Url);
+    public string StatusLabel => Status;
+}
 public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
 {
     private static readonly (JudgeId Judge, string Capability)[] SupportedJudges =
@@ -148,6 +160,8 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     private bool _isBatchSyncing;
     private bool _batchCancelRequested;
     private string _selectedHistoryJudge = "ALL";
+    private string _selectedProblemJudge = "ALL";
+    private string _selectedProblemStatus = "ALL";
 
     public DesktopViewModel(ISyncStore store, SyncService syncService, string dataDirectory)
     {
@@ -171,9 +185,29 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
 
     public ObservableCollection<HistoryRow> History { get; } = [];
 
+    public ObservableCollection<ProblemRow> Problems { get; } = [];
+
     public bool HasNoHistory => History.Count == 0;
 
+    public bool HasNoProblems => Problems.Count == 0;
+
     public IReadOnlyList<string> HistoryJudgeFilters { get; } = ["ALL", "CODEFORCES", "ATCODER", "LUOGU"];
+
+    public IReadOnlyList<string> ProblemJudgeFilters { get; } = ["ALL", "CODEFORCES", "ATCODER"];
+
+    public IReadOnlyList<string> ProblemStatusFilters { get; } = ["ALL", "SOLVED", "ATTEMPTED"];
+
+    public string SelectedProblemJudge
+    {
+        get => _selectedProblemJudge;
+        private set => SetField(ref _selectedProblemJudge, value);
+    }
+
+    public string SelectedProblemStatus
+    {
+        get => _selectedProblemStatus;
+        private set => SetField(ref _selectedProblemStatus, value);
+    }
 
     public string SelectedHistoryJudge
     {
@@ -192,6 +226,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
                 OnPropertyChanged(nameof(IsDashboardVisible));
                 OnPropertyChanged(nameof(IsConnectorsVisible));
                 OnPropertyChanged(nameof(IsHistoryVisible));
+                OnPropertyChanged(nameof(IsProblemsVisible));
             }
         }
     }
@@ -200,6 +235,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     {
         DesktopPage.Connectors => "CONNECTORS",
         DesktopPage.History => "SYNC HISTORY",
+        DesktopPage.Problems => "PROBLEMS",
         _ => "DASHBOARD",
     };
 
@@ -208,6 +244,8 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     public bool IsConnectorsVisible => CurrentPage == DesktopPage.Connectors;
 
     public bool IsHistoryVisible => CurrentPage == DesktopPage.History;
+
+    public bool IsProblemsVisible => CurrentPage == DesktopPage.Problems;
 
     public int AccountCount
     {
@@ -270,6 +308,36 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         await RefreshAsync(cancellationToken);
     }
 
+    public async Task SelectProblemJudgeAsync(string judgeFilter, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(judgeFilter);
+        var normalizedFilter = judgeFilter.Trim().ToUpperInvariant();
+        if (normalizedFilter != "ALL" && !JudgeIdParser.TryParse(normalizedFilter, out _))
+        {
+            StatusText = "ERROR";
+            LastError = "UNKNOWN JUDGE FILTER";
+            return;
+        }
+
+        SelectedProblemJudge = normalizedFilter;
+        await RefreshAsync(cancellationToken);
+    }
+
+    public async Task SelectProblemStatusAsync(string statusFilter, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(statusFilter);
+        var normalizedFilter = statusFilter.Trim().ToUpperInvariant();
+        if (normalizedFilter != "ALL" && !ProblemStatusParser.TryParse(normalizedFilter, out _))
+        {
+            StatusText = "ERROR";
+            LastError = "UNKNOWN STATUS FILTER";
+            return;
+        }
+
+        SelectedProblemStatus = normalizedFilter;
+        await RefreshAsync(cancellationToken);
+    }
+
     public async Task RefreshAsync(CancellationToken cancellationToken)
     {
         IsBusy = true;
@@ -286,6 +354,14 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
                     ? await _store.GetRecentOperationsAsync(historyJudge, 5, cancellationToken)
                     : Array.Empty<SyncOperation>();
             ProjectHistory(historyOperations);
+            JudgeId? problemJudge = SelectedProblemJudge != "ALL" && JudgeIdParser.TryParse(SelectedProblemJudge, out var problemJudgeId)
+                ? problemJudgeId
+                : null;
+            ProblemStatus? problemStatus = ProblemStatusParser.TryParse(SelectedProblemStatus, out var parsedStatus)
+                ? parsedStatus
+                : null;
+            var problems = await _store.GetProblemsAsync(problemJudge, problemStatus, 100, cancellationToken);
+            ProjectProblems(problems);
             StatusText = "READY";
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -687,6 +763,23 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         return string.IsNullOrWhiteSpace(module.FailureType)
             ? summary
             : $"{summary} ({module.FailureType.ToUpperInvariant()})";
+    }
+
+    private void ProjectProblems(IReadOnlyList<ProblemEntry> problems)
+    {
+        Problems.Clear();
+        OnPropertyChanged(nameof(HasNoProblems));
+        foreach (var problem in problems)
+        {
+            Problems.Add(new ProblemRow(
+                problem.Judge.ToString().ToUpperInvariant(),
+                problem.ExternalId,
+                problem.Title,
+                problem.Url,
+                problem.Solved ? "SOLVED" : "ATTEMPTED",
+                problem.LastSeenAt.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")));
+        }
+        OnPropertyChanged(nameof(HasNoProblems));
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

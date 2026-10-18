@@ -13,6 +13,7 @@ public sealed class InMemorySyncStore : ISyncStore
     private readonly Dictionary<string, IReadOnlyList<CodeforcesSubmission>> _codeforcesSubmissions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<AtCoderSubmission>> _atcoderSubmissions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, LuoguPayloadState> _luoguPayloads = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ProblemEntry> _problems = new(StringComparer.Ordinal);
     private long _nextOperationId = 1;
 
     public Task<IReadOnlyList<JudgeAccount>> GetAccountsAsync(CancellationToken cancellationToken)
@@ -104,6 +105,32 @@ public sealed class InMemorySyncStore : ISyncStore
         }
     }
 
+    public Task<IReadOnlyList<ProblemEntry>> GetProblemsAsync(
+        JudgeId? judge,
+        ProblemStatus? status,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (limit <= 0)
+        {
+            return Task.FromResult<IReadOnlyList<ProblemEntry>>(Array.Empty<ProblemEntry>());
+        }
+
+        lock (_gate)
+        {
+            var rows = _problems.Values
+                .Where(row => judge is null || row.Judge == judge)
+                .Where(row => status is null || row.Solved == (status == ProblemStatus.Solved))
+                .OrderByDescending(row => row.LastSeenAt)
+                .ThenBy(row => row.Judge)
+                .ThenBy(row => row.ExternalId, StringComparer.Ordinal)
+                .Take(limit)
+                .ToArray();
+            return Task.FromResult<IReadOnlyList<ProblemEntry>>(rows);
+        }
+    }
+
     public Task<long> OpenOperationAsync(
         JudgeAccount account,
         string dataGeneration,
@@ -147,9 +174,19 @@ public sealed class InMemorySyncStore : ISyncStore
                     break;
                 case CodeforcesSubmissionsPayload submissions:
                     _codeforcesSubmissions[submissions.Handle] = submissions.Items.ToArray();
+                    DeriveProblems(JudgeId.Codeforces, submissions.Items.Select(item => (
+                        ExternalId: ProblemUrls.CodeforcesExternalId(item.ContestId, item.ProblemIndex),
+                        Title: string.IsNullOrWhiteSpace(item.ProblemName) ? null : item.ProblemName.Trim(),
+                        Solved: IsAcceptedVerdict(item.Verdict))), completedAt);
                     break;
                 case AtCoderSubmissionsPayload atcoderSubmissions:
                     _atcoderSubmissions[atcoderSubmissions.Handle] = atcoderSubmissions.Items.ToArray();
+                    DeriveProblems(JudgeId.AtCoder, atcoderSubmissions.Items.Select(item => (
+                        ExternalId: string.IsNullOrWhiteSpace(item.ContestId) || string.IsNullOrWhiteSpace(item.ProblemId)
+                            ? null
+                            : $"{item.ContestId.Trim()}+{item.ProblemId.Trim()}",
+                        Title: string.IsNullOrWhiteSpace(item.ProblemId) ? null : item.ProblemId.Trim(),
+                        Solved: IsAcceptedVerdict(item.Result))), completedAt);
                     break;
                 case LuoguProfilePayload luoguProfile:
                     GetLuoguState(luoguProfile.Handle).Profile = luoguProfile;
@@ -192,6 +229,44 @@ public sealed class InMemorySyncStore : ISyncStore
         _operations.TryGetValue(operationId, out var operation)
             ? operation
             : throw new KeyNotFoundException($"No operation exists with ID {operationId}.");
+
+    private static bool IsAcceptedVerdict(string? verdict) =>
+        verdict is not null
+        && (verdict.Equals("OK", StringComparison.OrdinalIgnoreCase)
+            || verdict.Equals("AC", StringComparison.OrdinalIgnoreCase)
+            || verdict.StartsWith("Accepted", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Mirrors SqliteSyncStore problem derivation: solved is sticky, title keeps its first value.</summary>
+    private void DeriveProblems(
+        JudgeId judge,
+        IEnumerable<(string? ExternalId, string? Title, bool Solved)> submissions,
+        DateTimeOffset seenAt)
+    {
+        foreach (var (externalId, title, solved) in submissions)
+        {
+            if (externalId is null || ProblemUrls.For(judge, externalId) is not { } url)
+            {
+                continue;
+            }
+
+            var key = $"{judge}:{externalId}";
+            if (_problems.TryGetValue(key, out var existing))
+            {
+                _problems[key] = existing with { Solved = existing.Solved || solved, LastSeenAt = seenAt };
+            }
+            else
+            {
+                _problems[key] = new ProblemEntry(
+                    judge,
+                    externalId,
+                    title ?? externalId,
+                    url,
+                    solved,
+                    seenAt,
+                    seenAt);
+            }
+        }
+    }
 
     private LuoguPayloadState GetLuoguState(string handle)
     {

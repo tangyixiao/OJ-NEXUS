@@ -66,6 +66,12 @@ public static class Program
                 await output.WriteLineAsync(history.Json ? ConsoleRenderer.RenderJson(operations) : ConsoleRenderer.RenderHuman(operations));
                 return (int)CliExitCode.Success;
             }
+            case ProblemsListCommand problems:
+            {
+                var entries = await bootstrap.Store.GetProblemsAsync(problems.Judge, problems.Status, problems.Limit, cancellationToken);
+                await output.WriteLineAsync(problems.Json ? ConsoleRenderer.RenderJson(entries) : ConsoleRenderer.RenderHuman(entries));
+                return (int)CliExitCode.Success;
+            }
             case ConfigShowCommand configShow:
             {
                 var accounts = await bootstrap.Store.GetAccountsAsync(cancellationToken);

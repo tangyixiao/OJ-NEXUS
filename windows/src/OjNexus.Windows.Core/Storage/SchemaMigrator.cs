@@ -4,7 +4,7 @@ namespace OjNexus.Windows.Core.Storage;
 
 public static class SchemaMigrator
 {
-    private const int CurrentSchemaVersion = 5;
+    private const int CurrentSchemaVersion = 6;
 
     public static void Migrate(string connectionString)
     {
@@ -25,6 +25,7 @@ public static class SchemaMigrator
             ApplyVersionThreeMigration(connection, transaction);
             ApplyVersionFourMigration(connection, transaction);
             ApplyVersionFiveMigration(connection, transaction);
+            ApplyVersionSixMigration(connection, transaction);
         }
         else if (version > CurrentSchemaVersion)
         {
@@ -37,6 +38,7 @@ public static class SchemaMigrator
             ApplyVersionThreeMigration(connection, transaction);
             ApplyVersionFourMigration(connection, transaction);
             ApplyVersionFiveMigration(connection, transaction);
+            ApplyVersionSixMigration(connection, transaction);
         }
         else if (version == 1)
         {
@@ -44,25 +46,33 @@ public static class SchemaMigrator
             ApplyVersionThreeMigration(connection, transaction);
             ApplyVersionFourMigration(connection, transaction);
             ApplyVersionFiveMigration(connection, transaction);
+            ApplyVersionSixMigration(connection, transaction);
         }
         else if (version == 2)
         {
             ApplyVersionThreeMigration(connection, transaction);
             ApplyVersionFourMigration(connection, transaction);
             ApplyVersionFiveMigration(connection, transaction);
+            ApplyVersionSixMigration(connection, transaction);
         }
         else if (version == 3)
         {
             ApplyVersionFourMigration(connection, transaction);
             ApplyVersionFiveMigration(connection, transaction);
+            ApplyVersionSixMigration(connection, transaction);
         }
         else if (version == 4)
         {
             ApplyVersionFiveMigration(connection, transaction);
+            ApplyVersionSixMigration(connection, transaction);
+        }
+        else if (version == 5)
+        {
+            ApplyVersionSixMigration(connection, transaction);
         }
         else if (version == CurrentSchemaVersion)
         {
-            ValidateVersionFiveSchema(connection, transaction);
+            ValidateVersionSixSchema(connection, transaction);
         }
 
         transaction.Commit();
@@ -399,6 +409,44 @@ public static class SchemaMigrator
             new ColumnDefinition("status", true, 0),
             new ColumnDefinition("failure_category", false, 0),
             new ColumnDefinition("handle", true, 0));
+    }
+
+    private static void ApplyVersionSixMigration(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        Execute(connection, transaction, """
+            CREATE TABLE IF NOT EXISTS problems (
+                judge TEXT NOT NULL,
+                external_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                url TEXT NOT NULL,
+                solved INTEGER NOT NULL DEFAULT 0,
+                first_seen_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                PRIMARY KEY (judge, external_id)
+            );
+            """);
+        ValidateVersionSixSchema(connection, transaction);
+
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.Transaction = transaction;
+        versionCommand.CommandText = "UPDATE schema_metadata SET value = '6' WHERE key = 'schema_version'";
+        versionCommand.ExecuteNonQuery();
+    }
+
+    private static void ValidateVersionSixSchema(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        ValidateVersionFiveSchema(connection, transaction);
+        ValidateTable(
+            connection,
+            transaction,
+            "problems",
+            new ColumnDefinition("judge", true, 1),
+            new ColumnDefinition("external_id", true, 2),
+            new ColumnDefinition("title", true, 0),
+            new ColumnDefinition("url", true, 0),
+            new ColumnDefinition("solved", true, 0),
+            new ColumnDefinition("first_seen_at", true, 0),
+            new ColumnDefinition("last_seen_at", true, 0));
     }
 
     private static void ValidateVersionOneSchema(SqliteConnection connection, SqliteTransaction transaction)

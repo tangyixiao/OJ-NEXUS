@@ -208,11 +208,11 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 
 ### ARC D — Windows / Apple parity
 
-#### ⬜ PHASE 98 — Windows problem library view
+#### ✅ PHASE 98 — Windows problem library view (v6 schema, 2026-10-18)
 - Goal: WPF `PROBLEMS` view over the shared SQLite ledger: filter by judge/status, open external
   link.
 - Refs: `docs/superpowers/specs/2026-09-07-windows-client-cli-design.md`.
-- DoD: `dotnet test` green; CLI gains `problems list --judge`.
+- DoD: `dotnet test` green; CLI gains `problems list --judge`. ✅ 145 tests, Release build clean.
 
 #### ⬜ PHASE 99 — Windows review queue view
 - Goal: due-review list + PASS/HARD/FAIL recording on Windows writing to the shared ledger.

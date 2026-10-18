@@ -13,6 +13,12 @@ public interface ISyncStore
         int limit,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ProblemEntry>> GetProblemsAsync(
+        JudgeId? judge,
+        ProblemStatus? status,
+        int limit,
+        CancellationToken cancellationToken);
+
     Task<CodeforcesPayloadSnapshot> GetCodeforcesPayloadAsync(
         string handle,
         CancellationToken cancellationToken);

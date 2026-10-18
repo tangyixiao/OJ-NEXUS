@@ -12,6 +12,8 @@ public sealed record DataCommand(JudgeId Judge, string? Handle, bool Json) : Cli
 
 public sealed record HistoryCommand(JudgeId? Judge, int Limit, bool Json) : CliCommand(Json);
 
+public sealed record ProblemsListCommand(JudgeId? Judge, ProblemStatus? Status, int Limit, bool Json) : CliCommand(Json);
+
 public sealed record ConfigShowCommand(bool Json) : CliCommand(Json);
 
 public sealed class CliParseException(string message) : Exception(message);
@@ -19,13 +21,14 @@ public sealed class CliParseException(string message) : Exception(message);
 public static class CliParser
 {
     private const int DefaultHistoryLimit = 20;
+    private const int DefaultProblemsLimit = 50;
 
     public static CliCommand Parse(string[] args)
     {
         ArgumentNullException.ThrowIfNull(args);
         if (args.Length == 0)
         {
-            throw new CliParseException("MISSING COMMAND. USE: status | sync | data | history | config show.");
+            throw new CliParseException("MISSING COMMAND. USE: status | sync | data | history | problems list | config show.");
         }
 
         return args[0] switch
@@ -34,9 +37,47 @@ public static class CliParser
             "sync" => ParseSync(args),
             "data" => ParseData(args),
             "history" => ParseHistory(args),
+            "problems" => ParseProblems(args),
             "config" => ParseConfig(args),
-            _ => throw new CliParseException($"UNKNOWN COMMAND '{args[0]}'. USE: status | sync | data | history | config show."),
+            _ => throw new CliParseException($"UNKNOWN COMMAND '{args[0]}'. USE: status | sync | data | history | problems list | config show."),
         };
+    }
+
+    private static ProblemsListCommand ParseProblems(string[] args)
+    {
+        if (args.Length < 2 || !string.Equals(args[1], "list", StringComparison.Ordinal))
+        {
+            throw new CliParseException("PROBLEMS REQUIRES SUBCOMMAND 'list'. USE: problems list [--judge <judge>] [--status <solved|attempted>] [--limit <positive>] [--json].");
+        }
+
+        JudgeId? judge = null;
+        ProblemStatus? status = null;
+        var limit = DefaultProblemsLimit;
+        var limitSpecified = false;
+        var json = false;
+        for (var index = 2; index < args.Length; index++)
+        {
+            switch (args[index])
+            {
+                case "--judge": EnsureNotSpecified(judge, "--judge"); judge = ParseJudge(ReadValue(args, ref index, "--judge")); break;
+                case "--status":
+                    EnsureNotAlreadySet(status is not null, "--status");
+                    if (!ProblemStatusParser.TryParse(ReadValue(args, ref index, "--status"), out var parsedStatus))
+                        throw new CliParseException("OPTION '--status' MUST BE 'solved' OR 'attempted'.");
+                    status = parsedStatus;
+                    break;
+                case "--limit":
+                    EnsureNotAlreadySet(limitSpecified, "--limit");
+                    limitSpecified = true;
+                    if (!int.TryParse(ReadValue(args, ref index, "--limit"), out limit) || limit <= 0)
+                        throw new CliParseException("OPTION '--limit' MUST BE A POSITIVE INTEGER.");
+                    break;
+                case "--json": EnsureNotAlreadySet(json, "--json"); json = true; break;
+                default: ThrowUnknownOption(args[index], "problems list [--judge <judge>] [--status <solved|attempted>] [--limit <positive>] [--json]"); break;
+            }
+        }
+
+        return new ProblemsListCommand(judge, status, limit, json);
     }
 
     private static SyncCommand ParseSync(string[] args)

@@ -3,6 +3,30 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## WINDOWS PROBLEM LIBRARY VIEW
+
+The Windows client gains a PROBLEMS surface over the shared local SQLite ledger. Schema v6 adds
+an additive `problems` table keyed (judge, external_id); rows are derived inside the same
+transaction that persists each judge's submissions payload — Codeforces rows use the Android
+identity rule `{contestId}{index}`, AtCoder rows use `{contestId}+{problemId}`, Luogu contributes
+no rows because its payload is counts-only. A submission with an accepted verdict (`OK`, `AC`, or
+an `Accepted` prefix) marks the row solved, and that flag is sticky: later non-accepted
+submissions never reset it, and the first-seen title wins while `last_seen_at` advances. The CLI
+exposes `problems list [--judge] [--status solved|attempted] [--limit] [--json]` (default limit
+50, success exit even when empty) and the WPF shell gains a PROBLEMS page with judge/status
+filter combos, a bounded list, and an OPEN button that launches the public problem link through
+the shell — only when a URL can be built for that identity. No credentials, no cookies, and no
+new network call sites are involved; every row is derived from data already persisted offline.
+/ Windows 客户端新增基于共享本地 SQLite 账本的 PROBLEMS 界面。Schema v6 增加以 (judge, external_id)
+为键的增量 `problems` 表；行数据在持久化各 OJ 提交负载的同一事务内派生——Codeforces 沿用
+Android 侧的 `{contestId}{index}` 身份规则，AtCoder 使用 `{contestId}+{problemId}`，洛谷负载只有
+计数、不产生行。被判题通过的提交（`OK`、`AC` 或 `Accepted` 前缀）将行标记为已解决，且该标记是
+粘性的：后续未通过的提交不会重置它，标题保留首次取值，仅推进 `last_seen_at`。CLI 暴露
+`problems list [--judge] [--status solved|attempted] [--limit] [--json]`（默认 50 条，空结果也以
+成功退出），WPF 外壳新增 PROBLEMS 页面，含 OJ/状态筛选组合与有界列表，OPEN 按钮在能为该身份构建
+公开题目链接时经系统 Shell 打开。全程不涉及凭据、Cookie 或新增网络调用点；每一行都由已离线持久
+的数据派生而来。
+
 ## MULTI-HANDLE PER JUDGE — DESIGN GATE
 
 Multi-handle shipped as a design-gated phase: a verified spec, a pure prototype, and a migration

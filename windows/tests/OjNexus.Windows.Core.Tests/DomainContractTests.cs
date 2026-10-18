@@ -254,6 +254,13 @@ public sealed class DomainContractTests
             return Task.FromResult<IReadOnlyList<SyncOperation>>(operations);
         }
 
+        public Task<IReadOnlyList<ProblemEntry>> GetProblemsAsync(
+            JudgeId? judge,
+            ProblemStatus? status,
+            int limit,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<ProblemEntry>>(Array.Empty<ProblemEntry>());
+
         public Task<CodeforcesPayloadSnapshot> GetCodeforcesPayloadAsync(
             string handle,
             CancellationToken cancellationToken) =>

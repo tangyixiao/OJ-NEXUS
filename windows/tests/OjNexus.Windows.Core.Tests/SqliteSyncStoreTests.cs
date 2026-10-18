@@ -7,11 +7,11 @@ namespace OjNexus.Windows.Core.Tests;
 public sealed class SqliteSyncStoreTests
 {
     [Fact]
-    public void Migrate_FreshDatabase_SetsSchemaVersionFive()
+    public void Migrate_FreshDatabase_SetsSchemaVersionSix()
     {
         using var database = new TemporaryDatabase();
 
-        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("6", ReadSchemaVersion(database.DatabasePath));
     }
 
     [Fact]
@@ -24,19 +24,19 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("6", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("tourist", ReadAccountHandle(database.DatabasePath, "Codeforces"));
     }
 
     [Fact]
-    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionFive()
+    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionSix()
     {
         using var database = new TemporaryDatabaseDirectory();
         ExecuteNonQuery(database.DatabasePath, VersionZeroSchemaSql);
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("6", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.Equal(1L, CountModules(database.DatabasePath, 7));
         Assert.Equal("Success", ReadString(database.DatabasePath, "SELECT status FROM sync_operations WHERE id = 7"));
@@ -53,7 +53,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("6", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.True(TableExists(database.DatabasePath, "codeforces_profiles"));
         Assert.True(TableExists(database.DatabasePath, "luogu_payloads"));
@@ -68,7 +68,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("6", ReadSchemaVersion(database.DatabasePath));
         Assert.True(TableExists(database.DatabasePath, "atcoder_submissions"));
         Assert.True(TableExists(database.DatabasePath, "luogu_payloads"));
     }
@@ -83,7 +83,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("6", ReadSchemaVersion(database.DatabasePath));
         Assert.True(ColumnExists(database.DatabasePath, "sync_operations", "handle"));
     }
 
@@ -224,11 +224,11 @@ public sealed class SqliteSyncStoreTests
     {
         using var database = new TemporaryDatabaseDirectory();
         ExecuteNonQuery(database.DatabasePath, "CREATE TABLE schema_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL)");
-        ExecuteNonQuery(database.DatabasePath, "INSERT INTO schema_metadata (key, value) VALUES ('schema_version', '5')");
+        ExecuteNonQuery(database.DatabasePath, "INSERT INTO schema_metadata (key, value) VALUES ('schema_version', '7')");
 
         Assert.Throws<InvalidOperationException>(() => SchemaMigrator.Migrate(database.ConnectionString));
 
-        Assert.Equal("5", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
         Assert.False(TableExists(database.DatabasePath, "accounts"));
     }
 
@@ -260,7 +260,7 @@ public sealed class SqliteSyncStoreTests
             tableNames.Add(reader.GetString(0));
         }
 
-        Assert.Equal(new[] { "accounts", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "luogu_payloads", "schema_metadata", "sync_modules", "sync_operations" }, tableNames);
+        Assert.Equal(new[] { "accounts", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "luogu_payloads", "problems", "schema_metadata", "sync_modules", "sync_operations" }, tableNames);
     }
 
     [Fact]
@@ -408,6 +408,149 @@ public sealed class SqliteSyncStoreTests
         Assert.Equal(0L, CountModules(database.DatabasePath, completedIds[0]));
         Assert.Equal(20, otherJudgeOperations.Count);
         Assert.All(otherJudgeOperations, operation => Assert.Equal(JudgeId.AtCoder, operation.Account.Judge));
+    }
+
+    [Fact]
+    public async Task Store_DerivesProblemRowsFromCodeforcesSubmissionsWithStickySolved()
+    {
+        using var database = new TemporaryDatabase();
+        var account = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
+        var timestamp = DateTimeOffset.Parse("2026-09-12T01:02:03+00:00");
+        var operationId = await database.Store.OpenOperationAsync(account, "generation-1", timestamp, CancellationToken.None);
+
+        await database.Store.AppendModuleAsync(
+            operationId,
+            new SyncModuleOutcome(
+                "SUBMISSIONS",
+                SyncOperationStatus.Success,
+                2,
+                2,
+                0,
+                null,
+                new CodeforcesSubmissionsPayload("tourist",
+                [
+                    new CodeforcesSubmission(1, 2134, "C", "Watermelon", "WRONG_ANSWER", "GNU C++17", 0, 0, 262144, 1_700_000_000),
+                ])),
+            timestamp,
+            CancellationToken.None);
+        var laterTimestamp = timestamp.AddMinutes(1);
+        var laterOperation = await database.Store.OpenOperationAsync(account, "generation-2", laterTimestamp, CancellationToken.None);
+        await database.Store.AppendModuleAsync(
+            laterOperation,
+            new SyncModuleOutcome(
+                "SUBMISSIONS",
+                SyncOperationStatus.Success,
+                1,
+                1,
+                0,
+                null,
+                new CodeforcesSubmissionsPayload("tourist",
+                [
+                    new CodeforcesSubmission(2, 2134, "C", "Watermelon", "OK", "GNU C++17", 5, 15, 262144, 1_700_000_100),
+                    new CodeforcesSubmission(3, 2134, "D", "Theatre Square", "OK", "GNU C++17", 5, 15, 262144, 1_700_000_200),
+                ])),
+            laterTimestamp,
+            CancellationToken.None);
+
+        var problems = await database.Store.GetProblemsAsync(JudgeId.Codeforces, null, 50, CancellationToken.None);
+
+        Assert.Equal(2, problems.Count);
+        var watermelon = problems.Single(problem => problem.ExternalId == "2134C");
+        Assert.True(watermelon.Solved);
+        Assert.Equal("https://codeforces.com/contest/2134/problem/C", watermelon.Url);
+        Assert.Equal(timestamp, watermelon.FirstSeenAt);
+        Assert.Equal(laterTimestamp, watermelon.LastSeenAt);
+        var theatreSquare = problems.Single(problem => problem.ExternalId == "2134D");
+        Assert.True(theatreSquare.Solved);
+    }
+
+    [Fact]
+    public async Task Store_DerivesAtCoderProblemRowsWithContestPlusProblemIdentity()
+    {
+        using var database = new TemporaryDatabase();
+        var account = JudgeAccount.Create(JudgeId.AtCoder, "chokudai");
+        var timestamp = DateTimeOffset.Parse("2026-09-12T02:00:00+00:00");
+        var operationId = await database.Store.OpenOperationAsync(account, "generation-1", timestamp, CancellationToken.None);
+
+        await database.Store.AppendModuleAsync(
+            operationId,
+            new SyncModuleOutcome(
+                "SUBMISSIONS",
+                SyncOperationStatus.Success,
+                2,
+                2,
+                0,
+                null,
+                new AtCoderSubmissionsPayload("chokudai",
+                [
+                    new AtCoderSubmission(11, 100, "abc100_a", "abc100", "C++", 100, 10, "AC", 1),
+                    new AtCoderSubmission(12, 200, "abc100_b", "abc100", "C++", 0, 10, "WA", 1),
+                ])),
+            timestamp,
+            CancellationToken.None);
+
+        var problems = await database.Store.GetProblemsAsync(JudgeId.AtCoder, null, 50, CancellationToken.None);
+
+        Assert.Equal(2, problems.Count);
+        var solved = problems.Single(problem => problem.ExternalId == "abc100+abc100_a");
+        Assert.True(solved.Solved);
+        Assert.Equal("https://atcoder.jp/contests/abc100/tasks/abc100_a", solved.Url);
+        Assert.Equal("abc100_a", solved.Title);
+        var attempted = problems.Single(problem => problem.ExternalId == "abc100+abc100_b");
+        Assert.False(attempted.Solved);
+    }
+
+    [Fact]
+    public async Task Store_GetProblemsAsync_FiltersByJudgeStatusAndLimit()
+    {
+        using var database = new TemporaryDatabase();
+        var cfAccount = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
+        var atAccount = JudgeAccount.Create(JudgeId.AtCoder, "chokudai");
+        var timestamp = DateTimeOffset.Parse("2026-09-12T03:00:00+00:00");
+        var cfOperation = await database.Store.OpenOperationAsync(cfAccount, "generation-1", timestamp, CancellationToken.None);
+        await database.Store.AppendModuleAsync(
+            cfOperation,
+            new SyncModuleOutcome(
+                "SUBMISSIONS",
+                SyncOperationStatus.Success,
+                2,
+                2,
+                0,
+                null,
+                new CodeforcesSubmissionsPayload("tourist",
+                [
+                    new CodeforcesSubmission(1, 2134, "C", "Watermelon", "OK", "GNU C++17", 5, 15, 262144, 1_700_000_000),
+                    new CodeforcesSubmission(2, 2134, "D", "Theatre Square", "WA", "GNU C++17", 0, 0, 262144, 1_700_000_100),
+                ])),
+            timestamp,
+            CancellationToken.None);
+        var atOperation = await database.Store.OpenOperationAsync(atAccount, "generation-2", timestamp, CancellationToken.None);
+        await database.Store.AppendModuleAsync(
+            atOperation,
+            new SyncModuleOutcome(
+                "SUBMISSIONS",
+                SyncOperationStatus.Success,
+                1,
+                1,
+                0,
+                null,
+                new AtCoderSubmissionsPayload("chokudai", [new AtCoderSubmission(11, 100, "abc100_a", "abc100", "C++", 100, 10, "AC", 1)])),
+            timestamp,
+            CancellationToken.None);
+
+        var solvedOnly = await database.Store.GetProblemsAsync(null, ProblemStatus.Solved, 50, CancellationToken.None);
+        var attemptedOnly = await database.Store.GetProblemsAsync(null, ProblemStatus.Attempted, 50, CancellationToken.None);
+        var cfOnly = await database.Store.GetProblemsAsync(JudgeId.Codeforces, null, 50, CancellationToken.None);
+        var limited = await database.Store.GetProblemsAsync(null, null, 1, CancellationToken.None);
+        var empty = await database.Store.GetProblemsAsync(null, null, 0, CancellationToken.None);
+
+        Assert.Equal(2, solvedOnly.Count);
+        Assert.Single(attemptedOnly);
+        Assert.Equal("2134D", attemptedOnly[0].ExternalId);
+        Assert.Equal(2, cfOnly.Count);
+        Assert.All(cfOnly, problem => Assert.Equal(JudgeId.Codeforces, problem.Judge));
+        Assert.Single(limited);
+        Assert.Empty(empty);
     }
 
     private static string? ReadFailureCategory(string databasePath, long operationId)

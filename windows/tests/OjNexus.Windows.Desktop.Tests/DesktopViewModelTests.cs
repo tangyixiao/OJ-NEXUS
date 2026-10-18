@@ -373,6 +373,77 @@ public sealed class DesktopViewModelTests
         Assert.Equal("new-handle", viewModel.Connectors.Single(row => row.Judge == JudgeId.Codeforces).Handle);
     }
 
+    [Fact]
+    public async Task Refresh_ProjectsProblemRowsWithJudgeAndStatusFilters()
+    {
+        var store = new InMemorySyncStore();
+        var cfAccount = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
+        var atAccount = JudgeAccount.Create(JudgeId.AtCoder, "chokudai");
+        var timestamp = DateTimeOffset.Parse("2026-09-12T01:00:00+00:00");
+        await store.UpsertAccountAsync(cfAccount, CancellationToken.None);
+        var cfOperation = await store.OpenOperationAsync(cfAccount, "generation-1", timestamp, CancellationToken.None);
+        await store.AppendModuleAsync(
+            cfOperation,
+            new SyncModuleOutcome(
+                "SUBMISSIONS",
+                SyncOperationStatus.Success,
+                2,
+                2,
+                0,
+                null,
+                new CodeforcesSubmissionsPayload("tourist",
+                [
+                    new CodeforcesSubmission(1, 2134, "C", "Watermelon", "OK", "GNU C++17", 5, 15, 262144, 1_700_000_000),
+                    new CodeforcesSubmission(2, 2134, "D", "Theatre Square", "WA", "GNU C++17", 0, 0, 262144, 1_700_000_100),
+                ])),
+            timestamp,
+            CancellationToken.None);
+        await store.UpsertAccountAsync(atAccount, CancellationToken.None);
+        var atOperation = await store.OpenOperationAsync(atAccount, "generation-2", timestamp, CancellationToken.None);
+        await store.AppendModuleAsync(
+            atOperation,
+            new SyncModuleOutcome(
+                "SUBMISSIONS",
+                SyncOperationStatus.Success,
+                1,
+                1,
+                0,
+                null,
+                new AtCoderSubmissionsPayload("chokudai", [new AtCoderSubmission(11, 100, "abc100_a", "abc100", "C++", 100, 10, "AC", 1)])),
+            timestamp,
+            CancellationToken.None);
+        var viewModel = CreateViewModel(store);
+
+        await viewModel.RefreshAsync(CancellationToken.None);
+
+        Assert.Equal(3, viewModel.Problems.Count);
+        Assert.All(viewModel.Problems, row => Assert.True(row.HasUrl));
+        Assert.Contains(viewModel.Problems, row => row.Judge == "CODEFORCES" && row.Status == "SOLVED" && row.ExternalId == "2134C");
+        Assert.Contains(viewModel.Problems, row => row.Judge == "CODEFORCES" && row.Status == "ATTEMPTED" && row.ExternalId == "2134D");
+
+        await viewModel.SelectProblemStatusAsync("SOLVED", CancellationToken.None);
+
+        Assert.Equal("SOLVED", viewModel.SelectedProblemStatus);
+        Assert.Equal(2, viewModel.Problems.Count);
+
+        await viewModel.SelectProblemJudgeAsync("CODEFORCES", CancellationToken.None);
+
+        Assert.Equal("CODEFORCES", viewModel.SelectedProblemJudge);
+        Assert.Single(viewModel.Problems);
+        Assert.Equal("2134C", viewModel.Problems[0].ExternalId);
+    }
+
+    [Fact]
+    public async Task SelectProblemJudge_UnknownFilterReportsError()
+    {
+        var viewModel = CreateViewModel(new InMemorySyncStore());
+
+        await viewModel.SelectProblemJudgeAsync("MARS", CancellationToken.None);
+
+        Assert.Equal("ERROR", viewModel.StatusText);
+        Assert.Equal("UNKNOWN JUDGE FILTER", viewModel.LastError);
+    }
+
     private static async Task SeedCompletedOperationAsync(InMemorySyncStore store, JudgeId judge, string handle, int minute)
     {
         var account = JudgeAccount.Create(judge, handle);
