@@ -51,7 +51,7 @@ class RoomIndexAuditTest {
     }
 
     @Test
-    fun `fresh v14 schema carries both audited composite indices`() {
+    fun `fresh v15 schema carries both audited composite indices`() {
         val database = open("audit-fresh-${System.nanoTime()}.db")
         try {
             val plans = plan(
@@ -72,7 +72,7 @@ class RoomIndexAuditTest {
     }
 
     @Test
-    fun `migrate v13 to v14 keeps rows and adds indices non-destructively`() {
+    fun `migrate v13 to latest keeps rows and adds indices non-destructively`() {
         val name = "audit-migrate-${System.nanoTime()}.db"
         // Build a faithful v13 database: capture the exact CREATE TABLE statements from a
         // fresh Room open (v14 added indices only, no columns — so the table DDL equals
@@ -134,7 +134,7 @@ class RoomIndexAuditTest {
             .allowMainThreadQueries()
             .build()
         try {
-            assertEquals(14, migrated.openHelper.writableDatabase.version)
+            assertEquals(15, migrated.openHelper.writableDatabase.version)
             // Row survived the migration: read the seeded job back through the raw store.
             val jobs = mutableListOf<String>()
             migrated.openHelper.writableDatabase.query(
@@ -179,6 +179,7 @@ class RoomIndexAuditTest {
             OjNexusDatabase.MIGRATION_11_12,
             OjNexusDatabase.MIGRATION_12_13,
             OjNexusDatabase.MIGRATION_13_14,
+            OjNexusDatabase.MIGRATION_14_15,
         )
     }
 }

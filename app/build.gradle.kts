@@ -15,8 +15,8 @@ android {
         applicationId = "com.ojnexus"
         minSdk = 26
         targetSdk = 37
-        versionCode = 102
-        versionName = "1.0.0"
+        versionCode = 103
+        versionName = "1.0.1"
 
         // Room schema history is exported and committed to verify future migrations.
         ksp {

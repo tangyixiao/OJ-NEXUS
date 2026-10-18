@@ -320,9 +320,18 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 #### ✅ PHASE 117 — Sync POC (behind flag) (2026-10-18)
 - Constraints: compiled out of release builds unless explicitly enabled.
 
-#### ⬜ PHASE 118–120 — Reserved
-- Reserved for what Phases 116–117 prove or kill. Fill in after the RFC lands. If the RFC is
-  rejected, repurpose 118–120 for ARC C/D leftovers.
+#### ✅ PHASE 118 — Sync op-log ledger (v0.3.103, 2026-10-18)
+- Reserved slot filled: the RFC survived the Phase 117 verdict, so 118 delivers the RFC §3
+  persistence floor — schema v15 additive tables (sync_log_operations / sync_log_ops /
+  sync_conflict_log), SyncLogRepository with kernel-driven conflict resolution, migration
+  tested. No network I/O; ledger has no reference to credentials.
+
+#### ⬜ PHASE 119 — Reserved
+- Fill after Phase 118's ledger sees use (candidate: payload sealing + endpoint transport
+  behind BuildConfig.SYNC_POC), or repurpose for ARC C/D leftovers.
+
+#### ⬜ PHASE 120 — Reserved
+- Same policy as 119.
 
 ---
 

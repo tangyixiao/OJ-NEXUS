@@ -3,6 +3,24 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## SYNC OP-LOG LEDGER (SCHEMA V15)
+
+The first reserved slot fills with the RFC 0001 §3 persistence floor: three additive tables —
+`sync_log_operations` (one row per device-produced batch, keyed by a client ULID with a
+monotonic lamport), `sync_log_ops` (the row-level operations inside a batch), and
+`sync_conflict_log` (one row per displaced op carrying the merge kernel's reason string). The
+repository assigns lamports transactionally, resolves incoming batches through the pure merge
+kernel, and records every deterministic resolution so nothing is silent. The migration 14→15 is
+additive and tested in place. Boundaries hold: the ledger has no reference to judge accounts,
+the repository cannot name credentials, and nothing here performs network I/O — transport stays
+behind the debug-only flag in later reserved slots.
+/ 第一个保留阶段填充了 RFC 0001 §3 的持久化底座：三张纯增量表——`sync_log_operations`（每批设备产出的
+操作一行，以客户端 ULID 为主键，配单调 lamport）、`sync_log_ops`（批内的行级操作）、以及
+`sync_conflict_log`（每条被挤掉的操作一行，携带合并内核的理由字符串）。仓库以事务方式分配
+lamport，将收到的批次交给纯函数合并内核裁决，并把每一次确定性结果记录在案——绝不静默。14→15
+迁移为增量式并通过原位测试。边界保持：台账不引用账号表，仓库无法命名凭据，这里没有任何网络
+I/O——传输仍留在后续保留阶段、由仅调试构建的开关守护。
+
 ## SYNC POC (BEHIND FLAG)
 
 Phase 117 proves the smallest slice of RFC 0001: the op-log merge kernel as pure Kotlin —
