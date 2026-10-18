@@ -530,7 +530,9 @@
     <string name="analytics_day_active">活动时长</string>
     <string name="analytics_day_zero">无活动</string>
     <string name="analytics_day_score">得分 %1$d · %2$d/4</string>
-    <string name="analytics_heatmap_cell_cd">活动强度 %1$d/4，已解决 %2$d 道</string>
+    <string name="analytics_heatmap_cell_cd">活动强度 %1$d/4，已解决 %2$d 道，%3$s</string>
+    <string name="analytics_heatmap_cell_padding_cd">空白日历格</string>
+    <string name="analytics_streak_longest">最长</string>
     <string name="format_hours">%1$d 小时 %2$02d 分钟</string>
     <string name="profile_role">竞赛程序员</string>
     <string name="profile_section_judges">OJ</string>

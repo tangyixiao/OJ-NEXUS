@@ -3,6 +3,26 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## TRAINING CALENDAR HEAT STREAKS
+
+Every heatmap cell now tells a screen-reader user which day it is. The cell description carries the
+formatted local date next to the intensity and solved count, and the leading/trailing grid padding
+is announced as an empty calendar cell instead of a fake zero-activity day. The totals strip shows
+the longest streak beside the current one, so the season record is visible without reading the
+heatmap cell by cell. The streak math itself was already a tested pure function
+(`StreakCalculator`); this phase pins the contract with new boundary tests (longest covers current,
+sparse history, single-day history) and a UI-layout test that fails if the date ever drops out of
+the cell description.
+/ 热力图的每个格子现在都会告诉读屏用户它是哪一天。格子描述在强度与解决数之外携带格式化后的本地日期，
+网格首尾的补位格被朗读为"空白日历格"，而不是一个伪造的零活动日。总计条在当前连续天数旁边展示最长连续天数，
+无需逐格阅读热力图即可看到赛季纪录。连签计算本身已是经过测试的纯函数（`StreakCalculator`），
+本阶段用新的边界测试（最长≥当前、稀疏历史、单日历史）和 UI 布局测试固定这一契约——
+日期一旦从格子描述中消失，测试即失败。
+
+The phase adds no network request, no Room migration and no credential flow; it only relabels and
+surfaces data the app already computes. / 本阶段不引入任何网络请求、Room 迁移或凭据流程，
+只是重新标注并展示应用已经在计算的数据。
+
 ## FOCUS SPRINT DIFFICULTY LADDER
 
 The focus sprint is now a ladder, not just a queue. The panel gained a four-chip difficulty band —

@@ -571,7 +571,9 @@
     <string name="analytics_day_active">ACTIVE TIME</string>
     <string name="analytics_day_zero">ZERO ACTIVITY</string>
     <string name="analytics_day_score">SCORE %1$d · %2$d/4</string>
-    <string name="analytics_heatmap_cell_cd">Activity intensity %1$d of 4, %2$d solved</string>
+    <string name="analytics_heatmap_cell_cd">Activity intensity %1$d of 4, %2$d solved, %3$s</string>
+    <string name="analytics_heatmap_cell_padding_cd">Empty calendar cell</string>
+    <string name="analytics_streak_longest">LONGEST</string>
     <string name="format_hours">%1$dH %2$02dM</string>
 
     <!-- Profile -->

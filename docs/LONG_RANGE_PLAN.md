@@ -110,7 +110,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Constraints: deterministic reason codes only; never infer target from missing rating.
 - DoD: tests for ordering and reason-code assignment.
 
-#### ⬜ PHASE 84 — Training calendar heat streaks
+#### ✅ PHASE 84 — Training calendar heat streaks (v0.3.82, 2026-10-18)
 - Goal: analytics heatmap cells get accessible labels and the streak logic (current/longest)
   moves into a tested pure function.
 - Scope: `feature/analytics`, `core/model` streaks.
