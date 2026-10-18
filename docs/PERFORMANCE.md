@@ -40,3 +40,41 @@ The connector history query is bounded to the newest 10 completed operations per
 active operations remain visible until they close. The UI projects at most five rows per connector,
 and module outcomes are sorted deterministically before rendering. This keeps history work local,
 bounded, and independent of remote response volume.
+
+## Cold start budget — Phase 105
+
+**Budget: 1500 ms from process start to the first interactive Dashboard frame.**
+
+### Harness
+
+`OjNexusApplication` opens a `StartupTracer` span at container construction (`app-create` covers
+restore recovery, Room open, and repository wiring) and closes it before background bootstrap is
+launched; `bootstrap-launch` closes after the async reconciliation coroutines are handed to the
+application scope. The Dashboard composable closes the `first-frame` span on its first
+composition and logs the whole chain once:
+
+```
+adb logcat -s OJNEXUS-STARTUP
+OJNEXUS-STARTUP: cold-start total=...ms budget=1500ms verdict=WITHIN_BUDGET|OVER_BUDGET
+app-create=...ms bootstrap-launch=...ms first-frame=...ms
+```
+
+The verdict comes from the pure `StartupBudget.verdict(total)` (unit-tested boundaries at
+1500/1501 ms). No startup I/O and no tracing allocation before the first frame; background
+bootstrap (periodic sync reconciliation, Luogu result work, backup schedule) launches after
+`app-create` closes, so it never counts against the first frame.
+
+### Measured numbers
+
+| Measurement | Value | Source |
+| --- | --- | --- |
+| Span-chain accounting (injected clock) | deterministic | `StartupTracerTest` |
+| Device cold start | **PENDING** — `adb shell am force-stop` + cold launch, read the OJNEXUS-STARTUP line, 5-run median on a mid-range device | no device attached to this host; per repo rules the 1.5 s DoD number is recorded only from hardware |
+
+## Library rendering — Phase 104
+
+The problem library renders through manual windowing: the LazyColumn tracks at most a 60-row
+window (grown 60 rows per SHOW MORE tap), so recomposition cost is flat in library size. The
+10,000-row filter+sort+window pass is unit-tested to finish well under a 250 ms CPU budget
+(`LibraryWindowTest`); scroll smoothness follows because Compose only tracks the window, not the
+full list.

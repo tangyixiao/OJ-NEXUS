@@ -3,6 +3,30 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## COLD START TRACING
+
+Cold start is now measured, not guessed. `OjNexusApplication` opens a `StartupTracer` span at
+container construction — `app-create` covers restore recovery, Room open, and repository wiring —
+and closes it before the background bootstrap coroutines launch, so none of that periodic-sync or
+backup-schedule work counts against the first frame. The Dashboard composable closes the
+`first-frame` span on its first composition and logs the whole chain exactly once under the
+OJNEXUS-STARTUP tag: `cold-start total=…ms budget=1500ms verdict=WITHIN_BUDGET|OVER_BUDGET`
+followed by per-span durations. The tracer is a pure object with an injectable clock (no
+androidx.tracing dependency), unit-tested for span chains, idempotent ends, unknown-end no-ops,
+negative-duration clamping, and the 1500/1501 ms budget verdict boundaries.
+docs/PERFORMANCE.md records the harness and the measurement protocol (`adb shell am force-stop` +
+cold launch, 5-run median from `adb logcat -s OJNEXUS-STARTUP`); the device number itself stays
+explicitly PENDING because no hardware is attached to the development host, and repo rules forbid
+inventing it.
+/ 冷启动现在靠测量而非猜测。`OjNexusApplication` 在容器构造处打开 `StartupTracer` 区段——
+`app-create` 覆盖恢复收敛、Room 打开与仓储装配——并在后台引导协程启动前关闭它，因此周期同步与
+备份排程都不计入首帧。Dashboard 组合项在首次组合时关闭 `first-frame` 区段，并在 OJNEXUS-STARTUP
+标签下恰好输出一次完整链路：`cold-start total=…ms budget=1500ms verdict=WITHIN_BUDGET|OVER_BUDGET`
+及各区段耗时。tracer 是带可注入时钟的纯对象（不引入 androidx.tracing 依赖），单测覆盖区段链、
+幂等关闭、未知端点无操作、负时长钳制以及 1500/1501ms 预算判定边界。docs/PERFORMANCE.md 记录了
+测量协议（`adb shell am force-stop` + 冷启动，取 `adb logcat -s OJNEXUS-STARTUP` 五次中位数）；
+设备数值明确标记 PENDING——开发主机没有连接硬件，仓库规则禁止编造。
+
 ## LIBRARY PAGING
 
 The problem library now stays smooth at ten thousand rows without adopting Paging 3. The full

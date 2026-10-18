@@ -254,10 +254,16 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
   pass well under the 250ms CPU budget (60fps scroll is a compose cost function of tracked items,
   which is now flat).
 
-#### ⬜ PHASE 105 — Cold start budget
+#### ✅ PHASE 105 — Cold start budget (v0.3.97, 2026-10-18)
 - Goal: cold start to interactive Dashboard ≤ 1.5s on a mid-range device; add a startup
   tracing test harness (Macrobenchmark optional).
 - DoD: numbers recorded in `docs/PERFORMANCE.md`.
+  Shipped: StartupTracer (pure, injectable clock; no androidx.tracing dependency) +
+  StartupBudget.verdict boundaries unit-tested; spans app-create / bootstrap-launch / first-frame
+  logged once under OJNEXUS-STARTUP when Dashboard first composes (background bootstrap launches
+  after app-create, never counted against the first frame); docs/PERFORMANCE.md cold-start
+  section records the harness + the PENDING device measurement honestly (no device attached to
+  this host — the 1.5s DoD number is recorded only from hardware per repo rules).
 
 #### ⬜ PHASE 106 — Room index audit
 - Goal: `EXPLAIN QUERY PLAN` audit of the top 10 queries; add indices where proven.

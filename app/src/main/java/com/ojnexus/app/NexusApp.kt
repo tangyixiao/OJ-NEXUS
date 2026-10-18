@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -181,6 +182,24 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     popExitTransition = { exitTransition },
                 ) {
                     composable(NexusDestination.DASHBOARD.route) {
+                        val context = LocalContext.current
+                        // First interactive frame closes the cold-start trace (Phase 105).
+                        LaunchedEffect(Unit) {
+                            val app = context.applicationContext as? OjNexusApplication
+                            app?.startupTracer?.let { tracer ->
+                                tracer.end("first-frame")
+                                val total = tracer.totalMs()
+                                android.util.Log.i(
+                                    "OJNEXUS-STARTUP",
+                                    "cold-start total=${total ?: -1}ms " +
+                                        "budget=${com.ojnexus.core.startup.StartupBudget.COLD_START_BUDGET_MS}ms " +
+                                        "verdict=${com.ojnexus.core.startup.StartupBudget.verdict(total)} " +
+                                        tracer.spans.joinToString(separator = " ") { span ->
+                                            "${span.name}=${span.durationMs() ?: -1}ms"
+                                        },
+                                )
+                            }
+                        }
                         DashboardScreen(
                             onOpenContests = { navController.navigate(NexusRoutes.CONTESTS) },
                             onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS) },

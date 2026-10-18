@@ -262,10 +262,19 @@ class OjNexusApplication : Application() {
     lateinit var container: AppContainer
         private set
 
+    /**
+     * Cold-start tracing (Phase 105). Spans begin at container construction and close when the
+     * first Dashboard frame composes; the chain is logged once under OJNEXUS-STARTUP.
+     */
+    val startupTracer = com.ojnexus.core.startup.StartupTracer()
+
     override fun onCreate() {
         super.onCreate()
+        startupTracer.begin("app-create")
         container = AppContainer(this)
         com.ojnexus.core.ui.GlobalContext.init(this)
+        startupTracer.end("app-create")
+        startupTracer.begin("bootstrap-launch")
         applicationScope.launch {
             JudgeSyncBootstrap(
                 activeAccount = container.judgeAccountRepository::findActive,
@@ -286,5 +295,6 @@ class OjNexusApplication : Application() {
             val preferences = container.userPreferencesRepository.preferences.first()
             ScheduledBackupScheduler.update(this@OjNexusApplication, preferences.backupCadence)
         }
+        startupTracer.end("bootstrap-launch")
     }
 }
