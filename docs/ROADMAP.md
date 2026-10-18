@@ -3,6 +3,33 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PER-JUDGE DATA WIPE
+
+Local data is now wipeable per judge. Each connected judge panel in the settings screen gains a
+WIPE DATA action behind a typed-confirm dialog: the confirm button stays disabled until the user
+types the judge's display name, so a mis-tap can never destroy a library. One transaction deletes
+the judge's training library problems (attempts, failure entries, notes, knowledge, reviews and
+training history cascade through foreign keys), the cached remote catalog and details, profile and
+rating snapshots, contests and markers, workspace drafts, submission jobs, the sync state cursor
+and the judge's sync operation ledger rows, then writes a `WIPE` audit entry into the fresh ledger.
+The account binding itself survives — the public handle stays connected for the next sync, and
+every other judge's data is untouched.
+/ 本地数据现在支持按 OJ 清除。设置页每个已连接的 OJ 面板新增 WIPE DATA 操作，由输入确认对话框保护：
+用户输入该 OJ 的显示名后确认按钮才可用，误触无法销毁题库。单个事务删除该 OJ 的训练题库题目
+（提交记录、失败记录、笔记、知识、复习与训练历史经外键级联删除）、缓存的远端题库与题目详情、
+个人档案与分数快照、比赛与标记、工作区草稿、提交任务、同步状态游标及该 OJ 的同步台账行，
+随后在新台账中写入一条 `WIPE` 审计记录。账号绑定本身保留——公开句柄仍保持连接以便下次同步，
+其他 OJ 的数据完全不受影响。
+
+The wipe status is a stored ledger string, not a new enum value, so history rendering and retry
+logic degrade gracefully. Cross-judge isolation is pinned by Robolectric tests: seeding two judges,
+wiping one, and asserting the other's problems, profile, catalog detail and ledger rows survive.
+The action is destructive by request only: no network request, no Room migration, and no credential
+flow is introduced.
+/ 清除状态是台账中的存储字符串而非新枚举值，历史渲染与重试逻辑可优雅降级。跨 OJ 隔离由 Robolectric
+测试钉死：播种两个 OJ，清除其一，断言另一方的题目、档案、题库详情与台账行完好。该操作仅在用户明确
+请求时具有破坏性：不引入网络请求、不涉及 Room 迁移、不新增凭据流程。
+
 ## SCHEDULED LOCAL BACKUP
 
 Backups now run on a schedule. The settings data screen gains an AUTO BACKUP section: the user

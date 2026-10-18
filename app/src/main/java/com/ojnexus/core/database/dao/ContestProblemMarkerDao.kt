@@ -35,4 +35,7 @@ interface ContestProblemMarkerDao {
 
     @Query("DELETE FROM contest_problem_markers WHERE judge = :judge AND contest_id = :contestId")
     suspend fun deleteByContest(judge: String, contestId: String)
+
+    @Query("DELETE FROM contest_problem_markers WHERE judge = :judge")
+    suspend fun deleteByJudge(judge: String)
 }

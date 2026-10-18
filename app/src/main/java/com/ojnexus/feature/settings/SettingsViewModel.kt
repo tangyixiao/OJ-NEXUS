@@ -166,6 +166,10 @@ class SettingsViewModel(
     val retryingOperationId: StateFlow<Long?> = _retryingOperationId.asStateFlow()
     private val backupResult = MutableStateFlow<BackupResult?>(null)
     val backup: StateFlow<BackupResult?> = backupResult.asStateFlow()
+    private val wipeJudges = MutableStateFlow<Set<JudgeId>>(emptySet())
+    val wiping: StateFlow<Set<JudgeId>> = wipeJudges.asStateFlow()
+    private val wipeErrors = MutableStateFlow<Map<JudgeId, Boolean>>(emptyMap())
+    val wipeFailed: StateFlow<Map<JudgeId, Boolean>> = wipeErrors.asStateFlow()
     private val restoreStatus = MutableStateFlow(restoreStatusFor(restoreOutcome))
     val restore: StateFlow<RestoreStatus?> = restoreStatus.asStateFlow()
     val preferences: StateFlow<UserPreferences> = preferencesRepository.preferences.stateIn(
@@ -478,6 +482,28 @@ class SettingsViewModel(
                 judge,
                 account.id,
             )
+        }
+    }
+
+    /**
+     * Typed-confirm guard lives in the dialog; this only runs the destructive wipe and
+     * surfaces a per-judge failure flag. The account row itself survives the wipe.
+     */
+    fun wipeJudgeData(account: JudgeAccountEntity) {
+        val judge = JudgeId.fromId(account.judge) ?: return
+        if (judge in wipeJudges.value) return
+        wipeJudges.update { it + judge }
+        viewModelScope.launch {
+            wipeErrors.update { it - judge }
+            try {
+                accountRepository.wipeJudgeData(account.judge, account.id)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                wipeErrors.update { it + (judge to true) }
+            } finally {
+                wipeJudges.update { it - judge }
+            }
         }
     }
 

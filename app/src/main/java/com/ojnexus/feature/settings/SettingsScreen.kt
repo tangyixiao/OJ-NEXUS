@@ -97,6 +97,8 @@ fun SettingsScreen(
     val openAppState by viewModel.openApp.collectAsStateWithLifecycle()
     val syncAllInFlight by viewModel.syncAllInFlight.collectAsStateWithLifecycle()
     val retryingOperationId by viewModel.retryingOperationId.collectAsStateWithLifecycle()
+    val wiping by viewModel.wiping.collectAsStateWithLifecycle()
+    val wipeFailed by viewModel.wipeFailed.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip"),
@@ -121,6 +123,8 @@ fun SettingsScreen(
     }
     var disconnectAccountId by rememberSaveable { mutableStateOf<Long?>(null) }
     var purgeCache by rememberSaveable { mutableStateOf(false) }
+    var wipeJudgeId by rememberSaveable { mutableStateOf<String?>(null) }
+    var wipeConfirmText by rememberSaveable { mutableStateOf("") }
     val appLanguage = AppLanguage.fromLocaleTags(AppCompatDelegate.getApplicationLocales().toLanguageTags())
     val settingsScrollState = rememberScrollState()
     var settingsViewportTop by remember { mutableStateOf<Int?>(null) }
@@ -203,10 +207,13 @@ fun SettingsScreen(
                              connection = connection,
                              error = errors[connection.judge],
                              connecting = connection.judge in connecting,
+                             wiping = connection.judge in wiping,
+                             wipeFailed = wipeFailed[connection.judge] == true,
                              onConnect = { handle -> viewModel.connect(connection.judge, handle) },
                              onSync = { connection.account?.let(viewModel::syncNow) },
                              onSetEnabled = { enabled -> connection.account?.let { viewModel.setEnabled(it, enabled) } },
                              onDisconnect = { disconnectAccountId = connection.account?.id },
+                             onWipe = { wipeJudgeId = connection.judge.id },
                          )
                      }
                 }
@@ -485,6 +492,62 @@ fun SettingsScreen(
             },
         )
     }
+
+    val wipeConnection = state.connections
+        .firstOrNull { it.judge.id == wipeJudgeId }
+    val wipeAccount = wipeConnection?.account
+    if (wipeAccount != null && wipeConnection != null) {
+        val judgeDisplayName = wipeConnection.judge.displayName
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {
+                wipeJudgeId = null
+                wipeConfirmText = ""
+            },
+            containerColor = NexusTheme.colors.surface,
+            titleContentColor = NexusTheme.colors.textPrimary,
+            textContentColor = NexusTheme.colors.textSecondary,
+            title = {
+                Text(
+                    stringResource(R.string.settings_wipe_title, judgeDisplayName),
+                    style = NexusTheme.typography.title,
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.settings_wipe_body, judgeDisplayName),
+                        style = NexusTheme.typography.label,
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = wipeConfirmText,
+                        onValueChange = { wipeConfirmText = it },
+                        singleLine = true,
+                        textStyle = NexusTheme.typography.data,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = NexusSpacing.xs),
+                    )
+                }
+            },
+            confirmButton = {
+                DialogText(
+                    stringResource(R.string.settings_wipe_confirm_action),
+                    NexusTheme.colors.danger,
+                    enabled = wipeConfirmText.trim().uppercase() == judgeDisplayName.uppercase(),
+                ) {
+                    viewModel.wipeJudgeData(wipeAccount)
+                    wipeJudgeId = null
+                    wipeConfirmText = ""
+                }
+            },
+            dismissButton = {
+                DialogText(stringResource(R.string.action_cancel), NexusTheme.colors.textSecondary) {
+                    wipeJudgeId = null
+                    wipeConfirmText = ""
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -601,10 +664,13 @@ private fun JudgeConnectionPanel(
     connection: JudgeConnectionUi,
     error: SettingsViewModel.ConnectError?,
     connecting: Boolean,
+    wiping: Boolean,
+    wipeFailed: Boolean,
     onConnect: (String) -> Unit,
     onSync: () -> Unit,
     onSetEnabled: (Boolean) -> Unit,
     onDisconnect: () -> Unit,
+    onWipe: () -> Unit,
 ) {
     val account = connection.account
     val sync = connection.syncState
@@ -765,6 +831,25 @@ private fun JudgeConnectionPanel(
                     onClick = { onSetEnabled(!account.enabled) },
                 )
                 SettingsAction(stringResource(R.string.settings_disconnect), danger = true, onClick = onDisconnect)
+            }
+            if (wipeFailed) {
+                Spacer(Modifier.height(NexusSpacing.xs))
+                Text(
+                    text = stringResource(R.string.settings_wipe_failed),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.danger,
+                )
+            }
+            if (account != null) {
+                Spacer(Modifier.height(NexusSpacing.xs))
+                SettingsAction(
+                    label = stringResource(
+                        if (wiping) R.string.settings_wiping else R.string.settings_wipe_data,
+                    ),
+                    enabled = !wiping,
+                    danger = true,
+                    onClick = onWipe,
+                )
             }
         }
     }
@@ -961,12 +1046,19 @@ private fun LanguageAction(
 }
 
 @Composable
-private fun DialogText(label: String, color: androidx.compose.ui.graphics.Color, onClick: () -> Unit) {
+private fun DialogText(
+    label: String,
+    color: androidx.compose.ui.graphics.Color,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
     Text(
         label,
         style = NexusTheme.typography.data,
-        color = color,
-        modifier = Modifier.clickable(role = Role.Button, onClick = onClick).padding(NexusSpacing.xs),
+        color = if (enabled) color else NexusTheme.colors.textTertiary,
+        modifier = Modifier
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(NexusSpacing.xs),
     )
 }
 

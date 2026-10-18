@@ -665,6 +665,12 @@
     <string name="settings_disconnect_body">UNBIND THE ACCOUNT? YOUR LOCAL TRAINING HISTORY, NOTES AND REVIEWS ARE KEPT.</string>
     <string name="settings_purge_cache">ALSO REMOVE CACHED CODEFORCES DATA</string>
     <string name="settings_purge_judge_cache">ALSO REMOVE THIS JUDGE\'S CACHED REMOTE DATA</string>
+    <string name="settings_wipe_data">WIPE DATA</string>
+    <string name="settings_wiping">WIPING…</string>
+    <string name="settings_wipe_failed">WIPE FAILED. TRY AGAIN.</string>
+    <string name="settings_wipe_title">WIPE %1$s DATA</string>
+    <string name="settings_wipe_body">DELETES THIS JUDGE\'S PROBLEMS, ATTEMPTS, NOTES, REVIEWS, CACHED CATALOG AND SYNC LEDGER FROM THIS DEVICE. THE ACCOUNT HANDLE STAYS CONNECTED. TYPE %1$s TO CONFIRM.</string>
+    <string name="settings_wipe_confirm_action">WIPE</string>
     <string name="settings_source_format">SOURCE %1$s</string>
     <string name="settings_verification_format">IDENTITY %1$s</string>
     <string name="settings_rating_unavailable">RATING DATA UNAVAILABLE</string>

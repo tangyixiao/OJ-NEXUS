@@ -13,4 +13,7 @@ interface WorkspaceDraftDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(draft: WorkspaceDraftEntity)
+
+    @Query("DELETE FROM workspace_drafts WHERE judge = :judge")
+    suspend fun deleteByJudge(judge: String)
 }

@@ -620,6 +620,12 @@
     <string name="settings_disconnect_body">解除账号关联？本地训练历史、笔记和复习记录会保留。</string>
     <string name="settings_purge_cache">同时移除已缓存的 Codeforces 数据</string>
     <string name="settings_purge_judge_cache">同时移除该 OJ 的已缓存远端数据</string>
+    <string name="settings_wipe_data">清除数据</string>
+    <string name="settings_wiping">清除中…</string>
+    <string name="settings_wipe_failed">清除失败，请重试。</string>
+    <string name="settings_wipe_title">清除 %1$s 数据</string>
+    <string name="settings_wipe_body">将删除该 OJ 的题目、提交记录、笔记、复习、缓存题库和同步台账（仅本机）。账号绑定保留。输入 %1$s 以确认。</string>
+    <string name="settings_wipe_confirm_action">清除</string>
     <string name="settings_source_format">来源：%1$s</string>
     <string name="settings_verification_format">身份：%1$s</string>
     <string name="settings_rating_unavailable">分数数据不可用</string>

@@ -3,6 +3,7 @@ package com.ojnexus.core.data.repository
 import androidx.room.withTransaction
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.database.entity.JudgeAccountEntity
+import com.ojnexus.core.database.entity.SyncOperationEntity
 import com.ojnexus.core.database.entity.SyncStateEntity
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.data.DataError
@@ -27,6 +28,7 @@ class JudgeAccountRepository(
     private val database: OjNexusDatabase,
     private val registry: JudgeRegistry,
     private val clock: Clock,
+    private val dataGenerationProvider: () -> String = { "" },
 ) {
     constructor(
         database: OjNexusDatabase,
@@ -161,8 +163,49 @@ class JudgeAccountRepository(
     }
 
     companion object {
+        /** Ledger sentinel for a completed per-judge data wipe. Never retried, never pruned differently. */
+        const val WIPE_LEDGER_STATUS = "WIPE"
+
         fun isAccountEnabled(account: JudgeAccountEntity?): Boolean =
             account != null && account.enabled
+    }
+
+    /**
+     * Deletes one judge's local payload (training library problems, cached remote data,
+     * drafts, submission jobs and the sync ledger) inside one transaction. The account row
+     * itself survives so the public handle stays connected. Attempts, failure entries,
+     * notes, knowledge and review history cascade through the problems FK.
+     * A WIPE row is written into the sync operations ledger for audit.
+     */
+    suspend fun wipeJudgeData(judge: String, accountId: Long) {
+        val now = clock.millis()
+        database.withTransaction {
+            val account = accountDao.findById(accountId)
+            require(account != null && account.judge == judge) {
+                "wipe target account $accountId is not the active account for $judge"
+            }
+            database.problemDao().deleteByJudge(judge)
+            database.remoteProblemDetailDao().deleteByJudge(judge)
+            database.remoteProblemDao().deleteByJudge(judge)
+            database.judgeProfileDao().deleteByJudge(judge)
+            database.ratingChangeDao().deleteByJudge(judge)
+            database.contestDao().deleteByJudge(judge)
+            database.contestProblemMarkerDao().deleteByJudge(judge)
+            database.submissionJobDao().deleteByJudge(judge)
+            database.workspaceDraftDao().deleteByJudge(judge)
+            database.syncOperationDao().deleteByJudge(judge)
+            database.syncStateDao().deleteByJudge(judge)
+            database.syncOperationDao().openOperation(
+                SyncOperationEntity(
+                    judge = judge,
+                    accountId = accountId,
+                    dataGeneration = dataGenerationProvider(),
+                    startedAt = now,
+                    finishedAt = now,
+                    status = WIPE_LEDGER_STATUS,
+                ),
+            )
+        }
     }
 }
 

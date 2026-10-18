@@ -198,7 +198,7 @@ class AppContainer(context: android.content.Context) {
     )
 
     val judgeAccountRepository: JudgeAccountRepository =
-        JudgeAccountRepository(database, judgeRegistry, clock)
+        JudgeAccountRepository(database, judgeRegistry, clock, ::currentDataGeneration)
 
     val codeforcesSyncRepository: CodeforcesSyncRepository =
         CodeforcesSyncRepository(database, codeforcesAdapter, clock)

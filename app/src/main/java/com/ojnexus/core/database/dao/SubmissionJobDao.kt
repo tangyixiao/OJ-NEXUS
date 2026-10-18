@@ -34,4 +34,7 @@ interface SubmissionJobDao {
             "ORDER BY CASE WHEN status = 'PENDING' THEN 0 ELSE 1 END, updated_at ASC, id ASC LIMIT 1",
     )
     fun observeActionable(): Flow<SubmissionJobEntity?>
+
+    @Query("DELETE FROM submission_jobs WHERE judge = :judge")
+    suspend fun deleteByJudge(judge: String)
 }

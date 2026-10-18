@@ -72,4 +72,7 @@ interface SyncOperationDao {
         judge: String,
         keepCount: Int = SYNC_OPERATION_HISTORY_LIMIT,
     )
+
+    @Query("DELETE FROM sync_operations WHERE judge = :judge")
+    suspend fun deleteByJudge(judge: String)
 }

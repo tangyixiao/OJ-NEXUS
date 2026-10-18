@@ -139,7 +139,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Constraints: no cloud upload; failures surface as a dismissible settings banner.
 - DoD: worker unit-testable logic; respects battery constraints.
 
-#### ⬜ PHASE 88 — Per-judge data wipe
+#### ✅ PHASE 88 — Per-judge data wipe (v0.3.86, 2026-10-18)
 - Goal: delete one judge's local payload (problems, submissions, sync ledger rows) while keeping
   other judges and the account handle itself, behind a typed-confirm dialog.
 - Scope: connector center + repository cascade queries.
