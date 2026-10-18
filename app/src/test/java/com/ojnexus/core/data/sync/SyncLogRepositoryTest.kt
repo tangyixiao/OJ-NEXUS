@@ -154,4 +154,31 @@ class SyncLogRepositoryTest {
         }
         assertTrue(thrown.isFailure)
     }
+
+    @Test
+    fun pushThenPullRoundTripsRowsAcrossRepositories() = runBlocking {
+        val sealer = com.ojnexus.core.sync.XorSealer(byteArrayOf(0x77))
+        val store = object : com.ojnexus.core.sync.SyncRemoteStore {
+            val blobs = mutableMapOf<String, ByteArray>()
+            override fun put(opId: String, bytes: ByteArray) { blobs[opId] = bytes }
+            override fun get(opId: String): ByteArray? = blobs[opId]
+            override fun list(): List<String> = blobs.keys.sorted()
+        }
+
+        // Device A: append + push.
+        val batch = repository.appendLocalBatch("device-a", 15, 8_000L, listOf(rowOp(), rowOp(row = "1234B")))
+        repository.pushBatch(batch.opId, com.ojnexus.core.sync.SyncTransport(store, true), sealer, context.filesDir)
+
+        // Device B (same sealer + same batch identity): pull back and decode.
+        val pulled = repository.pullBatch(
+            batch.opId,
+            com.ojnexus.core.sync.SyncTransport(store, true),
+            sealer,
+            context.filesDir,
+        )!!
+
+        assertEquals(2, pulled.size)
+        assertEquals("1234A", pulled[0].rowKey)
+        assertEquals("1234B", pulled[1].rowKey)
+    }
 }

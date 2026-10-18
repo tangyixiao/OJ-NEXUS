@@ -331,8 +331,11 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
   (interface + test double + explicit production stub; library choice deferred), seal/open
   lifecycle on the op-log with AAD `deviceId|lamport`. No network I/O.
 
-#### ⬜ PHASE 120 — Reserved
-- Same policy as 119.
+#### ✅ PHASE 120 — Sync transport slice (v0.3.105, 2026-10-18)
+- Reserved slot filled: abstract `SyncRemoteStore` + gate-constructed `SyncTransport`
+  (release builds cannot even construct it) + `pushBatch`/`pullBatch` closing the local
+  lifecycle ledger → seal → store → pull → open. No HTTP client, no credentials; RFC kill
+  condition unchanged. Numbered plan 78–120 complete.
 
 ---
 

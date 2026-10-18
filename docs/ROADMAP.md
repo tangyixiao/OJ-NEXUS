@@ -3,6 +3,28 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## SYNC TRANSPORT SLICE
+
+The final reserved slot closes the sync POC's local lifecycle: an abstract `SyncRemoteStore`
+(opaque put/get/list — a real WebDAV or S3 client would implement it later) and a
+`SyncTransport` whose constructor refuses to exist when the POC gate is off, so a release build
+cannot even instantiate the transport, let alone reach I/O. `pushBatch` seals an op-log batch
+and uploads it; `pullBatch` downloads, marks it sealed locally, and decodes the rows or returns
+null on tamper. Six new tests cover gate-off construction, byte round trips, unknown ops, and a
+full push→pull across two transports sharing one fake store. The ledger → seal → store → pull
+→ open → conflict-resolution chain is now proven end to end as pure, deterministic, gated code
+— with no HTTP client, no key derivation, and the RFC's kill condition unchanged. With this,
+the numbered plan (78–120) is complete; only the Apple phases remain deferred, blocked on a
+macOS host by policy.
+/ 最后一个保留阶段闭合了同步 POC 的本地生命周期：抽象的 `SyncRemoteStore`（不透明的 put/get/list
+——真实的 WebDAV 或 S3 客户端留待以后实现），以及一个在 POC 开关关闭时构造即失败的
+`SyncTransport`——release 构建连实例化都做不到，更谈不上 I/O。`pushBatch` 封存 op-log 批次并上传；
+`pullBatch` 下载、在本地标记 SEALED、解码行数据或在校验失败时返回 null。六个新测试覆盖开关关闭
+时的构造拒绝、字节往返、未知操作，以及共享同一假存储的两个 transport 之间的完整 push→pull。至此
+「台账 → 封存 → 存储 → 拉取 → 解码 → 冲突解决」全链路以纯函数、确定性、受控开关的方式得到证明
+——没有 HTTP 客户端、没有密钥派生，RFC 的终止条件保持不变。编号计划（78–120）就此完成；仅剩
+Apple 阶段因 macOS 主机策略而推迟。
+
 ## SYNC PAYLOAD SEALING
 
 The second reserved slot adds RFC 0001 §4's storage side: a deterministic payload codec (row

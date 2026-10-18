@@ -140,4 +140,38 @@ class SyncLogRepository(private val database: OjNexusDatabase) {
         val plaintext = sealer.open(payload.readBytes(), aad) ?: return null
         return com.ojnexus.core.sync.SyncPayloadCodec.decode(String(plaintext, Charsets.UTF_8))
     }
+
+    /**
+     * Phase 120 — pushes a batch to the transport's remote store (sealing first when the batch
+     * is still PENDING). Returns the remote opId. Unknown batch → IllegalArgumentException.
+     */
+    suspend fun pushBatch(
+        opId: String,
+        transport: com.ojnexus.core.sync.SyncTransport,
+        sealer: com.ojnexus.core.sync.SyncPayloadSealer,
+        filesDir: java.io.File,
+    ) {
+        val operation = database.syncLogOperationDao().findById(opId)
+            ?: throw IllegalArgumentException("unknown sync op batch: $opId")
+        val payloadPath = operation.encryptedPayloadPath
+            ?: sealBatch(opId, filesDir, sealer)
+        transport.upload(opId, payloadPath)
+    }
+
+    /**
+     * Phase 120 — pulls a remote payload into the local ledger: downloads, marks the batch
+     * SEALED against the local file, and returns the decoded rows (null on tamper). The caller
+     * must have created the batch row first (e.g. via [appendLocalBatch]) so the AAD
+     * deviceId|lamport matches the remote batch's identity.
+     */
+    suspend fun pullBatch(
+        opId: String,
+        transport: com.ojnexus.core.sync.SyncTransport,
+        sealer: com.ojnexus.core.sync.SyncPayloadSealer,
+        filesDir: java.io.File,
+    ): List<com.ojnexus.core.sync.SyncLogOpRow>? {
+        val localPath = transport.download(opId, filesDir) ?: return null
+        markSealed(opId, localPath)
+        return openBatch(opId, sealer)
+    }
 }
