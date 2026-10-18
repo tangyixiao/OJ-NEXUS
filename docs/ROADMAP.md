@@ -3,6 +3,28 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## SYNC ARCHITECTURE RFC (ARC G)
+
+RFC 0001 (`docs/rfcs/0001-e2ee-sync.md`) proposes an optional, end-to-end-encrypted sync of
+non-credential data to a user-provided blob endpoint — no first-party server, ever. Its first
+section is the non-negotiables: credentials and the Luogu open-platform secret never sync, the
+server is hostile by assumption, local data stays canonical, and removing the endpoint restores
+exactly today's offline-first behavior. The threat model covers the passive observer, the
+malicious endpoint (AEAD with monotonic counters and replay detection), the device thief
+(Argon2id-derived keys, nothing key-shaped at rest), and the honest unrecoverable case — a lost
+passphrase, documented rather than mitigated. Merge rules are deterministic op-log
+last-writer-wins with an inspectable conflict log, same discipline as the recommendation
+engine. The RFC states its own kill condition: if the Phase 117 proof of concept outgrows the
+design, the RFC dies and the reserved phases are repurposed. A rejected RFC is a normal
+outcome.
+/ RFC 0001（`docs/rfcs/0001-e2ee-sync.md`）提议一个可选的、端到端加密的非凭据数据同步，端点由用户
+提供——绝不自建服务端。其第一节就是不可协商项：凭据与洛谷开放平台密钥永不参与同步，服务器按
+敌意假设对待，本地数据保持权威，移除端点即可完全恢复今天的离线优先行为。威胁模型覆盖被动窃
+听者、恶意端点（AEAD + 单调计数器 + 重放检测）、设备窃取者（Argon2id 派生密钥、磁盘上不留任何
+密钥形态的数据），以及诚实承认的不可恢复场景——口令丢失只记录、不缓解。合并规则是确定性的
+op-log last-writer-wins，附带可检视的冲突日志，与推荐引擎同一纪律。RFC 自带终止条件：若 Phase 117
+的概念验证超出设计规模，RFC 即作废、保留阶段改作他用。RFC 被否决是正常结果。
+
 ## V1.0.0 RELEASE CANDIDATE
 
 OJ NEXUS 1.0.0 (versionCode 102) is the first release-candidate line: 756 unit tests green,

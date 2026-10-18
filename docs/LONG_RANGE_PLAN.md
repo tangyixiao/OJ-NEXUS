@@ -312,7 +312,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 
 ### ARC G — Optional connected layer (design-gated; cut allowed)
 
-#### ⬜ PHASE 116 — Sync architecture RFC
+#### ✅ PHASE 116 — Sync architecture RFC (2026-10-18)
 - Goal: RFC only: end-to-end-encrypted, server-agnostic (user-provided endpoint) sync of
   non-credential data. Threat model + merge rules.
 - Constraints: credentials/OpenApp secrets NEVER sync. RFC must say so in its first section.
