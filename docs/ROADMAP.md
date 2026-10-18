@@ -3,6 +3,28 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## V1.0.0 RELEASE CANDIDATE
+
+OJ NEXUS 1.0.0 (versionCode 102) is the first release-candidate line: 756 unit tests green,
+debug + release builds successful, and the release APK proven bit-for-bit reproducible across
+two clean builds. The release notes inventory every shipped capability — the windowed problem
+library, review ladder, focus sprint bands, analytics, AtCoder rating history, Codeforces deep
+links and delta sync, Luogu open platform and training catalog, snapshot export/import with
+conflict preview, scheduled local backups, per-judge wipe, database housekeeping, and the
+opt-in local crash log — and the regression checklist records exactly which gates ran on this
+host and which measurements stay pending until real hardware attaches (cold start, LeakCanary
+walk, TalkBack, battery, per-query wall clock). Apple clients and the connected layer remain
+explicitly unshipped rather than faked. Data boundaries are unchanged and permanent: no
+passwords, cookies, or tokens; the Luogu credential never leaves no-backup storage; crash
+reports are local only.
+/ OJ NEXUS 1.0.0（versionCode 102）是首个候选发布版本：756 个单元测试全绿，debug 与 release 构建
+成功，且 release APK 经两次干净构建验证逐位一致。发布说明清点了全部已交付能力——窗口化题库、
+复习阶梯、专注冲刺分组、数据分析、AtCoder 评分历史、Codeforces 深链与增量同步、洛谷开放平台与
+训练计划、带冲突预览的快照导入导出、计划本地备份、单评测端数据清除、数据库维护、可选本地崩溃
+日志——回归清单则逐条记录了哪些闸门在本机执行、哪些度量留待真机接入后补测（冷启动、LeakCanary
+回环、TalkBack、电量、单查询耗时）。Apple 客户端与连接层保持明确未交付，绝不伪装。数据边界不变
+且永久：不收密码、Cookie、令牌；洛谷凭据绝不离开免备份存储；崩溃报告仅存本地。
+
 ## LOCAL CRASH LOG
 
 An opt-in, local-only crash capture ships behind a settings toggle (default OFF). When enabled,

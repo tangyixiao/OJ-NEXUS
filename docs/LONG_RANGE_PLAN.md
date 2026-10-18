@@ -306,7 +306,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Goal: optional opt-in local crash log (no upload) viewable in settings; fix top findings.
 - Constraints: nothing leaves the device.
 
-#### ⬜ PHASE 115 — v1.0.0 release candidate
+#### ✅ PHASE 115 — v1.0.0 release candidate (v1.0.0, 2026-10-18)
 - Goal: versionName 1.0.0, full regression checklist, all docs refreshed.
 - DoD: ROADMAP top entry + release notes + tag `v1.0.0`.
 
