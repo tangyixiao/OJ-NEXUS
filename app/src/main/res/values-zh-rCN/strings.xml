@@ -236,7 +236,22 @@
     <string name="attempt_empty">暂无提交记录</string>
     <string name="attempt_delete_cd">删除提交记录</string>
     <string name="attempt_open_remote">在 Codeforces 打开</string>
+    <string name="attempt_open_details">查看提交详情</string>
     <string name="format_attempt_duration">%d 分钟</string>
+
+    <!-- Unified submission detail sheet -->
+    <string name="submission_detail_open_submission">打开提交</string>
+    <string name="submission_detail_open_problem">打开题目</string>
+    <string name="submission_detail_open_notes">添加笔记</string>
+    <string name="submission_detail_language">语言</string>
+    <string name="submission_detail_submitted_at">提交时间</string>
+    <string name="submission_detail_time">耗时</string>
+    <string name="submission_detail_memory">内存</string>
+    <string name="submission_detail_score">得分</string>
+    <string name="submission_detail_metrics_unavailable">未报告耗时与内存</string>
+    <string name="submission_detail_sheet_action">详情</string>
+    <string name="submission_detail_sheet_action_cd">打开统一提交详情面板</string>
+
     <string name="failure_add">添加失败记录</string>
     <string name="failure_category">根本原因</string>
     <string name="failure_description">描述</string>

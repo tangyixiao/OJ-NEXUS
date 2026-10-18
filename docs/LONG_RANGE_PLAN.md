@@ -176,7 +176,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Scope: `judge/atcoder`.
 - DoD: fixtures tests; offline rendering from cache.
 
-#### ⬜ PHASE 94 — Unified submission detail sheet
+#### ✅ PHASE 94 — Unified submission detail sheet (v0.3.92, 2026-10-18)
 - Goal: one bottom-sheet design for any judge's submission: verdict, time/memory, problem link,
   note shortcut.
 - Scope: `core/ui` + submission center.

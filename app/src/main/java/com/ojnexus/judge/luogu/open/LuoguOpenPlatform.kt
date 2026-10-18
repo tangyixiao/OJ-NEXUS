@@ -353,7 +353,7 @@ sealed interface LuoguOpenResult {
 internal fun LuoguOpenEvaluation.isFinished(): Boolean =
     status?.let(LuoguJudgeStatus::isTerminal) ?: (compileSuccess == false || exitCode != null)
 
-internal object LuoguJudgeStatus {
+object LuoguJudgeStatus {
     fun isTerminal(status: Int): Boolean = status !in setOf(0, 1)
 
     fun verdict(status: Int): Verdict = when (status) {

@@ -49,6 +49,7 @@ import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.formatDateTime
 import com.ojnexus.core.ui.formatCount
+import com.ojnexus.core.ui.submission.SubmissionDetailSheet
 import com.ojnexus.judge.luogu.open.SubmissionJobKind
 import com.ojnexus.judge.luogu.open.SubmissionJobStatus
 
@@ -389,6 +390,7 @@ private fun SubmissionJobCard(
     val canOpenWorkspace = job.kind == SubmissionJobKind.PROBLEM.name && job.pid?.isNotBlank() == true
     val canCheckResult = job.status == SubmissionJobStatus.PENDING.name || job.status == SubmissionJobStatus.FAILED.name
     var detailsExpanded by rememberSaveable(job.requestId) { mutableStateOf(false) }
+    var sheetVisible by rememberSaveable(job.requestId) { mutableStateOf(false) }
     val detailsState = stringResource(
         if (detailsExpanded) R.string.submissions_details_expanded else R.string.submissions_details_collapsed,
     )
@@ -472,6 +474,14 @@ private fun SubmissionJobCard(
                 enabled = true,
                 onClick = { detailsExpanded = !detailsExpanded },
             )
+            if (submissionDetailSheetVisible(job.status)) {
+                SubmissionActionTag(
+                    label = stringResource(R.string.submission_detail_sheet_action),
+                    onClickLabel = stringResource(R.string.submission_detail_sheet_action_cd),
+                    enabled = true,
+                    onClick = { sheetVisible = true },
+                )
+            }
             if (canCheckResult) {
                 SubmissionActionTag(
                     label = stringResource(
@@ -509,6 +519,13 @@ private fun SubmissionJobCard(
                 )
             }
         }
+    }
+
+    if (sheetVisible) {
+        SubmissionDetailSheet(
+            detail = job.toSubmissionDetailModel(),
+            onDismiss = { sheetVisible = false },
+        )
     }
 }
 

@@ -263,7 +263,21 @@
     <string name="attempt_empty">NO ATTEMPTS RECORDED</string>
     <string name="attempt_delete_cd">Delete attempt</string>
     <string name="attempt_open_remote">OPEN ON CODEFORCES</string>
+    <string name="attempt_open_details">VIEW ATTEMPT DETAILS</string>
     <string name="format_attempt_duration">%d MIN</string>
+
+    <!-- Unified submission detail sheet -->
+    <string name="submission_detail_open_submission">OPEN SUBMISSION</string>
+    <string name="submission_detail_open_problem">OPEN PROBLEM</string>
+    <string name="submission_detail_open_notes">ADD NOTE</string>
+    <string name="submission_detail_language">LANGUAGE</string>
+    <string name="submission_detail_submitted_at">SUBMITTED AT</string>
+    <string name="submission_detail_time">TIME</string>
+    <string name="submission_detail_memory">MEMORY</string>
+    <string name="submission_detail_score">SCORE</string>
+    <string name="submission_detail_metrics_unavailable">TIME AND MEMORY NOT REPORTED</string>
+    <string name="submission_detail_sheet_action">DETAILS</string>
+    <string name="submission_detail_sheet_action_cd">Open the unified submission detail sheet</string>
 
     <!-- Failure log -->
     <string name="failure_add">ADD FAILURE</string>

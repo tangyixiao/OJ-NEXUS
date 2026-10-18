@@ -29,6 +29,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,6 +73,7 @@ import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.formatDate
 import com.ojnexus.core.ui.formatDateTime
 import com.ojnexus.core.ui.labelRes
+import com.ojnexus.core.ui.submission.SubmissionDetailSheet
 import com.ojnexus.core.ui.tone
 import java.time.LocalDate
 import java.time.ZoneId
@@ -586,6 +588,7 @@ private fun SectionEmpty(text: String) {
 private fun AttemptRow(attempt: Attempt) {
     val colors = NexusTheme.colors
     val context = LocalContext.current
+    var sheetVisible by rememberSaveable("attempt-sheet-${attempt.id}") { mutableStateOf(false) }
     // Deep-link to the judge-side submission page when the row carries enough origin data.
     // Only the official URL builder may construct Codeforces URLs (docs/OJ_ADAPTERS.md).
     val submissionUrl: String? = when {
@@ -598,25 +601,16 @@ private fun AttemptRow(attempt: Attempt) {
         }
     }
     val openRemoteLabel = stringResource(R.string.attempt_open_remote)
+    val detailLabel = stringResource(R.string.attempt_open_details)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(NexusSize.tableRowHeight)
-            .then(
-                if (submissionUrl != null) {
-                    Modifier.clickable(
-                        role = Role.Button,
-                        onClickLabel = openRemoteLabel,
-                    ) { OpenInBrowser.open(context, submissionUrl) }
-                } else {
-                    Modifier
-                },
-            )
-            .semantics {
-                if (submissionUrl != null) {
-                    contentDescription = openRemoteLabel
-                }
-            },
+            .clickable(
+                role = Role.Button,
+                onClickLabel = detailLabel,
+            ) { sheetVisible = true }
+            .semantics { contentDescription = detailLabel },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -632,7 +626,11 @@ private fun AttemptRow(attempt: Attempt) {
                 text = stringResource(R.string.attempt_open_remote),
                 style = NexusTheme.typography.dataSmall,
                 color = colors.accent,
-                modifier = Modifier.padding(end = NexusSpacing.xs),
+                modifier = Modifier
+                    .clickable(role = Role.Button, onClickLabel = openRemoteLabel) {
+                        OpenInBrowser.open(context, submissionUrl)
+                    }
+                    .padding(end = NexusSpacing.xs),
             )
         }
         if (attempt.durationMinutes != null) {
@@ -650,6 +648,14 @@ private fun AttemptRow(attempt: Attempt) {
                 color = colors.textTertiary,
             )
         }
+    }
+
+    if (sheetVisible) {
+        val detail = toSubmissionDetailModel(attempt, submissionUrl)
+        SubmissionDetailSheet(
+            detail = detail,
+            onDismiss = { sheetVisible = false },
+        )
     }
 }
 

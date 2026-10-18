@@ -3,6 +3,24 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## UNIFIED SUBMISSION DETAIL SHEET
+
+Attempt rows and Luogu submission cards now open one shared bottom-sheet detail view. A
+`SubmissionDetailUiModel` carries judge id, unified verdict tag plus raw verdict text, time /
+memory / score metrics when the judge reports them, language, timestamp, problem context, and
+extra rows for compile output or error details. Locally recorded attempts map with no metrics
+and no links; Luogu jobs map compile message, output, exit code, and custom-run kind into
+labeled rows; a Codeforces attempt keeps its exact deep link while the problem link comes from
+the Luogu problem page. The sheet adds a note shortcut and opens links through the existing
+custom-tab opener. Verdict mapping stays honest: unknown statuses surface the raw status text
+instead of guessing a tag.
+/ 提交行与洛谷提交卡片现在打开同一个共享的底部详情面板。`SubmissionDetailUiModel`
+承载 judge id、统一判定标签与原始判定文本、评测机报告时的耗时 / 内存 / 得分、语言、时间、
+题目上下文，以及编译输出或错误详情等附加行。本地手动记录的提交没有指标也没有链接；洛谷任务把
+编译信息、输出、退出码和自定义运行类型映射为带标签的行；Codeforces 提交保留精确深链，
+题目链接则指向洛谷题面。面板提供添加笔记入口，链接继续走既有的自定义标签页打开器。
+判定映射保持诚实：未知状态直接展示原始状态文本，而不是猜测一个标签。
+
 ## ATCODER RATING HISTORY
 
 The AtCoder adapter gains a RATING stage backed by the official public
