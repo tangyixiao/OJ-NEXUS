@@ -3,6 +3,31 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## ATCODER RATING HISTORY
+
+The AtCoder adapter gains a RATING stage backed by the official public
+`https://atcoder.jp/users/<handle>/history/json` endpoint — no scraping, no auth, no cookies.
+Unrated rows (heuristic contests, `IsRated=false`, `NewRating=0`) are filtered before mapping so
+the UI never renders a missing rating as zero; rated rows map into the shared `rating_changes`
+table keyed by `(judge, contest_id)` with the contest id extracted from
+`ContestScreenName` and the end time parsed as an offset-aware `OffsetDateTime`. Because the
+endpoint returns the full history, the refresh is an atomic delete+insert transaction — Room's
+generated `@Upsert` resolves conflicts on the primary key only, so a unique-index collision
+would otherwise silently drop changed rows. The sync coordinator now runs
+SUBMISSIONS → RATING → CONTESTS → PROBLEMS with a durable module receipt per stage, a 6-hour
+freshness stamp, and the existing kenkoooo request gate shared across both hosts. An unknown
+handle returns `200 []`, which is a successful no-op consistent with `UNVERIFIED` account
+binding; a failed refresh retains the previous cache.
+/ AtCoder 适配器新增 RATING 阶段，数据来自官方公开的
+`https://atcoder.jp/users/<handle>/history/json`——不爬页面、不需要登录、没有 cookie。
+未评级行（AHC 等 `IsRated=false`、`NewRating=0`）在映射前过滤，UI 永远不会把缺失评级显示为
+0；评级行按 `(judge, contest_id)` 写入共享的 `rating_changes` 表，contest id 取自
+`ContestScreenName`，结束时间用带时区偏移的 `OffsetDateTime` 解析。由于该端点返回全量历史，
+刷新采用一个事务内的 delete+insert——Room 生成的 `@Upsert` 只按主键解决冲突，唯一索引冲突
+会被静默丢弃。协调器现在按 SUBMISSIONS → RATING → CONTESTS → PROBLEMS 执行，每阶段写入
+持久化模块回执，6 小时新鲜度戳，两个主机共用既有的 kenkoooo 请求闸门。未知用户返回
+`200 []`，按 `UNVERIFIED` 绑定语义处理为成功空操作；刷新失败保留旧缓存。
+
 ## CODEFORCES SUBMISSION DEEP-LINK
 
 Attempt rows on the problem detail screen are now openable when they were imported from a

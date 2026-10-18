@@ -25,13 +25,15 @@ class AtCoderMappersTest {
             override suspend fun fetchContests() = emptyList<AtCoderContestDto>()
             override suspend fun fetchMergedProblems() = emptyList<AtCoderMergedProblemDto>()
             override suspend fun fetchProblemModels() = emptyMap<String, AtCoderProblemModelDto>()
+            override suspend fun fetchRatingHistory(handle: String) = emptyList<com.ojnexus.judge.atcoder.api.dto.AtCoderRatingChangeDto>()
         }
 
         assertEquals(DataSourceReliability.COMMUNITY, adapter.reliability)
         assertTrue(JudgeCapability.SUBMISSIONS in adapter.capabilities)
         assertTrue(JudgeCapability.PROBLEM_DIFFICULTY in adapter.capabilities)
+        assertTrue(JudgeCapability.RATING in adapter.capabilities)
+        assertTrue(JudgeCapability.RATING_HISTORY in adapter.capabilities)
         assertFalse(JudgeCapability.PROFILE in adapter.capabilities)
-        assertFalse(JudgeCapability.RATING_HISTORY in adapter.capabilities)
     }
 
     @Test
@@ -113,4 +115,52 @@ class AtCoderMappersTest {
         )
         assertEquals("https://atcoder.jp/users/Case%20Name", AtCoderUrls.user("Case Name"))
     }
+
+    @Test
+    fun `rating change entity extracts contest id and converts offset end time`() {
+        val entity = with(AtCoderMappers) {
+            fixtureRatingChange().toRatingChangeEntity("tourist")
+        }
+
+        assertEquals("atcoder", entity.judge)
+        assertEquals("tourist", entity.handle)
+        assertEquals("agc004", entity.contestId)
+        assertEquals("AtCoder Grand Contest 004", entity.contestName)
+        assertEquals(2, entity.rank)
+        assertEquals(0, entity.oldRating)
+        assertEquals(2720, entity.newRating)
+        // 2016-09-04T22:50:00+09:00 → 2016-09-04T13:50:00Z
+        assertEquals(1_472_997_000L, entity.ratingUpdateTimeSeconds)
+    }
+
+    @Test
+    fun `rating change entity prefers english contest name when present`() {
+        val dto = fixtureRatingChange().copy(contestNameEn = "AGC 004 (English)")
+
+        val entity = with(AtCoderMappers) { dto.toRatingChangeEntity("tourist") }
+
+        assertEquals("AGC 004 (English)", entity.contestName)
+    }
+
+    @Test
+    fun `rating change entity falls back to native name when english is blank`() {
+        val dto = fixtureRatingChange().copy(contestNameEn = "")
+
+        val entity = with(AtCoderMappers) { dto.toRatingChangeEntity("tourist") }
+
+        assertEquals("AtCoder Grand Contest 004", entity.contestName)
+    }
+
+    private fun fixtureRatingChange() = com.ojnexus.judge.atcoder.api.dto.AtCoderRatingChangeDto(
+        isRated = true,
+        place = 2,
+        oldRating = 0,
+        newRating = 2720,
+        performance = 3920,
+        innerPerformance = 3920,
+        contestScreenName = "agc004.contest.atcoder.jp",
+        contestName = "AtCoder Grand Contest 004",
+        contestNameEn = "",
+        endTime = "2016-09-04T22:50:00+09:00",
+    )
 }

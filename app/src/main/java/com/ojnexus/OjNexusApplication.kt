@@ -41,6 +41,7 @@ import com.ojnexus.judge.atcoder.AtCoderSyncPolicy
 import com.ojnexus.judge.atcoder.AtCoderSyncRepository
 import com.ojnexus.judge.atcoder.AtCoderUrls
 import com.ojnexus.judge.atcoder.RetrofitAtCoderAdapter
+import com.ojnexus.judge.atcoder.api.AtCoderHistoryApi
 import com.ojnexus.judge.atcoder.api.AtCoderProblemsApi
 import com.ojnexus.judge.codeforces.CodeforcesAccountConnector
 import com.ojnexus.judge.luogu.LuoguAccountConnector
@@ -141,7 +142,16 @@ class AppContainer(context: android.content.Context) {
         delayProvider = CoroutineDelayProvider(),
     )
     private val atCoderClient = AtCoderProblemsClient(atCoderApi, atCoderGate)
-    private val atCoderAdapter = RetrofitAtCoderAdapter(atCoderClient)
+
+    // Official atcoder.jp site JSON (public rating history) shares the kenkoooo gate.
+    private val atCoderHistoryApi: AtCoderHistoryApi = Retrofit.Builder()
+        .baseUrl(AtCoderUrls.SITE_BASE_URL)
+        .client(okHttpClient)
+        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .build()
+        .create(AtCoderHistoryApi::class.java)
+    private val atCoderHistoryClient = AtCoderProblemsClient(atCoderHistoryApi, atCoderGate)
+    private val atCoderAdapter = RetrofitAtCoderAdapter(atCoderClient, atCoderHistoryClient)
 
     // --- Luogu public account binding (no password, cookies, or session state) ---
 

@@ -4,6 +4,7 @@ import java.net.URLEncoder
 
 object AtCoderUrls {
     const val API_BASE_URL = "https://kenkoooo.com/"
+    const val SITE_BASE_URL = "https://atcoder.jp/"
 
     fun contest(contestId: String): String = "https://atcoder.jp/contests/${segment(contestId)}"
 

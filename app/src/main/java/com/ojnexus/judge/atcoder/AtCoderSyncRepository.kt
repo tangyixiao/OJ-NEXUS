@@ -109,6 +109,28 @@ class AtCoderSyncRepository(
             contests.size
         }
 
+    /**
+     * Pulls the official algo-ladder rating history and refreshes the shared `rating_changes`
+     * table. The official endpoint returns the FULL history, so the refresh is a delete+insert
+     * inside one transaction: Room's generated @Upsert only resolves conflicts on the primary
+     * key, while the (judge, contest_id) unique index would silently DROP changed rows.
+     * An empty history (unverified handle) is a successful no-op that keeps the cache.
+     */
+    suspend fun syncRating(account: JudgeAccountEntity, force: Boolean): StageOutcome =
+        runStage(account, SyncStage.RATING, force, AtCoderSyncPolicy.RATING_FRESH_MS) {
+            val history = adapter.fetchRatingHistory(account.canonicalHandle)
+            val rated = history.filter { it.isRated }
+            if (rated.isNotEmpty()) {
+                database.withTransaction {
+                    database.ratingChangeDao().deleteByJudge(JudgeId.ATCODER.id)
+                    database.ratingChangeDao().insertAll(
+                        rated.map { with(AtCoderMappers) { it.toRatingChangeEntity(account.canonicalHandle) } },
+                    )
+                }
+            }
+            rated.size
+        }
+
     suspend fun syncProblems(account: JudgeAccountEntity, force: Boolean): StageOutcome =
         runStage(account, SyncStage.PROBLEMS, force, AtCoderSyncPolicy.PROBLEMS_FRESH_MS) {
             val contests = adapter.fetchContests()
@@ -243,6 +265,7 @@ class AtCoderSyncRepository(
         val last = when (stage) {
             SyncStage.CONTESTS -> state?.contestsSyncedAt
             SyncStage.PROBLEMS -> state?.problemsetSyncedAt
+            SyncStage.RATING -> state?.ratingSyncedAt
             else -> null
         }
         if (!force && last != null && clock.millis() - last < freshMs) {
@@ -286,6 +309,7 @@ class AtCoderSyncRepository(
                 SyncStage.SUBMISSIONS -> state.copy(submissionsSyncedAt = now)
                 SyncStage.CONTESTS -> state.copy(contestsSyncedAt = now)
                 SyncStage.PROBLEMS -> state.copy(problemsetSyncedAt = now)
+                SyncStage.RATING -> state.copy(ratingSyncedAt = now)
                 else -> state
             },
         )

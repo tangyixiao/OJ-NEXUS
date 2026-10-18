@@ -30,14 +30,14 @@ data class AtCoderRetryPolicy(
     fun backoffMs(retryIndex: Int): Long = backoffBaseMs shl retryIndex.coerceIn(0, 2)
 }
 
-/** Single gated, bounded-retry transport boundary for all AtCoder Problems requests. */
-class AtCoderProblemsClient(
-    private val api: AtCoderProblemsApi,
+/** Single gated, bounded-retry transport boundary for all AtCoder requests (kenkoooo + official site). */
+class AtCoderProblemsClient<C>(
+    private val api: C,
     private val gate: RateLimitedRequestGate,
     private val retryPolicy: AtCoderRetryPolicy = AtCoderRetryPolicy(),
     private val delayProvider: DelayProvider = CoroutineDelayProvider(),
 ) {
-    suspend fun <T> call(call: suspend AtCoderProblemsApi.() -> T): T {
+    suspend fun <T> call(call: suspend C.() -> T): T {
         var last: AtCoderApiError? = null
         repeat(retryPolicy.maxAttempts) { attempt ->
             try {

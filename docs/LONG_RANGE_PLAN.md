@@ -170,7 +170,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Constraints: open-in-browser only; no in-app WebView login.
 - DoD: URL builder unit tests (contestId/index/protocol edge cases).
 
-#### ⬜ PHASE 93 — AtCoder contest results & rating sync
+#### ✅ PHASE 93 — AtCoder contest results & rating sync (v0.3.91, 2026-10-18)
 - Goal: pull AtCoder rating history + per-contest results via public endpoints/kenkoooo API,
   cached locally.
 - Scope: `judge/atcoder`.

@@ -10,6 +10,7 @@ import com.ojnexus.judge.JudgeRegistry
 import com.ojnexus.judge.atcoder.api.dto.AtCoderContestDto
 import com.ojnexus.judge.atcoder.api.dto.AtCoderMergedProblemDto
 import com.ojnexus.judge.atcoder.api.dto.AtCoderProblemModelDto
+import com.ojnexus.judge.atcoder.api.dto.AtCoderRatingChangeDto
 import com.ojnexus.judge.atcoder.api.dto.AtCoderSubmissionDto
 import java.time.Clock
 import java.time.Instant
@@ -35,6 +36,7 @@ private class BindingAtCoderAdapter : AtCoderAdapter {
     override suspend fun fetchContests() = emptyList<AtCoderContestDto>()
     override suspend fun fetchMergedProblems() = emptyList<AtCoderMergedProblemDto>()
     override suspend fun fetchProblemModels() = emptyMap<String, AtCoderProblemModelDto>()
+    override suspend fun fetchRatingHistory(handle: String) = emptyList<AtCoderRatingChangeDto>()
 }
 
 @RunWith(RobolectricTestRunner::class)
