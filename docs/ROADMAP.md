@@ -3,6 +3,24 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## SYNC POC (BEHIND FLAG)
+
+Phase 117 proves the smallest slice of RFC 0001: the op-log merge kernel as pure Kotlin —
+last-writer-wins over the (lamport, device) total order, deletes winning only when strictly
+greater, conflicts collected for the inspectable log, clock advancing to max lamport. Six unit
+tests pin the determinism contract. The flag is a build-graph fact, not a preference:
+`BuildConfig.SYNC_POC` is true in debug and false in release, so release binaries carry no
+reachable sync surface — and a later real implementation must guard every entry point with that
+flag. The POC verdict supports continuing (the kernel is ~60 lines, far under the RFC's ~2 k
+kill line); crypto and transport remain the unproven cost drivers and Phases 118–120 stay
+fillable or repurposable per the plan.
+/ Phase 117 验证了 RFC 0001 的最小切片：op-log 合并内核的纯 Kotlin 实现——按 (lamport, device) 全序
+做 last-writer-wins，删除仅在严格更大时生效，冲突汇入可检视日志，时钟推进到最大 lamport。六个
+单元测试钉死确定性契约。开关是构建图事实而非偏好项：`BuildConfig.SYNC_POC` 在 debug 为 true、
+release 为 false，因此 release 二进制不含任何可达的同步入口——后续真实实现必须用该标志守护每个
+入口。POC 结论支持继续（内核约 60 行，远低于 RFC 的 ~2k 行终止线）；加密与传输仍是未验证的成本
+大头，Phase 118–120 保留填充或改作他用的余地。
+
 ## SYNC ARCHITECTURE RFC (ARC G)
 
 RFC 0001 (`docs/rfcs/0001-e2ee-sync.md`) proposes an optional, end-to-end-encrypted sync of

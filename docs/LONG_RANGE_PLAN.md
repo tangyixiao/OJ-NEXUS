@@ -317,7 +317,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
   non-credential data. Threat model + merge rules.
 - Constraints: credentials/OpenApp secrets NEVER sync. RFC must say so in its first section.
 
-#### ⬜ PHASE 117 — Sync POC (behind flag)
+#### ✅ PHASE 117 — Sync POC (behind flag) (2026-10-18)
 - Constraints: compiled out of release builds unless explicitly enabled.
 
 #### ⬜ PHASE 118–120 — Reserved

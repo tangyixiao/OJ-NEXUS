@@ -26,7 +26,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Phase 117: sync POC compiles ONLY into debug builds. Release stays flagless.
+            buildConfigField("boolean", "SYNC_POC", "true")
+        }
         release {
+            buildConfigField("boolean", "SYNC_POC", "false")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
