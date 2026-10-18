@@ -3,6 +3,26 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## MULTI-HANDLE PER JUDGE — DESIGN GATE
+
+Multi-handle shipped as a design-gated phase: a verified spec, a pure prototype, and a migration
+test plan — deliberately no UI and no production wiring yet. The spec records the ground truth
+(the accounts table already admits several handles per judge; the sync-state table's
+judge-keyed cursor is the real constraint) and splits the work: stage 1 stores a second handle
+as a disabled account with cursor reset on switch; stage 2 migrates the cursor to
+(judge, account) behind a tested v14 plan. Data generation stays global — restore staleness is
+whole-database, and per-handle staleness is already answered by the account id carried in work
+inputs. The prototype encodes those rules as a pure planner (reuse, add secondary, replace at
+the two-handle cap, account-scoped staleness) with unit tests; production `connect()` keeps its
+current single-handle behavior until the UI phase adopts it.
+/ 多账号按 OJ 以设计门槛阶段交付：一份经过核实的规格、一个纯原型、一份迁移测试计划——刻意
+不做 UI，也不接入生产路径。规格记录了代码中的事实（账号表本就允许同一 OJ 多个 handle；真正
+的约束是同步状态表以 judge 为键的游标），并把工作拆分：第一阶段把第二个 handle 存为停用账
+号，切换时重置游标；第二阶段在经过测试的 v14 计划里把游标迁移为 (judge, account)。数据代
+际保持全局——恢复失效面向整个数据库，按账号的失效已由工作输入携带的账号 id 回答。原型把这
+些规则编码为纯规划器（复用、新增副号、双 handle 上限时替换、按账号判失效）并配单元测试；
+生产 `connect()` 保持现有单 handle 行为，直到 UI 阶段采用它。
+
 ## JUDGE HEALTH DASHBOARD
 
 The connector center now doubles as a judge health dashboard — still strictly read-only. Each

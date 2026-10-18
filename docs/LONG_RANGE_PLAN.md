@@ -196,11 +196,15 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Constraints: read-only projection of existing ledger + one explicit user-triggered probe.
 - DoD: no background probing; manual refresh only.
 
-#### ⬜ PHASE 97 — Multi-handle per judge (design-gated)
+#### ✅ PHASE 97 — Multi-handle per judge, design-gated (v0.3.95, 2026-10-18)
 - Goal: spec + prototype for a second public handle per judge with isolated datasets.
 - Constraints: REQUIRES the spec to solve data-generation stamping per handle (Phase 73/88
   interactions). UI implementation split into a later phase if risky.
 - DoD: spec accepted; migration test plan written.
+- Outcome: spec `2026-10-18-multi-handle-design.md` (generation stays global; stage 1 disabled
+  secondary accounts + cursor reset on switch; stage 2 v14 (judge, account_id) cursor migration
+  with an 8-step test plan); pure prototype `core/data/sync/MultiHandlePrototype.kt` + 6 tests.
+  No production wiring, no schema change.
 
 ### ARC D — Windows / Apple parity
 
