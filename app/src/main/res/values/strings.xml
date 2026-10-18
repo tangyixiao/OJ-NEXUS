@@ -694,7 +694,7 @@
     <string name="settings_openapp_quota_exceeded">OPENAPP QUOTA IS INSUFFICIENT</string>
     <string name="settings_openapp_quota_api_error">OPENAPP QUOTA QUERY FAILED</string>
     <string name="settings_section_data">LOCAL DATA</string>
-    <string name="settings_backup_hint">EXPORT A COPY OF THE LOCAL DATABASE. NO PASSWORDS OR COOKIES ARE INCLUDED.</string>
+    <string name="settings_backup_hint">EXPORT A SNAPSHOT ARCHIVE: THE DATABASE PLUS A MANIFEST OF TABLE COUNTS AND THE DATA-GENERATION STAMP. NO PASSWORDS, COOKIES OR SECRETS ARE INCLUDED.</string>
     <string name="settings_export_backup">EXPORT DATABASE BACKUP</string>
     <string name="settings_import_backup">IMPORT DATABASE BACKUP</string>
     <string name="settings_backup_success">BACKUP EXPORTED</string>

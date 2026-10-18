@@ -96,7 +96,7 @@ fun SettingsScreen(
     val retryingOperationId by viewModel.retryingOperationId.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     val backupLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/octet-stream"),
+        ActivityResultContracts.CreateDocument("application/zip"),
     ) { destination ->
         if (destination != null) {
             viewModel.exportBackup(context.contentResolver, destination)
@@ -229,7 +229,7 @@ fun SettingsScreen(
                 Spacer(Modifier.height(NexusSpacing.sm))
                 SettingsAction(
                     label = stringResource(R.string.settings_export_backup),
-                    onClick = { backupLauncher.launch("oj-nexus-backup.db") },
+                    onClick = { backupLauncher.launch("oj-nexus-snapshot.zip") },
                 )
                 Spacer(Modifier.height(NexusSpacing.xs))
                 SettingsAction(
@@ -237,6 +237,7 @@ fun SettingsScreen(
                     onClick = {
                         importLauncher.launch(
                             arrayOf(
+                                "application/zip",
                                 "application/octet-stream",
                                 "application/vnd.sqlite3",
                                 "application/x-sqlite3",

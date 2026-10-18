@@ -124,7 +124,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 
 ### ARC B — Data integrity & portability
 
-#### ⬜ PHASE 86 — Export 2.0: full local snapshot
+#### ✅ PHASE 86 — Export 2.0: full local snapshot (v0.3.84, 2026-10-18)
 - Goal: single-file export (SQLite db + metadata JSON, zipped) with a manifest of table counts
   and the data-generation stamp from Phase 73.
 - Scope: settings data screen; reuse Phase 73 validation on import.

@@ -3,6 +3,33 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## EXPORT 2.0: FULL LOCAL SNAPSHOT
+
+Backup became a self-describing archive. The settings data screen now exports a single ZIP holding
+exactly two entries — `manifest.json` and `database.db` — where the manifest records the schema
+version, the data-generation stamp, the export timestamp, and a per-table row count for every
+required table, sorted by name for stable diffs. Import reads the archive, requires the manifest
+before trusting the database, rejects a manifest whose schema version or generation stamp does not
+match the running app, bounds the database entry at 512 MiB, and then hands the extracted database
+to the same validated atomic-restore pipeline as before. Legacy raw `.db` exports remain
+importable, so an older backup never becomes unreadable.
+/ 备份成为自描述档案。设置页现在导出仅含两个条目的单一 ZIP——`manifest.json` 与 `database.db`——
+清单记录 schema 版本、数据代次戳、导出时间，以及所有必需表的逐表行数（按表名排序，diff 稳定）。
+导入先读清单再信任数据库：schema 版本或代次戳与运行中的应用不符即拒绝，数据库条目上限 512 MiB，
+随后把解出的数据库交给与原来相同的校验原子恢复管线。旧的裸 `.db` 导出仍可导入，历史备份不会失效。
+
+The manifest is metadata only: no credential, token, cookie, or OpenApp secret ever enters the
+archive, and the database itself has no secret columns — the OpenApp credential stays in
+`noBackupFilesDir`, outside every export path. Tests pin the entry list, the no-secret scan over
+both entries, the round trip (export → import → restore → row counts match), tampered-version and
+blank-stamp rejection, and the legacy fallback.
+/ 清单只有元数据：任何凭据、令牌、Cookie 或 OpenApp 密钥都不会进入档案，数据库本身也没有密钥列——
+OpenApp 凭据保存在 `noBackupFilesDir`，在任何导出路径之外。测试钉住条目清单、对两个条目的无密钥扫描、
+往返一致性（导出 → 导入 → 恢复 → 行数一致）、篡改版本与空代次戳的拒绝，以及旧格式回退。
+
+The archive adds no network request, no Room migration and no credential flow; it packages data
+the app already holds. / 该档案不引入任何网络请求、Room 迁移或凭据流程，只是打包应用已有的本地数据。
+
 ## COMMAND PALETTE REVIEW / TRAINING / UNSOLVED QUERIES
 
 The palette's direct-query card is no longer search-only. The local command grammar gains three

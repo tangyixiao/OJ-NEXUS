@@ -649,7 +649,7 @@
     <string name="settings_openapp_quota_exceeded">OpenApp 额度不足</string>
     <string name="settings_openapp_quota_api_error">OpenApp 额度查询失败</string>
     <string name="settings_section_data">本地数据</string>
-    <string name="settings_backup_hint">导出本地数据库副本。不包含密码或 Cookie。</string>
+    <string name="settings_backup_hint">导出快照档案：数据库 + 表行数清单与数据代次戳。不包含密码、Cookie 或任何密钥。</string>
     <string name="settings_export_backup">导出数据库备份</string>
     <string name="settings_import_backup">导入数据库备份</string>
     <string name="settings_backup_success">备份已导出</string>
