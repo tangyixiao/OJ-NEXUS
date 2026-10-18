@@ -235,6 +235,7 @@
     <string name="attempt_note">备注（可选）</string>
     <string name="attempt_empty">暂无提交记录</string>
     <string name="attempt_delete_cd">删除提交记录</string>
+    <string name="attempt_open_remote">在 Codeforces 打开</string>
     <string name="format_attempt_duration">%d 分钟</string>
     <string name="failure_add">添加失败记录</string>
     <string name="failure_category">根本原因</string>

@@ -165,7 +165,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Constraints: public API only; backoff on 503; no scraping.
 - DoD: unit tests with recorded fixtures; sync ledger entries per stage.
 
-#### ⬜ PHASE 92 — Codeforces submission detail deep-link
+#### ✅ PHASE 92 — Codeforces submission detail deep-link (v0.3.90, 2026-10-18)
 - Goal: submission rows open CF contest/submission URL via Custom Tab with exact URL builder.
 - Constraints: open-in-browser only; no in-app WebView login.
 - DoD: URL builder unit tests (contestId/index/protocol edge cases).

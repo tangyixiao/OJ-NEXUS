@@ -585,10 +585,38 @@ private fun SectionEmpty(text: String) {
 @Composable
 private fun AttemptRow(attempt: Attempt) {
     val colors = NexusTheme.colors
+    val context = LocalContext.current
+    // Deep-link to the judge-side submission page when the row carries enough origin data.
+    // Only the official URL builder may construct Codeforces URLs (docs/OJ_ADAPTERS.md).
+    val submissionUrl: String? = when {
+        attempt.sourceJudge != com.ojnexus.core.model.JudgeId.CODEFORCES.id -> null
+        attempt.contestId == null || attempt.externalSubmissionId == null -> null
+        else -> attempt.contestId.toLongOrNull()?.let { contestId ->
+            attempt.externalSubmissionId?.toLongOrNull()?.let { submissionId ->
+                com.ojnexus.judge.codeforces.CodeforcesUrls.submission(contestId, submissionId)
+            }
+        }
+    }
+    val openRemoteLabel = stringResource(R.string.attempt_open_remote)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(NexusSize.tableRowHeight),
+            .height(NexusSize.tableRowHeight)
+            .then(
+                if (submissionUrl != null) {
+                    Modifier.clickable(
+                        role = Role.Button,
+                        onClickLabel = openRemoteLabel,
+                    ) { OpenInBrowser.open(context, submissionUrl) }
+                } else {
+                    Modifier
+                },
+            )
+            .semantics {
+                if (submissionUrl != null) {
+                    contentDescription = openRemoteLabel
+                }
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -599,6 +627,14 @@ private fun AttemptRow(attempt: Attempt) {
         )
         NexusTag(text = stringResource(attempt.verdict.labelRes()), tone = attempt.verdict.tone())
         Spacer(modifier = Modifier.weight(1f))
+        if (submissionUrl != null) {
+            Text(
+                text = stringResource(R.string.attempt_open_remote),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.accent,
+                modifier = Modifier.padding(end = NexusSpacing.xs),
+            )
+        }
         if (attempt.durationMinutes != null) {
             Text(
                 text = stringResource(R.string.format_attempt_duration, attempt.durationMinutes),

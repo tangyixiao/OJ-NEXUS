@@ -21,6 +21,10 @@ object CodeforcesUrls {
     fun contest(contestId: Long): String =
         "$SITE_BASE/contest/${contestId}"
 
+    /** e.g. contestId=2134, submissionId=281234567 → /contest/2134/submission/281234567 */
+    fun submission(contestId: Long, submissionId: Long): String =
+        "$SITE_BASE/contest/${contestId}/submission/${submissionId}"
+
     private fun encode(segment: String): String =
         URLEncoder.encode(segment, Charsets.UTF_8.name()).replace("+", "%20")
 }

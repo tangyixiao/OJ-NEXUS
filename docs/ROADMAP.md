@@ -3,6 +3,22 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## CODEFORCES SUBMISSION DEEP-LINK
+
+Attempt rows on the problem detail screen are now openable when they were imported from a
+Codeforces submission. The row builds its target exclusively through the reviewed
+`CodeforcesUrls.submission(contestId, submissionId)` builder — contest/submission ids must both
+parse as numbers or no link is offered — and opens it with the screen's existing external-browser
+helper (Custom Tabs where available, plain ACTION_VIEW otherwise). The domain `Attempt` model
+now carries the remote origin (source judge, judge-side submission id, contest id) that the
+database already stored; the mapper simply passes it through, so there is no schema change, no
+new request, and manual entries keep exactly their old rendering.
+/ 题目详情页的提交记录行现在在源自 Codeforces 导入时可以点击打开。目标链接一律由经过评审的
+`CodeforcesUrls.submission(contestId, submissionId)` 构造——contest/submission 编号必须都能解析为
+数字才提供链接——并使用页面既有的外部浏览器助手打开（可用时走 Custom Tabs，否则 ACTION_VIEW）。
+领域模型 `Attempt` 现在携带数据库早已保存的远端来源（源 judge、judge 侧提交 id、比赛 id）；
+mapper 只是透传，因此没有 schema 变更、没有新请求，手动条目的渲染完全不变。
+
 ## CODEFORCES PROBLEMSET DELTA SYNC
 
 The Codeforces PROBLEMS stage no longer rewrites the whole ~10k-row catalog on every forced

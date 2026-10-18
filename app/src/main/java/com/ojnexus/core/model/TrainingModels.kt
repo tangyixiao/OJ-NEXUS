@@ -62,6 +62,13 @@ data class Attempt(
     val durationMinutes: Int?,
     val language: String?,
     val note: String?,
+    // --- Remote-sync origin (null = manual entry) ---
+    /** [JudgeId] id of the source judge; null for manual entries. */
+    val sourceJudge: String? = null,
+    /** Judge-side submission id — the sync idempotency key for imported attempts. */
+    val externalSubmissionId: String? = null,
+    /** Judge-side contest id when the submission belongs to a contest round. */
+    val contestId: String? = null,
 )
 
 /** Root-cause failure entry attached to a problem (and optionally an attempt). */

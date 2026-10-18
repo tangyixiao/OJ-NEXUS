@@ -83,6 +83,9 @@ fun AttemptEntity.toDomain(): Attempt = Attempt(
     durationMinutes = durationMinutes,
     language = language,
     note = note,
+    sourceJudge = sourceJudge,
+    externalSubmissionId = externalSubmissionId,
+    contestId = contestId,
 )
 
 fun FailureEntryEntity.toDomain(): FailureEntry = FailureEntry(

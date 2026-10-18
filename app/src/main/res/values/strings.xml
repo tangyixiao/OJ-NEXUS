@@ -262,6 +262,7 @@
     <string name="attempt_note">NOTE (OPTIONAL)</string>
     <string name="attempt_empty">NO ATTEMPTS RECORDED</string>
     <string name="attempt_delete_cd">Delete attempt</string>
+    <string name="attempt_open_remote">OPEN ON CODEFORCES</string>
     <string name="format_attempt_duration">%d MIN</string>
 
     <!-- Failure log -->
