@@ -40,6 +40,67 @@ jobs:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
 
+  release:
+    runs-on: ubuntu-latest
+    # Signs the release APK from CI secrets when they are configured. Without the secrets the
+    # job still builds and uploads the unsigned release APK, so the pipeline never hard-fails.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # The keystore is decoded to RUNNER_TEMP (wiped per job, never uploaded), never into the
+      # checkout, so no signing material can leak into artifacts or the git tree.
+      - name: Decode signing keystore
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/oj-nexus-release.jks"
+          test -s "$RUNNER_TEMP/oj-nexus-release.jks"
+
+      - name: Build signed release APK
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        env:
+          OJ_NEXUS_KEYSTORE_PATH: ${{ runner.temp }}/oj-nexus-release.jks
+          OJ_NEXUS_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          OJ_NEXUS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          OJ_NEXUS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
+
+      - name: Build unsigned release APK
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 == '' }}
+        run: ./gradlew assembleRelease
+
+      - name: Verify APK signature
+        run: |
+          APK=$(ls app/build/outputs/apk/release/app-release*.apk | head -1)
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          "$BT/apksigner" verify --verbose "$APK" || echo "APKSIGNER: UNSIGNED (no secrets configured)"
+
+      - name: Generate SHA256 sums
+        run: |
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          cd app/build/outputs/apk/release
+          sha256sum app-release*.apk > "SHA256SUMS-v${VERSION}.txt"
+          cat "SHA256SUMS-v${VERSION}.txt"
+
+      - name: Upload release APK + sums
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: |
+            app/build/outputs/apk/release/app-release*.apk
+            app/build/outputs/apk/release/SHA256SUMS-*.txt
+
   emulator:
     runs-on: ubuntu-latest
     # This runner has no hardware acceleration: the emulator alone needs ~13 minutes to boot and

@@ -3,6 +3,28 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## ANDROID RELEASE SIGNING PIPELINE
+
+Release signing is now env-gated and secret-driven, with an unsigned fallback that keeps every
+path green. When all four `OJ_NEXUS_KEYSTORE_PATH` / `OJ_NEXUS_KEYSTORE_PASSWORD` /
+`OJ_NEXUS_KEY_ALIAS` / `OJ_NEXUS_KEY_PASSWORD` variables are present, the release buildType picks
+up the keystore; with any missing the build produces the standard unsigned APK exactly as before.
+No keystore material, path, or password ever enters the repository. The CI `release` job decodes
+`ANDROID_KEYSTORE_BASE64` into `RUNNER_TEMP` (wiped per job, never uploaded), builds, verifies
+with `apksigner verify --verbose`, generates `SHA256SUMS-v<version>.txt` in the established
+`docs/releases/` convention, and uploads APK + sums as the `release-apk` artifact; without
+secrets it still builds, verifies-honestly (unsigned note), sums, and uploads. The unsigned local
+path was proven on this host (`assembleRelease` BUILD SUCCESSFUL). Committing each new sums file
+into `docs/releases/` remains a maintainer download-and-commit step — CI never pushes.
+/ 发布签名改为环境变量门控、密钥驱动，并保留无签名回退路径。四个 `OJ_NEXUS_KEYSTORE_PATH` /
+`OJ_NEXUS_KEYSTORE_PASSWORD` / `OJ_NEXUS_KEY_ALIAS` / `OJ_NEXUS_KEY_PASSWORD` 变量齐全时 release
+构建类型挂载 keystore；任一缺失则产出与过去完全一致的标准未签名 APK。任何 keystore 材料、路径或
+密码都不进入仓库。CI 的 `release` job 将 `ANDROID_KEYSTORE_BASE64` 解码到 `RUNNER_TEMP`（每 job
+清空、永不上传），构建后用 `apksigner verify --verbose` 验签，按 `docs/releases/` 既有惯例生成
+`SHA256SUMS-v<version>.txt`，并将 APK 与校验和作为 `release-apk` artifact 上传；无密钥时依旧构建、
+如实标注未签名、生成校验和并上传。本机已验证未签名路径（`assembleRelease` BUILD SUCCESSFUL）。
+把新的校验和文件提交进 `docs/releases/` 仍是维护者下载后手动提交的步骤——CI 从不推送。
+
 ## MEMORY AUDIT
 
 LeakCanary now watches every debug build (debugImplementation only — release carries zero of it),

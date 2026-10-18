@@ -32,6 +32,25 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Signing is applied only when all four secret-style env vars are present (CI or a
+            // maintainer machine). Anything missing keeps the standard unsigned release APK.
+            // Keystore material never enters the repository.
+            val keystorePath = System.getenv("OJ_NEXUS_KEYSTORE_PATH")
+            val keystorePassword = System.getenv("OJ_NEXUS_KEYSTORE_PASSWORD")
+            val keyAlias = System.getenv("OJ_NEXUS_KEY_ALIAS")
+            val keyPassword = System.getenv("OJ_NEXUS_KEY_PASSWORD")
+            if (!keystorePath.isNullOrBlank() &&
+                !keystorePassword.isNullOrBlank() &&
+                !keyAlias.isNullOrBlank() &&
+                !keyPassword.isNullOrBlank()
+            ) {
+                signingConfig = signingConfigs.create("releaseEnv") {
+                    storeFile = file(keystorePath)
+                    storePassword = keystorePassword
+                    this.keyAlias = keyAlias
+                    this.keyPassword = keyPassword
+                }
+            }
         }
     }
 

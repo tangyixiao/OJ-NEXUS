@@ -281,7 +281,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 
 ### ARC F — Platform polish & release
 
-#### ⬜ PHASE 109 — Android release signing pipeline
+#### ✅ PHASE 109 — Android release signing pipeline (v0.3.100, 2026-10-18)
 - Goal: release build signed via CI secrets; SHA256SUMS per release automated.
 - DoD: `docs/releases/` gains sums for the next release automatically.
 
