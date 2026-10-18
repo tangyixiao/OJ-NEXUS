@@ -1,0 +1,22 @@
+OJ NEXUS is a local-first competitive programming command center. It pulls public data from
+Codeforces, AtCoder, and Luogu into one offline Room database and works without a network after
+the initial sync.
+
+WHAT IT DOES
+- Problem library across judges: filter by judge, status, difficulty, tags; windowed rendering
+  keeps ten thousand rows smooth.
+- Attempt ledger and review queue: spaced repetition over your own solves (PASS / HARD / FAIL /
+  SKIP stages on a 1-3-7-21-45-90 day ladder).
+- Training sessions with a difficulty ladder recommendation (EASIER / FIT / STRETCH).
+- Analytics: activity heatmap, streaks, solved distribution, rating history where the judge
+  publishes it.
+- Submission detail sheet with exact deep links to the original submission on Codeforces.
+- Luogu: open-platform submit-and-poll with quota probe, plus the public training catalog.
+- Full local snapshot export/import (zip with manifest and per-table conflict preview),
+  scheduled local backups, per-judge data wipe, database size panel with VACUUM.
+
+DATA BOUNDARIES
+- No account passwords, no cookies, no session tokens. Luogu's open-platform credential lives in
+  Android's no-backup file storage and never enters backups, exports, or logs.
+- Local first: everything you see is served from the on-device database; the network only syncs.
+- No cloud, no analytics SDKs, no ads, no accounts.

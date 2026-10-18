@@ -3,6 +3,24 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## STORE METADATA
+
+The repo now carries fastlane-style store metadata under `fastlane/metadata/android/` for en-US
+and zh-CN: title, short and full descriptions, and per-versionCode changelogs. The copy is
+telemetry-tone — a feature spec sheet, not marketing — and every claim maps to a shipped phase.
+The data-boundary paragraph states the credential rule explicitly: no passwords, cookies, or
+session tokens; the Luogu open-platform credential lives in no-backup storage and never enters
+backups, exports, or logs. Screenshots and video are deliberately absent until real device
+captures exist — placeholder art is never invented. Future releases add one
+`changelogs/<versionCode>.txt` per side as part of release bookkeeping (F-Droid reads them
+directly).
+/ 仓库现在带有 fastlane 风格的商店元数据，位于 `fastlane/metadata/android/`，覆盖 en-US 与 zh-CN：
+应用名、简短与完整描述、按 versionCode 的更新日志。文案是遥测语气——像功能规格表而非营销——且
+每条陈述都对应一个已交付阶段。数据边界段落明确写出凭据规则：不收集密码、Cookie、会话令牌；洛谷
+开放平台凭据保存在不参与备份的存储中，绝不进入备份、导出或日志。在拿到真实设备截图之前，刻意不
+放截图与视频——绝不虚构占位素材。今后每次发布随发布簿记在两侧各新增一份
+`changelogs/<versionCode>.txt`（F-Droid 直接读取）。
+
 ## ANDROID RELEASE SIGNING PIPELINE
 
 Release signing is now env-gated and secret-driven, with an unsigned fallback that keeps every

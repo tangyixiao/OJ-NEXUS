@@ -285,7 +285,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Goal: release build signed via CI secrets; SHA256SUMS per release automated.
 - DoD: `docs/releases/` gains sums for the next release automatically.
 
-#### ⬜ PHASE 110 — Store/F-Droid metadata
+#### ✅ PHASE 110 — Store/F-Droid metadata (2026-10-18)
 - Goal: fastlane-style metadata folder (descriptions EN/zh, screenshots) in repo.
 - Constraints: no marketing copy; telemetry tone.
 
