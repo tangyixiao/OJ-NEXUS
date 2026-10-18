@@ -658,6 +658,17 @@
     <string name="settings_restore_applied">已恢复备份——点击关闭</string>
     <string name="settings_restore_rolled_back">恢复已回滚——点击关闭</string>
     <string name="settings_restore_rejected">恢复已拒绝——点击关闭</string>
+    <string name="settings_auto_backup_title">自动备份（仅本地）</string>
+    <string name="settings_auto_backup_off">关闭</string>
+    <string name="settings_auto_backup_daily">每天</string>
+    <string name="settings_auto_backup_weekly">每周</string>
+    <string name="settings_auto_backup_no_folder">未选择文件夹——请先选择。</string>
+    <string name="settings_auto_backup_folder_set">快照将写入所选文件夹。</string>
+    <string name="settings_auto_backup_pick_folder">选择文件夹</string>
+    <string name="settings_auto_backup_clear_folder">清除文件夹</string>
+    <string name="settings_auto_backup_keep_count">保留最近 %1$d 份快照</string>
+    <string name="settings_auto_backup_last_success">上次自动备份成功——点击关闭</string>
+    <string name="settings_auto_backup_last_failed">上次自动备份失败——点击关闭</string>
     <string name="settings_section_interaction">交互</string>
     <string name="settings_reduce_motion">减少动效</string>
     <string name="settings_reduce_motion_desc">移除导航淡入淡出效果</string>

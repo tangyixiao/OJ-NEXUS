@@ -703,6 +703,17 @@
     <string name="settings_restore_applied">RESTORE APPLIED — TAP TO DISMISS</string>
     <string name="settings_restore_rolled_back">RESTORE ROLLED BACK — TAP TO DISMISS</string>
     <string name="settings_restore_rejected">RESTORE REJECTED — TAP TO DISMISS</string>
+    <string name="settings_auto_backup_title">AUTO BACKUP (LOCAL ONLY)</string>
+    <string name="settings_auto_backup_off">OFF</string>
+    <string name="settings_auto_backup_daily">DAILY</string>
+    <string name="settings_auto_backup_weekly">WEEKLY</string>
+    <string name="settings_auto_backup_no_folder">NO FOLDER PICKED — CHOOSE A FOLDER FIRST.</string>
+    <string name="settings_auto_backup_folder_set">SNAPSHOTS ARE WRITTEN TO THE PICKED FOLDER.</string>
+    <string name="settings_auto_backup_pick_folder">PICK FOLDER</string>
+    <string name="settings_auto_backup_clear_folder">CLEAR FOLDER</string>
+    <string name="settings_auto_backup_keep_count">KEEP LAST %1$d ARCHIVES</string>
+    <string name="settings_auto_backup_last_success">LAST AUTO BACKUP SUCCEEDED — TAP TO DISMISS</string>
+    <string name="settings_auto_backup_last_failed">LAST AUTO BACKUP FAILED — TAP TO DISMISS</string>
     <string name="settings_section_interaction">INTERACTION</string>
     <string name="settings_reduce_motion">REDUCE MOTION</string>
     <string name="settings_reduce_motion_desc">REMOVE NAVIGATION FADE TRANSITIONS</string>

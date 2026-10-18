@@ -3,6 +3,31 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## SCHEDULED LOCAL BACKUP
+
+Backups now run on a schedule. The settings data screen gains an AUTO BACKUP section: the user
+picks a SAF folder once (persisted URI permission), chooses OFF / DAILY / WEEKLY, and sets how many
+archives to keep (1–20, default 5). A `PeriodicWorkRequest` runs a `CoroutineWorker` that reads the
+preferences, creates a dated `oj-nexus-auto-<yyyyMMdd-HHmmss>.zip` inside the picked tree through
+`DocumentsContract.createDocument`, exports the Phase 86 snapshot archive into it, then prunes the
+oldest archives beyond the keep count. The worker runs under battery-not-low and storage-not-low
+constraints with exponential backoff, uses no network, and writes a `success:<ms>` / `failed:<ms>`
+status stamp that the settings screen shows as a dismissible banner.
+/ 备份从此按计划运行。设置页数据区新增 AUTO BACKUP 区块：用户一次性选定 SAF 文件夹（持久化 URI 权限），
+选择关闭 / 每天 / 每周，并设定保留份数（1–20，默认 5）。`PeriodicWorkRequest` 驱动一个
+`CoroutineWorker`：读取偏好，通过 `DocumentsContract.createDocument` 在所选目录内创建按时间命名的
+`oj-nexus-auto-<yyyyMMdd-HHmmss>.zip`，写入 Phase 86 快照档案，再裁剪超出保留份数的最旧档案。
+Worker 在电量非低与存储非低约束下运行，指数退避，不使用网络，并写入 `success:<ms>` / `failed:<ms>`
+状态戳，设置页将其渲染为可关闭的横幅。
+
+The scheduler is idempotent across cold starts (`enqueueUniquePeriodicWork` with UPDATE), so the
+cadence chosen last always wins. Pure logic — cadence parsing, archive naming, keep-N pruning —
+is unit-tested without Robolectric. The archive contents are unchanged from Phase 86: no network
+request, no Room migration, and no credential flow is introduced.
+/ 调度器跨冷启动幂等（`enqueueUniquePeriodicWork` 使用 UPDATE 策略），最后一次选择的节奏始终生效。
+纯逻辑——节奏解析、档案命名、保留 N 份裁剪——以纯 JVM 单测覆盖。档案内容与 Phase 86 完全一致：
+不引入网络请求、不涉及 Room 迁移、不新增凭据流程。
+
 ## EXPORT 2.0: FULL LOCAL SNAPSHOT
 
 Backup became a self-describing archive. The settings data screen now exports a single ZIP holding

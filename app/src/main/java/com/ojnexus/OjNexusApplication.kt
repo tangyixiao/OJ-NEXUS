@@ -61,12 +61,14 @@ import com.ojnexus.judge.luogu.open.WorkManagerLuoguResultScheduler
 import com.ojnexus.judge.luogu.open.LuoguSubmissionRepository
 import com.ojnexus.judge.luogu.open.LuoguResultWorkBootstrap
 import com.ojnexus.core.network.PublicHttpClient
+import com.ojnexus.core.data.backup.ScheduledBackupScheduler
 import kotlinx.serialization.json.Json
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import java.time.Clock
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -264,6 +266,10 @@ class OjNexusApplication : Application() {
                 scheduler = container.luoguResultWorkScheduler,
                 currentDataGeneration = container::currentDataGeneration,
             ).reconcilePending()
+            // Re-align the opt-in local backup schedule with the stored cadence. UPDATE
+            // policy makes this idempotent across every cold start (survives reboots).
+            val preferences = container.userPreferencesRepository.preferences.first()
+            ScheduledBackupScheduler.update(this@OjNexusApplication, preferences.backupCadence)
         }
     }
 }

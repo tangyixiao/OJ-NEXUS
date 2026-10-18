@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.ojnexus.core.data.backup.BackupCadence
 import com.ojnexus.core.designsystem.NexusThemeSlot
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.model.NoteTemplate
@@ -24,6 +25,10 @@ data class UserPreferences(
     val reduceMotion: Boolean = false,
     val hapticsEnabled: Boolean = true,
     val themeSlot: NexusThemeSlot = NexusThemeSlot.NEXUS_BLUE,
+    val backupCadence: BackupCadence = BackupCadence.OFF,
+    val backupTreeUri: String = "",
+    val backupKeepCount: Int = BackupCadence.DEFAULT_KEEP_COUNT,
+    val backupLastStatus: String = "",
 )
 
 internal val Context.userPreferencesDataStore by preferencesDataStore(
@@ -45,6 +50,14 @@ class UserPreferencesRepository(private val context: Context) {
                 themeSlot = values[Keys.THEME_SLOT]?.let { value ->
                     runCatching { NexusThemeSlot.valueOf(value) }.getOrNull()
                 } ?: NexusThemeSlot.NEXUS_BLUE,
+                backupCadence = values[Keys.BACKUP_CADENCE]
+                    ?.let(BackupCadence::fromStored)
+                    ?: BackupCadence.OFF,
+                backupTreeUri = values[Keys.BACKUP_TREE_URI] ?: "",
+                backupKeepCount = (values[Keys.BACKUP_KEEP_COUNT]
+                    ?: BackupCadence.DEFAULT_KEEP_COUNT)
+                    .coerceIn(BackupCadence.MIN_KEEP_COUNT, BackupCadence.MAX_KEEP_COUNT),
+                backupLastStatus = values[Keys.BACKUP_LAST_STATUS] ?: "",
             )
         }
 
@@ -118,11 +131,41 @@ class UserPreferencesRepository(private val context: Context) {
         context.userPreferencesDataStore.edit { it[Keys.THEME_SLOT] = slot.name }
     }
 
+    /** Persists the cadence; [treeUri] may be null to keep the stored folder unchanged. */
+    suspend fun setBackupCadence(cadence: BackupCadence, treeUri: String? = null) {
+        context.userPreferencesDataStore.edit { values ->
+            values[Keys.BACKUP_CADENCE] = cadence.stored()
+            if (treeUri != null) values[Keys.BACKUP_TREE_URI] = treeUri
+        }
+    }
+
+    suspend fun setBackupTreeUri(uri: String) {
+        context.userPreferencesDataStore.edit { it[Keys.BACKUP_TREE_URI] = uri }
+    }
+
+    suspend fun setBackupKeepCount(count: Int) {
+        context.userPreferencesDataStore.edit { values ->
+            values[Keys.BACKUP_KEEP_COUNT] = count
+                .coerceIn(BackupCadence.MIN_KEEP_COUNT, BackupCadence.MAX_KEEP_COUNT)
+        }
+    }
+
+    /** Written by the scheduled worker; `success:<epochMs>` or `failed:<epochMs>`. */
+    suspend fun recordBackupStatus(success: Boolean, atEpochMs: Long) {
+        context.userPreferencesDataStore.edit { values ->
+            values[Keys.BACKUP_LAST_STATUS] = "${if (success) "success" else "failed"}:$atEpochMs"
+        }
+    }
+
     private object Keys {
         val REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
         val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
         val THEME_SLOT = stringPreferencesKey("theme_slot")
         val NOTE_TEMPLATE = stringPreferencesKey(NOTE_TEMPLATE_KEY)
+        val BACKUP_CADENCE = stringPreferencesKey("backup_cadence")
+        val BACKUP_TREE_URI = stringPreferencesKey("backup_tree_uri")
+        val BACKUP_KEEP_COUNT = intPreferencesKey("backup_keep_count")
+        val BACKUP_LAST_STATUS = stringPreferencesKey("backup_last_status")
     }
 
     private data class TargetKeys(

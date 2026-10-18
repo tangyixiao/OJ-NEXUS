@@ -132,7 +132,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
   that the zip contains no keystore material.
 - DoD: round-trip test: export → fresh install → import → counts match.
 
-#### ⬜ PHASE 87 — Scheduled local backup
+#### ✅ PHASE 87 — Scheduled local backup (v0.3.85, 2026-10-18)
 - Goal: opt-in WorkManager daily/weekly backup to a user-picked folder (SAF), with retention
   of the last N (default 5).
 - Scope: settings + WorkManager; reuses Phase 86 exporter.

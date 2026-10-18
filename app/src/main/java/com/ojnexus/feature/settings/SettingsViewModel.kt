@@ -1,9 +1,13 @@
 package com.ojnexus.feature.settings
 
 import android.content.ContentResolver
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ojnexus.core.data.backup.BackupCadence
+import com.ojnexus.core.data.backup.ScheduledBackupScheduler
 import com.ojnexus.core.data.preferences.UserPreferences
 import com.ojnexus.core.data.preferences.UserPreferencesRepository
 import com.ojnexus.core.data.restore.RestoreOutcome
@@ -377,6 +381,47 @@ class SettingsViewModel(
 
     fun dismissRestoreStatus() {
         restoreStatus.value = null
+    }
+
+    private val backupStatusDismissed = MutableStateFlow(false)
+    val backupStatusDismissedFlow: StateFlow<Boolean> = backupStatusDismissed.asStateFlow()
+
+    /** Persists a user-picked SAF folder and takes persistable read/write permissions. */
+    fun chooseBackupFolder(context: Context, uri: Uri) {
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        viewModelScope.launch {
+            preferencesRepository.setBackupTreeUri(uri.toString())
+            // Re-arm the scheduler with the current cadence against the new folder.
+            ScheduledBackupScheduler.update(context.applicationContext, preferences.value.backupCadence)
+        }
+    }
+
+    fun clearBackupFolder(context: Context) {
+        viewModelScope.launch {
+            preferencesRepository.setBackupTreeUri("")
+            ScheduledBackupScheduler.update(context.applicationContext, BackupCadence.OFF)
+            preferencesRepository.setBackupCadence(BackupCadence.OFF)
+        }
+    }
+
+    fun setBackupCadence(context: Context, cadence: BackupCadence) {
+        viewModelScope.launch {
+            preferencesRepository.setBackupCadence(cadence)
+            ScheduledBackupScheduler.update(context.applicationContext, cadence)
+        }
+    }
+
+    fun setBackupKeepCount(count: Int) {
+        viewModelScope.launch { preferencesRepository.setBackupKeepCount(count) }
+    }
+
+    fun dismissBackupStatus() {
+        backupStatusDismissed.value = true
     }
 
     fun setReduceMotion(enabled: Boolean) {

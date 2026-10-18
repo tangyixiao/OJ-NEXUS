@@ -43,8 +43,10 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
+import com.ojnexus.core.data.backup.BackupCadence
 import com.ojnexus.core.data.sync.SyncPhase
 import com.ojnexus.core.data.preferences.AppLanguage
+import com.ojnexus.core.data.preferences.UserPreferences
 import com.ojnexus.core.designsystem.NexusRadius
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
@@ -91,6 +93,7 @@ fun SettingsScreen(
     val backupResult by viewModel.backup.collectAsStateWithLifecycle()
     val restoreStatus by viewModel.restore.collectAsStateWithLifecycle()
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
+    val backupStatusDismissed by viewModel.backupStatusDismissedFlow.collectAsStateWithLifecycle()
     val openAppState by viewModel.openApp.collectAsStateWithLifecycle()
     val syncAllInFlight by viewModel.syncAllInFlight.collectAsStateWithLifecycle()
     val retryingOperationId by viewModel.retryingOperationId.collectAsStateWithLifecycle()
@@ -107,6 +110,13 @@ fun SettingsScreen(
     ) { source ->
         if (source != null) {
             viewModel.importBackup(context.contentResolver, source)
+        }
+    }
+    val backupFolderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { tree ->
+        if (tree != null) {
+            viewModel.chooseBackupFolder(context, tree)
         }
     }
     var disconnectAccountId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -260,6 +270,16 @@ fun SettingsScreen(
                         color = if (result.success) NexusTheme.colors.success else NexusTheme.colors.danger,
                     )
                 }
+                Spacer(Modifier.height(NexusSpacing.sm))
+                ScheduledBackupSection(
+                    preferences = preferences,
+                    statusDismissed = backupStatusDismissed,
+                    onPickFolder = { backupFolderLauncher.launch(null) },
+                    onClearFolder = { viewModel.clearBackupFolder(context) },
+                    onCadence = { cadence -> viewModel.setBackupCadence(context, cadence) },
+                    onKeepCount = viewModel::setBackupKeepCount,
+                    onDismissStatus = viewModel::dismissBackupStatus,
+                )
             }
             Spacer(Modifier.height(NexusSpacing.xl))
             NexusSection(label = stringResource(R.string.settings_section_interaction)) {
@@ -948,4 +968,112 @@ private fun DialogText(label: String, color: androidx.compose.ui.graphics.Color,
         color = color,
         modifier = Modifier.clickable(role = Role.Button, onClick = onClick).padding(NexusSpacing.xs),
     )
+}
+
+@Composable
+private fun ScheduledBackupSection(
+    preferences: UserPreferences,
+    statusDismissed: Boolean,
+    onPickFolder: () -> Unit,
+    onClearFolder: () -> Unit,
+    onCadence: (BackupCadence) -> Unit,
+    onKeepCount: (Int) -> Unit,
+    onDismissStatus: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    Text(
+        text = stringResource(R.string.settings_auto_backup_title),
+        style = NexusTheme.typography.data,
+        color = colors.textPrimary,
+    )
+    Spacer(Modifier.height(NexusSpacing.xs))
+    Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs)) {
+        BackupCadence.entries.forEach { cadence ->
+            BackupCadenceChip(
+                cadence = cadence,
+                selected = preferences.backupCadence == cadence,
+                onClick = { onCadence(cadence) },
+            )
+        }
+    }
+    Spacer(Modifier.height(NexusSpacing.xs))
+    Text(
+        text = stringResource(
+            if (preferences.backupTreeUri.isBlank()) {
+                R.string.settings_auto_backup_no_folder
+            } else {
+                R.string.settings_auto_backup_folder_set
+            },
+        ),
+        style = NexusTheme.typography.dataSmall,
+        color = colors.textTertiary,
+    )
+    Spacer(Modifier.height(NexusSpacing.xs))
+    Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs)) {
+        SettingsAction(
+            label = stringResource(R.string.settings_auto_backup_pick_folder),
+            onClick = onPickFolder,
+        )
+        if (preferences.backupTreeUri.isNotBlank()) {
+            SettingsAction(
+                label = stringResource(R.string.settings_auto_backup_clear_folder),
+                onClick = onClearFolder,
+            )
+        }
+    }
+    if (preferences.backupCadence != BackupCadence.OFF) {
+        Spacer(Modifier.height(NexusSpacing.xs))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.settings_auto_backup_keep_count, preferences.backupKeepCount),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textSecondary,
+                modifier = Modifier.weight(1f),
+            )
+            DialogText(label = "−", color = colors.textPrimary) { onKeepCount(preferences.backupKeepCount - 1) }
+            DialogText(label = "+", color = colors.textPrimary) { onKeepCount(preferences.backupKeepCount + 1) }
+        }
+    }
+    if (!statusDismissed && preferences.backupLastStatus.isNotBlank()) {
+        val success = preferences.backupLastStatus.startsWith("success")
+        val stamp = preferences.backupLastStatus.substringAfter(':').toLongOrNull()
+        Spacer(Modifier.height(NexusSpacing.xs))
+        Text(
+            text = stringResource(
+                if (success) R.string.settings_auto_backup_last_success else R.string.settings_auto_backup_last_failed,
+                stamp ?: 0L,
+            ),
+            style = NexusTheme.typography.dataSmall,
+            color = if (success) colors.success else colors.danger,
+            modifier = Modifier.clickable(role = Role.Button, onClick = onDismissStatus),
+        )
+    }
+}
+
+@Composable
+private fun BackupCadenceChip(
+    cadence: BackupCadence,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    Box(
+        Modifier
+            .background(if (selected) colors.accentContainer else colors.surface, NexusRadius.sm)
+            .border(NexusSize.dividerThickness, if (selected) colors.accent else colors.border, NexusRadius.sm)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = NexusSpacing.xxs, vertical = NexusSpacing.xs),
+    ) {
+        Text(
+            text = stringResource(
+                when (cadence) {
+                    BackupCadence.OFF -> R.string.settings_auto_backup_off
+                    BackupCadence.DAILY -> R.string.settings_auto_backup_daily
+                    BackupCadence.WEEKLY -> R.string.settings_auto_backup_weekly
+                },
+            ),
+            style = NexusTheme.typography.dataSmall,
+            color = if (selected) colors.accent else colors.textSecondary,
+        )
+    }
 }
