@@ -99,6 +99,11 @@ internal fun ConnectorCenterSection(
     capabilitiesByJudge: Map<JudgeId, Set<JudgeCapability>> = emptyMap(),
     retryingOperationId: Long? = null,
     onRetry: (SyncRetryRequest) -> Unit = {},
+    healthByJudge: Map<JudgeId, JudgeHealthSnapshot> = emptyMap(),
+    luoguQuotaPoints: Long? = null,
+    luoguQuotaChecking: Boolean = false,
+    luoguQuotaError: Boolean = false,
+    onProbeQuota: () -> Unit = {},
 ) {
     val colors = NexusTheme.colors
     NexusSection(
@@ -124,7 +129,16 @@ internal fun ConnectorCenterSection(
         } else {
             summary.rows.forEachIndexed { index, row ->
                 if (index > 0) Spacer(Modifier.height(NexusSpacing.xs))
-                ConnectorCenterRow(row)
+                ConnectorCenterRow(row, healthByJudge[row.judge])
+                if (row.judge == JudgeId.LUOGU) {
+                    Spacer(Modifier.height(NexusSpacing.xxs))
+                    LuoguQuotaRow(
+                        points = luoguQuotaPoints,
+                        checking = luoguQuotaChecking,
+                        failed = luoguQuotaError,
+                        onProbe = onProbeQuota,
+                    )
+                }
                 if (row.connected) {
                     Spacer(Modifier.height(NexusSpacing.xs))
                     SyncOperationHistorySection(
@@ -153,7 +167,10 @@ internal fun ConnectorCenterSection(
 }
 
 @Composable
-private fun ConnectorCenterRow(row: ConnectorCenterRow) {
+private fun ConnectorCenterRow(
+    row: ConnectorCenterRow,
+    health: JudgeHealthSnapshot?,
+) {
     val colors = NexusTheme.colors
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -184,6 +201,25 @@ private fun ConnectorCenterRow(row: ConnectorCenterRow) {
                 style = NexusTheme.typography.dataSmall,
                 color = colors.textTertiary,
             )
+            health?.let { snapshot ->
+                judgeHealthStatusLabel(snapshot)?.let { label ->
+                    Text(
+                        text = stringResource(R.string.settings_health_last_run, label),
+                        style = NexusTheme.typography.dataSmall,
+                        color = colors.textTertiary,
+                    )
+                }
+                snapshot.lastRunLatencyMs?.let { latency ->
+                    Text(
+                        text = stringResource(
+                            R.string.settings_health_latency,
+                            formatJudgeHealthLatency(latency),
+                        ),
+                        style = NexusTheme.typography.dataSmall,
+                        color = colors.textTertiary,
+                    )
+                }
+            }
             row.currentStage?.let { stage ->
                 Text(
                     text = stringResource(R.string.settings_connector_stage, stage),
@@ -247,5 +283,58 @@ private fun ConnectorCenterAction(
         horizontalArrangement = Arrangement.Center,
     ) {
         Text(label, style = NexusTheme.typography.data, color = colors.accent)
+    }
+}
+
+/**
+ * One manual, read-only Luogu quota probe: PROBE action when idle, checking text while the
+ * explicit probe is in flight, then the honest point total or a failure line. No periodic
+ * work and no background probing ever starts from here.
+ */
+@Composable
+private fun LuoguQuotaRow(
+    points: Long?,
+    checking: Boolean,
+    failed: Boolean,
+    onProbe: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
+    ) {
+        Column(Modifier.weight(1f)) {
+            when {
+                checking -> Text(
+                    text = stringResource(R.string.settings_health_quota_checking),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.accent,
+                )
+                points != null -> Text(
+                    text = stringResource(R.string.settings_health_quota_points, points),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textTertiary,
+                )
+                failed -> Text(
+                    text = stringResource(R.string.settings_health_quota_failed),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textTertiary,
+                )
+                else -> Text(
+                    text = stringResource(R.string.settings_health_quota_idle),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textTertiary,
+                )
+            }
+        }
+        if (!checking) {
+            Text(
+                text = stringResource(R.string.settings_health_quota_probe),
+                style = NexusTheme.typography.sectionLabel,
+                color = colors.accent,
+                modifier = Modifier.clickable(role = Role.Button, onClick = onProbe),
+            )
+        }
     }
 }

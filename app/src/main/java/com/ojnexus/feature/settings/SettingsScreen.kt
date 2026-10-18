@@ -202,6 +202,13 @@ fun SettingsScreen(
                 capabilitiesByJudge = state.connections.associate { it.judge to it.capabilities },
                 retryingOperationId = retryingOperationId,
                 onRetry = viewModel::retrySync,
+                healthByJudge = state.connections.associate { connection ->
+                    connection.judge to deriveJudgeHealth(connection.syncOperations)
+                },
+                luoguQuotaPoints = openAppState.quota?.totalAvailablePoints,
+                luoguQuotaChecking = openAppState.checkingQuota,
+                luoguQuotaError = openAppState.quotaError != null,
+                onProbeQuota = viewModel::checkOpenAppQuota,
             )
             Spacer(Modifier.height(NexusSpacing.xl))
             NexusSection(label = stringResource(R.string.settings_section_judges)) {

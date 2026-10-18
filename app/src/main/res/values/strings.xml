@@ -641,6 +641,13 @@
     <string name="settings_connector_sync_all">SYNC ALL</string>
     <string name="settings_connector_syncing_all">SYNCING…</string>
     <string name="settings_connector_sync_all_cd">Queue a foreground refresh for every connected judge</string>
+    <string name="settings_health_last_run">LAST RUN %1$s</string>
+    <string name="settings_health_latency">LATENCY %1$s</string>
+    <string name="settings_health_quota_idle">QUOTA NOT PROBED</string>
+    <string name="settings_health_quota_checking">QUOTA PROBE RUNNING…</string>
+    <string name="settings_health_quota_points">QUOTA %1$d PTS</string>
+    <string name="settings_health_quota_failed">QUOTA PROBE FAILED — TAP RETRY</string>
+    <string name="settings_health_quota_probe">PROBE</string>
     <string name="settings_connector_disconnected">DISCONNECTED</string>
     <string name="settings_connector_disabled">DISABLED</string>
     <string name="settings_connector_queued">QUEUED</string>

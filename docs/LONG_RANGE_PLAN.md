@@ -190,7 +190,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
   pages are 404 and stay out of scope); shipped codec + repository + catalog/ladder screens with
   typed failures and deep links into the local Luogu problem detail.
 
-#### ⬜ PHASE 96 — Judge health dashboard
+#### ✅ PHASE 96 — Judge health dashboard (v0.3.94, 2026-10-18)
 - Goal: connector center shows last HTTP status, latency of last sync, and quota (Luogu
   `quotaAvailable`) per judge.
 - Constraints: read-only projection of existing ledger + one explicit user-triggered probe.

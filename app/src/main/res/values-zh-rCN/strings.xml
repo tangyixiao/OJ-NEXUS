@@ -597,6 +597,13 @@
     <string name="settings_connector_sync_all">全部同步</string>
     <string name="settings_connector_syncing_all">同步中…</string>
     <string name="settings_connector_sync_all_cd">为所有已连接 OJ 排队执行前台刷新</string>
+    <string name="settings_health_last_run">最近运行 %1$s</string>
+    <string name="settings_health_latency">延迟 %1$s</string>
+    <string name="settings_health_quota_idle">配额未探测</string>
+    <string name="settings_health_quota_checking">配额探测中…</string>
+    <string name="settings_health_quota_points">配额 %1$d 点</string>
+    <string name="settings_health_quota_failed">配额探测失败——点击重试</string>
+    <string name="settings_health_quota_probe">探测</string>
     <string name="settings_connector_disconnected">未连接</string>
     <string name="settings_connector_disabled">已停用</string>
     <string name="settings_connector_queued">已排队</string>

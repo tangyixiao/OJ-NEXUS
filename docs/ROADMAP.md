@@ -3,6 +3,22 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## JUDGE HEALTH DASHBOARD
+
+The connector center now doubles as a judge health dashboard — still strictly read-only. Each
+judge row projects the sync ledger's most recent finished run: its terminal status (with the
+failure type appended when one exists) and the wall-clock latency of that run, both computed by a
+pure projection with unit tests. No new network surface and no background probing: the only
+luogu quota trigger is the explicit PROBE action, which reuses the existing manual quota check
+and renders the honest point total, a checking state, or a failure line in place. The dashboard
+answers "is this judge healthy right now" from data the app already recorded — never from a
+hidden poll.
+/ 连接器中心现在兼任 OJ 健康面板——依然严格只读。每个 OJ 行投影同步台账中最近一次已完成
+的运行：其终态（存在失败类型时一并显示）与该次运行的墙钟延迟，全部由带单元测试的纯投影计
+算。没有新的网络接口，也没有后台探测：洛谷配额的唯一触发是显式的 PROBE 动作，复用既有的
+手动配额查询，并在原位渲染诚实的点数、探测中状态或失败提示。面板回答"这个 OJ 现在健康吗"
+依据的是应用已记录的数据——绝不来自隐藏轮询。
+
 ## LUOGU PUBLIC TRAINING CATALOG
 
 Luogu's official training plans are now browsable read-only inside the app. A capability probe
