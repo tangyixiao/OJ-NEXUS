@@ -103,7 +103,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Constraints: generated text is English telemetry style; no new permissions.
 - DoD: unit test on Markdown builder for empty/partial/full sessions.
 
-#### ⬜ PHASE 83 — Focus Sprint difficulty ladder
+#### ✅ PHASE 83 — Focus Sprint difficulty ladder (v0.3.81, 2026-10-18)
 - Goal: sprint builder orders candidates by ascending difficulty fit and shows the reason code
   per row (`WEAK AREA`, `REVIEW GAP 21D`, …).
 - Scope: Focus Sprint preview + ranking function from Phase 75.

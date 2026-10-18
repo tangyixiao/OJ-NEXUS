@@ -3,6 +3,32 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## FOCUS SPRINT DIFFICULTY LADDER
+
+The focus sprint is now a ladder, not just a queue. The panel gained a four-chip difficulty band —
+EASIER / FIT / STRETCH / ANY — anchored on the user's training target, and every preview row states
+its own local reason: a rating tag (`1600` or `—` when the problem carries none) and a deterministic
+reason code (DUE with the review gap in days, WEAK AREA, FAILURES, DIFFICULTY FIT, UNSOLVED,
+UNRATED). Ordering walks the ladder: EASIER rows first, then FIT, then STRETCH, with unrated
+candidates trailing instead of being dropped or guessed at — a missing rating never matches a
+concrete band and never claims DIFFICULTY FIT. The chosen band is remembered across rotation while
+the plan itself stays a pure function of the local snapshot, so the preview and the launched
+session can never disagree.
+/ 专注冲刺现在是一道阶梯，而不只是队列。面板新增以训练目标为锚点的四档难度选择——更简单 / 匹配 / 更难 / 全部，
+每一行预览都声明自己的本地理由：难度标签（1600，无难度时显示 —）与确定性理由码
+（待复习并带间隔天数、薄弱领域、多次失败、难度匹配、未解决、无难度）。排序沿阶梯上行：先更简单，再匹配，再更难，
+无难度的候选排在末尾而不是被丢弃或被猜测——缺失的难度永远不会命中具体档位，也永远不会声称难度匹配。
+所选档位在旋转后保留，而计划本身始终是本地快照的纯函数，因此预览与实际启动的会话不可能不一致。
+
+Coverage includes band boundaries at exactly ±200, ascending difficulty inside a band, the unrated
+trailing group, reason-code precedence, the due gap, and the limit/duplicate rules carried over
+from the Phase 75 planner. / 测试覆盖 ±200 的档位边界、档位内难度升序、无难度尾组、理由码优先级、
+复习间隔，以及沿用 Phase 75 规划器的上限与去重规则。
+
+The ladder adds no network request, no Room migration and no credential flow; it only reorders and
+labels data the app already holds. / 该阶梯不引入任何网络请求、Room 迁移或凭据流程，
+只对应用已有的本地数据重新排序并加上标签。
+
 ## SESSION DEBRIEF EXPORT (MARKDOWN)
 
 A finished session can now leave the phone. The debrief panel gained an EXPORT chip that copies a

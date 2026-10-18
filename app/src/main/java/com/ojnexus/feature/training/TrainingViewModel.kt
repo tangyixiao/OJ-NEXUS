@@ -92,6 +92,7 @@ internal fun projectTrainingRecommendation(
         title = row.title,
         priority = priority.priority,
         reasons = priority.reasons,
+        difficulty = row.difficulty,
     )
 }
 

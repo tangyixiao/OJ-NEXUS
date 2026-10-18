@@ -159,10 +159,17 @@ private fun TrainingContent(
     var showTaskProblemPicker by rememberSaveable { mutableStateOf(false) }
     var showCalibration by rememberSaveable { mutableStateOf(false) }
     var reviewFilter by rememberSaveable { mutableStateOf(ReviewQueueFilter.ALL) }
+    var focusSprintBand by rememberSaveable { mutableStateOf(FocusSprintLadderBand.FIT) }
     val reduceMotion = NexusTheme.reduceMotion
     val reviewSummary = reviewQueueSummary(uiState.reviews)
     val visibleReviews = filterReviewBuckets(uiState.reviews, reviewFilter)
-    val focusSprintPlan = buildFocusSprintPlan(uiState.reviews, uiState.recommendations)
+    val focusSprintLadderPlan = buildFocusSprintLadder(
+        buckets = uiState.reviews,
+        recommendations = uiState.recommendations,
+        targetDifficulty = uiState.trainingTargets.firstOrNull()?.center,
+        band = focusSprintBand,
+        todayEpochDay = uiState.todayEpochDay,
+    )
 
     LaunchedEffect(sessionStartState) {
         if (sessionStartState is TrainingSessionStartState.Started) {
@@ -198,7 +205,10 @@ private fun TrainingContent(
         SessionSection(
             activeSession = uiState.activeSession,
             onOpenSession = onOpenSession,
-            focusSprintPlan = focusSprintPlan,
+            focusSprintIds = focusSprintLadderPlan.ids,
+            focusSprintPlan = focusSprintLadderPlan,
+            focusSprintBand = focusSprintBand,
+            onBandChange = { focusSprintBand = it },
             onNewSession = {
                 viewModel.clearSessionStartState()
                 focusSprintMode = false
@@ -208,7 +218,7 @@ private fun TrainingContent(
             },
             onFocusSprint = {
                 viewModel.clearSessionStartState()
-                focusSprintIds = focusSprintPlan.ids
+                focusSprintIds = focusSprintLadderPlan.ids
                 libraryProblemIds = emptyList()
                 focusSprintMode = true
                 showSessionDialog = true
@@ -853,7 +863,10 @@ private fun SectionEmpty(text: String) {
 private fun SessionSection(
     activeSession: TrainingSession?,
     onOpenSession: (Long?) -> Unit,
-    focusSprintPlan: FocusSprintPlan,
+    focusSprintIds: List<Long>,
+    focusSprintPlan: FocusSprintLadderPlan,
+    focusSprintBand: FocusSprintLadderBand,
+    onBandChange: (FocusSprintLadderBand) -> Unit,
     onNewSession: () -> Unit,
     onFocusSprint: () -> Unit,
 ) {
@@ -902,6 +915,8 @@ private fun SessionSection(
                 Spacer(modifier = Modifier.height(NexusSpacing.md))
                 FocusSprintPanel(
                     plan = focusSprintPlan,
+                    band = focusSprintBand,
+                    onBandChange = onBandChange,
                     onLaunch = onFocusSprint,
                 )
             } else {
@@ -946,7 +961,9 @@ private fun SessionSection(
 
 @Composable
 private fun FocusSprintPanel(
-    plan: FocusSprintPlan,
+    plan: FocusSprintLadderPlan,
+    band: FocusSprintLadderBand,
+    onBandChange: (FocusSprintLadderBand) -> Unit,
     onLaunch: () -> Unit,
 ) {
     val colors = NexusTheme.colors
@@ -984,7 +1001,7 @@ private fun FocusSprintPanel(
                     text = if (launchEnabled) {
                         stringResource(R.string.training_focus_sprint_ready)
                     } else {
-                        stringResource(R.string.training_focus_sprint_empty)
+                        stringResource(R.string.training_focus_sprint_band_empty)
                     },
                     style = NexusTheme.typography.dataSmall,
                     color = colors.textSecondary,
@@ -1014,10 +1031,47 @@ private fun FocusSprintPanel(
                 modifier = Modifier.weight(1f),
             )
         }
+        Spacer(modifier = Modifier.height(NexusSpacing.xs))
+        Text(
+            text = stringResource(R.string.training_focus_sprint_band),
+            style = NexusTheme.typography.sectionLabel,
+            color = colors.textTertiary,
+        )
+        Spacer(modifier = Modifier.height(NexusSpacing.xxs))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+        ) {
+            FocusSprintBandChip(
+                band = FocusSprintLadderBand.EASIER,
+                selected = band == FocusSprintLadderBand.EASIER,
+                onClick = { onBandChange(FocusSprintLadderBand.EASIER) },
+                modifier = Modifier.weight(1f),
+            )
+            FocusSprintBandChip(
+                band = FocusSprintLadderBand.FIT,
+                selected = band == FocusSprintLadderBand.FIT,
+                onClick = { onBandChange(FocusSprintLadderBand.FIT) },
+                modifier = Modifier.weight(1f),
+            )
+            FocusSprintBandChip(
+                band = FocusSprintLadderBand.STRETCH,
+                selected = band == FocusSprintLadderBand.STRETCH,
+                onClick = { onBandChange(FocusSprintLadderBand.STRETCH) },
+                modifier = Modifier.weight(1f),
+            )
+            FocusSprintBandChip(
+                band = FocusSprintLadderBand.ANY,
+                selected = band == FocusSprintLadderBand.ANY,
+                onClick = { onBandChange(FocusSprintLadderBand.ANY) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(modifier = Modifier.height(NexusSpacing.sm))
         if (plan.items.isNotEmpty()) {
             Spacer(modifier = Modifier.height(NexusSpacing.sm))
-            plan.items.take(3).forEachIndexed { index, item ->
-                FocusSprintPreview(item)
+            plan.items.take(3).forEachIndexed { index, entry ->
+                FocusSprintPreview(entry)
                 if (index != plan.items.take(3).lastIndex) {
                     NexusDivider(insetEnd = NexusSpacing.xxs)
                 }
@@ -1057,7 +1111,48 @@ private fun FocusSprintPanel(
 }
 
 @Composable
-private fun FocusSprintPreview(item: FocusSprintItem) {
+private fun FocusSprintBandChip(
+    band: FocusSprintLadderBand,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = NexusTheme.colors
+    val label = stringResource(
+        when (band) {
+            FocusSprintLadderBand.EASIER -> R.string.training_focus_sprint_band_easier
+            FocusSprintLadderBand.FIT -> R.string.training_focus_sprint_band_fit
+            FocusSprintLadderBand.STRETCH -> R.string.training_focus_sprint_band_stretch
+            FocusSprintLadderBand.ANY -> R.string.training_focus_sprint_band_any
+        },
+    )
+    val description = stringResource(R.string.training_focus_sprint_band_cd, label)
+    Box(
+        modifier = modifier
+            .height(NexusSize.commandBarHeight)
+            .background(if (selected) colors.surface else colors.background, NexusRadius.xs)
+            .border(
+                width = NexusSize.dividerThickness,
+                color = if (selected) colors.accent else colors.border,
+                shape = NexusRadius.xs,
+            )
+            .clickable(role = Role.Button, onClickLabel = description, onClick = onClick)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = NexusTheme.typography.sectionLabel,
+            color = if (selected) colors.accent else colors.textTertiary,
+        )
+    }
+}
+
+@Composable
+private fun FocusSprintPreview(item: FocusSprintLadderItem) {
+    val colors = NexusTheme.colors
+    val rating = item.difficulty?.toString()
+        ?: stringResource(R.string.training_focus_sprint_rating_unknown)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1067,14 +1162,16 @@ private fun FocusSprintPreview(item: FocusSprintItem) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = buildString {
-                    append(item.judge)
-                    item.externalId?.let { append(" ").append(it) }
+                    append(item.item.judge)
+                    item.item.externalId?.let { append(" ").append(it) }
+                    append(" · ")
+                    append(rating)
                 },
                 style = NexusTheme.typography.sectionLabel,
                 color = NexusTheme.colors.textTertiary,
             )
             Text(
-                text = item.title,
+                text = item.item.title,
                 style = NexusTheme.typography.dataSmall,
                 color = NexusTheme.colors.textPrimary,
                 maxLines = 1,
@@ -1082,15 +1179,44 @@ private fun FocusSprintPreview(item: FocusSprintItem) {
             )
         }
         NexusTag(
-            text = stringResource(
-                if (item.source == FocusSprintSource.DUE) {
-                    R.string.training_focus_sprint_due_source
-                } else {
-                    R.string.training_focus_sprint_target_source
-                },
-            ),
-            tone = if (item.source == FocusSprintSource.DUE) NexusTone.Warning else NexusTone.Neutral,
+            text = focusSprintReasonLabel(item),
+            tone = when (item.reason) {
+                FocusSprintReasonCode.REVIEW_DUE,
+                FocusSprintReasonCode.FAILURE_HISTORY,
+                -> NexusTone.Warning
+
+                FocusSprintReasonCode.WEAK_AREA,
+                FocusSprintReasonCode.DIFFICULTY_FIT,
+                -> NexusTone.Accent
+
+                else -> NexusTone.Neutral
+            },
         )
+    }
+}
+
+@Composable
+private fun focusSprintReasonLabel(item: FocusSprintLadderItem): String {
+    if (item.difficulty == null) {
+        return stringResource(R.string.training_focus_sprint_reason_unrated)
+    }
+    return when (item.reason) {
+        FocusSprintReasonCode.REVIEW_DUE -> stringResource(R.string.training_focus_sprint_reason_review_due)
+        FocusSprintReasonCode.WEAK_AREA -> stringResource(R.string.training_focus_sprint_reason_weak_area)
+        FocusSprintReasonCode.FAILURE_HISTORY ->
+            stringResource(R.string.training_focus_sprint_reason_failure_history)
+
+        FocusSprintReasonCode.REVIEW_GAP -> stringResource(
+            R.string.training_focus_sprint_reason_review_gap,
+            item.reviewGapDays ?: 0,
+        )
+
+        FocusSprintReasonCode.DIFFICULTY_FIT ->
+            stringResource(R.string.training_focus_sprint_reason_difficulty_fit)
+
+        FocusSprintReasonCode.UNSOLVED,
+        FocusSprintReasonCode.UNRATED,
+        -> stringResource(R.string.training_focus_sprint_reason_unsolved)
     }
 }
 
