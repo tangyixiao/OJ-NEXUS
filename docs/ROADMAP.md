@@ -3,6 +3,33 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## WINDOWS INSTALLER
+
+The Windows client gains an Inno Setup 6 installer as a second distribution channel alongside the
+deterministic zip. `windows/scripts/installer.iss` packs the already-published CLI and WPF trees,
+creates start-menu and desktop shortcuts, and registers a standard uninstaller with
+`PrivilegesRequired=lowest` so a per-user install always works without elevation. The new
+`build-installer.ps1` reuses `package.ps1` for the deterministic publish, compiles the installer
+when ISCC is present (CI installs it via chocolatey), and moves the single produced executable to
+the artifacts root. Code signing is strictly opt-in: when `OJ_NEXUS_SIGNTOOL_PATH` and
+`OJ_NEXUS_SIGNING_CERT_THUMBPRINT` are both configured the installer is signed (SHA-256 with a
+timestamp) and verified; otherwise the build reports `SIGNING: SKIPPED` and still succeeds, so an
+unsigned build is always available. `verify-installer.ps1` validates the artifact honestly —
+existence, size, and version-resource content for a built installer, or payload presence for a
+package root — while the full silent install/uninstall round trip is documented as a manual step
+on a clean VM. All cleanup goes through .NET file APIs, never `Remove-Item`. No credentials, no
+cookies, and no network access are involved in the payload.
+/ Windows 客户端新增 Inno Setup 6 安装程序，作为确定性 zip 之外的第二分发渠道。
+`windows/scripts/installer.iss` 打包已发布的 CLI 与 WPF 目录，创建开始菜单与桌面快捷方式，并注册
+标准卸载器；`PrivilegesRequired=lowest` 保证免提权的按用户安装始终可行。新的 `build-installer.ps1`
+复用 `package.ps1` 完成确定性发布，在存在 ISCC 时编译安装程序（CI 经 chocolatey 安装），并把唯一
+生成的可执行文件移入产物根目录。代码签名严格可选项：配置 `OJ_NEXUS_SIGNTOOL_PATH` 与
+`OJ_NEXUS_SIGNING_CERT_THUMBPRINT` 后对安装程序签名（SHA-256 加时间戳）并验证；否则输出
+`SIGNING: SKIPPED` 且构建仍然成功，未签名构建始终可得。`verify-installer.ps1` 如实验证产物——
+安装程序检查存在性、体积与版本资源内容，包根目录检查载荷存在性——而完整的静默安装/卸载回环
+作为清洁虚拟机上的手动步骤记录在案。所有清理均通过 .NET 文件 API，绝不使用 `Remove-Item`。
+载荷不涉及凭据、Cookie 或网络访问。
+
 ## WINDOWS REVIEW QUEUE
 
 The Windows client now carries its own spaced-repetition queue over the shared local SQLite

@@ -219,11 +219,13 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - DoD: CLI `review due` / `review mark` parity — schema v7 (reviews + review_log), ladder
   [1,3,7,21,45,90] mirrored, both commands shipped and tested.
 
-#### ⬜ PHASE 100 — Windows installer (Inno Setup or MSIX)
+#### ✅ PHASE 100 — Windows installer (Inno Setup or MSIX) (2026-10-18)
 - Goal: signed-or-unsigned installer producing start-menu entry + uninstaller; packaging script
   hardened like `package.ps1` (use .NET file APIs, not `Remove-Item`).
 - Constraints: `signtool` step optional behind cert presence flag.
 - DoD: CI job builds installer; verify script installs/uninstalls on clean VM or sandbox.
+  Shipped: Inno Setup 6 script + build-installer.ps1 + verify-installer.ps1; CI compiles with
+  choco innosetup and uploads the .exe; silent round trip documented as a manual clean-VM step.
 
 #### ⬜ PHASE 101 — Windows code signing
 - Goal: sign CLI + WPF + installer when a CA cert is available; document the exact
