@@ -37,6 +37,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
@@ -107,13 +108,16 @@ fun SettingsScreen(
             viewModel.exportBackup(context.contentResolver, destination)
         }
     }
+    var importSource by rememberSaveable { mutableStateOf<String?>(null) }
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { source ->
         if (source != null) {
-            viewModel.importBackup(context.contentResolver, source)
+            importSource = source.toString()
+            viewModel.inspectImport(context.contentResolver, source)
         }
     }
+    val pendingImport by viewModel.pendingImportFlow.collectAsStateWithLifecycle()
     val backupFolderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { tree ->
@@ -544,6 +548,63 @@ fun SettingsScreen(
                 DialogText(stringResource(R.string.action_cancel), NexusTheme.colors.textSecondary) {
                     wipeJudgeId = null
                     wipeConfirmText = ""
+                }
+            },
+        )
+    }
+    val pendingImportReport = pendingImport
+    if (pendingImportReport != null && importSource != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = viewModel::cancelImport,
+            containerColor = NexusTheme.colors.surface,
+            titleContentColor = NexusTheme.colors.textPrimary,
+            textContentColor = NexusTheme.colors.textSecondary,
+            title = {
+                Text(
+                    stringResource(R.string.settings_import_conflict_title),
+                    style = NexusTheme.typography.title,
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.settings_import_conflict_body),
+                        style = NexusTheme.typography.label,
+                    )
+                    Spacer(Modifier.height(NexusSpacing.xs))
+                    Text(
+                        stringResource(R.string.settings_import_conflict_table_header),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.textTertiary,
+                    )
+                    pendingImportReport.rows.forEach { row ->
+                        Text(
+                            text = row.table.uppercase() +
+                                "  " + row.incoming + " → " + row.current,
+                            style = NexusTheme.typography.dataSmall,
+                            color = if (row.incoming != row.current) {
+                                NexusTheme.colors.accent
+                            } else {
+                                NexusTheme.colors.textSecondary
+                            },
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                DialogText(
+                    stringResource(R.string.settings_import_conflict_confirm),
+                    NexusTheme.colors.accent,
+                ) {
+                    val source = importSource
+                    if (source != null) {
+                        viewModel.confirmImport(context.contentResolver, Uri.parse(source))
+                    }
+                }
+            },
+            dismissButton = {
+                DialogText(stringResource(R.string.settings_import_conflict_cancel), NexusTheme.colors.textSecondary) {
+                    viewModel.cancelImport()
                 }
             },
         )

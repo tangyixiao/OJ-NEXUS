@@ -28,6 +28,26 @@ data class SnapshotManifest(
     fun rowsFor(table: String): Int? = tableCounts.firstOrNull { it.table == table }?.rows
 }
 
+/** One per-table comparison row shown before an import replaces the live database. */
+data class SnapshotConflictRow(
+    val table: String,
+    /** Rows recorded in the snapshot manifest at export time. */
+    val incoming: Int,
+    /** Rows currently in the live database. */
+    val current: Int,
+)
+
+/**
+ * Read-only preview of what an import would change. Built from the snapshot manifest
+ * plus live counts; nothing is staged or written until the user confirms.
+ */
+data class SnapshotConflictReport(
+    val schemaVersion: Int,
+    val dataGeneration: String,
+    val createdAtEpochMs: Long,
+    val rows: List<SnapshotConflictRow>,
+)
+
 /**
  * Deterministic JSON codec for [SnapshotManifest]. Decode returns null on any malformed input —
  * it never throws, mirroring the NoteTemplateCodec philosophy.

@@ -664,6 +664,11 @@
     <string name="settings_restore_applied">已恢复备份——点击关闭</string>
     <string name="settings_restore_rolled_back">恢复已回滚——点击关闭</string>
     <string name="settings_restore_rejected">恢复已拒绝——点击关闭</string>
+    <string name="settings_import_conflict_title">导入预览</string>
+    <string name="settings_import_conflict_body">此快照将替换本地数据库。下表为“导入 → 当前”的行数对比。</string>
+    <string name="settings_import_conflict_table_header">数据表  导入 → 当前</string>
+    <string name="settings_import_conflict_confirm">确认导入</string>
+    <string name="settings_import_conflict_cancel">取消</string>
     <string name="settings_auto_backup_title">自动备份（仅本地）</string>
     <string name="settings_auto_backup_off">关闭</string>
     <string name="settings_auto_backup_daily">每天</string>

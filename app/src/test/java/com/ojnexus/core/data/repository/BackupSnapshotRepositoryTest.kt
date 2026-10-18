@@ -195,6 +195,56 @@ class BackupSnapshotRepositoryTest {
         assertTrue(imported)
     }
 
+    @Test
+    fun `inspect preview reports counts and stages nothing`() = runBlocking {
+        seedProblem("1A", "Theatre Square", 800)
+        seedProblem("4A", "Watermelon", 800)
+        val repository = BackupRepository(database, context)
+        assertTrue(repository.exportSnapshot(context.contentResolver, Uri.fromFile(output)))
+        // Grow the live database after the export so the report must show a real delta.
+        seedProblem("5A", "Small as Few", 800)
+
+        val report = repository.inspectSnapshot(context.contentResolver, Uri.fromFile(output))
+
+        assertTrue(report != null)
+        assertEquals(OjNexusDatabase.CURRENT_SCHEMA_VERSION, report?.schemaVersion)
+        assertTrue(report?.dataGeneration?.isNotBlank() == true)
+        val problemsRow = report?.rows?.firstOrNull { it.table == "problems" }
+        assertEquals(2, problemsRow?.incoming)
+        assertEquals(3, problemsRow?.current)
+
+        // DoD: the preview must not stage anything — no pending-restore file, no journal,
+        // and the live database still holds the pre-import row count.
+        assertFalse(File(context.filesDir, "oj-nexus-pending-restore.db").exists())
+        assertFalse(File(context.filesDir, "oj-nexus-pending-restore.db.tmp").exists())
+        assertFalse(File(context.filesDir, "oj-nexus-restore.journal").exists())
+        assertEquals(3, database.problemDao().count())
+    }
+
+    @Test
+    fun `inspect preview rejects an archive with a mismatched schema`() = runBlocking {
+        seedProblem("1A", "Theatre Square", 800)
+        val repository = BackupRepository(database, context)
+        assertTrue(repository.exportSnapshot(context.contentResolver, Uri.fromFile(output)))
+        tamperManifest { text ->
+            text.replace("\"schema_version\":${OjNexusDatabase.CURRENT_SCHEMA_VERSION}", "\"schema_version\":1")
+        }
+
+        assertNull(repository.inspectSnapshot(context.contentResolver, Uri.fromFile(output)))
+        assertFalse(File(context.filesDir, "oj-nexus-pending-restore.db").exists())
+    }
+
+    @Test
+    fun `inspect preview rejects a non-zip payload`() = runBlocking {
+        val repository = BackupRepository(database, context)
+        val legacy = File(context.cacheDir, "legacy-inspect-${System.nanoTime()}.db")
+        assertTrue(repository.exportTo(context.contentResolver, Uri.fromFile(legacy)))
+
+        assertNull(repository.inspectSnapshot(context.contentResolver, Uri.fromFile(legacy)))
+        legacy.delete()
+        assertFalse(File(context.filesDir, "oj-nexus-pending-restore.db").exists())
+    }
+
     private fun tamperManifest(transform: (String) -> String) {
         val tampered = File(context.cacheDir, "tampered-${System.nanoTime()}.zip")
         ZipFile(output).use { source ->

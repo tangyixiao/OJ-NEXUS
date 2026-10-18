@@ -709,6 +709,11 @@
     <string name="settings_restore_applied">RESTORE APPLIED — TAP TO DISMISS</string>
     <string name="settings_restore_rolled_back">RESTORE ROLLED BACK — TAP TO DISMISS</string>
     <string name="settings_restore_rejected">RESTORE REJECTED — TAP TO DISMISS</string>
+    <string name="settings_import_conflict_title">IMPORT PREVIEW</string>
+    <string name="settings_import_conflict_body">THIS SNAPSHOT WILL REPLACE THE LOCAL DATABASE. TABLE COUNTS BELOW ARE INCOMING → CURRENT.</string>
+    <string name="settings_import_conflict_table_header">TABLE  INCOMING → CURRENT</string>
+    <string name="settings_import_conflict_confirm">CONFIRM IMPORT</string>
+    <string name="settings_import_conflict_cancel">CANCEL</string>
     <string name="settings_auto_backup_title">AUTO BACKUP (LOCAL ONLY)</string>
     <string name="settings_auto_backup_off">OFF</string>
     <string name="settings_auto_backup_daily">DAILY</string>

@@ -146,7 +146,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Constraints: transactional; writes a `WIPE` entry into the sync operations ledger.
 - DoD: tests verify cross-judge isolation of the wipe.
 
-#### ⬜ PHASE 89 — Import conflict report
+#### ✅ PHASE 89 — Import conflict report (v0.3.87, 2026-10-18)
 - Goal: after import validation, show per-table incoming vs current counts BEFORE replacing.
 - Scope: Phase 73 restore flow UI.
 - DoD: cancel leaves current db untouched (test).

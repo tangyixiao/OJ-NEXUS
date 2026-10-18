@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ojnexus.core.data.backup.BackupCadence
 import com.ojnexus.core.data.backup.ScheduledBackupScheduler
+import com.ojnexus.core.data.backup.SnapshotConflictReport
 import com.ojnexus.core.data.preferences.UserPreferences
 import com.ojnexus.core.data.preferences.UserPreferencesRepository
 import com.ojnexus.core.data.restore.RestoreOutcome
@@ -381,6 +382,37 @@ class SettingsViewModel(
                 success = backupRepository.importFrom(resolver, source),
             )
         }
+    }
+
+    private val pendingImport = MutableStateFlow<SnapshotConflictReport?>(null)
+    val pendingImportFlow: StateFlow<SnapshotConflictReport?> = pendingImport.asStateFlow()
+
+    /**
+     * First step of an import: inspect the archive for a conflict preview. A snapshot
+     * archive produces a report the UI must confirm; anything else (legacy raw `.db`,
+     * invalid file) imports directly as before.
+     */
+    fun inspectImport(resolver: ContentResolver, source: Uri) {
+        viewModelScope.launch {
+            val report = runCatching { backupRepository.inspectSnapshot(resolver, source) }
+                .getOrDefault(null)
+            if (report != null) {
+                pendingImport.value = report
+            } else {
+                importBackup(resolver, source)
+            }
+        }
+    }
+
+    /** Confirms the previewed import; the actual replace happens in [importBackup]. */
+    fun confirmImport(resolver: ContentResolver, source: Uri) {
+        pendingImport.value = null
+        importBackup(resolver, source)
+    }
+
+    /** Cancels the previewed import — nothing is written, the live database stays untouched. */
+    fun cancelImport() {
+        pendingImport.value = null
     }
 
     fun dismissRestoreStatus() {

@@ -6,6 +6,8 @@ import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import androidx.room.RoomDatabase
 import com.ojnexus.core.data.backup.ManifestTableCount
+import com.ojnexus.core.data.backup.SnapshotConflictReport
+import com.ojnexus.core.data.backup.SnapshotConflictRow
 import com.ojnexus.core.data.backup.SnapshotManifest
 import com.ojnexus.core.data.backup.SnapshotManifestCodec
 import com.ojnexus.core.data.restore.DatabaseRestoreCoordinator
@@ -87,6 +89,33 @@ class BackupRepository(
         }
 
     /**
+     * Read-only preview of a snapshot import: pairs the manifest's recorded table counts
+     * with the live database's current counts. Never stages or writes anything — the
+     * caller decides whether to proceed with [importFrom]. Returns null when the source
+     * is not a valid snapshot archive (legacy raw databases import without a preview).
+     */
+    suspend fun inspectSnapshot(resolver: ContentResolver, source: Uri): SnapshotConflictReport? =
+        withContext(Dispatchers.IO) {
+            val manifest = readSnapshotManifest(resolver, source) ?: return@withContext null
+            if (manifest.schemaVersion != schemaVersion() || manifest.dataGeneration.isBlank()) {
+                return@withContext null
+            }
+            val liveCounts = liveTableCounts()
+            SnapshotConflictReport(
+                schemaVersion = manifest.schemaVersion,
+                dataGeneration = manifest.dataGeneration,
+                createdAtEpochMs = manifest.createdAtEpochMs,
+                rows = manifest.tableCounts.map { entry ->
+                    SnapshotConflictRow(
+                        table = entry.table,
+                        incoming = entry.rows,
+                        current = liveCounts[entry.table] ?: 0,
+                    )
+                },
+            )
+        }
+
+    /**
      * Returns the extracted database file from a valid snapshot archive, or null when the source
      * is not one (the caller then falls back to the legacy raw-database path).
      */
@@ -154,6 +183,54 @@ class BackupRepository(
     }
 
     private fun schemaVersion(): Int = database.openHelper.writableDatabase.version
+
+    private fun liveTableCounts(): Map<String, Int> {
+        val live = database.openHelper.writableDatabase
+        val counts = mutableMapOf<String, Int>()
+        REQUIRED_TABLES.forEach { table ->
+            live.query("SELECT COUNT(*) FROM \"$table\"").use { cursor ->
+                counts[table] = if (cursor.moveToFirst()) cursor.getInt(0) else 0
+            }
+        }
+        return counts
+    }
+
+    /**
+     * Streams only the manifest entry of a snapshot archive without extracting the database
+     * payload (the database entry is skipped, never read into memory). Strict rules mirror
+     * [extractSnapshotDatabase]: any unknown or duplicate entry makes the archive invalid.
+     */
+    private fun readSnapshotManifest(resolver: ContentResolver, source: Uri): SnapshotManifest? {
+        val raw = StringBuilder()
+        var sawManifest = false
+        val opened: Boolean = runCatching {
+            resolver.openInputStream(source)?.use { stream ->
+                ZipInputStream(stream).use { zip ->
+                    var entry = zip.nextEntry
+                    while (entry != null) {
+                        when (entry.name) {
+                            SnapshotManifestCodec.MANIFEST_ENTRY -> {
+                                if (sawManifest) return null
+                                sawManifest = true
+                                raw.append(zip.readBytes().toString(Charsets.UTF_8))
+                            }
+
+                            SnapshotManifestCodec.DATABASE_ENTRY -> {
+                                // Skipped on purpose: the preview must not read the payload.
+                            }
+
+                            else -> return null
+                        }
+                        zip.closeEntry()
+                        entry = zip.nextEntry
+                    }
+                }
+                true
+            } ?: return null
+        }.getOrDefault(false)
+        if (!opened || !sawManifest) return null
+        return SnapshotManifestCodec.decode(raw.toString())
+    }
 
     private fun countTables(snapshot: File): List<ManifestTableCount> {
         val opened: SQLiteDatabase? = runCatching {

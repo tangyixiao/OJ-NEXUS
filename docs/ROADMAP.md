@@ -3,6 +3,31 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## IMPORT CONFLICT PREVIEW
+
+Importing a snapshot archive no longer fires blindly. The settings screen now inspects the archive
+before anything is staged: a preview dialog lists every required table with the INCOMING row count
+from the archive manifest next to the CURRENT live count, and any table whose counts diverge is
+highlighted in the accent color. The inspection reads only `manifest.json` — the database payload
+is skipped, unknown or duplicate entries reject the archive, and the strict rules mirror the
+restore path. Confirm proceeds to the exact same validated replace as before; cancel clears the
+preview and leaves the live database, its pending-restore candidate and its journal completely
+untouched. Legacy raw `.db` files (no manifest) skip the preview and import directly, unchanged.
+/ 导入快照归档不再盲目执行。设置页现在会在暂存之前先检查归档：预览对话框为每个必需表列出归档
+清单中的“导入”行数与当前“现存”行数，不一致的表以强调色高亮。检查只读取 `manifest.json`——
+数据库负载被跳过，未知或重复条目会让归档被拒，严格规则与恢复路径一致。确认后走与之前完全相同
+的校验替换；取消则清除预览，现用数据库、待恢复候选文件与日志都保持原样。旧版裸 `.db` 文件
+（无清单）跳过预览直接导入，行为不变。
+
+Three Robolectric tests pin the contract: a grown live database shows the real incoming → current
+delta in the report; a mismatched schema version and a non-zip payload both return no report; and
+the preview stages nothing — no pending-restore file, no journal, and live row counts unchanged.
+The preview is read-only by construction: no network request, no Room migration, and no credential
+flow is introduced.
+/ 三个 Robolectric 测试钉死契约：现用库在导出后增长时报告展示真实的“导入 → 现存”差值；schema
+版本不匹配与非 zip 负载都返回空报告；预览不暂存任何内容——无待恢复文件、无日志、现存行数不变。
+预览按构造即只读：不发起网络请求，不做 Room 迁移，不引入凭据流程。
+
 ## PER-JUDGE DATA WIPE
 
 Local data is now wipeable per judge. Each connected judge panel in the settings screen gains a
