@@ -326,9 +326,10 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
   sync_conflict_log), SyncLogRepository with kernel-driven conflict resolution, migration
   tested. No network I/O; ledger has no reference to credentials.
 
-#### ⬜ PHASE 119 — Reserved
-- Fill after Phase 118's ledger sees use (candidate: payload sealing + endpoint transport
-  behind BuildConfig.SYNC_POC), or repurpose for ARC C/D leftovers.
+#### ✅ PHASE 119 — Sync payload sealing (v0.3.104, 2026-10-18)
+- Reserved slot filled: RFC §4 storage side — deterministic payload codec, crypto seam
+  (interface + test double + explicit production stub; library choice deferred), seal/open
+  lifecycle on the op-log with AAD `deviceId|lamport`. No network I/O.
 
 #### ⬜ PHASE 120 — Reserved
 - Same policy as 119.

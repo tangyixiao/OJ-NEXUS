@@ -90,4 +90,54 @@ class SyncLogRepository(private val database: OjNexusDatabase) {
 
     suspend fun markUploaded(opId: String) =
         database.syncLogOperationDao().updateStatus(opId, SyncOpStatus.UPLOADED.name)
+
+    /**
+     * Phase 119 (RFC §4 storage side) — encodes the batch's row ops, seals them with AAD
+     * `deviceId|lamport`, writes the payload under <filesDir>/sync-payload/, and marks the
+     * operation SEALED. No network I/O; the sealer is injected (production AEAD is a later
+     * decision). Unknown batch → IllegalArgumentException.
+     */
+    suspend fun sealBatch(
+        opId: String,
+        filesDir: java.io.File,
+        sealer: com.ojnexus.core.sync.SyncPayloadSealer,
+    ): String {
+        val operation = database.syncLogOperationDao().findById(opId)
+            ?: throw IllegalArgumentException("unknown sync op batch: $opId")
+        val rows = database.syncLogOpDao().findByOpId(opId).map {
+            com.ojnexus.core.sync.SyncLogOpRow(
+                tableName = it.tableName,
+                rowKey = it.rowKey,
+                kind = it.kind,
+                payloadJson = it.payloadJson,
+            )
+        }
+        val plaintext = com.ojnexus.core.sync.SyncPayloadCodec.encode(rows)
+        val aad = "${operation.deviceId}|${operation.lamport}".toByteArray(Charsets.UTF_8)
+        val sealed = sealer.seal(plaintext.toByteArray(Charsets.UTF_8), aad)
+        val dir = java.io.File(filesDir, "sync-payload")
+        if (!dir.exists()) dir.mkdirs()
+        val payload = java.io.File(dir, "$opId.bin")
+        payload.writeBytes(sealed)
+        markSealed(opId, payload.absolutePath)
+        return payload.absolutePath
+    }
+
+    /**
+     * Opens a sealed payload back into row ops. Tampered payload or AAD mismatch → null
+     * (verification failure, never a crash). Unknown batch → IllegalArgumentException.
+     */
+    suspend fun openBatch(
+        opId: String,
+        sealer: com.ojnexus.core.sync.SyncPayloadSealer,
+    ): List<com.ojnexus.core.sync.SyncLogOpRow>? {
+        val operation = database.syncLogOperationDao().findById(opId)
+            ?: throw IllegalArgumentException("unknown sync op batch: $opId")
+        val path = operation.encryptedPayloadPath ?: return null
+        val payload = java.io.File(path)
+        if (!payload.exists()) return null
+        val aad = "${operation.deviceId}|${operation.lamport}".toByteArray(Charsets.UTF_8)
+        val plaintext = sealer.open(payload.readBytes(), aad) ?: return null
+        return com.ojnexus.core.sync.SyncPayloadCodec.decode(String(plaintext, Charsets.UTF_8))
+    }
 }

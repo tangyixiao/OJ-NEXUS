@@ -3,6 +3,25 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## SYNC PAYLOAD SEALING
+
+The second reserved slot adds RFC 0001 §4's storage side: a deterministic payload codec (row
+ops serialized as sorted JSON so identical op sets always produce identical bytes) and the
+crypto seam the ledger depends on — an interface with `seal`/`open` plus associated-data
+`deviceId|lamport`, a clearly-labeled XOR test double, and an explicit production stub that
+fails loudly until the real AEAD library (Tink or a libsodium binding, per the RFC's no
+hand-rolled-crypto rule) is chosen in the transport phase. `SyncLogRepository.sealBatch` writes
+`sync-payload/<opId>.bin` and marks the batch SEALED; `openBatch` restores rows or returns null
+on tamper. Seven new tests pin determinism, round trips, wrong-key rejection, and truncated
+payloads. Still zero network I/O — the endpoint remains a later decision.
+/ 第二个保留阶段补上 RFC 0001 §4 的存储侧：确定性负载编解码器（行操作序列化为排序后的 JSON，相同
+的操作集合永远产出相同字节），以及台账依赖的加密接缝——带 `seal`/`open` 与关联数据
+`deviceId|lamport` 的接口、一个明确标注的 XOR 测试替身、以及在选择真实 AEAD 库（Tink 或 libsodium
+绑定，遵守 RFC 禁止手写密码学）前会显式失败的产线占位——库选型留给传输阶段。`SyncLogRepository
+.sealBatch` 写出 `sync-payload/<opId>.bin` 并把批次标记为 SEALED；`openBatch` 还原行数据或在校验
+失败时返回 null。七个新测试钉死确定性、往返一致、错误密钥拒绝与截断负载。仍然零网络 I/O——端
+点依旧是后续决定。
+
 ## SYNC OP-LOG LEDGER (SCHEMA V15)
 
 The first reserved slot fills with the RFC 0001 §3 persistence floor: three additive tables —

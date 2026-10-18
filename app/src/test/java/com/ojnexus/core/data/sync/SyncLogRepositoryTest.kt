@@ -107,4 +107,51 @@ class SyncLogRepositoryTest {
         }
         assertTrue(thrown.isFailure)
     }
+
+    @Test
+    fun sealThenOpenRoundTripsIdenticalRows() = runBlocking {
+        val batch = repository.appendLocalBatch(
+            "device-a",
+            15,
+            6_000L,
+            listOf(rowOp(), rowOp(row = "1234B"), rowOp(table = "reviews", row = "42")),
+        )
+        val sealer = com.ojnexus.core.sync.XorSealer(byteArrayOf(0x5a, 0x33))
+
+        val path = repository.sealBatch(batch.opId, context.filesDir, sealer)
+        val payload = java.io.File(path)
+        assertTrue(payload.exists())
+        assertEquals("SEALED", database.syncLogOperationDao().findById(batch.opId)!!.status)
+
+        val reopened = repository.openBatch(batch.opId, sealer)!!
+        assertEquals(3, reopened.size)
+        // Codec sorts by (table, rowKey): problems/1234A, problems/1234B, reviews/42.
+        assertEquals("problems", reopened[0].tableName)
+        assertEquals("1234A", reopened[0].rowKey)
+        assertEquals("reviews", reopened[2].tableName)
+    }
+
+    @Test
+    fun openBatchRejectsWrongKeyMaterialAndGarbage() = runBlocking {
+        val batch = repository.appendLocalBatch("device-a", 15, 7_000L, listOf(rowOp()))
+        val sealer = com.ojnexus.core.sync.XorSealer(byteArrayOf(0x5a))
+        repository.sealBatch(batch.opId, context.filesDir, sealer)
+
+        // A different pad cannot open the payload into decodable rows.
+        val stranger = com.ojnexus.core.sync.XorSealer(byteArrayOf(0x01))
+        assertNull(repository.openBatch(batch.opId, stranger))
+
+        // A truncated payload file yields null, not a crash.
+        val payloadPath = database.syncLogOperationDao().findById(batch.opId)!!.encryptedPayloadPath!!
+        java.io.File(payloadPath).writeBytes(byteArrayOf(1, 2, 3))
+        assertNull(repository.openBatch(batch.opId, sealer))
+    }
+
+    @Test
+    fun unknownBatchIsRejectedBySealingToo() = runBlocking {
+        val thrown = runCatching {
+            repository.sealBatch("no-such-batch", context.filesDir, com.ojnexus.core.sync.XorSealer(byteArrayOf(1)))
+        }
+        assertTrue(thrown.isFailure)
+    }
 }
