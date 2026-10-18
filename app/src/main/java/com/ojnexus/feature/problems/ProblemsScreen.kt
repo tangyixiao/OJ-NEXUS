@@ -105,6 +105,7 @@ fun ProblemsScreen(
     onBuildTraining: (List<Long>) -> Unit = {},
     onOpenWorkspace: (String) -> Unit = {},
     onOpenLuoguDetail: (String) -> Unit = {},
+    onOpenLuoguTrainings: () -> Unit = {},
     initialQuery: String? = null,
     initialJudge: JudgeId? = null,
     initialUnsolvedRange: com.ojnexus.app.PaletteQuery.UnsolvedRange? = null,
@@ -193,6 +194,7 @@ fun ProblemsScreen(
                     onOpenWorkspace = onOpenWorkspace,
                     onOpenLuoguDetail = onOpenLuoguDetail,
                     onOpenNotes = { scope = ProblemScope.NOTES },
+                    onOpenLuoguTrainings = onOpenLuoguTrainings,
                 )
                 ProblemScope.NOTES -> when (val notes = notesState) {
                     Loadable.Loading -> LoadingState()
@@ -600,6 +602,7 @@ private fun RemoteCatalogContent(
     onOpenWorkspace: (String) -> Unit,
     onOpenLuoguDetail: (String) -> Unit,
     onOpenNotes: () -> Unit,
+    onOpenLuoguTrainings: () -> Unit = {},
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item(key = "remote-controls") {
@@ -664,6 +667,11 @@ private fun RemoteCatalogContent(
                             style = NexusTheme.typography.dataSmall,
                             color = NexusTheme.colors.textTertiary,
                             modifier = Modifier.weight(1f),
+                        )
+                        FilterChip(
+                            label = stringResource(R.string.problems_luogu_trainings_entry),
+                            selected = false,
+                            onClick = onOpenLuoguTrainings,
                         )
                         FilterChip(
                             label = stringResource(

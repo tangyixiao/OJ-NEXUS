@@ -84,6 +84,16 @@ interface LuoguApi {
         @Query("page") page: Int,
     ): LuoguRecordPageResponse
 
+    /** Public training catalog page; the payload is HTML embedding a lentille-context JSON. */
+    @Streaming
+    @GET("training/list")
+    suspend fun trainingListHtml(): Response<ResponseBody>
+
+    /** Public training detail page; the payload is HTML embedding a lentille-context JSON. */
+    @Streaming
+    @GET("training/{id}")
+    suspend fun trainingHtml(@Path("id") id: Long): Response<ResponseBody>
+
     @Streaming
     @GET
     suspend fun problemsetDump(@Url url: String): Response<ResponseBody>

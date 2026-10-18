@@ -75,6 +75,23 @@ class LuoguClient(
             }
         }
 
+    /** Raw HTML of the public training list page (lentille-context JSON embedded). */
+    suspend fun fetchTrainingListHtml(): ResponseBody {
+        val response = call { api.trainingListHtml() }
+        if (!response.isSuccessful) throw LuoguApiError.HttpError(response.code())
+        return response.body() ?: throw LuoguApiError.ParseError(
+            IllegalStateException("Luogu training list page has no response body"),
+        )
+    }
+
+    /** Raw HTML of the public training detail page (lentille-context JSON embedded). */
+    suspend fun fetchTrainingHtml(id: Long): ResponseBody {
+        val response = call { api.trainingHtml(id) }
+        if (!response.isSuccessful) throw LuoguApiError.HttpError(response.code())
+        return response.body() ?: throw LuoguApiError.ParseError(
+            IllegalStateException("Luogu training page has no response body"),
+        )
+    }
     suspend fun openProblemsetDump(): ResponseBody {
         val response = call { api.problemsetDump(problemsetDumpUrl) }
         if (!response.isSuccessful) throw LuoguApiError.HttpError(response.code())

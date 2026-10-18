@@ -868,6 +868,7 @@
     <string name="problems_scope_filter_unsolved">UNSOLVED</string>
     <string name="problems_load_more">LOAD MORE</string>
     <string name="problems_luogu_catalog_hint">PUBLIC CATALOG · NO ACCOUNT REQUIRED</string>
+    <string name="problems_luogu_trainings_entry">TRAININGS</string>
     <string name="problems_luogu_sync_catalog">SYNC CATALOG</string>
     <string name="problems_luogu_syncing_catalog">SYNCING CATALOG…</string>
     <string name="problems_luogu_catalog_synced">CATALOG UPDATED · %d ITEMS</string>
@@ -915,6 +916,20 @@
     <string name="luogu_problem_limits">LIMITS</string>
     <string name="luogu_problem_time_limit">TIME %d MS</string>
     <string name="luogu_problem_memory_limit">MEMORY %d MB</string>
+    <!-- Luogu public training catalog -->
+    <string name="luogu_training_title">LUOGU TRAININGS</string>
+    <string name="luogu_training_section">OFFICIAL TRAINING PLANS</string>
+    <string name="luogu_training_ladder_section">PROBLEM LADDER</string>
+    <string name="luogu_training_loading">LOADING PUBLIC TRAININGS…</string>
+    <string name="luogu_training_empty">NO PUBLIC TRAININGS REPORTED</string>
+    <string name="luogu_training_failed">TRAINING LIST UNAVAILABLE — TAP BACK AND RETRY</string>
+    <string name="luogu_training_missing">TRAINING NOT FOUND</string>
+    <string name="luogu_training_open">OPEN</string>
+    <string name="luogu_training_open_cd">OPEN TRAINING DETAIL</string>
+    <string name="luogu_training_problem_open_cd">OPEN LUOGU PROBLEM DETAIL</string>
+    <string name="luogu_training_problem_count">%d PROBLEMS</string>
+    <string name="luogu_training_mark_count">%d MARKS</string>
+    <string name="luogu_training_accepted_count">AC %d</string>
     <!-- Local Luogu Open Platform workspace -->
     <string name="workspace_title">CODE WORKSPACE</string>
     <string name="workspace_open">OPEN WORKSPACE</string>

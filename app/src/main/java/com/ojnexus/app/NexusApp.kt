@@ -66,6 +66,10 @@ object NexusRoutes {
     const val SUBMISSIONS = "submissions"
     const val WORKSPACE = "workspace/{pid}?title={title}&sampleInput={sampleInput}&sampleOutput={sampleOutput}"
     const val LUOGU_PROBLEM_DETAIL = "luogu-problem/{pid}"
+    const val LUOGU_TRAININGS = "luogu-trainings"
+    const val LUOGU_TRAINING_DETAIL = "luogu-training/{id}"
+
+    fun luoguTraining(id: Long): String = "luogu-training/$id"
 
     fun problem(problemId: Long): String = "problem/$problemId"
 
@@ -216,6 +220,9 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             onOpenLuoguDetail = { pid ->
                                 navController.navigate("luogu-problem/${android.net.Uri.encode(pid)}")
                             },
+                            onOpenLuoguTrainings = {
+                                navController.navigate(NexusRoutes.LUOGU_TRAININGS)
+                            },
                             initialQuery = pendingProblemSearch?.query,
                             initialJudge = pendingProblemSearch?.judge,
                             initialUnsolvedRange = pendingUnsolvedRange,
@@ -342,6 +349,29 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             onOpenWorkspace = { problemPid, title, sampleInput, sampleOutput ->
                                 navController.navigate(
                                     NexusRoutes.workspace(problemPid, title, sampleInput, sampleOutput),
+                                )
+                            },
+                        )
+                    }
+                    composable(route = NexusRoutes.LUOGU_TRAININGS) {
+                        com.ojnexus.feature.luogu.LuoguTrainingCatalogScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenTraining = { id ->
+                                navController.navigate(NexusRoutes.luoguTraining(id))
+                            },
+                        )
+                    }
+                    composable(
+                        route = NexusRoutes.LUOGU_TRAINING_DETAIL,
+                        arguments = listOf(navArgument("id") { type = NavType.LongType }),
+                    ) { entry ->
+                        val trainingId = entry.arguments?.getLong("id") ?: return@composable
+                        com.ojnexus.feature.luogu.LuoguTrainingDetailScreen(
+                            trainingId = trainingId,
+                            onBack = { navController.popBackStack() },
+                            onOpenLuoguProblem = { pid ->
+                                navController.navigate(
+                                    "luogu-problem/${android.net.Uri.encode(pid)}",
                                 )
                             },
                         )

@@ -182,10 +182,13 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Scope: `core/ui` + submission center.
 - DoD: same component renders CF/AC/Luogu rows; strings via resources.
 
-#### ⬜ PHASE 95 — Luogu team/training public data (if API permits)
+#### ✅ PHASE 95 — Luogu team/training public data (v0.3.93, 2026-10-18)
 - Goal: read-only public training lists for the bound uid.
 - Constraints: confirm endpoint availability first; if not public, CUT this phase and record why.
 - DoD: capability probe documented in spec before any UI.
+- Outcome: probe confirmed the public training pages embed a `lentille-context` payload (team
+  pages are 404 and stay out of scope); shipped codec + repository + catalog/ladder screens with
+  typed failures and deep links into the local Luogu problem detail.
 
 #### ⬜ PHASE 96 — Judge health dashboard
 - Goal: connector center shows last HTTP status, latency of last sync, and quota (Luogu

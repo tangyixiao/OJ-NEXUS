@@ -3,6 +3,27 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## LUOGU PUBLIC TRAINING CATALOG
+
+Luogu's official training plans are now browsable read-only inside the app. A capability probe
+documented first that the public training pages (no login, no cookies) embed their payload in a
+`lentille-context` script tag; a dedicated codec extracts and decodes that JSON with typed
+failures — a wrong template or missing node never throws. The catalog screen lists public
+official trainings with provider, problem count, and marks; the detail screen renders the
+ordered problem ladder and every row deep-links into the existing local Luogu problem detail.
+The entry point is a TRAININGS chip on the Luogu remote catalog, so the flow stays inside the
+problems surface. Loading, empty, not-found, and failure states are explicit; the repository
+surfaces typed `LuoguApiError`s and the screens never render a partial list as success. No
+credential flow, no cookie jar, no writes — the catalog is a public mirror read through the
+same gated, bounded-retry Luogu client as every other public surface.
+/ 洛谷官方训练计划现在可以在应用内只读浏览。能力探测先行确认：公开训练页面（无需登录、
+无 Cookie）把数据嵌在 `lentille-context` script 标签里；专用 codec 负责抽取并解码该 JSON，
+失败有明确类型——模板不符或节点缺失绝不抛异常。目录屏列出公开官方训练的提供者、题目数与
+收藏数；详情屏渲染有序的题目阶梯，每一行深链到既有的本地洛谷题目详情。入口是洛谷公开题库
+上的 TRAININGS 芯片，流程始终留在题目页内。加载、空、未找到与失败状态都有明确呈现；仓库
+层返回带类型的 `LuoguApiError`，屏幕绝不把残缺列表当成功渲染。没有凭据流程、没有 Cookie、
+没有写入——目录是通过与其他公开面板相同的限速、有界重试洛谷客户端读取的公开镜像。
+
 ## UNIFIED SUBMISSION DETAIL SHEET
 
 Attempt rows and Luogu submission cards now open one shared bottom-sheet detail view. A

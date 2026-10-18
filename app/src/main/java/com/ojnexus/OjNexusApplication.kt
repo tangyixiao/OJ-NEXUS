@@ -54,6 +54,7 @@ import com.ojnexus.judge.luogu.LuoguUrls
 import com.ojnexus.judge.luogu.RetrofitLuoguAdapter
 import com.ojnexus.judge.luogu.LuoguSyncCoordinator
 import com.ojnexus.judge.luogu.LuoguSyncRepository
+import com.ojnexus.judge.luogu.LuoguTrainingRepository
 import com.ojnexus.judge.luogu.api.LuoguApi
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.judge.luogu.open.AndroidOpenAppCredentialStore
@@ -177,6 +178,7 @@ class AppContainer(context: android.content.Context) {
         clock = clock,
     )
     val luoguContestDetailRepository = LuoguContestDetailRepository(luoguClient)
+    val luoguTrainingRepository = LuoguTrainingRepository(luoguClient)
     private val luoguAdapter = RetrofitLuoguAdapter(luoguClient)
 
     // --- Luogu Open Platform (separate from the public main-site client) ---
