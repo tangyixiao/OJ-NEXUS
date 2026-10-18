@@ -741,6 +741,15 @@
     <string name="settings_maintenance_vacuum_cancel">CANCEL</string>
     <string name="settings_maintenance_vacuum_finished_anyway">VACUUM FINISHED — CANCEL ARRIVED AFTER COMMIT. TAP TO DISMISS</string>
     <string name="settings_maintenance_refresh">REFRESH STATS</string>
+    <string name="settings_crash_log_title">LOCAL CRASH LOG</string>
+    <string name="settings_crash_log_desc">CAPTURE CRASH REPORTS ON THIS DEVICE ONLY. THEY NEVER LEAVE THE DEVICE. TAKES EFFECT ON NEXT APP START.</string>
+    <string name="settings_crash_log_empty">NO CRASH REPORTS CAPTURED</string>
+    <string name="settings_crash_log_count">%1$d REPORT(S) — NEWEST %2$s</string>
+    <string name="settings_crash_log_view">VIEW LAST CRASH</string>
+    <string name="settings_crash_log_clear">CLEAR</string>
+    <string name="settings_crash_log_preview_title">CRASH REPORT</string>
+    <string name="settings_crash_log_truncated">TRUNCATED (SHOWING FIRST 8 KIB)</string>
+    <string name="settings_crash_log_close">CLOSE</string>
     <string name="settings_import_conflict_title">IMPORT PREVIEW</string>
     <string name="settings_import_conflict_body">THIS SNAPSHOT WILL REPLACE THE LOCAL DATABASE. TABLE COUNTS BELOW ARE INCOMING → CURRENT.</string>
     <string name="settings_import_conflict_table_header">TABLE  INCOMING → CURRENT</string>

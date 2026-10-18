@@ -273,6 +273,7 @@ class OjNexusApplication : Application() {
         startupTracer.begin("app-create")
         container = AppContainer(this)
         com.ojnexus.core.ui.GlobalContext.init(this)
+        installCrashLogIfOptedIn()
         startupTracer.end("app-create")
         startupTracer.begin("bootstrap-launch")
         applicationScope.launch {
@@ -296,5 +297,24 @@ class OjNexusApplication : Application() {
             ScheduledBackupScheduler.update(this@OjNexusApplication, preferences.backupCadence)
         }
         startupTracer.end("bootstrap-launch")
+    }
+
+    /**
+     * Installs the local-only crash capture when the user opted in. Runs synchronously before
+     * any bootstrap work so a crash during bootstrap is still captured. Read blocks the main
+     * thread once — DataStore's first read is a small file; acceptable at cold start.
+     */
+    private fun installCrashLogIfOptedIn() {
+        val enabled = kotlinx.coroutines.runBlocking {
+            runCatching {
+                container.userPreferencesRepository.preferences.first().crashLogEnabled
+            }.getOrDefault(false)
+        }
+        if (!enabled) return
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            com.ojnexus.core.crash.CrashLog.write(filesDir, thread, throwable, System.currentTimeMillis())
+            previous?.uncaughtException(thread, throwable)
+        }
     }
 }

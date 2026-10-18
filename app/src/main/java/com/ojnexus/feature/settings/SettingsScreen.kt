@@ -123,6 +123,8 @@ fun SettingsScreen(
     val pendingImport by viewModel.pendingImportFlow.collectAsStateWithLifecycle()
     val maintenanceStats by viewModel.maintenanceStatsFlow.collectAsStateWithLifecycle()
     val vacuumRunning by viewModel.vacuumRunningFlow.collectAsStateWithLifecycle()
+    val crashFiles by viewModel.crashFilesFlow.collectAsStateWithLifecycle()
+    val crashPreview by viewModel.crashPreviewFlow.collectAsStateWithLifecycle()
     val vacuumElapsed by viewModel.vacuumElapsedFlow.collectAsStateWithLifecycle()
     val vacuumCancelRaced by viewModel.vacuumCancelRacedFlow.collectAsStateWithLifecycle()
     val backupFolderLauncher = rememberLauncherForActivityResult(
@@ -315,6 +317,17 @@ fun SettingsScreen(
                     onCancel = viewModel::requestVacuumCancel,
                     onDismissRaced = viewModel::dismissVacuumCancelRaced,
                     onRefresh = viewModel::refreshMaintenanceStats,
+                )
+                Spacer(Modifier.height(NexusSpacing.sm))
+                CrashLogSection(
+                    enabled = preferences.crashLogEnabled,
+                    files = crashFiles,
+                    preview = crashPreview,
+                    onToggle = viewModel::setCrashLogEnabled,
+                    onRefresh = viewModel::refreshCrashFiles,
+                    onView = viewModel::openCrashPreview,
+                    onDismissPreview = viewModel::dismissCrashPreview,
+                    onClear = viewModel::clearCrashFiles,
                 )
             }
             Spacer(Modifier.height(NexusSpacing.xl))
@@ -1343,6 +1356,81 @@ private fun DatabaseMaintenanceSection(
             style = NexusTheme.typography.dataSmall,
             color = colors.success,
             modifier = Modifier.clickable(role = Role.Button, onClick = onDismissRaced),
+        )
+    }
+}
+
+@Composable
+private fun CrashLogSection(
+    enabled: Boolean,
+    files: List<String>,
+    preview: String?,
+    onToggle: (Boolean) -> Unit,
+    onRefresh: () -> Unit,
+    onView: () -> Unit,
+    onDismissPreview: () -> Unit,
+    onClear: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    SettingsToggle(
+        label = stringResource(R.string.settings_crash_log_title),
+        description = stringResource(R.string.settings_crash_log_desc),
+        checked = enabled,
+        onCheckedChange = {
+            onToggle(it)
+            if (it) onRefresh()
+        },
+    )
+    if (enabled) {
+        Spacer(Modifier.height(NexusSpacing.xs))
+        Text(
+            text = if (files.isEmpty()) {
+                stringResource(R.string.settings_crash_log_empty)
+            } else {
+                stringResource(R.string.settings_crash_log_count, files.size, files.first())
+            },
+            style = NexusTheme.typography.dataSmall,
+            color = colors.textSecondary,
+        )
+        if (files.isNotEmpty()) {
+            Spacer(Modifier.height(NexusSpacing.xs))
+            Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.sm)) {
+                DialogText(
+                    label = stringResource(R.string.settings_crash_log_view),
+                    color = colors.accent,
+                    onClick = onView,
+                )
+                DialogText(
+                    label = stringResource(R.string.settings_crash_log_clear),
+                    color = colors.danger,
+                    onClick = onClear,
+                )
+            }
+        }
+    }
+    if (preview != null) {
+        val display = if (preview.length > 8_192) {
+            preview.take(8_192) + "\n… " + stringResource(R.string.settings_crash_log_truncated)
+        } else {
+            preview
+        }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = onDismissPreview,
+            confirmButton = {
+                DialogText(
+                    label = stringResource(R.string.settings_crash_log_close),
+                    color = NexusTheme.colors.accent,
+                    onClick = onDismissPreview,
+                )
+            },
+            title = { Text(stringResource(R.string.settings_crash_log_preview_title)) },
+            text = {
+                Text(
+                    text = display,
+                    style = NexusTheme.typography.dataSmall,
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                )
+            },
         )
     }
 }

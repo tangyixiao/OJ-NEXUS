@@ -697,6 +697,15 @@
     <string name="settings_maintenance_vacuum_cancel">取消</string>
     <string name="settings_maintenance_vacuum_finished_anyway">整理已完成——取消在提交之后到达。点击关闭</string>
     <string name="settings_maintenance_refresh">刷新统计</string>
+    <string name="settings_crash_log_title">本地崩溃日志</string>
+    <string name="settings_crash_log_desc">仅在本机记录崩溃报告，绝不上传。下次启动应用后生效。</string>
+    <string name="settings_crash_log_empty">暂无崩溃报告</string>
+    <string name="settings_crash_log_count">%1$d 份报告 — 最近 %2$s</string>
+    <string name="settings_crash_log_view">查看最近崩溃</string>
+    <string name="settings_crash_log_clear">清空</string>
+    <string name="settings_crash_log_preview_title">崩溃报告</string>
+    <string name="settings_crash_log_truncated">已截断（仅显示前 8 KiB）</string>
+    <string name="settings_crash_log_close">关闭</string>
     <string name="settings_import_conflict_title">导入预览</string>
     <string name="settings_import_conflict_body">此快照将替换本地数据库。下表为“导入 → 当前”的行数对比。</string>
     <string name="settings_import_conflict_table_header">数据表  导入 → 当前</string>

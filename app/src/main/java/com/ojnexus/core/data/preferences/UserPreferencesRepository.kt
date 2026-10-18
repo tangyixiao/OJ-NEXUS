@@ -29,6 +29,7 @@ data class UserPreferences(
     val backupTreeUri: String = "",
     val backupKeepCount: Int = BackupCadence.DEFAULT_KEEP_COUNT,
     val backupLastStatus: String = "",
+    val crashLogEnabled: Boolean = false,
 )
 
 internal val Context.userPreferencesDataStore by preferencesDataStore(
@@ -58,6 +59,7 @@ class UserPreferencesRepository(private val context: Context) {
                     ?: BackupCadence.DEFAULT_KEEP_COUNT)
                     .coerceIn(BackupCadence.MIN_KEEP_COUNT, BackupCadence.MAX_KEEP_COUNT),
                 backupLastStatus = values[Keys.BACKUP_LAST_STATUS] ?: "",
+                crashLogEnabled = values[Keys.CRASH_LOG_ENABLED] ?: false,
             )
         }
 
@@ -157,6 +159,11 @@ class UserPreferencesRepository(private val context: Context) {
         }
     }
 
+    /** Takes effect at the next process start (documented in the settings hint). */
+    suspend fun setCrashLogEnabled(enabled: Boolean) {
+        context.userPreferencesDataStore.edit { it[Keys.CRASH_LOG_ENABLED] = enabled }
+    }
+
     private object Keys {
         val REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
         val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
@@ -166,6 +173,7 @@ class UserPreferencesRepository(private val context: Context) {
         val BACKUP_TREE_URI = stringPreferencesKey("backup_tree_uri")
         val BACKUP_KEEP_COUNT = intPreferencesKey("backup_keep_count")
         val BACKUP_LAST_STATUS = stringPreferencesKey("backup_last_status")
+        val CRASH_LOG_ENABLED = booleanPreferencesKey("crash_log_enabled")
     }
 
     private data class TargetKeys(

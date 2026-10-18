@@ -302,7 +302,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Goal: audit every user-visible string is in `strings.xml` (EN+zh), no hardcoded UI text.
 - DoD: lint-style check script committed under `tools/`.
 
-#### ⬜ PHASE 114 — Crash & ANR hygiene
+#### ✅ PHASE 114 — Crash & ANR hygiene (v0.3.101, 2026-10-18)
 - Goal: optional opt-in local crash log (no upload) viewable in settings; fix top findings.
 - Constraints: nothing leaves the device.
 

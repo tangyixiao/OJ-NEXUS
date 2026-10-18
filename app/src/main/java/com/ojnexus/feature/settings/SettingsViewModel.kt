@@ -452,6 +452,51 @@ class SettingsViewModel(
         refreshMaintenanceStats()
     }
 
+    // --- Local crash log (Phase 114) — nothing leaves the device ---
+
+    private val crashFiles = MutableStateFlow<List<String>>(emptyList())
+
+    /** Newest-first crash report file names; empty when none captured. */
+    val crashFilesFlow: StateFlow<List<String>> = crashFiles.asStateFlow()
+
+    private val crashPreview = MutableStateFlow<String?>(null)
+
+    /** Content of the newest crash file for the settings dialog; null hides the dialog. */
+    val crashPreviewFlow: StateFlow<String?> = crashPreview.asStateFlow()
+
+    fun refreshCrashFiles() {
+        val filesDir = com.ojnexus.core.ui.GlobalContext.application.filesDir
+        crashFiles.value = runCatching {
+            com.ojnexus.core.crash.CrashLog.crashFiles(filesDir).map { it.name }
+        }.getOrDefault(emptyList())
+    }
+
+    fun setCrashLogEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setCrashLogEnabled(enabled)
+        }
+    }
+
+    fun openCrashPreview() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val filesDir = com.ojnexus.core.ui.GlobalContext.application.filesDir
+            val file = runCatching { com.ojnexus.core.crash.CrashLog.newest(filesDir) }
+                .getOrNull() ?: return@launch
+            val raw = runCatching { file.readText() }.getOrNull() ?: return@launch
+            crashPreview.value = raw
+        }
+    }
+
+    fun dismissCrashPreview() {
+        crashPreview.value = null
+    }
+
+    fun clearCrashFiles() {
+        val filesDir = com.ojnexus.core.ui.GlobalContext.application.filesDir
+        runCatching { com.ojnexus.core.crash.CrashLog.clear(filesDir) }
+        crashFiles.value = emptyList()
+    }
+
     fun refreshMaintenanceStats() {
         if (maintenanceRepository == null) return
         viewModelScope.launch(Dispatchers.IO) {

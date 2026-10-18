@@ -3,6 +3,24 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## LOCAL CRASH LOG
+
+An opt-in, local-only crash capture ships behind a settings toggle (default OFF). When enabled,
+the next process start installs an uncaught-exception handler that writes one report per crash
+into the app's private storage — thread, exception, message, full stack trace, and a footer
+stating the report never leaves the device — keeping the newest ten files. The settings data
+section shows the report count, opens the newest report in a dialog (8 KiB display cap), and can
+clear them. The capture class carries no network machinery at all, and a unit test enforces that
+at the source level. Reports exist only after a real crash on a real device; none exist on this
+host, so "fix top findings" stays open until the pipeline has material to rank. ANR traces
+remain a system surface — no jank watchdog was added.
+/ 本地崩溃日志默认关闭、完全本地化，由设置中的开关控制。开启后，下次进程启动会安装未捕获异常
+处理器：每次崩溃在应用私有存储写入一份报告——线程、异常、消息、完整堆栈，以及"本报告绝不离开
+设备"的脚注——最多保留最近十份。设置的数据区显示报告数量、在对话框中打开最近一份（展示上限
+8 KiB）、并可一键清空。捕获类完全不携带任何网络组件，并有单元测试在源码层面强制这一点。报告
+只会在真机真实崩溃后产生；本机尚无样本，因此"修复头部问题"保持开放，直到管线有素材可排序。
+ANR 轨迹仍是系统层面的能力——未添加卡顿看门狗。
+
 ## LOCALIZATION PASS
 
 `tools/check-localization.ps1` enforces three invariants over the string resources: the EN and
