@@ -429,11 +429,16 @@ private fun HeatmapSection(state: AnalyticsUiState) {
                 Column(verticalArrangement = Arrangement.spacedBy(HeatmapCellSpacing)) {
                     week.forEach { day ->
                         val intensity = day?.let { ActivityScorer.intensity(it) } ?: -1
-                        val label = stringResource(
-                            R.string.analytics_heatmap_cell_cd,
-                            intensity.coerceAtLeast(0),
-                            day?.solved ?: 0,
-                        )
+                        val label = if (day == null) {
+                            stringResource(R.string.analytics_heatmap_cell_padding_cd)
+                        } else {
+                            stringResource(
+                                R.string.analytics_heatmap_cell_cd,
+                                intensity.coerceAtLeast(0),
+                                day.solved,
+                                formatDate(day.dayIndex * 24L * 60 * 60 * 1000),
+                            )
+                        }
                         Box(
                             modifier = Modifier
                                 .size(HeatmapCellSize)
@@ -587,6 +592,12 @@ private fun TotalsSection(state: AnalyticsUiState) {
             NexusMetric(
                 label = stringResource(R.string.metric_streak),
                 value = stringResource(R.string.format_streak_days, state.currentStreak),
+                modifier = Modifier.weight(1f),
+            )
+            MetricSeparator()
+            NexusMetric(
+                label = stringResource(R.string.analytics_streak_longest),
+                value = stringResource(R.string.format_streak_days, state.longestStreak),
                 modifier = Modifier.weight(1f),
             )
         }

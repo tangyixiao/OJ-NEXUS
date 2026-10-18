@@ -65,11 +65,54 @@ class KnowledgeDaoTest {
             ),
         )
 
-        val row = database.knowledgeDao().observePerformance().first().single()
+        val row = database.knowledgeDao().observePerformance(todayEpochDay = 0L).first().single()
         assertEquals("GRAPH", row.area)
         assertEquals(1, row.attemptedProblems)
         assertEquals(1, row.solvedProblems)
         assertEquals(2, row.attempts)
         assertEquals(1, row.failures)
+        // Never solved on day 0, so first_solved_at is null and the decay input has nothing.
+        assertEquals(null, row.daysSinceLastSolved)
+    }
+
+    @Test
+    fun `performance reports days since the newest solved problem in the area`() = runBlocking {
+        val problemId = database.problemDao().insert(
+            ProblemEntity(
+                judge = "local",
+                externalId = "p1",
+                title = "Graph",
+                difficulty = 1200,
+                createdAt = 1,
+                updatedAt = 1,
+                solved = true,
+                attemptCount = 1,
+                firstSolvedAt = 10L * 86_400_000L,
+            ),
+        )
+        database.knowledgeDao().upsert(ProblemKnowledgeEntity(problemId, "GRAPH"))
+
+        val row = database.knowledgeDao().observePerformance(todayEpochDay = 15L).first().single()
+        assertEquals(5, row.daysSinceLastSolved)
+    }
+
+    @Test
+    fun `days since solved is null for an area with no solved problem`() = runBlocking {
+        val problemId = database.problemDao().insert(
+            ProblemEntity(
+                judge = "local",
+                externalId = "p1",
+                title = "Graph",
+                difficulty = 1200,
+                createdAt = 1,
+                updatedAt = 1,
+                solved = false,
+                attemptCount = 1,
+            ),
+        )
+        database.knowledgeDao().upsert(ProblemKnowledgeEntity(problemId, "GRAPH"))
+
+        val row = database.knowledgeDao().observePerformance(todayEpochDay = 15L).first().single()
+        assertEquals(null, row.daysSinceLastSolved)
     }
 }

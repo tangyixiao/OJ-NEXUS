@@ -116,4 +116,34 @@ class ProblemFilterTest {
         assertEquals(listOf(1L, 2L, 3L, 4L), library.applyFilterSort(ProblemFilter(), ProblemSort.ATTEMPTS).map { it.id })
         assertEquals(listOf(3L, 4L, 2L, 1L), library.applyFilterSort(ProblemFilter(), ProblemSort.UPDATED).map { it.id })
     }
+
+    @Test
+    fun `difficulty range is inclusive and drops unknown ratings`() {
+        // CLOSED range 1500..2200 keeps problems 1 (1900) and 3 (2200); UPDATED desc: 3 leads.
+        val closed = library.applyFilterSort(
+            ProblemFilter(difficultyMin = 1500, difficultyMax = 2200),
+            ProblemSort.UPDATED,
+        )
+        assertEquals(listOf(3L, 1L), closed.map { it.id })
+
+        // UPDATED sort is descending (3:99, 4:4, 1:1). Unknown difficulty (problem 2) is excluded
+        // by any range.
+        val openTop = library.applyFilterSort(ProblemFilter(difficultyMin = 800), ProblemSort.UPDATED)
+        assertEquals(listOf(3L, 4L, 1L), openTop.map { it.id })
+
+        val openBottom = library.applyFilterSort(ProblemFilter(difficultyMax = 1900), ProblemSort.UPDATED)
+        assertEquals(listOf(4L, 1L), openBottom.map { it.id })
+
+        val exact = library.applyFilterSort(ProblemFilter(difficultyMin = 800, difficultyMax = 800), ProblemSort.UPDATED)
+        assertEquals(listOf(4L), exact.map { it.id })
+    }
+
+    @Test
+    fun `difficulty range combines with judge`() {
+        val result = library.applyFilterSort(
+            ProblemFilter(judge = JudgeId.CODEFORCES, difficultyMin = 800, difficultyMax = 1500),
+            ProblemSort.UPDATED,
+        )
+        assertEquals(listOf(4L), result.map { it.id })
+    }
 }

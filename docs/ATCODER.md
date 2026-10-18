@@ -12,11 +12,14 @@ The adapter uses HTTPS AtCoder Problems resources:
 - `resources/problem-models.json`
 - `atcoder-api/v3/user/submissions?user=&from_second=`
 
+Plus the official site JSON for rating history (public, no auth, not scraping):
+
+- `atcoder.jp/users/<handle>/history/json?contestType=algo`
+
 The source is community-maintained, so the adapter reports `COMMUNITY` reliability and keeps
 source failures separate from cached data. It exposes account binding, submissions, problem
-catalog, estimated difficulty, contests, background sync, and incremental sync. Profile,
-rating, and rating history are intentionally unavailable; the UI never renders a missing
-rating as zero.
+catalog, estimated difficulty, contests, rating history, background sync, and incremental sync.
+Profile remains unavailable; the UI never renders a missing rating as zero.
 
 ## Account binding
 
@@ -42,3 +45,9 @@ AtCoder Problems difficulty is stored as `ESTIMATED` and is not normalized with 
 ratings. Missing, invalid, AHC, and Marathon models remain `UNKNOWN`. Historical remote rows
 are retained if a refresh fails; user-owned notes, tags, failures, reviews, and training data
 are never overwritten by remote sync.
+
+Rating history uses only rated rows (`IsRated=true`); unrated heuristic rows are dropped
+before mapping so a missing rating is never stored as zero. The official endpoint returns the
+full history, so each refresh replaces the judge's rows atomically (delete+insert in one
+transaction). An unknown handle answers `200 []`, which syncs nothing and keeps the account
+`UNVERIFIED` rather than claiming the user does not exist.

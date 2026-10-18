@@ -12,6 +12,8 @@ import androidx.room.PrimaryKey
         Index(value = ["request_id"], unique = true),
         Index(value = ["status"]),
         Index(value = ["updated_at"]),
+        // Phase 106 index audit: worker scan (judge, status) ordered by updated_at.
+        Index(value = ["judge", "status", "updated_at"]),
     ],
 )
 data class SubmissionJobEntity(

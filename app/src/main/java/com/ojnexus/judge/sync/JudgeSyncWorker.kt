@@ -18,6 +18,7 @@ import com.ojnexus.core.data.restore.DatabaseRestoreCoordinator
 import com.ojnexus.core.data.restore.RestoreWorkDecision
 import com.ojnexus.core.data.restore.decideRestoreWorkGeneration
 import com.ojnexus.core.model.JudgeId
+import com.ojnexus.judge.codeforces.SyncPolicy
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 
@@ -90,7 +91,10 @@ class JudgeSyncWorker(
         }
 
         fun enqueuePeriodic(context: Context, judge: JudgeId, accountId: Long) {
-            val request = PeriodicWorkRequestBuilder<JudgeSyncWorker>(6, TimeUnit.HOURS)
+            val request = PeriodicWorkRequestBuilder<JudgeSyncWorker>(
+                SyncPolicy.PERIODIC_SYNC_MINUTES,
+                TimeUnit.MINUTES,
+            )
                 .setInputData(
                     workDataOf(
                         KEY_JUDGE_ID to judge.id,
@@ -100,7 +104,12 @@ class JudgeSyncWorker(
                             .currentDataGeneration(),
                     ),
                 )
-                .setConstraints(connectedConstraint())
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .setRequiresBatteryNotLow(true)
+                        .build(),
+                )
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(

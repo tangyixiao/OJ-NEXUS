@@ -32,6 +32,7 @@
         <Button Content="DASHBOARD" Tag="Dashboard" Style="{StaticResource NavButton}" Click="Navigate_Click" />
         <Button Content="CONNECTORS" Tag="Connectors" Style="{StaticResource NavButton}" Click="Navigate_Click" />
         <Button Content="SYNC HISTORY" Tag="History" Style="{StaticResource NavButton}" Click="Navigate_Click" />
+        <Button Content="PROBLEMS" Tag="Problems" Style="{StaticResource NavButton}" Click="Navigate_Click" />
       </StackPanel>
 
       <StackPanel Grid.Row="2">
@@ -171,6 +172,43 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
             <TextBlock Text="NO OPERATIONS RECORDED" Visibility="{Binding HasNoHistory, Converter={StaticResource BoolToVisibility}}" Foreground="{StaticResource NexusMutedTextBrush}" Margin="0,16,0,0" />
+          </StackPanel>
+
+          <StackPanel Visibility="{Binding IsProblemsVisible, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="LOCAL PROBLEM LEDGER" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
+            <Grid Margin="0,7,0,18">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="Derived from synced submissions. Rows stay readable offline." Foreground="{StaticResource NexusMutedTextBrush}" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="1" ItemsSource="{Binding ProblemJudgeFilters}" SelectedItem="{Binding SelectedProblemJudge, Mode=OneWay}" SelectionChanged="ProblemJudgeFilter_SelectionChanged" MinWidth="150" Margin="0,0,12,0" />
+              <ComboBox Grid.Column="2" ItemsSource="{Binding ProblemStatusFilters}" SelectedItem="{Binding SelectedProblemStatus, Mode=OneWay}" SelectionChanged="ProblemStatusFilter_SelectionChanged" MinWidth="150" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Problems}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{StaticResource NexusSurfaceBrush}" BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1" Padding="16" Margin="0,0,0,10">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding Judge}" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
+                      <TextBlock Grid.Column="1" Text="{Binding ExternalId}" Margin="12,0,0,0" Foreground="{StaticResource NexusTextBrush}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="2" Text="{Binding Title}" Margin="12,0,12,0" TextWrapping="Wrap" Foreground="{StaticResource NexusMutedTextBrush}" />
+                      <TextBlock Grid.Column="3" Text="{Binding Status}" HorizontalAlignment="Right" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
+                      <Button Grid.Column="4" Content="OPEN" Tag="{Binding}" Style="{StaticResource ActionButton}" Visibility="{Binding HasUrl, Converter={StaticResource BoolToVisibility}}" Margin="16,0,0,0" Click="OpenProblem_Click" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="NO PROBLEMS RECORDED" Visibility="{Binding HasNoProblems, Converter={StaticResource BoolToVisibility}}" Foreground="{StaticResource NexusMutedTextBrush}" Margin="0,16,0,0" />
           </StackPanel>
         </Grid>
       </ScrollViewer>

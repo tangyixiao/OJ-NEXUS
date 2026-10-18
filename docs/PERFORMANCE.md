@@ -40,3 +40,85 @@ The connector history query is bounded to the newest 10 completed operations per
 active operations remain visible until they close. The UI projects at most five rows per connector,
 and module outcomes are sorted deterministically before rendering. This keeps history work local,
 bounded, and independent of remote response volume.
+
+## Cold start budget — Phase 105
+
+**Budget: 1500 ms from process start to the first interactive Dashboard frame.**
+
+### Harness
+
+`OjNexusApplication` opens a `StartupTracer` span at container construction (`app-create` covers
+restore recovery, Room open, and repository wiring) and closes it before background bootstrap is
+launched; `bootstrap-launch` closes after the async reconciliation coroutines are handed to the
+application scope. The Dashboard composable closes the `first-frame` span on its first
+composition and logs the whole chain once:
+
+```
+adb logcat -s OJNEXUS-STARTUP
+OJNEXUS-STARTUP: cold-start total=...ms budget=1500ms verdict=WITHIN_BUDGET|OVER_BUDGET
+app-create=...ms bootstrap-launch=...ms first-frame=...ms
+```
+
+The verdict comes from the pure `StartupBudget.verdict(total)` (unit-tested boundaries at
+1500/1501 ms). No startup I/O and no tracing allocation before the first frame; background
+bootstrap (periodic sync reconciliation, Luogu result work, backup schedule) launches after
+`app-create` closes, so it never counts against the first frame.
+
+### Measured numbers
+
+| Measurement | Value | Source |
+| --- | --- | --- |
+| Span-chain accounting (injected clock) | deterministic | `StartupTracerTest` |
+| Device cold start | **PENDING** — `adb shell am force-stop` + cold launch, read the OJNEXUS-STARTUP line, 5-run median on a mid-range device | no device attached to this host; per repo rules the 1.5 s DoD number is recorded only from hardware |
+
+## Room index audit — Phase 106
+
+Schema v13→v14 adds two composite indices, chosen by an `EXPLAIN QUERY PLAN` audit of the ten
+hottest production queries (full table in
+[docs/superpowers/specs/2026-10-18-room-index-audit.md](superpowers/specs/2026-10-18-room-index-audit.md)):
+
+- `index_submission_jobs_judge_status_updated_at` on `submission_jobs (judge, status, updated_at)` —
+  the background Luogu job scan previously SCANed the table plus a temp B-tree sort.
+- `index_remote_problems_judge_external_id` on `remote_problems (judge, external_id)` —
+  the delta-sync fingerprint read previously searched `judge` then sorted `external_id`.
+
+`MIGRATION_13_14` is additive `CREATE INDEX IF NOT EXISTS` DDL only — non-destructive, tested by
+`RoomIndexAuditTest` (fresh v14 + a hand-built v13 database upgraded in place, rows preserved,
+plans assert `USING INDEX` text which is device-independent).
+
+| Query | Before (plan) | After (plan) | Robolectric wall clock |
+| --- | --- | --- | --- |
+| Pending Luogu jobs (`judge='luogu' AND status='PENDING' ORDER BY updated_at`) | SCAN + temp B-tree sort | SEARCH via new composite index | ~9.0 ms → ~1.1 ms |
+| Remote problems delta read (`judge=? ORDER BY external_id`) | SEARCH judge + sort | SEARCH via new composite index (sort eliminated) | ~7.5 ms → ~1.3 ms |
+
+Robolectric in-memory SQLite proves the plan shape, not device storage latency; device numbers stay
+**PENDING** until hardware runs (same policy as the cold-start budget).
+
+## Library rendering — Phase 104
+
+The problem library renders through manual windowing: the LazyColumn tracks at most a 60-row
+window (grown 60 rows per SHOW MORE tap), so recomposition cost is flat in library size. The
+10,000-row filter+sort+window pass is unit-tested to finish well under a 250 ms CPU budget
+(`LibraryWindowTest`); scroll smoothness follows because Compose only tracks the window, not the
+full list.
+
+## Memory audit — Phase 108
+
+LeakCanary 3.0-alpha-8 ships as `debugImplementation` only — release builds carry none of it.
+Static audit results (all host-verifiable):
+
+- **Flow collection**: zero bare `collectAsState()` call sites; every screen uses
+  `collectAsStateWithLifecycle()`, so background screens neither recompose nor hold producers.
+- **Bitmaps**: one transient 1080×1350 ARGB_8888 bitmap in `PlayerCardShare` (created, compressed
+  to a cache file, immediately unreachable — no field holds it); the rating chart draws via
+  Compose `Canvas` with no bitmap. Library rows are text-only.
+- **Long-lived scopes**: `applicationScope` is a `SupervisorJob` — a failed bootstrap child
+  cannot cancel siblings; tickers (`SessionScreen`, `SessionCommandDeck`) are collector-bound
+  `flow { while(true) … }` producers. Both invariants are pinned by `MemoryAuditInvariantsTest`.
+- **Recomposition**: library rows are keyed by stable problem id inside the 60-row window; a
+  favorite toggle recomposes one row.
+
+| Measurement | Value | Source |
+| --- | --- | --- |
+| Static audit invariants | deterministic, unit-tested | `MemoryAuditInvariantsTest` |
+| 20-min main-navigation loop with LeakCanary | **PENDING** | no device attached to this host; debug build now reports leaks automatically the moment hardware runs |

@@ -1,5 +1,6 @@
 package com.ojnexus.core.database.dao
 
+import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Upsert
 import androidx.room.Dao
@@ -20,6 +21,9 @@ interface RatingChangeDao {
 
     @Upsert
     suspend fun upsertAll(changes: List<RatingChangeEntity>)
+
+    @Insert
+    suspend fun insertAll(changes: List<RatingChangeEntity>)
 
     @Query("DELETE FROM rating_changes WHERE judge = :judge")
     suspend fun deleteByJudge(judge: String)

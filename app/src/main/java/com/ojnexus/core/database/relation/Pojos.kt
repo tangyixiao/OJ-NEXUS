@@ -55,11 +55,21 @@ data class ProblemDetailPojo(
     val review: ReviewEntity?,
 )
 
-/** Review queue row with the scheduled problem. */
+/** Review queue row with the scheduled problem and its tag set. */
 data class ReviewWithProblemPojo(
     @Embedded val review: ReviewEntity,
     @Relation(entity = ProblemEntity::class, parentColumn = "problem_id", entityColumn = "id")
     val problem: ProblemEntity?,
+    @Relation(
+        parentColumn = "problem_id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = ProblemTagCrossRef::class,
+            parentColumn = "problem_id",
+            entityColumn = "tag_id",
+        ),
+    )
+    val tags: List<ProblemTagEntity> = emptyList(),
 )
 
 /** Task row with its optional problem. */

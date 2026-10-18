@@ -5,6 +5,7 @@ import com.ojnexus.core.data.DataError
 import com.ojnexus.core.data.DataResult
 import com.ojnexus.core.data.dataResult
 import com.ojnexus.core.database.OjNexusDatabase
+import com.ojnexus.core.database.dao.ProblemDao
 import com.ojnexus.core.database.dao.ReviewDao
 import com.ojnexus.core.database.entity.ReviewEntity
 import com.ojnexus.core.database.entity.ReviewLogEntity
@@ -27,6 +28,7 @@ class ReviewRepository(
     private val clock: Clock,
 ) {
     private val reviewDao: ReviewDao = database.reviewDao()
+    private val problemDao: ProblemDao = database.problemDao()
 
     fun observeQueue(): Flow<List<ReviewQueueItem>> =
         reviewDao.observeQueue().map { rows ->
@@ -45,9 +47,14 @@ class ReviewRepository(
                     lastResult = row.review.lastResult?.let { raw ->
                         ReviewResult.entries.firstOrNull { it.name == raw }
                     },
+                    tags = row.tags.map { it.name },
                 )
             }
         }
+
+    /** Problem tag names in first-appearance order, for tag pickers. */
+    fun observeTags(): Flow<List<String>> =
+        problemDao.observeTags().map { rows -> rows.map { it.name }.distinct() }
 
     fun observeByProblem(problemId: Long): Flow<com.ojnexus.core.model.ReviewState?> =
         reviewDao.observeByProblem(problemId).map { it?.toDomain() }

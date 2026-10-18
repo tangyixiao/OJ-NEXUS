@@ -129,11 +129,14 @@ fun CommandPalette(
     onDismiss: () -> Unit,
     onExecute: (String) -> Unit,
     onSearchProblems: (PaletteQuery.SearchProblems) -> Unit,
+    onReviewDue: () -> Unit = {},
+    onSprintPlan: (PaletteQuery.SprintPlan) -> Unit = {},
+    onUnsolvedRange: (PaletteQuery.UnsolvedRange) -> Unit = {},
 ) {
     var query by remember { mutableStateOf("") }
     val commands = commandList()
     val filtered = remember(commands, query) { filterCommands(commands, query) }
-    val directQuery = remember(query) { parsePaletteQuery(query) as? PaletteQuery.SearchProblems }
+    val directQuery = remember(query) { parsePaletteQuery(query) }
     val colors = NexusTheme.colors
 
     Dialog(onDismissRequest = onDismiss) {
@@ -181,51 +184,17 @@ fun CommandPalette(
                     )
                 }
                 directQuery?.let { parsed ->
-                    val judgeLabel = parsed.judge?.displayName
-                        ?: stringResource(R.string.command_palette_any_judge)
-                    val targetLabel = stringResource(
-                        R.string.command_palette_direct_query_target,
-                        judgeLabel,
-                        parsed.query,
+                    DirectQueryCard(
+                        parsed = parsed,
+                        onClick = {
+                            when (parsed) {
+                                is PaletteQuery.SearchProblems -> onSearchProblems(parsed)
+                                PaletteQuery.ReviewDue -> onReviewDue()
+                                is PaletteQuery.SprintPlan -> onSprintPlan(parsed)
+                                is PaletteQuery.UnsolvedRange -> onUnsolvedRange(parsed)
+                            }
+                        },
                     )
-                    Row(
-                        modifier = Modifier
-                            .padding(top = NexusSpacing.sm)
-                            .fillMaxWidth()
-                            .background(colors.background, NexusRadius.sm)
-                            .clickable(
-                                role = Role.Button,
-                                onClickLabel = stringResource(R.string.command_palette_direct_query_cd),
-                            ) { onSearchProblems(parsed) }
-                            .semantics(mergeDescendants = true) { contentDescription = targetLabel }
-                            .padding(NexusSpacing.sm),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(NexusSize.commandPaletteRailWidth)
-                                .height(NexusSize.commandPaletteRailHeight)
-                                .background(colors.accent, NexusRadius.xs),
-                        )
-                        Column(
-                            modifier = Modifier.padding(start = NexusSpacing.sm),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.command_palette_direct_query),
-                                style = NexusTheme.typography.sectionLabel,
-                                color = colors.accent,
-                            )
-                            Text(
-                                text = targetLabel,
-                                style = NexusTheme.typography.dataSmall,
-                                color = colors.textPrimary,
-                            )
-                            Text(
-                                text = stringResource(R.string.command_palette_direct_query_hint),
-                                style = NexusTheme.typography.dataSmall,
-                                color = colors.textTertiary,
-                            )
-                        }
-                    }
                 }
                 if (filtered.isEmpty() && directQuery == null) {
                     Text(
@@ -262,6 +231,81 @@ fun CommandPalette(
             }
         }
     }
+}
+
+@Composable
+private fun DirectQueryCard(
+    parsed: PaletteQuery,
+    onClick: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    val targetLabel = when (parsed) {
+        is PaletteQuery.SearchProblems -> {
+            val judgeLabel = parsed.judge?.displayName
+                ?: stringResource(R.string.command_palette_any_judge)
+            stringResource(R.string.command_palette_direct_query_target, judgeLabel, parsed.query)
+        }
+        PaletteQuery.ReviewDue ->
+            stringResource(R.string.command_palette_direct_review_due)
+        is PaletteQuery.SprintPlan ->
+            stringResource(R.string.command_palette_direct_sprint, parsed.target)
+        is PaletteQuery.UnsolvedRange -> {
+            val judgeLabel = parsed.judge?.displayName
+                ?: stringResource(R.string.command_palette_any_judge)
+            val range = formatDifficultyRange(parsed.min, parsed.max)
+            stringResource(
+                R.string.command_palette_direct_unsolved,
+                judgeLabel,
+                range,
+            )
+        }
+    }
+    Row(
+        modifier = Modifier
+            .padding(top = NexusSpacing.sm)
+            .fillMaxWidth()
+            .background(colors.background, NexusRadius.sm)
+            .clickable(
+                role = Role.Button,
+                onClickLabel = stringResource(R.string.command_palette_direct_query_cd),
+            ) { onClick() }
+            .semantics(mergeDescendants = true) { contentDescription = targetLabel }
+            .padding(NexusSpacing.sm),
+    ) {
+        Box(
+            modifier = Modifier
+                .width(NexusSize.commandPaletteRailWidth)
+                .height(NexusSize.commandPaletteRailHeight)
+                .background(colors.accent, NexusRadius.xs),
+        )
+        Column(
+            modifier = Modifier.padding(start = NexusSpacing.sm),
+        ) {
+            Text(
+                text = stringResource(R.string.command_palette_direct_query),
+                style = NexusTheme.typography.sectionLabel,
+                color = colors.accent,
+            )
+            Text(
+                text = targetLabel,
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textPrimary,
+            )
+            Text(
+                text = stringResource(R.string.command_palette_direct_query_hint),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textTertiary,
+            )
+        }
+    }
+}
+
+/** `1600-1900`, `1600+`, `≤1900`, or `ANY` — always a bounded, local label. */
+internal fun formatDifficultyRange(min: Int?, max: Int?): String = when {
+    min != null && max != null -> "$min-$max"
+    min != null -> "$min+"
+    max != null -> "<=$max"
+    else -> "ANY"
 }
 
 @Composable

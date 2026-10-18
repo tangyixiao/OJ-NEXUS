@@ -3,6 +3,7 @@ package com.ojnexus
 import android.app.Application
 import com.ojnexus.core.data.repository.AnalyticsRepository
 import com.ojnexus.core.data.repository.BackupRepository
+import com.ojnexus.core.data.repository.DatabaseMaintenanceRepository
 import com.ojnexus.core.data.restore.DatabaseRestoreCoordinator
 import com.ojnexus.core.data.restore.RestoreOutcome
 import com.ojnexus.core.time.LocalDaySource
@@ -40,6 +41,7 @@ import com.ojnexus.judge.atcoder.AtCoderSyncPolicy
 import com.ojnexus.judge.atcoder.AtCoderSyncRepository
 import com.ojnexus.judge.atcoder.AtCoderUrls
 import com.ojnexus.judge.atcoder.RetrofitAtCoderAdapter
+import com.ojnexus.judge.atcoder.api.AtCoderHistoryApi
 import com.ojnexus.judge.atcoder.api.AtCoderProblemsApi
 import com.ojnexus.judge.codeforces.CodeforcesAccountConnector
 import com.ojnexus.judge.luogu.LuoguAccountConnector
@@ -52,6 +54,7 @@ import com.ojnexus.judge.luogu.LuoguUrls
 import com.ojnexus.judge.luogu.RetrofitLuoguAdapter
 import com.ojnexus.judge.luogu.LuoguSyncCoordinator
 import com.ojnexus.judge.luogu.LuoguSyncRepository
+import com.ojnexus.judge.luogu.LuoguTrainingRepository
 import com.ojnexus.judge.luogu.api.LuoguApi
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.judge.luogu.open.AndroidOpenAppCredentialStore
@@ -61,12 +64,14 @@ import com.ojnexus.judge.luogu.open.WorkManagerLuoguResultScheduler
 import com.ojnexus.judge.luogu.open.LuoguSubmissionRepository
 import com.ojnexus.judge.luogu.open.LuoguResultWorkBootstrap
 import com.ojnexus.core.network.PublicHttpClient
+import com.ojnexus.core.data.backup.ScheduledBackupScheduler
 import kotlinx.serialization.json.Json
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import java.time.Clock
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -81,6 +86,12 @@ class AppContainer(context: android.content.Context) {
 
     fun currentDataGeneration(): String = restoreCoordinator.currentDataGeneration()
 
+    /**
+     * Application context for platform services the UI may reach directly (clipboard, share
+     * sheet). Never an activity, so it leaks nothing.
+     */
+    val appContext: android.content.Context = context.applicationContext
+
     val clock: Clock = Clock.systemDefaultZone()
     val localDaySource: LocalDaySource = SystemLocalDaySource(clock)
 
@@ -91,8 +102,10 @@ class AppContainer(context: android.content.Context) {
     val trainingRepository: TrainingRepository = TrainingRepository(database, clock)
     val analyticsRepository: AnalyticsRepository = AnalyticsRepository(database, clock)
     val contestFocusRepository: ContestFocusRepository = ContestFocusRepository(database, clock)
-    val knowledgeRepository: KnowledgeRepository = KnowledgeRepository(database)
+    val knowledgeRepository: KnowledgeRepository = KnowledgeRepository(database, localDaySource)
     val backupRepository: BackupRepository = BackupRepository(database, context)
+    val databaseMaintenanceRepository: DatabaseMaintenanceRepository =
+        DatabaseMaintenanceRepository(database, context.getDatabasePath(OjNexusDatabase.DATABASE_NAME))
     val userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepository(context)
     val workspaceDraftRepository = RoomWorkspaceDraftRepository(database.workspaceDraftDao(), clock)
     // --- Codeforces adapter stack (single request gate for the whole process) ---
@@ -130,7 +143,16 @@ class AppContainer(context: android.content.Context) {
         delayProvider = CoroutineDelayProvider(),
     )
     private val atCoderClient = AtCoderProblemsClient(atCoderApi, atCoderGate)
-    private val atCoderAdapter = RetrofitAtCoderAdapter(atCoderClient)
+
+    // Official atcoder.jp site JSON (public rating history) shares the kenkoooo gate.
+    private val atCoderHistoryApi: AtCoderHistoryApi = Retrofit.Builder()
+        .baseUrl(AtCoderUrls.SITE_BASE_URL)
+        .client(okHttpClient)
+        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .build()
+        .create(AtCoderHistoryApi::class.java)
+    private val atCoderHistoryClient = AtCoderProblemsClient(atCoderHistoryApi, atCoderGate)
+    private val atCoderAdapter = RetrofitAtCoderAdapter(atCoderClient, atCoderHistoryClient)
 
     // --- Luogu public account binding (no password, cookies, or session state) ---
 
@@ -156,6 +178,7 @@ class AppContainer(context: android.content.Context) {
         clock = clock,
     )
     val luoguContestDetailRepository = LuoguContestDetailRepository(luoguClient)
+    val luoguTrainingRepository = LuoguTrainingRepository(luoguClient)
     private val luoguAdapter = RetrofitLuoguAdapter(luoguClient)
 
     // --- Luogu Open Platform (separate from the public main-site client) ---
@@ -190,7 +213,7 @@ class AppContainer(context: android.content.Context) {
     )
 
     val judgeAccountRepository: JudgeAccountRepository =
-        JudgeAccountRepository(database, judgeRegistry, clock)
+        JudgeAccountRepository(database, judgeRegistry, clock, ::currentDataGeneration)
 
     val codeforcesSyncRepository: CodeforcesSyncRepository =
         CodeforcesSyncRepository(database, codeforcesAdapter, clock)
@@ -239,10 +262,20 @@ class OjNexusApplication : Application() {
     lateinit var container: AppContainer
         private set
 
+    /**
+     * Cold-start tracing (Phase 105). Spans begin at container construction and close when the
+     * first Dashboard frame composes; the chain is logged once under OJNEXUS-STARTUP.
+     */
+    val startupTracer = com.ojnexus.core.startup.StartupTracer()
+
     override fun onCreate() {
         super.onCreate()
+        startupTracer.begin("app-create")
         container = AppContainer(this)
         com.ojnexus.core.ui.GlobalContext.init(this)
+        installCrashLogIfOptedIn()
+        startupTracer.end("app-create")
+        startupTracer.begin("bootstrap-launch")
         applicationScope.launch {
             JudgeSyncBootstrap(
                 activeAccount = container.judgeAccountRepository::findActive,
@@ -258,6 +291,30 @@ class OjNexusApplication : Application() {
                 scheduler = container.luoguResultWorkScheduler,
                 currentDataGeneration = container::currentDataGeneration,
             ).reconcilePending()
+            // Re-align the opt-in local backup schedule with the stored cadence. UPDATE
+            // policy makes this idempotent across every cold start (survives reboots).
+            val preferences = container.userPreferencesRepository.preferences.first()
+            ScheduledBackupScheduler.update(this@OjNexusApplication, preferences.backupCadence)
+        }
+        startupTracer.end("bootstrap-launch")
+    }
+
+    /**
+     * Installs the local-only crash capture when the user opted in. Runs synchronously before
+     * any bootstrap work so a crash during bootstrap is still captured. Read blocks the main
+     * thread once — DataStore's first read is a small file; acceptable at cold start.
+     */
+    private fun installCrashLogIfOptedIn() {
+        val enabled = kotlinx.coroutines.runBlocking {
+            runCatching {
+                container.userPreferencesRepository.preferences.first().crashLogEnabled
+            }.getOrDefault(false)
+        }
+        if (!enabled) return
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            com.ojnexus.core.crash.CrashLog.write(filesDir, thread, throwable, System.currentTimeMillis())
+            previous?.uncaughtException(thread, throwable)
         }
     }
 }

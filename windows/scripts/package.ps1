@@ -39,8 +39,9 @@ $cliProject = Join-Path $repoRoot 'windows\src\OjNexus.Windows.Cli\OjNexus.Windo
 $desktopProject = Join-Path $repoRoot 'windows\src\OjNexus.Windows.Desktop\OjNexus.Windows.Desktop.csproj'
 $cliPath = Join-Path $stagingRoot 'cli\ojnexus.exe'
 $desktopPath = Join-Path $stagingRoot 'desktop\OjNexus.Windows.Desktop.exe'
+$signScript = Join-Path $repoRoot 'windows\scripts\sign-binaries.ps1'
 
-foreach ($requiredPath in @($templatePath, $verifierPath, $smokePath, $cliProject, $desktopProject)) {
+foreach ($requiredPath in @($templatePath, $verifierPath, $smokePath, $cliProject, $desktopProject, $signScript)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required packaging input is missing: $requiredPath"
     }
@@ -162,6 +163,19 @@ try {
         '-p:DebugType=None')
     Invoke-CheckedNative -FilePath 'dotnet' -ArgumentList ($publishArguments + @('--output', (Join-Path $stagingRoot 'cli'), $cliProject)) -Description 'CLI publish'
     Invoke-CheckedNative -FilePath 'dotnet' -ArgumentList ($publishArguments + @('--output', (Join-Path $stagingRoot 'desktop'), $desktopProject)) -Description 'Desktop publish'
+
+    # Optional signing of the two executables, before SHA256SUMS is written so the manifest
+    # reflects signed bytes. Strictly opt-in: with no cert environment configured the build
+    # reports SKIPPED and the unsigned artifacts are still produced.
+    $signtoolConfigured = -not [string]::IsNullOrWhiteSpace($env:OJ_NEXUS_SIGNTOOL_PATH) -and
+        -not [string]::IsNullOrWhiteSpace($env:OJ_NEXUS_SIGNING_CERT_THUMBPRINT)
+    if ($signtoolConfigured) {
+        Invoke-CheckedPowerShell -ScriptPath $signScript -ParameterMap @{
+            FilePaths = @($cliPath, $desktopPath) } -Description 'Executable signing'
+    }
+    else {
+        Write-Host 'SIGNING: SKIPPED (no cert configured; producing unsigned build)'
+    }
 
     $readme = (Get-Content -LiteralPath $templatePath -Raw).Replace('@VERSION@', $Version)
     Set-Content -LiteralPath (Join-Path $stagingRoot 'README.txt') -Value $readme -Encoding utf8NoBOM -NoNewline

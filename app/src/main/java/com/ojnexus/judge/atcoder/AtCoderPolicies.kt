@@ -7,5 +7,6 @@ object AtCoderSyncPolicy {
     const val SUBMISSIONS_FRESH_MS = 15 * 60 * 1000L
     const val CONTESTS_FRESH_MS = 3 * 60 * 60 * 1000L
     const val PROBLEMS_FRESH_MS = 24 * 60 * 60 * 1000L
+    const val RATING_FRESH_MS = 6 * 60 * 60 * 1000L
     const val PERIODIC_SYNC_MINUTES = 6 * 60L
 }

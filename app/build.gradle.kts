@@ -15,8 +15,8 @@ android {
         applicationId = "com.ojnexus"
         minSdk = 26
         targetSdk = 37
-        versionCode = 75
-        versionName = "0.3.75"
+        versionCode = 105
+        versionName = "1.0.3"
 
         // Room schema history is exported and committed to verify future migrations.
         ksp {
@@ -26,12 +26,36 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Phase 117: sync POC compiles ONLY into debug builds. Release stays flagless.
+            buildConfigField("boolean", "SYNC_POC", "true")
+        }
         release {
+            buildConfigField("boolean", "SYNC_POC", "false")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Signing is applied only when all four secret-style env vars are present (CI or a
+            // maintainer machine). Anything missing keeps the standard unsigned release APK.
+            // Keystore material never enters the repository.
+            val keystorePath = System.getenv("OJ_NEXUS_KEYSTORE_PATH")
+            val keystorePassword = System.getenv("OJ_NEXUS_KEYSTORE_PASSWORD")
+            val keyAlias = System.getenv("OJ_NEXUS_KEY_ALIAS")
+            val keyPassword = System.getenv("OJ_NEXUS_KEY_PASSWORD")
+            if (!keystorePath.isNullOrBlank() &&
+                !keystorePassword.isNullOrBlank() &&
+                !keyAlias.isNullOrBlank() &&
+                !keyPassword.isNullOrBlank()
+            ) {
+                signingConfig = signingConfigs.create("releaseEnv") {
+                    storeFile = file(keystorePath)
+                    storePassword = keystorePassword
+                    this.keyAlias = keyAlias
+                    this.keyPassword = keyPassword
+                }
+            }
         }
     }
 
@@ -79,6 +103,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.leakcanary.android)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

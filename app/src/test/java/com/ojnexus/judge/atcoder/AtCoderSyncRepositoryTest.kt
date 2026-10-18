@@ -14,6 +14,7 @@ import com.ojnexus.core.model.Verdict
 import com.ojnexus.judge.atcoder.api.dto.AtCoderContestDto
 import com.ojnexus.judge.atcoder.api.dto.AtCoderMergedProblemDto
 import com.ojnexus.judge.atcoder.api.dto.AtCoderProblemModelDto
+import com.ojnexus.judge.atcoder.api.dto.AtCoderRatingChangeDto
 import com.ojnexus.judge.atcoder.api.dto.AtCoderSubmissionDto
 import com.ojnexus.judge.AdapterStatus
 import com.ojnexus.judge.DataSourceReliability
@@ -23,6 +24,7 @@ import com.ojnexus.judge.JudgeRegistry
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -42,7 +44,9 @@ private class FakeAtCoderAdapter : AtCoderAdapter {
     var contests = emptyList<AtCoderContestDto>()
     var problems = emptyList<AtCoderMergedProblemDto>()
     var models = emptyMap<String, AtCoderProblemModelDto>()
+    var ratingHistory = emptyList<AtCoderRatingChangeDto>()
     var failProblems = false
+    var failRating = false
 
     override suspend fun fetchSubmissions(handle: String, fromSecond: Long): List<AtCoderSubmissionDto> {
         requestedFrom += fromSecond
@@ -55,6 +59,10 @@ private class FakeAtCoderAdapter : AtCoderAdapter {
         return problems
     }
     override suspend fun fetchProblemModels() = models
+    override suspend fun fetchRatingHistory(handle: String): List<AtCoderRatingChangeDto> {
+        if (failRating) throw AtCoderApiError.ServerError(500)
+        return ratingHistory
+    }
 }
 
 @RunWith(RobolectricTestRunner::class)
@@ -240,7 +248,84 @@ class AtCoderSyncRepositoryTest {
         )
 
         assertEquals(report?.outcomes, recorded)
-        assertEquals(3, recorded.size)
+        assertEquals(4, recorded.size)
+    }
+
+    private fun ratingChange(
+        contestScreenName: String,
+        newRating: Int,
+        isRated: Boolean = true,
+    ) = AtCoderRatingChangeDto(
+        isRated = isRated,
+        place = 1,
+        oldRating = if (isRated) 0 else null,
+        newRating = newRating,
+        performance = 3_000,
+        innerPerformance = 3_000,
+        contestScreenName = contestScreenName,
+        contestName = contestScreenName.substringBefore("."),
+        contestNameEn = "",
+        endTime = "2016-09-04T22:50:00+09:00",
+    )
+
+    @Test
+    fun `rating sync upserts only rated rows and stays idempotent`() = runBlocking {
+        adapter.ratingHistory = listOf(
+            ratingChange("agc004.contest.atcoder.jp", 2720),
+            ratingChange("ahc001.contest.atcoder.jp", 0, isRated = false),
+        )
+
+        val outcome = repository.syncRating(activeAccount(), force = true)
+
+        assertTrue(outcome.ok)
+        assertEquals(1, outcome.itemsProcessed)
+        val rows = database.ratingChangeDao().observeByJudge(JudgeId.ATCODER.id).first()
+        assertEquals(1, rows.size)
+        assertEquals("agc004", rows.single().contestId)
+        assertEquals(2720, rows.single().newRating)
+        assertEquals(1_472_997_000L, rows.single().ratingUpdateTimeSeconds)
+    }
+
+    @Test
+    fun `rating sync second run is an upsert without duplication`() = runBlocking {
+        adapter.ratingHistory = listOf(
+            ratingChange("agc004.contest.atcoder.jp", 2720),
+        )
+        repository.syncRating(activeAccount(), force = true)
+        adapter.ratingHistory = listOf(
+            ratingChange("agc004.contest.atcoder.jp", 2851),
+            ratingChange("arc061.contest.atcoder.jp", 3000),
+        )
+
+        val outcome = repository.syncRating(activeAccount(), force = true)
+
+        assertTrue(outcome.ok)
+        val rows = database.ratingChangeDao().observeByJudge(JudgeId.ATCODER.id).first()
+        assertEquals(2, rows.size)
+        assertEquals(2851, rows.first { it.contestId == "agc004" }.newRating)
+    }
+
+    @Test
+    fun `empty rating history is a successful no-op for unverified handles`() = runBlocking {
+        val outcome = repository.syncRating(activeAccount(), force = true)
+
+        assertTrue(outcome.ok)
+        assertEquals(0, outcome.itemsProcessed)
+    }
+
+    @Test
+    fun `failed rating refresh retains previous cache`() = runBlocking {
+        adapter.ratingHistory = listOf(ratingChange("agc004.contest.atcoder.jp", 2720))
+        repository.syncRating(activeAccount(), force = true)
+        adapter.failRating = true
+
+        val outcome = repository.syncRating(activeAccount(), force = true)
+
+        assertFalse(outcome.ok)
+        assertEquals(
+            1,
+            database.ratingChangeDao().observeByJudge(JudgeId.ATCODER.id).first().size,
+        )
     }
 
     private suspend fun activeAccount(): JudgeAccountEntity =

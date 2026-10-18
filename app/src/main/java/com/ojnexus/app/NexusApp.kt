@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +67,10 @@ object NexusRoutes {
     const val SUBMISSIONS = "submissions"
     const val WORKSPACE = "workspace/{pid}?title={title}&sampleInput={sampleInput}&sampleOutput={sampleOutput}"
     const val LUOGU_PROBLEM_DETAIL = "luogu-problem/{pid}"
+    const val LUOGU_TRAININGS = "luogu-trainings"
+    const val LUOGU_TRAINING_DETAIL = "luogu-training/{id}"
+
+    fun luoguTraining(id: Long): String = "luogu-training/$id"
 
     fun problem(problemId: Long): String = "problem/$problemId"
 
@@ -136,6 +141,8 @@ fun NexusApp(modifier: Modifier = Modifier) {
     val currentRoute = backStackEntry?.destination?.route
     var commandPaletteOpen by rememberSaveable { mutableStateOf(false) }
     var pendingProblemSearch by remember { mutableStateOf<PaletteQuery.SearchProblems?>(null) }
+    var pendingUnsolvedRange by remember { mutableStateOf<PaletteQuery.UnsolvedRange?>(null) }
+    var pendingSprintTarget by remember { mutableStateOf<Int?>(null) }
     var pendingTrainingProblemIds by rememberSaveable { mutableStateOf<List<Long>?>(null) }
     var pendingSubmissionRequestId by rememberSaveable { mutableStateOf<String?>(null) }
     val reduceMotion = NexusTheme.reduceMotion
@@ -175,6 +182,24 @@ fun NexusApp(modifier: Modifier = Modifier) {
                     popExitTransition = { exitTransition },
                 ) {
                     composable(NexusDestination.DASHBOARD.route) {
+                        val context = LocalContext.current
+                        // First interactive frame closes the cold-start trace (Phase 105).
+                        LaunchedEffect(Unit) {
+                            val app = context.applicationContext as? OjNexusApplication
+                            app?.startupTracer?.let { tracer ->
+                                tracer.end("first-frame")
+                                val total = tracer.totalMs()
+                                android.util.Log.i(
+                                    "OJNEXUS-STARTUP",
+                                    "cold-start total=${total ?: -1}ms " +
+                                        "budget=${com.ojnexus.core.startup.StartupBudget.COLD_START_BUDGET_MS}ms " +
+                                        "verdict=${com.ojnexus.core.startup.StartupBudget.verdict(total)} " +
+                                        tracer.spans.joinToString(separator = " ") { span ->
+                                            "${span.name}=${span.durationMs() ?: -1}ms"
+                                        },
+                                )
+                            }
+                        }
                         DashboardScreen(
                             onOpenContests = { navController.navigate(NexusRoutes.CONTESTS) },
                             onOpenSettings = { navController.navigate(NexusRoutes.SETTINGS) },
@@ -214,9 +239,16 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             onOpenLuoguDetail = { pid ->
                                 navController.navigate("luogu-problem/${android.net.Uri.encode(pid)}")
                             },
+                            onOpenLuoguTrainings = {
+                                navController.navigate(NexusRoutes.LUOGU_TRAININGS)
+                            },
                             initialQuery = pendingProblemSearch?.query,
                             initialJudge = pendingProblemSearch?.judge,
-                            onInitialSearchConsumed = { pendingProblemSearch = null },
+                            initialUnsolvedRange = pendingUnsolvedRange,
+                            onInitialSearchConsumed = {
+                                pendingProblemSearch = null
+                                pendingUnsolvedRange = null
+                            },
                         )
                     }
                     composable(NexusDestination.TRAINING.route) {
@@ -229,6 +261,8 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             },
                             onOpenReview = { id -> navController.navigate("review/$id") },
                             onOpenReviewRun = { navController.navigate(NexusRoutes.REVIEW_RUN) },
+                            initialSprintTarget = pendingSprintTarget,
+                            onSprintTargetConsumed = { pendingSprintTarget = null },
                             initialProblemIds = pendingTrainingProblemIds.orEmpty(),
                             onInitialProblemIdsConsumed = { pendingTrainingProblemIds = null },
                         )
@@ -338,6 +372,29 @@ fun NexusApp(modifier: Modifier = Modifier) {
                             },
                         )
                     }
+                    composable(route = NexusRoutes.LUOGU_TRAININGS) {
+                        com.ojnexus.feature.luogu.LuoguTrainingCatalogScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenTraining = { id ->
+                                navController.navigate(NexusRoutes.luoguTraining(id))
+                            },
+                        )
+                    }
+                    composable(
+                        route = NexusRoutes.LUOGU_TRAINING_DETAIL,
+                        arguments = listOf(navArgument("id") { type = NavType.LongType }),
+                    ) { entry ->
+                        val trainingId = entry.arguments?.getLong("id") ?: return@composable
+                        com.ojnexus.feature.luogu.LuoguTrainingDetailScreen(
+                            trainingId = trainingId,
+                            onBack = { navController.popBackStack() },
+                            onOpenLuoguProblem = { pid ->
+                                navController.navigate(
+                                    "luogu-problem/${android.net.Uri.encode(pid)}",
+                                )
+                            },
+                        )
+                    }
 
                     composable(
                         route = NexusRoutes.PROBLEM_DETAIL,
@@ -433,6 +490,20 @@ fun NexusApp(modifier: Modifier = Modifier) {
                 },
                 onSearchProblems = { search ->
                     pendingProblemSearch = search
+                    commandPaletteOpen = false
+                    navController.navigateToTopLevel(NexusDestination.PROBLEMS.route)
+                },
+                onReviewDue = {
+                    commandPaletteOpen = false
+                    navController.navigate(NexusRoutes.REVIEW_RUN)
+                },
+                onSprintPlan = { sprint ->
+                    pendingSprintTarget = sprint.target
+                    commandPaletteOpen = false
+                    navController.navigateToTopLevel(NexusDestination.TRAINING.route)
+                },
+                onUnsolvedRange = { range ->
+                    pendingUnsolvedRange = range
                     commandPaletteOpen = false
                     navController.navigateToTopLevel(NexusDestination.PROBLEMS.route)
                 },

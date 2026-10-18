@@ -37,14 +37,19 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ojnexus.R
+import com.ojnexus.core.data.backup.BackupCadence
+import com.ojnexus.core.data.repository.DatabaseMaintenanceRepository
+import com.ojnexus.core.data.repository.DatabaseMaintenanceStats
 import com.ojnexus.core.data.sync.SyncPhase
 import com.ojnexus.core.data.preferences.AppLanguage
+import com.ojnexus.core.data.preferences.UserPreferences
 import com.ojnexus.core.designsystem.NexusRadius
 import com.ojnexus.core.designsystem.NexusSize
 import com.ojnexus.core.designsystem.NexusSpacing
@@ -76,6 +81,7 @@ fun SettingsScreen(
                     it.judgeRegistry,
                     it.backupRepository,
                     it.userPreferencesRepository,
+                    it.databaseMaintenanceRepository,
                     it.luoguOpenCredentialStore,
                     it.luoguOpenClient,
                     it.luoguOpenClient,
@@ -91,26 +97,47 @@ fun SettingsScreen(
     val backupResult by viewModel.backup.collectAsStateWithLifecycle()
     val restoreStatus by viewModel.restore.collectAsStateWithLifecycle()
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
+    val backupStatusDismissed by viewModel.backupStatusDismissedFlow.collectAsStateWithLifecycle()
     val openAppState by viewModel.openApp.collectAsStateWithLifecycle()
     val syncAllInFlight by viewModel.syncAllInFlight.collectAsStateWithLifecycle()
     val retryingOperationId by viewModel.retryingOperationId.collectAsStateWithLifecycle()
+    val wiping by viewModel.wiping.collectAsStateWithLifecycle()
+    val wipeFailed by viewModel.wipeFailed.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     val backupLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/octet-stream"),
+        ActivityResultContracts.CreateDocument("application/zip"),
     ) { destination ->
         if (destination != null) {
             viewModel.exportBackup(context.contentResolver, destination)
         }
     }
+    var importSource by rememberSaveable { mutableStateOf<String?>(null) }
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { source ->
         if (source != null) {
-            viewModel.importBackup(context.contentResolver, source)
+            importSource = source.toString()
+            viewModel.inspectImport(context.contentResolver, source)
+        }
+    }
+    val pendingImport by viewModel.pendingImportFlow.collectAsStateWithLifecycle()
+    val maintenanceStats by viewModel.maintenanceStatsFlow.collectAsStateWithLifecycle()
+    val vacuumRunning by viewModel.vacuumRunningFlow.collectAsStateWithLifecycle()
+    val crashFiles by viewModel.crashFilesFlow.collectAsStateWithLifecycle()
+    val crashPreview by viewModel.crashPreviewFlow.collectAsStateWithLifecycle()
+    val vacuumElapsed by viewModel.vacuumElapsedFlow.collectAsStateWithLifecycle()
+    val vacuumCancelRaced by viewModel.vacuumCancelRacedFlow.collectAsStateWithLifecycle()
+    val backupFolderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { tree ->
+        if (tree != null) {
+            viewModel.chooseBackupFolder(context, tree)
         }
     }
     var disconnectAccountId by rememberSaveable { mutableStateOf<Long?>(null) }
     var purgeCache by rememberSaveable { mutableStateOf(false) }
+    var wipeJudgeId by rememberSaveable { mutableStateOf<String?>(null) }
+    var wipeConfirmText by rememberSaveable { mutableStateOf("") }
     val appLanguage = AppLanguage.fromLocaleTags(AppCompatDelegate.getApplicationLocales().toLanguageTags())
     val settingsScrollState = rememberScrollState()
     var settingsViewportTop by remember { mutableStateOf<Int?>(null) }
@@ -156,7 +183,7 @@ fun SettingsScreen(
                     text = stringResource(R.string.action_back),
                     style = NexusTheme.typography.sectionLabel,
                     color = NexusTheme.colors.accent,
-                    modifier = Modifier.clickable(onClick = onBack),
+                    modifier = Modifier.clickable(role = Role.Button, onClick = onBack),
                 )
             },
         )
@@ -177,6 +204,13 @@ fun SettingsScreen(
                 capabilitiesByJudge = state.connections.associate { it.judge to it.capabilities },
                 retryingOperationId = retryingOperationId,
                 onRetry = viewModel::retrySync,
+                healthByJudge = state.connections.associate { connection ->
+                    connection.judge to deriveJudgeHealth(connection.syncOperations)
+                },
+                luoguQuotaPoints = openAppState.quota?.totalAvailablePoints,
+                luoguQuotaChecking = openAppState.checkingQuota,
+                luoguQuotaError = openAppState.quotaError != null,
+                onProbeQuota = viewModel::checkOpenAppQuota,
             )
             Spacer(Modifier.height(NexusSpacing.xl))
             NexusSection(label = stringResource(R.string.settings_section_judges)) {
@@ -193,10 +227,13 @@ fun SettingsScreen(
                              connection = connection,
                              error = errors[connection.judge],
                              connecting = connection.judge in connecting,
+                             wiping = connection.judge in wiping,
+                             wipeFailed = wipeFailed[connection.judge] == true,
                              onConnect = { handle -> viewModel.connect(connection.judge, handle) },
                              onSync = { connection.account?.let(viewModel::syncNow) },
                              onSetEnabled = { enabled -> connection.account?.let { viewModel.setEnabled(it, enabled) } },
                              onDisconnect = { disconnectAccountId = connection.account?.id },
+                             onWipe = { wipeJudgeId = connection.judge.id },
                          )
                      }
                 }
@@ -229,7 +266,7 @@ fun SettingsScreen(
                 Spacer(Modifier.height(NexusSpacing.sm))
                 SettingsAction(
                     label = stringResource(R.string.settings_export_backup),
-                    onClick = { backupLauncher.launch("oj-nexus-backup.db") },
+                    onClick = { backupLauncher.launch("oj-nexus-snapshot.zip") },
                 )
                 Spacer(Modifier.height(NexusSpacing.xs))
                 SettingsAction(
@@ -237,6 +274,7 @@ fun SettingsScreen(
                     onClick = {
                         importLauncher.launch(
                             arrayOf(
+                                "application/zip",
                                 "application/octet-stream",
                                 "application/vnd.sqlite3",
                                 "application/x-sqlite3",
@@ -259,6 +297,38 @@ fun SettingsScreen(
                         color = if (result.success) NexusTheme.colors.success else NexusTheme.colors.danger,
                     )
                 }
+                Spacer(Modifier.height(NexusSpacing.sm))
+                ScheduledBackupSection(
+                    preferences = preferences,
+                    statusDismissed = backupStatusDismissed,
+                    onPickFolder = { backupFolderLauncher.launch(null) },
+                    onClearFolder = { viewModel.clearBackupFolder(context) },
+                    onCadence = { cadence -> viewModel.setBackupCadence(context, cadence) },
+                    onKeepCount = viewModel::setBackupKeepCount,
+                    onDismissStatus = viewModel::dismissBackupStatus,
+                )
+                Spacer(Modifier.height(NexusSpacing.sm))
+                DatabaseMaintenanceSection(
+                    stats = maintenanceStats,
+                    vacuumRunning = vacuumRunning,
+                    vacuumElapsed = vacuumElapsed,
+                    cancelRaced = vacuumCancelRaced,
+                    onVacuum = viewModel::startVacuum,
+                    onCancel = viewModel::requestVacuumCancel,
+                    onDismissRaced = viewModel::dismissVacuumCancelRaced,
+                    onRefresh = viewModel::refreshMaintenanceStats,
+                )
+                Spacer(Modifier.height(NexusSpacing.sm))
+                CrashLogSection(
+                    enabled = preferences.crashLogEnabled,
+                    files = crashFiles,
+                    preview = crashPreview,
+                    onToggle = viewModel::setCrashLogEnabled,
+                    onRefresh = viewModel::refreshCrashFiles,
+                    onView = viewModel::openCrashPreview,
+                    onDismissPreview = viewModel::dismissCrashPreview,
+                    onClear = viewModel::clearCrashFiles,
+                )
             }
             Spacer(Modifier.height(NexusSpacing.xl))
             NexusSection(label = stringResource(R.string.settings_section_interaction)) {
@@ -464,6 +534,119 @@ fun SettingsScreen(
             },
         )
     }
+
+    val wipeConnection = state.connections
+        .firstOrNull { it.judge.id == wipeJudgeId }
+    val wipeAccount = wipeConnection?.account
+    if (wipeAccount != null && wipeConnection != null) {
+        val judgeDisplayName = wipeConnection.judge.displayName
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {
+                wipeJudgeId = null
+                wipeConfirmText = ""
+            },
+            containerColor = NexusTheme.colors.surface,
+            titleContentColor = NexusTheme.colors.textPrimary,
+            textContentColor = NexusTheme.colors.textSecondary,
+            title = {
+                Text(
+                    stringResource(R.string.settings_wipe_title, judgeDisplayName),
+                    style = NexusTheme.typography.title,
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.settings_wipe_body, judgeDisplayName),
+                        style = NexusTheme.typography.label,
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = wipeConfirmText,
+                        onValueChange = { wipeConfirmText = it },
+                        singleLine = true,
+                        textStyle = NexusTheme.typography.data,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = NexusSpacing.xs),
+                    )
+                }
+            },
+            confirmButton = {
+                DialogText(
+                    stringResource(R.string.settings_wipe_confirm_action),
+                    NexusTheme.colors.danger,
+                    enabled = wipeConfirmText.trim().uppercase() == judgeDisplayName.uppercase(),
+                ) {
+                    viewModel.wipeJudgeData(wipeAccount)
+                    wipeJudgeId = null
+                    wipeConfirmText = ""
+                }
+            },
+            dismissButton = {
+                DialogText(stringResource(R.string.action_cancel), NexusTheme.colors.textSecondary) {
+                    wipeJudgeId = null
+                    wipeConfirmText = ""
+                }
+            },
+        )
+    }
+    val pendingImportReport = pendingImport
+    if (pendingImportReport != null && importSource != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = viewModel::cancelImport,
+            containerColor = NexusTheme.colors.surface,
+            titleContentColor = NexusTheme.colors.textPrimary,
+            textContentColor = NexusTheme.colors.textSecondary,
+            title = {
+                Text(
+                    stringResource(R.string.settings_import_conflict_title),
+                    style = NexusTheme.typography.title,
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.settings_import_conflict_body),
+                        style = NexusTheme.typography.label,
+                    )
+                    Spacer(Modifier.height(NexusSpacing.xs))
+                    Text(
+                        stringResource(R.string.settings_import_conflict_table_header),
+                        style = NexusTheme.typography.dataSmall,
+                        color = NexusTheme.colors.textTertiary,
+                    )
+                    pendingImportReport.rows.forEach { row ->
+                        Text(
+                            text = row.table.uppercase() +
+                                "  " + row.incoming + " → " + row.current,
+                            style = NexusTheme.typography.dataSmall,
+                            color = if (row.incoming != row.current) {
+                                NexusTheme.colors.accent
+                            } else {
+                                NexusTheme.colors.textSecondary
+                            },
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                DialogText(
+                    stringResource(R.string.settings_import_conflict_confirm),
+                    NexusTheme.colors.accent,
+                ) {
+                    val source = importSource
+                    if (source != null) {
+                        viewModel.confirmImport(context.contentResolver, Uri.parse(source))
+                    }
+                }
+            },
+            dismissButton = {
+                DialogText(stringResource(R.string.settings_import_conflict_cancel), NexusTheme.colors.textSecondary) {
+                    viewModel.cancelImport()
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -580,10 +763,13 @@ private fun JudgeConnectionPanel(
     connection: JudgeConnectionUi,
     error: SettingsViewModel.ConnectError?,
     connecting: Boolean,
+    wiping: Boolean,
+    wipeFailed: Boolean,
     onConnect: (String) -> Unit,
     onSync: () -> Unit,
     onSetEnabled: (Boolean) -> Unit,
     onDisconnect: () -> Unit,
+    onWipe: () -> Unit,
 ) {
     val account = connection.account
     val sync = connection.syncState
@@ -744,6 +930,25 @@ private fun JudgeConnectionPanel(
                     onClick = { onSetEnabled(!account.enabled) },
                 )
                 SettingsAction(stringResource(R.string.settings_disconnect), danger = true, onClick = onDisconnect)
+            }
+            if (wipeFailed) {
+                Spacer(Modifier.height(NexusSpacing.xs))
+                Text(
+                    text = stringResource(R.string.settings_wipe_failed),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.danger,
+                )
+            }
+            if (account != null) {
+                Spacer(Modifier.height(NexusSpacing.xs))
+                SettingsAction(
+                    label = stringResource(
+                        if (wiping) R.string.settings_wiping else R.string.settings_wipe_data,
+                    ),
+                    enabled = !wiping,
+                    danger = true,
+                    onClick = onWipe,
+                )
             }
         }
     }
@@ -940,11 +1145,292 @@ private fun LanguageAction(
 }
 
 @Composable
-private fun DialogText(label: String, color: androidx.compose.ui.graphics.Color, onClick: () -> Unit) {
+private fun DialogText(
+    label: String,
+    color: androidx.compose.ui.graphics.Color,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
     Text(
         label,
         style = NexusTheme.typography.data,
-        color = color,
-        modifier = Modifier.clickable(role = Role.Button, onClick = onClick).padding(NexusSpacing.xs),
+        color = if (enabled) color else NexusTheme.colors.textTertiary,
+        modifier = Modifier
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(NexusSpacing.xs),
     )
+}
+
+@Composable
+private fun ScheduledBackupSection(
+    preferences: UserPreferences,
+    statusDismissed: Boolean,
+    onPickFolder: () -> Unit,
+    onClearFolder: () -> Unit,
+    onCadence: (BackupCadence) -> Unit,
+    onKeepCount: (Int) -> Unit,
+    onDismissStatus: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    Text(
+        text = stringResource(R.string.settings_auto_backup_title),
+        style = NexusTheme.typography.data,
+        color = colors.textPrimary,
+    )
+    Spacer(Modifier.height(NexusSpacing.xs))
+    Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs)) {
+        BackupCadence.entries.forEach { cadence ->
+            BackupCadenceChip(
+                cadence = cadence,
+                selected = preferences.backupCadence == cadence,
+                onClick = { onCadence(cadence) },
+            )
+        }
+    }
+    Spacer(Modifier.height(NexusSpacing.xs))
+    Text(
+        text = stringResource(
+            if (preferences.backupTreeUri.isBlank()) {
+                R.string.settings_auto_backup_no_folder
+            } else {
+                R.string.settings_auto_backup_folder_set
+            },
+        ),
+        style = NexusTheme.typography.dataSmall,
+        color = colors.textTertiary,
+    )
+    Spacer(Modifier.height(NexusSpacing.xs))
+    Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs)) {
+        SettingsAction(
+            label = stringResource(R.string.settings_auto_backup_pick_folder),
+            onClick = onPickFolder,
+        )
+        if (preferences.backupTreeUri.isNotBlank()) {
+            SettingsAction(
+                label = stringResource(R.string.settings_auto_backup_clear_folder),
+                onClick = onClearFolder,
+            )
+        }
+    }
+    if (preferences.backupCadence != BackupCadence.OFF) {
+        Spacer(Modifier.height(NexusSpacing.xs))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.settings_auto_backup_keep_count, preferences.backupKeepCount),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textSecondary,
+                modifier = Modifier.weight(1f),
+            )
+            DialogText(label = "−", color = colors.textPrimary) { onKeepCount(preferences.backupKeepCount - 1) }
+            DialogText(label = "+", color = colors.textPrimary) { onKeepCount(preferences.backupKeepCount + 1) }
+        }
+    }
+    if (!statusDismissed && preferences.backupLastStatus.isNotBlank()) {
+        val success = preferences.backupLastStatus.startsWith("success")
+        val stamp = preferences.backupLastStatus.substringAfter(':').toLongOrNull()
+        Spacer(Modifier.height(NexusSpacing.xs))
+        Text(
+            text = stringResource(
+                if (success) R.string.settings_auto_backup_last_success else R.string.settings_auto_backup_last_failed,
+                stamp ?: 0L,
+            ),
+            style = NexusTheme.typography.dataSmall,
+            color = if (success) colors.success else colors.danger,
+            modifier = Modifier.clickable(role = Role.Button, onClick = onDismissStatus),
+        )
+    }
+}
+
+@Composable
+private fun BackupCadenceChip(
+    cadence: BackupCadence,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    Box(
+        Modifier
+            .background(if (selected) colors.accentContainer else colors.surface, NexusRadius.sm)
+            .border(NexusSize.dividerThickness, if (selected) colors.accent else colors.border, NexusRadius.sm)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = NexusSpacing.xxs, vertical = NexusSpacing.xs),
+    ) {
+        Text(
+            text = stringResource(
+                when (cadence) {
+                    BackupCadence.OFF -> R.string.settings_auto_backup_off
+                    BackupCadence.DAILY -> R.string.settings_auto_backup_daily
+                    BackupCadence.WEEKLY -> R.string.settings_auto_backup_weekly
+                },
+            ),
+            style = NexusTheme.typography.dataSmall,
+            color = if (selected) colors.accent else colors.textSecondary,
+        )
+    }
+}
+
+@Composable
+private fun DatabaseMaintenanceSection(
+    stats: DatabaseMaintenanceStats?,
+    vacuumRunning: Boolean,
+    vacuumElapsed: Int,
+    cancelRaced: Boolean,
+    onVacuum: () -> Unit,
+    onCancel: () -> Unit,
+    onDismissRaced: () -> Unit,
+    onRefresh: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    Text(
+        text = stringResource(R.string.settings_maintenance_title),
+        style = NexusTheme.typography.data,
+        color = colors.textPrimary,
+    )
+    Spacer(Modifier.height(NexusSpacing.xs))
+    if (stats == null) {
+        Text(
+            text = stringResource(R.string.settings_maintenance_unavailable),
+            style = NexusTheme.typography.dataSmall,
+            color = colors.textTertiary,
+        )
+        return
+    }
+    Text(
+        text = stringResource(
+            R.string.settings_maintenance_size_line,
+            DatabaseMaintenanceRepository.formatBytes(stats.dbBytes),
+            DatabaseMaintenanceRepository.formatBytes(stats.walBytes),
+            DatabaseMaintenanceRepository.formatBytes(stats.freelistCount * stats.pageSize),
+        ),
+        style = NexusTheme.typography.dataSmall,
+        color = colors.textSecondary,
+    )
+    Spacer(Modifier.height(NexusSpacing.xs))
+    stats.rowCounts.forEach { (table, rows) ->
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = table,
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textTertiary,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = rows.toString(),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textSecondary,
+            )
+        }
+    }
+    Spacer(Modifier.height(NexusSpacing.xs))
+    if (vacuumRunning) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.settings_maintenance_vacuum_running, vacuumElapsed),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.accent,
+                modifier = Modifier.weight(1f),
+            )
+            DialogText(
+                label = stringResource(R.string.settings_maintenance_vacuum_cancel),
+                color = colors.danger,
+                onClick = onCancel,
+            )
+        }
+    } else {
+        SettingsAction(
+            label = stringResource(R.string.settings_maintenance_vacuum),
+            onClick = onVacuum,
+        )
+    }
+    Spacer(Modifier.height(NexusSpacing.xs))
+    Text(
+        text = stringResource(R.string.settings_maintenance_refresh),
+        style = NexusTheme.typography.dataSmall,
+        color = colors.textTertiary,
+        modifier = Modifier.clickable(role = Role.Button, onClick = onRefresh),
+    )
+    if (cancelRaced) {
+        Spacer(Modifier.height(NexusSpacing.xs))
+        Text(
+            text = stringResource(R.string.settings_maintenance_vacuum_finished_anyway),
+            style = NexusTheme.typography.dataSmall,
+            color = colors.success,
+            modifier = Modifier.clickable(role = Role.Button, onClick = onDismissRaced),
+        )
+    }
+}
+
+@Composable
+private fun CrashLogSection(
+    enabled: Boolean,
+    files: List<String>,
+    preview: String?,
+    onToggle: (Boolean) -> Unit,
+    onRefresh: () -> Unit,
+    onView: () -> Unit,
+    onDismissPreview: () -> Unit,
+    onClear: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    SettingsToggle(
+        label = stringResource(R.string.settings_crash_log_title),
+        description = stringResource(R.string.settings_crash_log_desc),
+        checked = enabled,
+        onCheckedChange = {
+            onToggle(it)
+            if (it) onRefresh()
+        },
+    )
+    if (enabled) {
+        Spacer(Modifier.height(NexusSpacing.xs))
+        Text(
+            text = if (files.isEmpty()) {
+                stringResource(R.string.settings_crash_log_empty)
+            } else {
+                stringResource(R.string.settings_crash_log_count, files.size, files.first())
+            },
+            style = NexusTheme.typography.dataSmall,
+            color = colors.textSecondary,
+        )
+        if (files.isNotEmpty()) {
+            Spacer(Modifier.height(NexusSpacing.xs))
+            Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.sm)) {
+                DialogText(
+                    label = stringResource(R.string.settings_crash_log_view),
+                    color = colors.accent,
+                    onClick = onView,
+                )
+                DialogText(
+                    label = stringResource(R.string.settings_crash_log_clear),
+                    color = colors.danger,
+                    onClick = onClear,
+                )
+            }
+        }
+    }
+    if (preview != null) {
+        val display = if (preview.length > 8_192) {
+            preview.take(8_192) + "\n… " + stringResource(R.string.settings_crash_log_truncated)
+        } else {
+            preview
+        }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = onDismissPreview,
+            confirmButton = {
+                DialogText(
+                    label = stringResource(R.string.settings_crash_log_close),
+                    color = NexusTheme.colors.accent,
+                    onClick = onDismissPreview,
+                )
+            },
+            title = { Text(stringResource(R.string.settings_crash_log_preview_title)) },
+            text = {
+                Text(
+                    text = display,
+                    style = NexusTheme.typography.dataSmall,
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                )
+            },
+        )
+    }
 }

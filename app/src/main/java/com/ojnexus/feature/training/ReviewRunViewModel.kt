@@ -31,6 +31,13 @@ data class ReviewRunUiState(
     val lastOutcome: ReviewOutcome?,
     val error: String?,
     val isRecording: Boolean,
+    val mode: ReviewDeckMode,
+    val cramFilter: ReviewCramFilter,
+    val deckSeed: Long,
+    /** Judges present in the captured deck, in first-appearance order. */
+    val availableJudges: List<String>,
+    /** Knowledge tags present in the captured deck, alphabetical, de-duplicated. */
+    val availableTags: List<String>,
 ) {
     val total: Int get() = captured.size
     val left: Int get() = (total - completedCount).coerceAtLeast(0)
@@ -45,6 +52,8 @@ private data class ReviewRunInternalState(
     val lastOutcome: ReviewOutcome? = null,
     val error: String? = null,
     val isRecording: Boolean = false,
+    val mode: ReviewDeckMode = ReviewDeckMode.SCHEDULE,
+    val cramFilter: ReviewCramFilter = ReviewCramFilter(),
 )
 
 class ReviewRunViewModel(
@@ -65,6 +74,7 @@ class ReviewRunViewModel(
         SharingStarted.Eagerly,
         clock.instant().atZone(clock.zone).toLocalDate().toEpochDay(),
     )
+    private val deckSeed: Long get() = reviewDeckSeed(todayEpochDay.value)
 
     init {
         viewModelScope.launch {
@@ -75,11 +85,16 @@ class ReviewRunViewModel(
                 .collect { items ->
                     queue.value = items
                     if (internal.value.captured == null) {
-                        val captured = captureReviewRunQueue(items, todayEpochDay.value)
+                        val deck = buildReviewDeck(
+                            items = items,
+                            mode = internal.value.mode,
+                            seed = deckSeed,
+                            filter = internal.value.cramFilter,
+                        )
                         internal.update {
                             it.copy(
-                                captured = captured,
-                                currentId = captured.firstOrNull()?.problemId,
+                                captured = deck.items,
+                                currentId = deck.items.firstOrNull()?.problemId,
                             )
                         }
                     }
@@ -104,10 +119,55 @@ class ReviewRunViewModel(
                 lastOutcome = run.lastOutcome,
                 error = run.error,
                 isRecording = run.isRecording,
+                mode = run.mode,
+                cramFilter = run.cramFilter,
+                deckSeed = deckSeed,
+                availableJudges = availableJudges(captured),
+                availableTags = availableTags(captured),
             ),
         )
     }
         .stateIn(viewModelScope, SharingStarted.Eagerly, Loadable.Loading)
+
+    /**
+     * Switches the deck mode before the run has recorded anything. A run in progress
+     * never reorders under the user, so the toggle is a no-op once the first outcome is
+     * recorded.
+     */
+    fun setDeckMode(mode: ReviewDeckMode) {
+        if (internal.value.captured != null && internal.value.completedIds.isNotEmpty()) return
+        if (internal.value.mode == mode) return
+        internal.update { it.copy(mode = mode) }
+        recapture()
+    }
+
+    /** Switches the cram slice; only usable filters are accepted while CRAM is active. */
+    fun setCramFilter(filter: ReviewCramFilter) {
+        if (internal.value.captured != null && internal.value.completedIds.isNotEmpty()) return
+        if (internal.value.cramFilter == filter) return
+        if (internal.value.mode == ReviewDeckMode.CRAM && !filter.isUsable) return
+        internal.update { it.copy(cramFilter = filter) }
+        recapture()
+    }
+
+    private fun recapture() {
+        val run = internal.value
+        val deck = buildReviewDeck(
+            items = queue.value,
+            mode = run.mode,
+            seed = deckSeed,
+            filter = run.cramFilter,
+        )
+        internal.update {
+            it.copy(
+                captured = deck.items,
+                currentId = deck.items.firstOrNull()?.problemId,
+                completedItem = null,
+                lastOutcome = null,
+                error = null,
+            )
+        }
+    }
 
     fun record(result: ReviewResult) {
         val run = internal.value
@@ -157,5 +217,25 @@ class ReviewRunViewModel(
                 error = null,
             )
         }
+    }
+
+    private companion object {
+
+        /** Judges present in the deck, in first-appearance order, for the cram picker. */
+        fun availableJudges(captured: List<ReviewQueueItem>): List<String> {
+            val seen = mutableSetOf<String>()
+            return captured.mapNotNull { item ->
+                val name = item.judge.displayName
+                if (seen.add(name)) name else null
+            }
+        }
+
+        /** Knowledge tags present in the deck, alphabetical, de-duplicated. */
+        fun availableTags(captured: List<ReviewQueueItem>): List<String> =
+            captured.flatMap { it.tags }
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .sorted()
     }
 }

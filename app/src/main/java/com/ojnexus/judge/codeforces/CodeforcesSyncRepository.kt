@@ -118,6 +118,11 @@ class CodeforcesSyncRepository(
             contests.size
         }
 
+    /**
+     * Phase 91 delta sync: the freshness guard still skips the network entirely; when a
+     * fetch does happen, a fingerprint + cheap aggregate proxy decides whether the live
+     * table already matches (no write) or must be replaced (bounded chunked upserts).
+     */
     suspend fun syncProblemset(account: JudgeAccountEntity, force: Boolean): StageOutcome =
         runStage(account, SyncStage.PROBLEMS, force, SyncPolicy.PROBLEMSET_FRESH_MS) {
             val problemset = adapter.fetchProblemset()
@@ -126,6 +131,28 @@ class CodeforcesSyncRepository(
             }
             val judge = JudgeId.CODEFORCES
             val now = clock.millis()
+            val liveDao = database.remoteProblemDao()
+            val liveCount = liveDao.countByJudge(judge.id)
+            val fetchedFingerprint = ProblemsetDeltaPlanner.fingerprint(merged)
+
+            // Cheap aggregate proxy of the live table (SQL SUM/COUNT, never a table load).
+            // On a match with equal row counts the catalog is treated as unchanged and the
+            // chunked write is skipped; a real drift (new/removed problems or re-solved
+            // counts) falls through to the full bounded write.
+            val liveSolvedSum = liveDao.sumSolvedByJudge(judge.id)
+            val fetchedSolvedSum = merged.sumOf { (_, statistics) ->
+                (statistics?.solvedCount ?: 0).toLong()
+            }
+            if (ProblemsetDeltaPlanner.liveMatches(
+                    fetchedCount = merged.size,
+                    fetchedSolvedSum = fetchedSolvedSum,
+                    liveCount = liveCount,
+                    liveSolvedSum = liveSolvedSum,
+                ) && fingerprintMatchesLive(liveDao, judge.id, merged.size, fetchedFingerprint)
+            ) {
+                return@runStage 0
+            }
+
             val entities = merged.mapNotNull { (problem, statistics) ->
                 com.ojnexus.judge.codeforces.mapper.CfMappers.run {
                     problem.toRemoteProblemEntity(judge, statistics, now)
@@ -135,11 +162,53 @@ class CodeforcesSyncRepository(
             // small rows inside a single prepared statement loop).
             database.withTransaction {
                 entities.chunked(PROBLEMSET_CHUNK).forEach { chunk ->
-                    database.remoteProblemDao().upsertAll(chunk)
+                    liveDao.upsertAll(chunk)
                 }
             }
             entities.size
         }
+
+    /**
+     * Confirms the cheap aggregate proxy with the exact fingerprint: the live rows are
+     * read once (single indexed scan, bounded by the same chunking budget) and hashed
+     * the same way as the fetched set. Only reached when count and solved-sum agree.
+     */
+    private suspend fun fingerprintMatchesLive(
+        liveDao: com.ojnexus.core.database.dao.RemoteProblemDao,
+        judgeId: String,
+        liveCount: Int,
+        fetchedFingerprint: String,
+    ): Boolean {
+        val liveRows = liveDao.findAllByJudge(judgeId)
+        if (liveRows.size != liveCount) return false
+        val liveFingerprint = ProblemsetDeltaPlanner.fingerprint(
+            liveRows.map { row -> row.toProblemPair() },
+        )
+        return liveFingerprint == fetchedFingerprint
+    }
+
+    /** Rebuilds the planner's canonical input shape from a persisted catalog row. */
+    private fun com.ojnexus.core.database.entity.RemoteProblemEntity.toProblemPair(): Pair<
+        com.ojnexus.judge.codeforces.api.dto.CfProblemDto,
+        com.ojnexus.judge.codeforces.api.dto.CfProblemStatisticsDto?,
+        > {
+        val problem = com.ojnexus.judge.codeforces.api.dto.CfProblemDto(
+            contestId = contestId?.toLongOrNull(),
+            index = index.orEmpty(),
+            name = name,
+            type = type,
+            points = points,
+            rating = rating,
+        )
+        val statistics = solvedCount?.let {
+            com.ojnexus.judge.codeforces.api.dto.CfProblemStatisticsDto(
+                contestId = contestId?.toLongOrNull(),
+                index = index.orEmpty(),
+                solvedCount = it,
+            )
+        }
+        return problem to statistics
+    }
 
     /**
      * Submission sync: initial = page through the whole history; incremental = stop after

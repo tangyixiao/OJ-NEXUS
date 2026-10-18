@@ -43,6 +43,9 @@ import com.ojnexus.core.database.entity.ReviewLogEntity
 import com.ojnexus.core.database.entity.SyncStateEntity
 import com.ojnexus.core.database.entity.SyncOperationEntity
 import com.ojnexus.core.database.entity.SyncOperationModuleEntity
+import com.ojnexus.core.database.entity.SyncLogOperationEntity
+import com.ojnexus.core.database.entity.SyncLogOpEntity
+import com.ojnexus.core.database.entity.SyncConflictLogEntity
 import com.ojnexus.core.database.entity.SubmissionJobEntity
 import com.ojnexus.core.database.entity.TrainingSessionEntity
 import com.ojnexus.core.database.entity.TrainingSessionProblemEntity
@@ -82,7 +85,7 @@ import com.ojnexus.core.database.entity.WorkspaceDraftEntity
  *
  * v13 (Phase 76): bounded explicit sync operation history and committed module outcomes.
  */
-const val OJ_NEXUS_SCHEMA_VERSION = 13
+const val OJ_NEXUS_SCHEMA_VERSION = 15
 
 @Database(
     entities = [
@@ -110,6 +113,9 @@ const val OJ_NEXUS_SCHEMA_VERSION = 13
         SyncOperationModuleEntity::class,
         SubmissionJobEntity::class,
         WorkspaceDraftEntity::class,
+        SyncLogOperationEntity::class,
+        SyncLogOpEntity::class,
+        SyncConflictLogEntity::class,
     ],
     version = OJ_NEXUS_SCHEMA_VERSION,
     exportSchema = true,
@@ -136,6 +142,9 @@ abstract class OjNexusDatabase : RoomDatabase() {
     abstract fun syncOperationDao(): SyncOperationDao
     abstract fun submissionJobDao(): com.ojnexus.core.database.dao.SubmissionJobDao
     abstract fun workspaceDraftDao(): com.ojnexus.core.database.dao.WorkspaceDraftDao
+    abstract fun syncLogOperationDao(): com.ojnexus.core.database.dao.SyncLogOperationDao
+    abstract fun syncLogOpDao(): com.ojnexus.core.database.dao.SyncLogOpDao
+    abstract fun syncConflictLogDao(): com.ojnexus.core.database.dao.SyncConflictLogDao
 
     companion object {
         const val DATABASE_NAME = "oj-nexus.db"
@@ -660,6 +669,74 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_13_14: Migration = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Phase 106 index audit — additive, non-destructive DDL only.
+                // Covers the Luogu pending-jobs worker scan
+                // (judge='luogu' AND status='PENDING' ORDER BY updated_at).
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_submission_jobs_judge_status_updated_at` " +
+                        "ON `submission_jobs` (`judge`, `status`, `updated_at`)",
+                )
+                // Covers the problemset delta-fingerprint read
+                // (remote_problems WHERE judge=? ORDER BY external_id).
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_remote_problems_judge_external_id` " +
+                        "ON `remote_problems` (`judge`, `external_id`)",
+                )
+            }
+        }
+
+        /**
+         * v14 → v15 (Phase 118, RFC 0001 §3): the sync op-log tables, additive only. The
+         * ledger is device-local; credentials never enter any of these tables and there is no
+         * foreign key into `judge_accounts`.
+         */
+        val MIGRATION_14_15: Migration = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `sync_log_operations` (`opId` TEXT NOT NULL, " +
+                        "`deviceId` TEXT NOT NULL, `lamport` INTEGER NOT NULL, " +
+                        "`createdAtEpochMs` INTEGER NOT NULL, `schemaVersion` INTEGER NOT NULL, " +
+                        "`status` TEXT NOT NULL, `encryptedPayloadPath` TEXT, PRIMARY KEY(`opId`))",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sync_log_operations_deviceId_lamport` " +
+                        "ON `sync_log_operations` (`deviceId`, `lamport`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sync_log_operations_status` " +
+                        "ON `sync_log_operations` (`status`)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `sync_log_ops` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`opId` TEXT NOT NULL, `tableName` TEXT NOT NULL, `rowKey` TEXT NOT NULL, " +
+                        "`kind` TEXT NOT NULL, `payloadJson` TEXT NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sync_log_ops_opId` ON `sync_log_ops` (`opId`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sync_log_ops_tableName_rowKey` " +
+                        "ON `sync_log_ops` (`tableName`, `rowKey`)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `sync_conflict_log` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`tableName` TEXT NOT NULL, `rowKey` TEXT NOT NULL, `winnerOpId` TEXT NOT NULL, " +
+                        "`winnerDeviceId` TEXT NOT NULL, `winnerLamport` INTEGER NOT NULL, " +
+                        "`resolvedAtEpochMs` INTEGER NOT NULL, `reason` TEXT NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sync_conflict_log_tableName_rowKey` " +
+                        "ON `sync_conflict_log` (`tableName`, `rowKey`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sync_conflict_log_resolvedAtEpochMs` " +
+                        "ON `sync_conflict_log` (`resolvedAtEpochMs`)",
+                )
+            }
+        }
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
                 .addMigrations(
@@ -675,6 +752,8 @@ abstract class OjNexusDatabase : RoomDatabase() {
                     MIGRATION_10_11,
                     MIGRATION_11_12,
                     MIGRATION_12_13,
+                    MIGRATION_13_14,
+                    MIGRATION_14_15,
                 )
                 .build()
     }

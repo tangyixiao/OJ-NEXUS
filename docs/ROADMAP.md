@@ -3,6 +3,894 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## SYNC TRANSPORT SLICE
+
+The final reserved slot closes the sync POC's local lifecycle: an abstract `SyncRemoteStore`
+(opaque put/get/list — a real WebDAV or S3 client would implement it later) and a
+`SyncTransport` whose constructor refuses to exist when the POC gate is off, so a release build
+cannot even instantiate the transport, let alone reach I/O. `pushBatch` seals an op-log batch
+and uploads it; `pullBatch` downloads, marks it sealed locally, and decodes the rows or returns
+null on tamper. Six new tests cover gate-off construction, byte round trips, unknown ops, and a
+full push→pull across two transports sharing one fake store. The ledger → seal → store → pull
+→ open → conflict-resolution chain is now proven end to end as pure, deterministic, gated code
+— with no HTTP client, no key derivation, and the RFC's kill condition unchanged. With this,
+the numbered plan (78–120) is complete; only the Apple phases remain deferred, blocked on a
+macOS host by policy.
+/ 最后一个保留阶段闭合了同步 POC 的本地生命周期：抽象的 `SyncRemoteStore`（不透明的 put/get/list
+——真实的 WebDAV 或 S3 客户端留待以后实现），以及一个在 POC 开关关闭时构造即失败的
+`SyncTransport`——release 构建连实例化都做不到，更谈不上 I/O。`pushBatch` 封存 op-log 批次并上传；
+`pullBatch` 下载、在本地标记 SEALED、解码行数据或在校验失败时返回 null。六个新测试覆盖开关关闭
+时的构造拒绝、字节往返、未知操作，以及共享同一假存储的两个 transport 之间的完整 push→pull。至此
+「台账 → 封存 → 存储 → 拉取 → 解码 → 冲突解决」全链路以纯函数、确定性、受控开关的方式得到证明
+——没有 HTTP 客户端、没有密钥派生，RFC 的终止条件保持不变。编号计划（78–120）就此完成；仅剩
+Apple 阶段因 macOS 主机策略而推迟。
+
+## SYNC PAYLOAD SEALING
+
+The second reserved slot adds RFC 0001 §4's storage side: a deterministic payload codec (row
+ops serialized as sorted JSON so identical op sets always produce identical bytes) and the
+crypto seam the ledger depends on — an interface with `seal`/`open` plus associated-data
+`deviceId|lamport`, a clearly-labeled XOR test double, and an explicit production stub that
+fails loudly until the real AEAD library (Tink or a libsodium binding, per the RFC's no
+hand-rolled-crypto rule) is chosen in the transport phase. `SyncLogRepository.sealBatch` writes
+`sync-payload/<opId>.bin` and marks the batch SEALED; `openBatch` restores rows or returns null
+on tamper. Seven new tests pin determinism, round trips, wrong-key rejection, and truncated
+payloads. Still zero network I/O — the endpoint remains a later decision.
+/ 第二个保留阶段补上 RFC 0001 §4 的存储侧：确定性负载编解码器（行操作序列化为排序后的 JSON，相同
+的操作集合永远产出相同字节），以及台账依赖的加密接缝——带 `seal`/`open` 与关联数据
+`deviceId|lamport` 的接口、一个明确标注的 XOR 测试替身、以及在选择真实 AEAD 库（Tink 或 libsodium
+绑定，遵守 RFC 禁止手写密码学）前会显式失败的产线占位——库选型留给传输阶段。`SyncLogRepository
+.sealBatch` 写出 `sync-payload/<opId>.bin` 并把批次标记为 SEALED；`openBatch` 还原行数据或在校验
+失败时返回 null。七个新测试钉死确定性、往返一致、错误密钥拒绝与截断负载。仍然零网络 I/O——端
+点依旧是后续决定。
+
+## SYNC OP-LOG LEDGER (SCHEMA V15)
+
+The first reserved slot fills with the RFC 0001 §3 persistence floor: three additive tables —
+`sync_log_operations` (one row per device-produced batch, keyed by a client ULID with a
+monotonic lamport), `sync_log_ops` (the row-level operations inside a batch), and
+`sync_conflict_log` (one row per displaced op carrying the merge kernel's reason string). The
+repository assigns lamports transactionally, resolves incoming batches through the pure merge
+kernel, and records every deterministic resolution so nothing is silent. The migration 14→15 is
+additive and tested in place. Boundaries hold: the ledger has no reference to judge accounts,
+the repository cannot name credentials, and nothing here performs network I/O — transport stays
+behind the debug-only flag in later reserved slots.
+/ 第一个保留阶段填充了 RFC 0001 §3 的持久化底座：三张纯增量表——`sync_log_operations`（每批设备产出的
+操作一行，以客户端 ULID 为主键，配单调 lamport）、`sync_log_ops`（批内的行级操作）、以及
+`sync_conflict_log`（每条被挤掉的操作一行，携带合并内核的理由字符串）。仓库以事务方式分配
+lamport，将收到的批次交给纯函数合并内核裁决，并把每一次确定性结果记录在案——绝不静默。14→15
+迁移为增量式并通过原位测试。边界保持：台账不引用账号表，仓库无法命名凭据，这里没有任何网络
+I/O——传输仍留在后续保留阶段、由仅调试构建的开关守护。
+
+## SYNC POC (BEHIND FLAG)
+
+Phase 117 proves the smallest slice of RFC 0001: the op-log merge kernel as pure Kotlin —
+last-writer-wins over the (lamport, device) total order, deletes winning only when strictly
+greater, conflicts collected for the inspectable log, clock advancing to max lamport. Six unit
+tests pin the determinism contract. The flag is a build-graph fact, not a preference:
+`BuildConfig.SYNC_POC` is true in debug and false in release, so release binaries carry no
+reachable sync surface — and a later real implementation must guard every entry point with that
+flag. The POC verdict supports continuing (the kernel is ~60 lines, far under the RFC's ~2 k
+kill line); crypto and transport remain the unproven cost drivers and Phases 118–120 stay
+fillable or repurposable per the plan.
+/ Phase 117 验证了 RFC 0001 的最小切片：op-log 合并内核的纯 Kotlin 实现——按 (lamport, device) 全序
+做 last-writer-wins，删除仅在严格更大时生效，冲突汇入可检视日志，时钟推进到最大 lamport。六个
+单元测试钉死确定性契约。开关是构建图事实而非偏好项：`BuildConfig.SYNC_POC` 在 debug 为 true、
+release 为 false，因此 release 二进制不含任何可达的同步入口——后续真实实现必须用该标志守护每个
+入口。POC 结论支持继续（内核约 60 行，远低于 RFC 的 ~2k 行终止线）；加密与传输仍是未验证的成本
+大头，Phase 118–120 保留填充或改作他用的余地。
+
+## SYNC ARCHITECTURE RFC (ARC G)
+
+RFC 0001 (`docs/rfcs/0001-e2ee-sync.md`) proposes an optional, end-to-end-encrypted sync of
+non-credential data to a user-provided blob endpoint — no first-party server, ever. Its first
+section is the non-negotiables: credentials and the Luogu open-platform secret never sync, the
+server is hostile by assumption, local data stays canonical, and removing the endpoint restores
+exactly today's offline-first behavior. The threat model covers the passive observer, the
+malicious endpoint (AEAD with monotonic counters and replay detection), the device thief
+(Argon2id-derived keys, nothing key-shaped at rest), and the honest unrecoverable case — a lost
+passphrase, documented rather than mitigated. Merge rules are deterministic op-log
+last-writer-wins with an inspectable conflict log, same discipline as the recommendation
+engine. The RFC states its own kill condition: if the Phase 117 proof of concept outgrows the
+design, the RFC dies and the reserved phases are repurposed. A rejected RFC is a normal
+outcome.
+/ RFC 0001（`docs/rfcs/0001-e2ee-sync.md`）提议一个可选的、端到端加密的非凭据数据同步，端点由用户
+提供——绝不自建服务端。其第一节就是不可协商项：凭据与洛谷开放平台密钥永不参与同步，服务器按
+敌意假设对待，本地数据保持权威，移除端点即可完全恢复今天的离线优先行为。威胁模型覆盖被动窃
+听者、恶意端点（AEAD + 单调计数器 + 重放检测）、设备窃取者（Argon2id 派生密钥、磁盘上不留任何
+密钥形态的数据），以及诚实承认的不可恢复场景——口令丢失只记录、不缓解。合并规则是确定性的
+op-log last-writer-wins，附带可检视的冲突日志，与推荐引擎同一纪律。RFC 自带终止条件：若 Phase 117
+的概念验证超出设计规模，RFC 即作废、保留阶段改作他用。RFC 被否决是正常结果。
+
+## V1.0.0 RELEASE CANDIDATE
+
+OJ NEXUS 1.0.0 (versionCode 102) is the first release-candidate line: 756 unit tests green,
+debug + release builds successful, and the release APK proven bit-for-bit reproducible across
+two clean builds. The release notes inventory every shipped capability — the windowed problem
+library, review ladder, focus sprint bands, analytics, AtCoder rating history, Codeforces deep
+links and delta sync, Luogu open platform and training catalog, snapshot export/import with
+conflict preview, scheduled local backups, per-judge wipe, database housekeeping, and the
+opt-in local crash log — and the regression checklist records exactly which gates ran on this
+host and which measurements stay pending until real hardware attaches (cold start, LeakCanary
+walk, TalkBack, battery, per-query wall clock). Apple clients and the connected layer remain
+explicitly unshipped rather than faked. Data boundaries are unchanged and permanent: no
+passwords, cookies, or tokens; the Luogu credential never leaves no-backup storage; crash
+reports are local only.
+/ OJ NEXUS 1.0.0（versionCode 102）是首个候选发布版本：756 个单元测试全绿，debug 与 release 构建
+成功，且 release APK 经两次干净构建验证逐位一致。发布说明清点了全部已交付能力——窗口化题库、
+复习阶梯、专注冲刺分组、数据分析、AtCoder 评分历史、Codeforces 深链与增量同步、洛谷开放平台与
+训练计划、带冲突预览的快照导入导出、计划本地备份、单评测端数据清除、数据库维护、可选本地崩溃
+日志——回归清单则逐条记录了哪些闸门在本机执行、哪些度量留待真机接入后补测（冷启动、LeakCanary
+回环、TalkBack、电量、单查询耗时）。Apple 客户端与连接层保持明确未交付，绝不伪装。数据边界不变
+且永久：不收密码、Cookie、令牌；洛谷凭据绝不离开免备份存储；崩溃报告仅存本地。
+
+## LOCAL CRASH LOG
+
+An opt-in, local-only crash capture ships behind a settings toggle (default OFF). When enabled,
+the next process start installs an uncaught-exception handler that writes one report per crash
+into the app's private storage — thread, exception, message, full stack trace, and a footer
+stating the report never leaves the device — keeping the newest ten files. The settings data
+section shows the report count, opens the newest report in a dialog (8 KiB display cap), and can
+clear them. The capture class carries no network machinery at all, and a unit test enforces that
+at the source level. Reports exist only after a real crash on a real device; none exist on this
+host, so "fix top findings" stays open until the pipeline has material to rank. ANR traces
+remain a system surface — no jank watchdog was added.
+/ 本地崩溃日志默认关闭、完全本地化，由设置中的开关控制。开启后，下次进程启动会安装未捕获异常
+处理器：每次崩溃在应用私有存储写入一份报告——线程、异常、消息、完整堆栈，以及"本报告绝不离开
+设备"的脚注——最多保留最近十份。设置的数据区显示报告数量、在对话框中打开最近一份（展示上限
+8 KiB）、并可一键清空。捕获类完全不携带任何网络组件，并有单元测试在源码层面强制这一点。报告
+只会在真机真实崩溃后产生；本机尚无样本，因此"修复头部问题"保持开放，直到管线有素材可排序。
+ANR 轨迹仍是系统层面的能力——未添加卡顿看门狗。
+
+## LOCALIZATION PASS
+
+`tools/check-localization.ps1` enforces three invariants over the string resources: the EN and
+zh-CN key sets are exactly equal (1010 keys each today), every key carries the same printf
+argument multiset on both sides (a mismatch would crash the formatter at runtime), and no
+composable renders a hardcoded `Text("…")` literal outside a reviewed allowlist. The one
+allowlisted hit is the markdown bullet renderer, whose glyph prefix decorates data text, not UI
+copy. The script itself was hardened against two false-positive classes recorded in the plan:
+BOM-less files must be read as explicit UTF-8 (PowerShell 5.1 otherwise decodes zh text as
+GBK and reports phantom format mismatches), and the literal matcher strips comments and
+excludes `ClipData.newPlainText`-style data labels via a lookbehind. Verdict: LOCALIZATION OK.
+/ `tools/check-localization.ps1` 对字符串资源执行三条不变式：EN 与 zh-CN 的键集合完全一致（当前
+各 1010 个键）；每个键在两侧的 printf 参数多重集相同（不一致会让格式化器在运行期崩溃）；任何
+组合层不得渲染白名单之外的硬编码 `Text("…")` 字面量。白名单里唯一一项是 Markdown 列表点渲染器，
+它的字形前缀修饰的是数据文本而非 UI 文案。脚本自身经历了两类假阳性的加固，已记录在计划里：
+无 BOM 文件必须显式按 UTF-8 读取（否则 PowerShell 5.1 会把中文按 GBK 解码并报出幻影格式不匹
+配），字面量匹配器会剥离注释并用 lookbehind 排除 `ClipData.newPlainText` 之类的数据标签。结论：
+LOCALIZATION OK。
+
+## ACCESSIBILITY SWEEP
+
+A static source audit over 130 clickable call sites produced three critical findings, all fixed:
+six back buttons were announced by TalkBack as plain text (no button role) and now carry
+`Role.Button`; the problem-detail favorite toggle was a color-only bare square and now exposes a
+spoken state via the existing favorite content descriptions; the search-clear "×" glyph was
+unlabeled and now reads "Clear search query". Filter chips and row controls were verified to
+carry visible text labels (TalkBack reads them directly), the library rows avoid the
+trailing-label trap, and heatmap cells keep their formatted-date descriptions. The 200% font
+scale pass is handled structurally — every screen root is scrollable — with pixel verification
+left pending until a device loop runs, same honest posture as the performance numbers.
+/ 对 130 个可点击调用点的静态源码审查发现三个关键问题，全部修复：六个返回按钮此前会被 TalkBack
+当作纯文本播报（缺少按钮角色），现已携带 `Role.Button`；题目详情页的收藏开关此前只是仅靠颜色
+区分的裸方块，现通过既有的收藏内容描述播报状态；搜索清除的 "×" 字符此前没有标签，现在读作
+"清空搜索词"。筛选标签与行内控件经验证均带有可见文本标签（TalkBack 直接朗读），题目库行规避了
+尾部标签陷阱，热力图单元格保留格式化日期描述。200% 字号按 320dp 宽度走结构化处理——每个屏幕根
+节点都可滚动——像素级验证与性能数字一样，留待设备回环时补测，绝不虚构。
+
+## REPRODUCIBLE BUILD CHECK
+
+`tools/check-reproducible-build.ps1` builds `:app:assembleRelease` twice from clean state,
+copies each APK out of the build tree, and compares SHA256. On this host the two passes produced
+the identical hash `D411D62D…3843A6D6` for `app-release-unsigned.apk` — the unsigned release
+output carries no signature block, so nothing machine-local enters the hash. The debug APK is
+excluded by design: it is signed with the host debug keystore and is host-specific on purpose.
+When a future toolchain change breaks bit-for-bit output, the script prints the documented diff
+sources (embedded timestamps, zip entry ordering / MANIFEST.MF, dependency cache drift) so the
+cause gets recorded instead of guessed.
+/ `tools/check-reproducible-build.ps1` 从干净状态连续两次构建 `:app:assembleRelease`，把每次产出的
+APK 拷出构建树并比较 SHA256。在本机上两次产出 `app-release-unsigned.apk` 的哈希完全一致
+（`D411D62D…3843A6D6`）——未签名的 release 产物不含签名块，任何机器本地信息都不会进入哈希。调试
+APK 被刻意排除：它用本机 debug keystore 签名，哈希天然只属于这台机器。将来工具链升级若破坏逐位一
+致，脚本会打印已归档的差异来源（内嵌时间戳、zip 条目顺序 / MANIFEST.MF、依赖缓存漂移），让原因
+被记录而不是靠猜。
+
+## STORE METADATA
+
+The repo now carries fastlane-style store metadata under `fastlane/metadata/android/` for en-US
+and zh-CN: title, short and full descriptions, and per-versionCode changelogs. The copy is
+telemetry-tone — a feature spec sheet, not marketing — and every claim maps to a shipped phase.
+The data-boundary paragraph states the credential rule explicitly: no passwords, cookies, or
+session tokens; the Luogu open-platform credential lives in no-backup storage and never enters
+backups, exports, or logs. Screenshots and video are deliberately absent until real device
+captures exist — placeholder art is never invented. Future releases add one
+`changelogs/<versionCode>.txt` per side as part of release bookkeeping (F-Droid reads them
+directly).
+/ 仓库现在带有 fastlane 风格的商店元数据，位于 `fastlane/metadata/android/`，覆盖 en-US 与 zh-CN：
+应用名、简短与完整描述、按 versionCode 的更新日志。文案是遥测语气——像功能规格表而非营销——且
+每条陈述都对应一个已交付阶段。数据边界段落明确写出凭据规则：不收集密码、Cookie、会话令牌；洛谷
+开放平台凭据保存在不参与备份的存储中，绝不进入备份、导出或日志。在拿到真实设备截图之前，刻意不
+放截图与视频——绝不虚构占位素材。今后每次发布随发布簿记在两侧各新增一份
+`changelogs/<versionCode>.txt`（F-Droid 直接读取）。
+
+## ANDROID RELEASE SIGNING PIPELINE
+
+Release signing is now env-gated and secret-driven, with an unsigned fallback that keeps every
+path green. When all four `OJ_NEXUS_KEYSTORE_PATH` / `OJ_NEXUS_KEYSTORE_PASSWORD` /
+`OJ_NEXUS_KEY_ALIAS` / `OJ_NEXUS_KEY_PASSWORD` variables are present, the release buildType picks
+up the keystore; with any missing the build produces the standard unsigned APK exactly as before.
+No keystore material, path, or password ever enters the repository. The CI `release` job decodes
+`ANDROID_KEYSTORE_BASE64` into `RUNNER_TEMP` (wiped per job, never uploaded), builds, verifies
+with `apksigner verify --verbose`, generates `SHA256SUMS-v<version>.txt` in the established
+`docs/releases/` convention, and uploads APK + sums as the `release-apk` artifact; without
+secrets it still builds, verifies-honestly (unsigned note), sums, and uploads. The unsigned local
+path was proven on this host (`assembleRelease` BUILD SUCCESSFUL). Committing each new sums file
+into `docs/releases/` remains a maintainer download-and-commit step — CI never pushes.
+/ 发布签名改为环境变量门控、密钥驱动，并保留无签名回退路径。四个 `OJ_NEXUS_KEYSTORE_PATH` /
+`OJ_NEXUS_KEYSTORE_PASSWORD` / `OJ_NEXUS_KEY_ALIAS` / `OJ_NEXUS_KEY_PASSWORD` 变量齐全时 release
+构建类型挂载 keystore；任一缺失则产出与过去完全一致的标准未签名 APK。任何 keystore 材料、路径或
+密码都不进入仓库。CI 的 `release` job 将 `ANDROID_KEYSTORE_BASE64` 解码到 `RUNNER_TEMP`（每 job
+清空、永不上传），构建后用 `apksigner verify --verbose` 验签，按 `docs/releases/` 既有惯例生成
+`SHA256SUMS-v<version>.txt`，并将 APK 与校验和作为 `release-apk` artifact 上传；无密钥时依旧构建、
+如实标注未签名、生成校验和并上传。本机已验证未签名路径（`assembleRelease` BUILD SUCCESSFUL）。
+把新的校验和文件提交进 `docs/releases/` 仍是维护者下载后手动提交的步骤——CI 从不推送。
+
+## MEMORY AUDIT
+
+LeakCanary now watches every debug build (debugImplementation only — release carries zero of it),
+and the codebase passed a host-verifiable static audit: every screen collects state through
+`collectAsStateWithLifecycle` (zero bare `collectAsState()` call sites), the only bitmap in the
+app is the transient Player Card render (created, compressed, immediately unreachable), the
+rating chart draws through Compose Canvas with no bitmap at all, `applicationScope` is a
+SupervisorJob so one failed bootstrap child cannot cancel siblings, and session tickers are
+collector-bound producers that stop with their composition. The supervisor-isolation and
+ticker-lifetime invariants are pinned by `MemoryAuditInvariantsTest`. The 20-minute
+main-navigation leak loop stays honestly PENDING until hardware runs — the debug build will
+produce the LeakCanary report automatically when it does.
+/ LeakCanary 现在守护每个 debug 构建（仅 debugImplementation——release 不含任何一部分），代码库也
+通过了可在主机验证的静态审计：所有界面都通过 `collectAsStateWithLifecycle` 收集状态（裸
+`collectAsState()` 调用点为零），应用中唯一的位图是一次性的球员卡渲染（创建、压缩后立即不可达），
+评分图表完全用 Compose Canvas 绘制不含位图，`applicationScope` 是 SupervisorJob——单个引导子任务
+失败不会波及兄弟任务，会话计时器是随组合销毁的生产者。Supervisor 隔离与计时器生命周期不变量由
+`MemoryAuditInvariantsTest` 钉住。20 分钟主导航泄漏循环在硬件运行前如实保持 PENDING——届时 debug
+构建会自动产出 LeakCanary 报告。
+
+## SYNC BATTERY PROFILE
+
+Periodic sync now has a documented, unit-pinned battery profile. The worker builder reads its
+6-hour cadence from `SyncPolicy.PERIODIC_SYNC_MINUTES` instead of a hardcoded literal, and adds
+`requiresBatteryNotLow` next to the existing network constraint — the same posture the
+scheduled-backup worker already had. Freshness windows (30 min profile/rating, 15 min
+submissions, 60 min contests, 24 h problemset) keep a steady-state run to at most five
+gate-spaced adapter calls (≥ 2.1 s apart) and one bounded 1000-row submissions page per account;
+manual sync stays immediate and ignores both freshness and battery state. Idle/Charging
+constraints were rejected on purpose — they would starve the cadence on daily-driver phones.
+docs/SYNC_ENGINE.md records the full table; the device battery-draw number stays honestly
+PENDING because no hardware is attached, per repo rules.
+/ 周期同步现在有了文档化并由单测钉住的电池画像。工作器构建器从 `SyncPolicy.PERIODIC_SYNC_MINUTES`
+读取 6 小时周期（不再硬编码字面量），并在网络约束旁增加 `requiresBatteryNotLow`——与定时备份工作器
+一致。新鲜度窗口（档案/Rating 30 分钟、提交 15 分钟、比赛 60 分钟、题库 24 小时）把稳态运行压到至多
+五次按门限间隔（≥2.1 秒）的适配器调用和每账号至多一页 1000 行的提交写入；手动同步保持即时，不受
+新鲜度与电池状态约束。Idle/Charging 约束被有意否决——它们会让日常手机上的周期饿死。docs/SYNC_ENGINE.md
+记录完整表格；设备电池消耗数值因主机无硬件而如实保持 PENDING。
+
+## ROOM INDEX AUDIT
+
+The ten hottest production queries were audited with `EXPLAIN QUERY PLAN` before any index was
+added. Two composites proved their worth and shipped through a non-destructive v13→v14 migration:
+`submission_jobs (judge, status, updated_at)` for the background Luogu job scan that previously
+scanned the table and sorted through a temp B-tree, and `remote_problems (judge, external_id)` for
+the delta-sync fingerprint read that previously searched `judge` then sorted. Every other hot
+query already hit an existing index, so nothing else was added — index write-cost is paid only
+where a plan regression was proven. The migration is additive `CREATE INDEX IF NOT EXISTS` DDL
+only; `RoomIndexAuditTest` builds a fresh v14 database and also hand-builds a real v13 database
+(captured DDL from a probe open), upgrades it in place, and asserts rows survive and both plans
+switch to `USING INDEX`. Robolectric timings prove the plan shape honestly; device numbers are
+recorded as PENDING in docs/PERFORMANCE.md rather than invented.
+/ 对最热的十条生产查询先做 `EXPLAIN QUERY PLAN` 审计，再决定加索引。两条复合索引以非破坏性
+v13→v14 迁移落地：`submission_jobs (judge, status, updated_at)` 服务后台洛谷任务扫描（此前全表
+扫描加临时 B-tree 排序），`remote_problems (judge, external_id)` 服务增量同步指纹读取（此前仅按
+judge 检索后排序）。其余热点查询均已命中既有索引，因此不再额外添加——索引写放大只在证明有计划
+回退的地方支付。迁移仅为增量式 `CREATE INDEX IF NOT EXISTS` DDL；`RoomIndexAuditTest` 既构建全新
+v14 库，也用探针库捕获的真实 v13 DDL 手工搭建旧库就地升级，断言数据保留且两个查询计划切换为
+`USING INDEX`。Robolectric 计时只诚实地证明计划形态；设备数值在 docs/PERFORMANCE.md 中保持
+PENDING，不做编造。
+
+## COLD START TRACING
+
+Cold start is now measured, not guessed. `OjNexusApplication` opens a `StartupTracer` span at
+container construction — `app-create` covers restore recovery, Room open, and repository wiring —
+and closes it before the background bootstrap coroutines launch, so none of that periodic-sync or
+backup-schedule work counts against the first frame. The Dashboard composable closes the
+`first-frame` span on its first composition and logs the whole chain exactly once under the
+OJNEXUS-STARTUP tag: `cold-start total=…ms budget=1500ms verdict=WITHIN_BUDGET|OVER_BUDGET`
+followed by per-span durations. The tracer is a pure object with an injectable clock (no
+androidx.tracing dependency), unit-tested for span chains, idempotent ends, unknown-end no-ops,
+negative-duration clamping, and the 1500/1501 ms budget verdict boundaries.
+docs/PERFORMANCE.md records the harness and the measurement protocol (`adb shell am force-stop` +
+cold launch, 5-run median from `adb logcat -s OJNEXUS-STARTUP`); the device number itself stays
+explicitly PENDING because no hardware is attached to the development host, and repo rules forbid
+inventing it.
+/ 冷启动现在靠测量而非猜测。`OjNexusApplication` 在容器构造处打开 `StartupTracer` 区段——
+`app-create` 覆盖恢复收敛、Room 打开与仓储装配——并在后台引导协程启动前关闭它，因此周期同步与
+备份排程都不计入首帧。Dashboard 组合项在首次组合时关闭 `first-frame` 区段，并在 OJNEXUS-STARTUP
+标签下恰好输出一次完整链路：`cold-start total=…ms budget=1500ms verdict=WITHIN_BUDGET|OVER_BUDGET`
+及各区段耗时。tracer 是带可注入时钟的纯对象（不引入 androidx.tracing 依赖），单测覆盖区段链、
+幂等关闭、未知端点无操作、负时长钳制以及 1500/1501ms 预算判定边界。docs/PERFORMANCE.md 记录了
+测量协议（`adb shell am force-stop` + 冷启动，取 `adb logcat -s OJNEXUS-STARTUP` 五次中位数）；
+设备数值明确标记 PENDING——开发主机没有连接硬件，仓库规则禁止编造。
+
+## LIBRARY PAGING
+
+The problem library now stays smooth at ten thousand rows without adopting Paging 3. The full
+filtered-and-sorted list remains the single source of truth inside the ViewModel — every count,
+pulse, and the BUILD TRAINING rail still reason over the entire scope — while the LazyColumn only
+ever tracks a bounded sixty-row window. A SHOW MORE footer at the end of the list grows the window
+by sixty rows per tap, and any filter or sort change resets it to the initial size, so
+recomposition cost is a function of the window (flat) instead of the library (growing). The window
+math lives in pure functions (`windowList`, `hasMoreLibrary`, initial/step constants) covered by
+LibraryWindowTest: cap and negative-count clamps, boundary flips, growth without duplicates, and a
+10,000-row fixture pass proving filter+sort+window completes in milliseconds against a 250ms CPU
+budget. Small libraries render unchanged — when the window covers the whole list the footer
+disappears.
+/ 题库列表现在在万行规模下依然流畅，且没有引入 Paging 3。完整过滤排序列表仍是 ViewModel 内的
+唯一事实来源——所有计数、脉冲和 BUILD TRAINING 操作条仍然作用于整个范围——而 LazyColumn 只跟踪
+一个有界的六十行窗口。列表末尾的 SHOW MORE 页脚每次点击将窗口扩大六十行，任何筛选或排序变化都会
+把窗口重置为初始大小，使重组成本取决于窗口（恒定）而非题库规模（增长）。窗口数学全部是纯函数
+（`windowList`、`hasMoreLibrary`、初始/步进常量），由 LibraryWindowTest 覆盖：上限与负数钳制、
+边界翻转、增长不重复，以及一个 10,000 行夹具测试证明过滤+排序+取窗在 250ms CPU 预算内毫秒级完成。
+小题库渲染不变——窗口覆盖全列表时页脚自动消失。
+
+## WINDOWS CODE SIGNING
+
+Windows artifacts can now be Authenticode-signed whenever a real CA certificate is available, and
+the contract is strictly opt-in: with no certificate configured every build still completes and
+ships unsigned. `docs/WINDOWS_SIGNING.md` records the storage rules — the PFX or token lives
+outside the repository, only a SHA-1 thumbprint is referenced, and it travels exclusively through
+the `OJ_NEXUS_SIGNING_CERT_THUMBPRINT` and `OJ_NEXUS_SIGNTOOL_PATH` environment variables; no
+key material, password, or thumbprint is ever committed. The shared `sign-binaries.ps1` runs the
+documented invocation — `signtool sign /fd SHA256 /sha1 <thumbprint> /tr
+http://timestamp.digicert.com /td SHA256 <file>` followed by `signtool verify /pa /v` — failing
+loudly when signing is requested but signtool or the certificate is missing. `package.ps1` signs
+the CLI and WPF executables immediately after publish and before `SHA256SUMS.txt` is written, so
+the deterministic manifest describes the signed bytes; `build-installer.ps1` signs the compiled
+Inno Setup installer the same way. All negative paths were probed on this machine: missing
+signtool, empty thumbprint, and a missing signing target each fail with explicit errors, and the
+unsigned end-to-end gate reports `SIGNING: SKIPPED` then succeeds.
+/ 当真实的 CA 证书可用时，Windows 产物现在可以进行 Authenticode 签名，且该契约严格可选：未配置
+证书时每次构建仍会完成并以未签名形式发布。`docs/WINDOWS_SIGNING.md` 记录了存储规则——PFX 或
+硬件令牌位于仓库之外，只引用 SHA-1 指纹，且仅通过 `OJ_NEXUS_SIGNING_CERT_THUMBPRINT` 与
+`OJ_NEXUS_SIGNTOOL_PATH` 环境变量传递；任何密钥材料、密码或指纹都不会提交入库。共享的
+`sign-binaries.ps1` 执行文档化调用——`signtool sign /fd SHA256 /sha1 <指纹> /tr
+http://timestamp.digicert.com /td SHA256 <文件>`，随后 `signtool verify /pa /v`——当请求签名但
+缺少 signtool 或证书时明确报错。`package.ps1` 在发布后、写入 `SHA256SUMS.txt` 之前签名 CLI 与
+WPF 可执行文件，使确定性清单描述的是签名后的字节；`build-installer.ps1` 以同样方式签名编译出的
+Inno Setup 安装程序。所有否定路径均在本机实测：缺少 signtool、空指纹、缺失签名目标都会以明确
+错误失败，未签名的端到端闸门输出 `SIGNING: SKIPPED` 后成功。
+
+## WINDOWS INSTALLER
+
+The Windows client gains an Inno Setup 6 installer as a second distribution channel alongside the
+deterministic zip. `windows/scripts/installer.iss` packs the already-published CLI and WPF trees,
+creates start-menu and desktop shortcuts, and registers a standard uninstaller with
+`PrivilegesRequired=lowest` so a per-user install always works without elevation. The new
+`build-installer.ps1` reuses `package.ps1` for the deterministic publish, compiles the installer
+when ISCC is present (CI installs it via chocolatey), and moves the single produced executable to
+the artifacts root. Code signing is strictly opt-in: when `OJ_NEXUS_SIGNTOOL_PATH` and
+`OJ_NEXUS_SIGNING_CERT_THUMBPRINT` are both configured the installer is signed (SHA-256 with a
+timestamp) and verified; otherwise the build reports `SIGNING: SKIPPED` and still succeeds, so an
+unsigned build is always available. `verify-installer.ps1` validates the artifact honestly —
+existence, size, and version-resource content for a built installer, or payload presence for a
+package root — while the full silent install/uninstall round trip is documented as a manual step
+on a clean VM. All cleanup goes through .NET file APIs, never `Remove-Item`. No credentials, no
+cookies, and no network access are involved in the payload.
+/ Windows 客户端新增 Inno Setup 6 安装程序，作为确定性 zip 之外的第二分发渠道。
+`windows/scripts/installer.iss` 打包已发布的 CLI 与 WPF 目录，创建开始菜单与桌面快捷方式，并注册
+标准卸载器；`PrivilegesRequired=lowest` 保证免提权的按用户安装始终可行。新的 `build-installer.ps1`
+复用 `package.ps1` 完成确定性发布，在存在 ISCC 时编译安装程序（CI 经 chocolatey 安装），并把唯一
+生成的可执行文件移入产物根目录。代码签名严格可选项：配置 `OJ_NEXUS_SIGNTOOL_PATH` 与
+`OJ_NEXUS_SIGNING_CERT_THUMBPRINT` 后对安装程序签名（SHA-256 加时间戳）并验证；否则输出
+`SIGNING: SKIPPED` 且构建仍然成功，未签名构建始终可得。`verify-installer.ps1` 如实验证产物——
+安装程序检查存在性、体积与版本资源内容，包根目录检查载荷存在性——而完整的静默安装/卸载回环
+作为清洁虚拟机上的手动步骤记录在案。所有清理均通过 .NET 文件 API，绝不使用 `Remove-Item`。
+载荷不涉及凭据、Cookie 或网络访问。
+
+## WINDOWS REVIEW QUEUE
+
+The Windows client now carries its own spaced-repetition queue over the shared local SQLite
+ledger. Schema v7 adds two additive tables: `reviews` keyed (judge, external_id) holding the
+current stage, due timestamp (ISO-8601), local due day, last result, and last reviewed time; and
+`review_log`, an append-only history where every mark appends a row even after the stage caps.
+The interval ladder mirrors the Android scheduler exactly — 1, 3, 7, 21, 45, 90 days; PASS
+advances the stage (capped at 5) with a full interval, HARD repeats the stage on a half interval
+(minimum one day), FAIL drops a stage (floor 0) and retries the next day, SKIP repeats the stage
+on a full interval. There is no foreign key to `problems`: marking accepts any judge/identity the
+user names, and the due list joins the derived problem title and URL when a row exists. CLI
+parity ships as `review due [--judge] [--limit] [--json]` (default 50, ordered by due day, judge,
+external id) and `review mark --judge --problem --result pass|hard|fail|skip [--json]`, with
+argument errors for unknown results and non-positive limits. No credentials, no cookies, and no
+network access are involved; every row lives in the local ledger.
+/ Windows 客户端现在在共享本地 SQLite 账本上拥有自己的间隔重复队列。Schema v7 新增两张增量表：
+`reviews` 以 (judge, external_id) 为键，保存当前阶段、到期时间戳（ISO-8601）、本地到期日、最近
+结果与最近复习时间；`review_log` 为只追加历史，即使阶段封顶后每次标记仍会写入一行。间隔阶梯与
+Android 调度器完全一致——1、3、7、21、45、90 天；PASS 阶段 +1（封顶 5）并按完整间隔排期，HARD
+保持阶段并按半间隔（至少一天），FAIL 阶段 -1（下限 0）次日重试，SKIP 保持阶段并按完整间隔。
+`reviews` 不对 `problems` 设外键：标记接受用户命名的任意 OJ/身份，到期列表在存在派生行时联出
+题目标题与链接。CLI 对齐为 `review due [--judge] [--limit] [--json]`（默认 50 条，按到期日、OJ、
+身份排序）与 `review mark --judge --problem --result pass|hard|fail|skip [--json]`，未知结果或
+非法上限都会给出参数错误。全程不涉及凭据、Cookie 或网络访问；每一行都存于本地账本。
+
+## WINDOWS PROBLEM LIBRARY VIEW
+
+The Windows client gains a PROBLEMS surface over the shared local SQLite ledger. Schema v6 adds
+an additive `problems` table keyed (judge, external_id); rows are derived inside the same
+transaction that persists each judge's submissions payload — Codeforces rows use the Android
+identity rule `{contestId}{index}`, AtCoder rows use `{contestId}+{problemId}`, Luogu contributes
+no rows because its payload is counts-only. A submission with an accepted verdict (`OK`, `AC`, or
+an `Accepted` prefix) marks the row solved, and that flag is sticky: later non-accepted
+submissions never reset it, and the first-seen title wins while `last_seen_at` advances. The CLI
+exposes `problems list [--judge] [--status solved|attempted] [--limit] [--json]` (default limit
+50, success exit even when empty) and the WPF shell gains a PROBLEMS page with judge/status
+filter combos, a bounded list, and an OPEN button that launches the public problem link through
+the shell — only when a URL can be built for that identity. No credentials, no cookies, and no
+new network call sites are involved; every row is derived from data already persisted offline.
+/ Windows 客户端新增基于共享本地 SQLite 账本的 PROBLEMS 界面。Schema v6 增加以 (judge, external_id)
+为键的增量 `problems` 表；行数据在持久化各 OJ 提交负载的同一事务内派生——Codeforces 沿用
+Android 侧的 `{contestId}{index}` 身份规则，AtCoder 使用 `{contestId}+{problemId}`，洛谷负载只有
+计数、不产生行。被判题通过的提交（`OK`、`AC` 或 `Accepted` 前缀）将行标记为已解决，且该标记是
+粘性的：后续未通过的提交不会重置它，标题保留首次取值，仅推进 `last_seen_at`。CLI 暴露
+`problems list [--judge] [--status solved|attempted] [--limit] [--json]`（默认 50 条，空结果也以
+成功退出），WPF 外壳新增 PROBLEMS 页面，含 OJ/状态筛选组合与有界列表，OPEN 按钮在能为该身份构建
+公开题目链接时经系统 Shell 打开。全程不涉及凭据、Cookie 或新增网络调用点；每一行都由已离线持久
+的数据派生而来。
+
+## MULTI-HANDLE PER JUDGE — DESIGN GATE
+
+Multi-handle shipped as a design-gated phase: a verified spec, a pure prototype, and a migration
+test plan — deliberately no UI and no production wiring yet. The spec records the ground truth
+(the accounts table already admits several handles per judge; the sync-state table's
+judge-keyed cursor is the real constraint) and splits the work: stage 1 stores a second handle
+as a disabled account with cursor reset on switch; stage 2 migrates the cursor to
+(judge, account) behind a tested v14 plan. Data generation stays global — restore staleness is
+whole-database, and per-handle staleness is already answered by the account id carried in work
+inputs. The prototype encodes those rules as a pure planner (reuse, add secondary, replace at
+the two-handle cap, account-scoped staleness) with unit tests; production `connect()` keeps its
+current single-handle behavior until the UI phase adopts it.
+/ 多账号按 OJ 以设计门槛阶段交付：一份经过核实的规格、一个纯原型、一份迁移测试计划——刻意
+不做 UI，也不接入生产路径。规格记录了代码中的事实（账号表本就允许同一 OJ 多个 handle；真正
+的约束是同步状态表以 judge 为键的游标），并把工作拆分：第一阶段把第二个 handle 存为停用账
+号，切换时重置游标；第二阶段在经过测试的 v14 计划里把游标迁移为 (judge, account)。数据代
+际保持全局——恢复失效面向整个数据库，按账号的失效已由工作输入携带的账号 id 回答。原型把这
+些规则编码为纯规划器（复用、新增副号、双 handle 上限时替换、按账号判失效）并配单元测试；
+生产 `connect()` 保持现有单 handle 行为，直到 UI 阶段采用它。
+
+## JUDGE HEALTH DASHBOARD
+
+The connector center now doubles as a judge health dashboard — still strictly read-only. Each
+judge row projects the sync ledger's most recent finished run: its terminal status (with the
+failure type appended when one exists) and the wall-clock latency of that run, both computed by a
+pure projection with unit tests. No new network surface and no background probing: the only
+luogu quota trigger is the explicit PROBE action, which reuses the existing manual quota check
+and renders the honest point total, a checking state, or a failure line in place. The dashboard
+answers "is this judge healthy right now" from data the app already recorded — never from a
+hidden poll.
+/ 连接器中心现在兼任 OJ 健康面板——依然严格只读。每个 OJ 行投影同步台账中最近一次已完成
+的运行：其终态（存在失败类型时一并显示）与该次运行的墙钟延迟，全部由带单元测试的纯投影计
+算。没有新的网络接口，也没有后台探测：洛谷配额的唯一触发是显式的 PROBE 动作，复用既有的
+手动配额查询，并在原位渲染诚实的点数、探测中状态或失败提示。面板回答"这个 OJ 现在健康吗"
+依据的是应用已记录的数据——绝不来自隐藏轮询。
+
+## LUOGU PUBLIC TRAINING CATALOG
+
+Luogu's official training plans are now browsable read-only inside the app. A capability probe
+documented first that the public training pages (no login, no cookies) embed their payload in a
+`lentille-context` script tag; a dedicated codec extracts and decodes that JSON with typed
+failures — a wrong template or missing node never throws. The catalog screen lists public
+official trainings with provider, problem count, and marks; the detail screen renders the
+ordered problem ladder and every row deep-links into the existing local Luogu problem detail.
+The entry point is a TRAININGS chip on the Luogu remote catalog, so the flow stays inside the
+problems surface. Loading, empty, not-found, and failure states are explicit; the repository
+surfaces typed `LuoguApiError`s and the screens never render a partial list as success. No
+credential flow, no cookie jar, no writes — the catalog is a public mirror read through the
+same gated, bounded-retry Luogu client as every other public surface.
+/ 洛谷官方训练计划现在可以在应用内只读浏览。能力探测先行确认：公开训练页面（无需登录、
+无 Cookie）把数据嵌在 `lentille-context` script 标签里；专用 codec 负责抽取并解码该 JSON，
+失败有明确类型——模板不符或节点缺失绝不抛异常。目录屏列出公开官方训练的提供者、题目数与
+收藏数；详情屏渲染有序的题目阶梯，每一行深链到既有的本地洛谷题目详情。入口是洛谷公开题库
+上的 TRAININGS 芯片，流程始终留在题目页内。加载、空、未找到与失败状态都有明确呈现；仓库
+层返回带类型的 `LuoguApiError`，屏幕绝不把残缺列表当成功渲染。没有凭据流程、没有 Cookie、
+没有写入——目录是通过与其他公开面板相同的限速、有界重试洛谷客户端读取的公开镜像。
+
+## UNIFIED SUBMISSION DETAIL SHEET
+
+Attempt rows and Luogu submission cards now open one shared bottom-sheet detail view. A
+`SubmissionDetailUiModel` carries judge id, unified verdict tag plus raw verdict text, time /
+memory / score metrics when the judge reports them, language, timestamp, problem context, and
+extra rows for compile output or error details. Locally recorded attempts map with no metrics
+and no links; Luogu jobs map compile message, output, exit code, and custom-run kind into
+labeled rows; a Codeforces attempt keeps its exact deep link while the problem link comes from
+the Luogu problem page. The sheet adds a note shortcut and opens links through the existing
+custom-tab opener. Verdict mapping stays honest: unknown statuses surface the raw status text
+instead of guessing a tag.
+/ 提交行与洛谷提交卡片现在打开同一个共享的底部详情面板。`SubmissionDetailUiModel`
+承载 judge id、统一判定标签与原始判定文本、评测机报告时的耗时 / 内存 / 得分、语言、时间、
+题目上下文，以及编译输出或错误详情等附加行。本地手动记录的提交没有指标也没有链接；洛谷任务把
+编译信息、输出、退出码和自定义运行类型映射为带标签的行；Codeforces 提交保留精确深链，
+题目链接则指向洛谷题面。面板提供添加笔记入口，链接继续走既有的自定义标签页打开器。
+判定映射保持诚实：未知状态直接展示原始状态文本，而不是猜测一个标签。
+
+## ATCODER RATING HISTORY
+
+The AtCoder adapter gains a RATING stage backed by the official public
+`https://atcoder.jp/users/<handle>/history/json` endpoint — no scraping, no auth, no cookies.
+Unrated rows (heuristic contests, `IsRated=false`, `NewRating=0`) are filtered before mapping so
+the UI never renders a missing rating as zero; rated rows map into the shared `rating_changes`
+table keyed by `(judge, contest_id)` with the contest id extracted from
+`ContestScreenName` and the end time parsed as an offset-aware `OffsetDateTime`. Because the
+endpoint returns the full history, the refresh is an atomic delete+insert transaction — Room's
+generated `@Upsert` resolves conflicts on the primary key only, so a unique-index collision
+would otherwise silently drop changed rows. The sync coordinator now runs
+SUBMISSIONS → RATING → CONTESTS → PROBLEMS with a durable module receipt per stage, a 6-hour
+freshness stamp, and the existing kenkoooo request gate shared across both hosts. An unknown
+handle returns `200 []`, which is a successful no-op consistent with `UNVERIFIED` account
+binding; a failed refresh retains the previous cache.
+/ AtCoder 适配器新增 RATING 阶段，数据来自官方公开的
+`https://atcoder.jp/users/<handle>/history/json`——不爬页面、不需要登录、没有 cookie。
+未评级行（AHC 等 `IsRated=false`、`NewRating=0`）在映射前过滤，UI 永远不会把缺失评级显示为
+0；评级行按 `(judge, contest_id)` 写入共享的 `rating_changes` 表，contest id 取自
+`ContestScreenName`，结束时间用带时区偏移的 `OffsetDateTime` 解析。由于该端点返回全量历史，
+刷新采用一个事务内的 delete+insert——Room 生成的 `@Upsert` 只按主键解决冲突，唯一索引冲突
+会被静默丢弃。协调器现在按 SUBMISSIONS → RATING → CONTESTS → PROBLEMS 执行，每阶段写入
+持久化模块回执，6 小时新鲜度戳，两个主机共用既有的 kenkoooo 请求闸门。未知用户返回
+`200 []`，按 `UNVERIFIED` 绑定语义处理为成功空操作；刷新失败保留旧缓存。
+
+## CODEFORCES SUBMISSION DEEP-LINK
+
+Attempt rows on the problem detail screen are now openable when they were imported from a
+Codeforces submission. The row builds its target exclusively through the reviewed
+`CodeforcesUrls.submission(contestId, submissionId)` builder — contest/submission ids must both
+parse as numbers or no link is offered — and opens it with the screen's existing external-browser
+helper (Custom Tabs where available, plain ACTION_VIEW otherwise). The domain `Attempt` model
+now carries the remote origin (source judge, judge-side submission id, contest id) that the
+database already stored; the mapper simply passes it through, so there is no schema change, no
+new request, and manual entries keep exactly their old rendering.
+/ 题目详情页的提交记录行现在在源自 Codeforces 导入时可以点击打开。目标链接一律由经过评审的
+`CodeforcesUrls.submission(contestId, submissionId)` 构造——contest/submission 编号必须都能解析为
+数字才提供链接——并使用页面既有的外部浏览器助手打开（可用时走 Custom Tabs，否则 ACTION_VIEW）。
+领域模型 `Attempt` 现在携带数据库早已保存的远端来源（源 judge、judge 侧提交 id、比赛 id）；
+mapper 只是透传，因此没有 schema 变更、没有新请求，手动条目的渲染完全不变。
+
+## CODEFORCES PROBLEMSET DELTA SYNC
+
+The Codeforces PROBLEMS stage no longer rewrites the whole ~10k-row catalog on every forced
+refresh. A pure `ProblemsetDeltaPlanner` decides between SKIP_FRESH (the existing 24-hour
+freshness stamp), SKIP_UNCHANGED and WRITE. The unchanged check compares the fetched catalog
+against the live table through a SHA-256 fingerprint over canonical
+`contestId:index:rating:solvedCount` rows, confirmed by two indexed SQL aggregates (row count
+and solved-count sum) before any skip is trusted. When content matches, the chunked Room write
+is skipped entirely and the ledger records 0 items; real drift still lands through the same
+bounded 2000-row transactions. Everything stays on the official public API through the request
+gate — no new endpoints, no scraping, and the 503 backoff path is untouched.
+/ Codeforces 的 PROBLEMS 阶段不再在每次强制刷新时重写整张约一万行的目录表。纯函数
+`ProblemsetDeltaPlanner` 在 SKIP_FRESH（沿用 24 小时新鲜度戳）、SKIP_UNCHANGED 与 WRITE 之间做决策。
+未变化检查先对获取到的目录按 `contestId:index:rating:solvedCount` 规范行计算 SHA-256 指纹，再由两条
+索引 SQL 聚合（行数与解题数之和）确认后才允许跳过；内容一致时完全跳过分块写入并在台账记录 0 项，
+真实漂移仍走同样的 2000 行有界事务。全部经由请求网关走官方公开 API——不新增端点、不爬页面，
+503 退避路径保持不变。
+
+## DATABASE HOUSEKEEPING PANEL
+
+The settings data section now reports the database honestly: one line shows the DB size, WAL file
+size and free-page bytes computed from `PRAGMA page_size`, `PRAGMA page_count` and
+`PRAGMA freelist_count` — never invented. Below it, every maintenance table lists its live row
+count, using the same 22-table surface the restore path requires. A VACUUM action reclaims free
+pages on the IO dispatcher with an elapsed-seconds ticker and a cancel affordance; because SQLite
+VACUUM is atomic and cannot be interrupted through the framework API, a cancel that races a
+committing vacuum surfaces a FINISHED notice instead of pretending the operation was stopped.
+Stats refresh after the vacuum completes and on demand.
+/ 设置页数据区现在如实报告数据库状况：一行显示 DB 大小、WAL 文件大小与空闲页字节数，数值来自
+`PRAGMA page_size`、`PRAGMA page_count` 与 `PRAGMA freelist_count`，绝不臆造。下方逐一列出每个
+维护表的实时行数，与恢复路径所需的 22 张表保持一致。VACUUM 操作在 IO 线程回收空闲页，提供经过
+秒数的计时与取消入口；由于 SQLite VACUUM 原子执行且无法通过框架 API 中断，与提交赛跑的取消会
+显示“已完成”提示而不是假装操作被停止。统计会在整理结束后与手动点击时刷新。
+
+## IMPORT CONFLICT PREVIEW
+
+Importing a snapshot archive no longer fires blindly. The settings screen now inspects the archive
+before anything is staged: a preview dialog lists every required table with the INCOMING row count
+from the archive manifest next to the CURRENT live count, and any table whose counts diverge is
+highlighted in the accent color. The inspection reads only `manifest.json` — the database payload
+is skipped, unknown or duplicate entries reject the archive, and the strict rules mirror the
+restore path. Confirm proceeds to the exact same validated replace as before; cancel clears the
+preview and leaves the live database, its pending-restore candidate and its journal completely
+untouched. Legacy raw `.db` files (no manifest) skip the preview and import directly, unchanged.
+/ 导入快照归档不再盲目执行。设置页现在会在暂存之前先检查归档：预览对话框为每个必需表列出归档
+清单中的“导入”行数与当前“现存”行数，不一致的表以强调色高亮。检查只读取 `manifest.json`——
+数据库负载被跳过，未知或重复条目会让归档被拒，严格规则与恢复路径一致。确认后走与之前完全相同
+的校验替换；取消则清除预览，现用数据库、待恢复候选文件与日志都保持原样。旧版裸 `.db` 文件
+（无清单）跳过预览直接导入，行为不变。
+
+Three Robolectric tests pin the contract: a grown live database shows the real incoming → current
+delta in the report; a mismatched schema version and a non-zip payload both return no report; and
+the preview stages nothing — no pending-restore file, no journal, and live row counts unchanged.
+The preview is read-only by construction: no network request, no Room migration, and no credential
+flow is introduced.
+/ 三个 Robolectric 测试钉死契约：现用库在导出后增长时报告展示真实的“导入 → 现存”差值；schema
+版本不匹配与非 zip 负载都返回空报告；预览不暂存任何内容——无待恢复文件、无日志、现存行数不变。
+预览按构造即只读：不发起网络请求，不做 Room 迁移，不引入凭据流程。
+
+## PER-JUDGE DATA WIPE
+
+Local data is now wipeable per judge. Each connected judge panel in the settings screen gains a
+WIPE DATA action behind a typed-confirm dialog: the confirm button stays disabled until the user
+types the judge's display name, so a mis-tap can never destroy a library. One transaction deletes
+the judge's training library problems (attempts, failure entries, notes, knowledge, reviews and
+training history cascade through foreign keys), the cached remote catalog and details, profile and
+rating snapshots, contests and markers, workspace drafts, submission jobs, the sync state cursor
+and the judge's sync operation ledger rows, then writes a `WIPE` audit entry into the fresh ledger.
+The account binding itself survives — the public handle stays connected for the next sync, and
+every other judge's data is untouched.
+/ 本地数据现在支持按 OJ 清除。设置页每个已连接的 OJ 面板新增 WIPE DATA 操作，由输入确认对话框保护：
+用户输入该 OJ 的显示名后确认按钮才可用，误触无法销毁题库。单个事务删除该 OJ 的训练题库题目
+（提交记录、失败记录、笔记、知识、复习与训练历史经外键级联删除）、缓存的远端题库与题目详情、
+个人档案与分数快照、比赛与标记、工作区草稿、提交任务、同步状态游标及该 OJ 的同步台账行，
+随后在新台账中写入一条 `WIPE` 审计记录。账号绑定本身保留——公开句柄仍保持连接以便下次同步，
+其他 OJ 的数据完全不受影响。
+
+The wipe status is a stored ledger string, not a new enum value, so history rendering and retry
+logic degrade gracefully. Cross-judge isolation is pinned by Robolectric tests: seeding two judges,
+wiping one, and asserting the other's problems, profile, catalog detail and ledger rows survive.
+The action is destructive by request only: no network request, no Room migration, and no credential
+flow is introduced.
+/ 清除状态是台账中的存储字符串而非新枚举值，历史渲染与重试逻辑可优雅降级。跨 OJ 隔离由 Robolectric
+测试钉死：播种两个 OJ，清除其一，断言另一方的题目、档案、题库详情与台账行完好。该操作仅在用户明确
+请求时具有破坏性：不引入网络请求、不涉及 Room 迁移、不新增凭据流程。
+
+## SCHEDULED LOCAL BACKUP
+
+Backups now run on a schedule. The settings data screen gains an AUTO BACKUP section: the user
+picks a SAF folder once (persisted URI permission), chooses OFF / DAILY / WEEKLY, and sets how many
+archives to keep (1–20, default 5). A `PeriodicWorkRequest` runs a `CoroutineWorker` that reads the
+preferences, creates a dated `oj-nexus-auto-<yyyyMMdd-HHmmss>.zip` inside the picked tree through
+`DocumentsContract.createDocument`, exports the Phase 86 snapshot archive into it, then prunes the
+oldest archives beyond the keep count. The worker runs under battery-not-low and storage-not-low
+constraints with exponential backoff, uses no network, and writes a `success:<ms>` / `failed:<ms>`
+status stamp that the settings screen shows as a dismissible banner.
+/ 备份从此按计划运行。设置页数据区新增 AUTO BACKUP 区块：用户一次性选定 SAF 文件夹（持久化 URI 权限），
+选择关闭 / 每天 / 每周，并设定保留份数（1–20，默认 5）。`PeriodicWorkRequest` 驱动一个
+`CoroutineWorker`：读取偏好，通过 `DocumentsContract.createDocument` 在所选目录内创建按时间命名的
+`oj-nexus-auto-<yyyyMMdd-HHmmss>.zip`，写入 Phase 86 快照档案，再裁剪超出保留份数的最旧档案。
+Worker 在电量非低与存储非低约束下运行，指数退避，不使用网络，并写入 `success:<ms>` / `failed:<ms>`
+状态戳，设置页将其渲染为可关闭的横幅。
+
+The scheduler is idempotent across cold starts (`enqueueUniquePeriodicWork` with UPDATE), so the
+cadence chosen last always wins. Pure logic — cadence parsing, archive naming, keep-N pruning —
+is unit-tested without Robolectric. The archive contents are unchanged from Phase 86: no network
+request, no Room migration, and no credential flow is introduced.
+/ 调度器跨冷启动幂等（`enqueueUniquePeriodicWork` 使用 UPDATE 策略），最后一次选择的节奏始终生效。
+纯逻辑——节奏解析、档案命名、保留 N 份裁剪——以纯 JVM 单测覆盖。档案内容与 Phase 86 完全一致：
+不引入网络请求、不涉及 Room 迁移、不新增凭据流程。
+
+## EXPORT 2.0: FULL LOCAL SNAPSHOT
+
+Backup became a self-describing archive. The settings data screen now exports a single ZIP holding
+exactly two entries — `manifest.json` and `database.db` — where the manifest records the schema
+version, the data-generation stamp, the export timestamp, and a per-table row count for every
+required table, sorted by name for stable diffs. Import reads the archive, requires the manifest
+before trusting the database, rejects a manifest whose schema version or generation stamp does not
+match the running app, bounds the database entry at 512 MiB, and then hands the extracted database
+to the same validated atomic-restore pipeline as before. Legacy raw `.db` exports remain
+importable, so an older backup never becomes unreadable.
+/ 备份成为自描述档案。设置页现在导出仅含两个条目的单一 ZIP——`manifest.json` 与 `database.db`——
+清单记录 schema 版本、数据代次戳、导出时间，以及所有必需表的逐表行数（按表名排序，diff 稳定）。
+导入先读清单再信任数据库：schema 版本或代次戳与运行中的应用不符即拒绝，数据库条目上限 512 MiB，
+随后把解出的数据库交给与原来相同的校验原子恢复管线。旧的裸 `.db` 导出仍可导入，历史备份不会失效。
+
+The manifest is metadata only: no credential, token, cookie, or OpenApp secret ever enters the
+archive, and the database itself has no secret columns — the OpenApp credential stays in
+`noBackupFilesDir`, outside every export path. Tests pin the entry list, the no-secret scan over
+both entries, the round trip (export → import → restore → row counts match), tampered-version and
+blank-stamp rejection, and the legacy fallback.
+/ 清单只有元数据：任何凭据、令牌、Cookie 或 OpenApp 密钥都不会进入档案，数据库本身也没有密钥列——
+OpenApp 凭据保存在 `noBackupFilesDir`，在任何导出路径之外。测试钉住条目清单、对两个条目的无密钥扫描、
+往返一致性（导出 → 导入 → 恢复 → 行数一致）、篡改版本与空代次戳的拒绝，以及旧格式回退。
+
+The archive adds no network request, no Room migration and no credential flow; it packages data
+the app already holds. / 该档案不引入任何网络请求、Room 迁移或凭据流程，只是打包应用已有的本地数据。
+
+## COMMAND PALETTE REVIEW / TRAINING / UNSOLVED QUERIES
+
+The palette's direct-query card is no longer search-only. The local command grammar gains three
+deterministic forms: `review due` jumps straight into the scheduled review run; `sprint <rating>`
+opens training with the focus-sprint ladder anchored on the requested difficulty for that visit;
+`unsolved <range>` and `<judge alias> unsolved <range>` open the library scoped to unsolved
+problems in an inclusive difficulty range (`1600`, `1600-1900`, `1600-`, `-1900`). Judge aliases
+(`@cf`, `ac`, `lg`, or bare) keep working in front of every form, and the card states exactly what
+the command will do before it is tapped.
+/ 命令面板的直达卡片不再只支持搜索。本地命令语法新增三种确定性形式：`review due` 直接进入到期复习冲刺；
+`sprint <难度>` 打开训练页，专注冲刺阶梯在本次访问内以该难度为锚；`unsolved <范围>` 与
+`<OJ 别名> unsolved <范围>` 打开按未解决题目和闭区间难度（`1600`、`1600-1900`、`1600-`、`-1900`）过滤的题库。
+`@cf`、`ac`、`lg` 或裸别名继续适用于所有形式，卡片在点击前就写明这条命令会做什么。
+
+Range filtering is a pure library predicate: bounds are inclusive, unknown difficulty is excluded
+by any concrete range rather than guessed into one, and the filter composes with judge/status/tag
+as before. The training target override is presentation-only state — it never writes the
+calibrated preference.
+/ 范围过滤是题库的纯谓词：边界闭区间，未知难度不会被猜进任何具体区间而是被排除，且与
+OJ/状态/标签照旧组合。训练目标覆盖只是展示层状态，从不写回校准偏好。
+
+Coverage includes the parser forms (aliases, tab/space normalization, malformed ranges, bounds),
+filter inclusivity, unknown-difficulty exclusion, and judge composition. / 测试覆盖解析形式
+（别名、空白归一、非法范围、边界）、过滤闭区间、未知难度排除以及 OJ 组合。
+
+The commands add no network request, no Room migration and no credential flow; they only route to
+screens the app already has and filter data it already holds. / 这些命令不引入任何网络请求、
+Room 迁移或凭据流程，只是路由到应用已有的页面并过滤应用已有的本地数据。
+
+## TRAINING CALENDAR HEAT STREAKS
+
+Every heatmap cell now tells a screen-reader user which day it is. The cell description carries the
+formatted local date next to the intensity and solved count, and the leading/trailing grid padding
+is announced as an empty calendar cell instead of a fake zero-activity day. The totals strip shows
+the longest streak beside the current one, so the season record is visible without reading the
+heatmap cell by cell. The streak math itself was already a tested pure function
+(`StreakCalculator`); this phase pins the contract with new boundary tests (longest covers current,
+sparse history, single-day history) and a UI-layout test that fails if the date ever drops out of
+the cell description.
+/ 热力图的每个格子现在都会告诉读屏用户它是哪一天。格子描述在强度与解决数之外携带格式化后的本地日期，
+网格首尾的补位格被朗读为"空白日历格"，而不是一个伪造的零活动日。总计条在当前连续天数旁边展示最长连续天数，
+无需逐格阅读热力图即可看到赛季纪录。连签计算本身已是经过测试的纯函数（`StreakCalculator`），
+本阶段用新的边界测试（最长≥当前、稀疏历史、单日历史）和 UI 布局测试固定这一契约——
+日期一旦从格子描述中消失，测试即失败。
+
+The phase adds no network request, no Room migration and no credential flow; it only relabels and
+surfaces data the app already computes. / 本阶段不引入任何网络请求、Room 迁移或凭据流程，
+只是重新标注并展示应用已经在计算的数据。
+
+## FOCUS SPRINT DIFFICULTY LADDER
+
+The focus sprint is now a ladder, not just a queue. The panel gained a four-chip difficulty band —
+EASIER / FIT / STRETCH / ANY — anchored on the user's training target, and every preview row states
+its own local reason: a rating tag (`1600` or `—` when the problem carries none) and a deterministic
+reason code (DUE with the review gap in days, WEAK AREA, FAILURES, DIFFICULTY FIT, UNSOLVED,
+UNRATED). Ordering walks the ladder: EASIER rows first, then FIT, then STRETCH, with unrated
+candidates trailing instead of being dropped or guessed at — a missing rating never matches a
+concrete band and never claims DIFFICULTY FIT. The chosen band is remembered across rotation while
+the plan itself stays a pure function of the local snapshot, so the preview and the launched
+session can never disagree.
+/ 专注冲刺现在是一道阶梯，而不只是队列。面板新增以训练目标为锚点的四档难度选择——更简单 / 匹配 / 更难 / 全部，
+每一行预览都声明自己的本地理由：难度标签（1600，无难度时显示 —）与确定性理由码
+（待复习并带间隔天数、薄弱领域、多次失败、难度匹配、未解决、无难度）。排序沿阶梯上行：先更简单，再匹配，再更难，
+无难度的候选排在末尾而不是被丢弃或被猜测——缺失的难度永远不会命中具体档位，也永远不会声称难度匹配。
+所选档位在旋转后保留，而计划本身始终是本地快照的纯函数，因此预览与实际启动的会话不可能不一致。
+
+Coverage includes band boundaries at exactly ±200, ascending difficulty inside a band, the unrated
+trailing group, reason-code precedence, the due gap, and the limit/duplicate rules carried over
+from the Phase 75 planner. / 测试覆盖 ±200 的档位边界、档位内难度升序、无难度尾组、理由码优先级、
+复习间隔，以及沿用 Phase 75 规划器的上限与去重规则。
+
+The ladder adds no network request, no Room migration and no credential flow; it only reorders and
+labels data the app already holds. / 该阶梯不引入任何网络请求、Room 迁移或凭据流程，
+只对应用已有的本地数据重新排序并加上标签。
+
+## SESSION DEBRIEF EXPORT (MARKDOWN)
+
+A finished session can now leave the phone. The debrief panel gained an EXPORT chip that copies a
+Markdown document to the clipboard and hands the same text to the Android share sheet, so the
+summary can be pasted into a notebook or a team channel. The document is generated by
+`buildSessionDebriefMarkdown` — a pure function of a pre-resolved payload, which is why the
+optional sections (target, note, finish time, duration, verdict, review state) are omitted rather
+than rendered empty and why a problem title containing a pipe or a newline cannot break the table.
+A session with no problems exports a `NO PROBLEMS LOGGED IN THIS SESSION.` line instead of a
+header-only table. The UI resolves its labels once, so the builder itself never touches Android.
+/ 已结束的训练会话现在可以离开手机。复盘面板新增「导出」按钮：把一份 Markdown 文档复制到剪贴板，并通过
+Android 分享面板发送同一段文本，方便把摘要粘进笔记本或团队频道。文档由 `buildSessionDebriefMarkdown` 生成——
+它是一个只依赖预解析载荷的纯函数，因此可选区块（目标、备注、结束时间、时长、判定、复习状态）会被省略而不是渲染成空行，
+题目标题里的竖线或换行也不会破坏表格。没有问题记录的会话导出为 `NO PROBLEMS LOGGED IN THIS SESSION.` 一行，
+而不是一张只有表头的表格。界面只解析一次标签，所以构建器本身完全不接触 Android。
+
+Coverage spans the full, partial and empty sessions, the pipe/newline escaping rule, and the
+exactly-one trailing newline. / 测试覆盖完整、部分与空会话三种情况、竖线与换行转义规则，以及结尾恰好一个换行。
+
+The feature adds no network request, no Room migration and no credential flow; it only formats
+text that is already local into Markdown. / 该功能不引入任何网络请求、Room 迁移或凭据流程，
+只把本地已有的文本格式化成 Markdown。
+
+## MASTERY DECAY V2
+
+Knowledge mastery now ages. The score keeps its coverage (70 points) and efficiency (30) terms,
+and time since the newest solved problem in the area then removes
+`floor(score * days / 30)` points, capped at 30. An area solved two months ago reads as stale;
+an area never solved has nothing to decay. The result carries both the score and the amount
+removed, so the training screen renders `MASTERY 72 ▼ DECAY 8` and a `STALE` reason tag from one
+evaluation. The engine reads no clock — the repository feeds it the local day delta from the
+existing mastery query — and the formula plus its boundary table live in `docs/TRAINING_ENGINE.md`.
+/ 知识掌握度现在会随时间衰减。分数保留覆盖率（70 分）与效率（30 分）两项，再用该区域内最新解题距今天数
+减去 `floor(score * days / 30)` 分，上限 30 分。两个月前解过的区域会显示为久未复习；从未解过的区域没有可衰减的
+内容。结果同时携带分数与被扣掉的分值，因此训练页可以用一次评估渲染 `MASTERY 72 ▼ DECAY 8` 与 `STALE` 原因标签。
+引擎不读时钟——由仓库把本地日差值从既有的掌握度查询中喂给它——公式与边界表记录在 `docs/TRAINING_ENGINE.md`。
+
+Coverage spans the engine boundaries (0 days, 8 days, the 30-day cap, past the cap, never solved,
+negative deltas, floor-not-round, determinism) and the SQL expression itself, including the null
+case for an area whose problems are attempted but unsolved. / 测试覆盖引擎边界（0 天、8 天、30 天上限、
+超过上限、从未解出、负差值、向下取整、确定性）以及 SQL 表达式本身，包括区域内题目有尝试但未解出时的空值情况。
+
+The feature adds no network request, no Room migration and no credential flow; it only reshapes
+locally stored mastery evidence into a fresher score. / 该功能不引入任何网络请求、Room 迁移或凭据流程，
+只把本地已存储的掌握度证据重组成更有时效的分数。
+
+## KNOWLEDGE AUTO-LINKING
+
+Problem detail can now bridge local tags to knowledge areas in one tap. A fixed alias table in
+`core/model` maps judge tag spellings to the ten knowledge areas, matching is exact after
+normalization, and the result is returned in enum declaration order so the same tags always
+produce the same links. AUTO writes only the areas that are not linked yet, so a repeated tap
+changes nothing and a manual link is never overwritten; CLEAR AUTO removes only the derived set
+and leaves hand-picked links intact. The candidate count is derived inside the existing detail
+`combine`, so the actions appear and disappear with the data instead of adding a new flow. /
+题目详情现在可以一键把本地标签桥接到知识区域。`core/model` 中的固定别名表把评测机标签拼写映射到十个知识
+区域，匹配在归一化后精确进行，结果按枚举声明顺序返回，因此同样的标签总是产生同样的链接。AUTO 只写入尚未链接的
+区域，重复点击不会改变任何内容，手动链接也永不被覆盖；CLEAR AUTO 只移除自动派生的链接，手选链接保持不变。候选数量
+在既有的详情 `combine` 中推导，操作随数据出现与消失，不新增数据流。
+
+Coverage spans exact and case/whitespace-insensitive alias matching, Chinese aliases, one area per
+alias, declaration-order output, unknown and blank tags linking nothing, the alias table never
+mapping one alias to two areas, `pendingAutoLinks` subtracting the linked set, and determinism
+across repeated calls. / 测试覆盖精确与大小写/空格不敏感的别名匹配、中文别名、一个别名对应一个区域、
+按声明顺序输出、未知与空白标签不产生链接、别名表不会把同一别名映射到两个区域、`pendingAutoLinks` 减去已链接
+集合、以及重复调用的确定性。
+
+The feature adds no network request, no Room migration and no credential flow; it only links
+existing local tags to existing local knowledge areas. / 该功能不引入任何网络请求、Room 迁移或凭据流程，
+只把已有的本地标签链接到已有的本地知识区域。
+
+## REVIEW DECK SHUFFLE & CRAM MODE
+
+The review run now controls its own deck order. `SCHEDULE` keeps the due-day order; `SHUFFLE` permutes
+the same queue with a per-local-day seed, so the order is stable within one day and reshuffles the
+next; `CRAM` ignores the schedule and takes a user-picked judge plus an optional knowledge tag, then
+shuffles that slice with the same seed. The review queue now exposes each problem's local tags, so a
+cram slice can be as specific as "CODEFORCES + DP". The deck freezes once the first outcome is
+recorded, so a run never reorders under the user. / 连续复习现在可以自己控制组卷顺序。`SCHEDULE`
+保持到期日顺序；`SHUFFLE` 使用按本地日期生成的种子打乱同一队列，因此一天内顺序稳定、次日重新洗牌；
+`CRAM` 无视排期，只取用户选定的评测机加可选知识标签，再用同一种子打乱该切片。复习队列现在会带上每道题的
+本地标签，所以 cram 切片可以精确到「CODEFORCES + DP」。一旦记录了第一个结果，组卷即刻冻结，复习过程中不会重排。
+
+All ordering lives in a pure `ReviewDeck` helper (schedule comparator, seeded Fisher–Yates, cram
+filter) with a polled `java.util.Random` — no Android or clock dependency — and the view model only
+snapshots the mode, filter and seed. Mode switching, tag chips and the shuffle seed are covered by
+unit tests, including determinism, permutation invariants, an unusable cram filter being refused,
+and a run freezing after its first outcome. / 所有排序都在纯函数 `ReviewDeck` 中完成
+（排期比较器、带种子的 Fisher–Yates、cram 过滤），只依赖 `java.util.Random`，不碰 Android 或时钟；
+ViewModel 只快照模式、过滤条件和种子。模式切换、标签 chip 与随机种子均有单元测试，覆盖确定性、
+排列不变性、不可用 cram 过滤被拒绝、以及首次记录结果后冻结。
+
+The deck mode changes only the local ordering of an existing queue; it adds no network request, no
+Room migration and no credential flow. / 组卷模式只改变本地队列顺序，不引入网络请求、Room 迁移或凭据流程。
+
+## NOTE FIELD TEMPLATES
+
+Problem notes now follow a per-user editable template instead of four fixed headings. The template
+lives in the preferences DataStore as an escaped `slot:label:hint` payload, so it survives a restart
+without a Room migration; a corrupt value degrades to the default layout rather than failing. The
+editor renders template fields in order first and then appends any remaining slot that still holds
+saved text, so a renamed or removed heading can never hide existing notes. Reordering, adding,
+renaming, hinting, removing, `RESET` and the `ROOT CAUSE / KEY INSIGHT / PITFALL` preset are all
+available in a bottom sheet behind the note section's `TEMPLATE` action. / 题目笔记现在遵循每用户可编辑的
+模板，而不再是四个固定标题。模板以转义后的 `slot:label:hint` 形式存放在设置 DataStore 中，重启后依然有效，
+且不需要 Room 迁移；损坏的取值会退回到默认布局而不是报错。编辑器先按模板顺序渲染字段，再追加仍然存有内容的
+其余字段，因此重命名或删除标题永远不会隐藏已有笔记。重排、新增、改名、提示、删除、`RESET` 以及
+`ROOT CAUSE / KEY INSIGHT / PITFALL` 预设都在笔记区的 `TEMPLATE` 操作唤起的底部弹层中完成。
+
+Coverage spans the template model (default and preset labels, ordering, cap at four fields, orphan
+saved text, escape-safe codec, malformed payload rejection) and the DataStore round trip including a
+corrupt stored value falling back to the default template. / 测试覆盖模板模型（默认与预设标签、排序、
+四个字段上限、孤立已存文本、转义安全的编解码、非法载荷拒绝）以及 DataStore 的写入读回，包括损坏取值退回默认模板。
+
+The editor adds no network request, no Room migration and no credential flow; it only reshapes local
+note text and a local preference. / 编辑器不引入任何网络请求、Room 迁移或凭据流程，只重组本地笔记文本与本地偏好。
+
 ## ANDROID SHARED LAYOUT — Font scaling
 
 Shared section headings now wrap within the space left by their trailing action, with a tokenized

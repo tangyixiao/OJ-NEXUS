@@ -365,9 +365,11 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
                 break;
             case CodeforcesSubmissionsPayload submissions:
                 await ReplaceSubmissionsAsync(connection, transaction, submissions, fetchedAt, cancellationToken);
+                await DeriveProblemsFromCodeforcesAsync(connection, transaction, submissions, fetchedAt, cancellationToken);
                 break;
             case AtCoderSubmissionsPayload atcoderSubmissions:
                 await ReplaceAtCoderSubmissionsAsync(connection, transaction, atcoderSubmissions, fetchedAt, cancellationToken);
+                await DeriveProblemsFromAtCoderAsync(connection, transaction, atcoderSubmissions, fetchedAt, cancellationToken);
                 break;
             case LuoguProfilePayload luoguProfile:
                 await UpsertLuoguProfileAsync(connection, transaction, luoguProfile, fetchedAt, cancellationToken);
@@ -554,6 +556,360 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
             command.Parameters.AddWithValue("$fetchedAt", FormatTime(fetchedAt));
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Derives problem-library rows from persisted Codeforces submissions in the SAME
+    /// transaction as the submission replace. Rows are keyed (judge, external_id) where
+    /// external_id = "{contestId}{index}" (the Android identity rule). An accepted verdict
+    /// marks the problem solved — sticky, never reset.
+    /// </summary>
+    private static async Task DeriveProblemsFromCodeforcesAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CodeforcesSubmissionsPayload payload,
+        DateTimeOffset fetchedAt,
+        CancellationToken cancellationToken)
+    {
+        var seen = new Dictionary<string, (string Title, bool Solved)>(StringComparer.Ordinal);
+        foreach (var item in payload.Items)
+        {
+            var externalId = ProblemUrls.CodeforcesExternalId(item.ContestId, item.ProblemIndex);
+            if (externalId is null)
+            {
+                continue;
+            }
+
+            var solved = IsAcceptedVerdict(item.Verdict);
+            var title = string.IsNullOrWhiteSpace(item.ProblemName)
+                ? externalId
+                : item.ProblemName.Trim();
+            // Newest submissions arrive first; keep the first-seen title, but OR the flag up.
+            if (seen.TryGetValue(externalId, out var existing))
+            {
+                seen[externalId] = (existing.Title, existing.Solved || solved);
+            }
+            else
+            {
+                seen[externalId] = (title, solved);
+            }
+        }
+
+        foreach (var (externalId, info) in seen)
+        {
+            var url = ProblemUrls.For(JudgeId.Codeforces, externalId);
+            if (url is null)
+            {
+                continue;
+            }
+
+            await UpsertProblemRowAsync(
+                connection,
+                transaction,
+                JudgeId.Codeforces,
+                externalId,
+                info.Title,
+                url,
+                info.Solved,
+                fetchedAt,
+                cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Derives problem rows from persisted AtCoder submissions; external_id =
+    /// "{contestId}+{problemId}" so ProblemUrls can rebuild the public tasks link.
+    /// </summary>
+    private static async Task DeriveProblemsFromAtCoderAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        AtCoderSubmissionsPayload payload,
+        DateTimeOffset fetchedAt,
+        CancellationToken cancellationToken)
+    {
+        var seen = new Dictionary<string, (string Title, bool Solved)>(StringComparer.Ordinal);
+        foreach (var item in payload.Items)
+        {
+            if (string.IsNullOrWhiteSpace(item.ContestId) || string.IsNullOrWhiteSpace(item.ProblemId))
+            {
+                continue;
+            }
+
+            var externalId = $"{item.ContestId.Trim()}+{item.ProblemId.Trim()}";
+            var solved = IsAcceptedVerdict(item.Result);
+            var title = item.ProblemId.Trim();
+            if (seen.TryGetValue(externalId, out var existing))
+            {
+                seen[externalId] = (existing.Title, existing.Solved || solved);
+            }
+            else
+            {
+                seen[externalId] = (title, solved);
+            }
+        }
+
+        foreach (var (externalId, info) in seen)
+        {
+            var url = ProblemUrls.For(JudgeId.AtCoder, externalId);
+            if (url is null)
+            {
+                continue;
+            }
+
+            await UpsertProblemRowAsync(
+                connection,
+                transaction,
+                JudgeId.AtCoder,
+                externalId,
+                info.Title,
+                url,
+                info.Solved,
+                fetchedAt,
+                cancellationToken);
+        }
+    }
+
+    private static bool IsAcceptedVerdict(string? verdict) =>
+        verdict is not null
+        && (verdict.Equals("OK", StringComparison.OrdinalIgnoreCase)
+            || verdict.Equals("AC", StringComparison.OrdinalIgnoreCase)
+            || verdict.StartsWith("Accepted", StringComparison.OrdinalIgnoreCase));
+
+    private static async Task UpsertProblemRowAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        JudgeId judge,
+        string externalId,
+        string title,
+        string url,
+        bool solved,
+        DateTimeOffset seenAt,
+        CancellationToken cancellationToken)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO problems (judge, external_id, title, url, solved, first_seen_at, last_seen_at)
+            VALUES ($judge, $externalId, $title, $url, $solved, $seenAt, $seenAt)
+            ON CONFLICT(judge, external_id) DO UPDATE SET
+                solved = MAX(problems.solved, excluded.solved),
+                last_seen_at = excluded.last_seen_at;
+            """;
+        command.Parameters.AddWithValue("$judge", judge.ToString());
+        command.Parameters.AddWithValue("$externalId", externalId);
+        command.Parameters.AddWithValue("$title", title);
+        command.Parameters.AddWithValue("$url", url);
+        command.Parameters.AddWithValue("$solved", solved ? 1 : 0);
+        command.Parameters.AddWithValue("$seenAt", FormatTime(seenAt));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ProblemEntry>> GetProblemsAsync(
+        JudgeId? judge,
+        ProblemStatus? status,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        if (limit <= 0)
+        {
+            return Array.Empty<ProblemEntry>();
+        }
+
+        using var connection = connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        var statusValue = status switch
+        {
+            ProblemStatus.Solved => 1,
+            ProblemStatus.Attempted => 0,
+            _ => (int?)null,
+        };
+        command.CommandText = """
+            SELECT judge, external_id, title, url, solved, first_seen_at, last_seen_at
+            FROM problems
+            WHERE ($judge IS NULL OR judge = $judge)
+              AND ($status IS NULL OR solved = $status)
+            ORDER BY last_seen_at DESC, judge ASC, external_id ASC
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue("$judge", judge?.ToString() ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("$status", statusValue is null ? (object)DBNull.Value : statusValue.Value);
+        command.Parameters.AddWithValue("$limit", limit);
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var problems = new List<ProblemEntry>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (!JudgeIdParser.TryParse(reader.GetString(0), out var rowJudge))
+            {
+                continue;
+            }
+
+            problems.Add(new ProblemEntry(
+                rowJudge,
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetInt64(4) != 0,
+                ParseTime(reader.GetString(5)),
+                ParseTime(reader.GetString(6))));
+        }
+
+        return problems;
+    }
+
+    public async Task<IReadOnlyList<ReviewEntry>> GetDueReviewsAsync(
+        JudgeId? judge,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        if (limit <= 0)
+        {
+            return Array.Empty<ReviewEntry>();
+        }
+
+        var today = ReviewIntervalLadder.DayIndexFor(DateTimeOffset.Now);
+        using var connection = connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT reviews.judge, reviews.external_id, problems.title, problems.url,
+                   reviews.stage, reviews.due_at, reviews.due_day_index,
+                   reviews.last_result, reviews.last_reviewed_at
+            FROM reviews
+            LEFT JOIN problems
+              ON problems.judge = reviews.judge AND problems.external_id = reviews.external_id
+            WHERE due_day_index <= $today
+              AND ($judge IS NULL OR reviews.judge = $judge)
+            ORDER BY reviews.due_day_index ASC, reviews.judge ASC, reviews.external_id ASC
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue("$today", today);
+        command.Parameters.AddWithValue("$judge", judge?.ToString() ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("$limit", limit);
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var reviews = new List<ReviewEntry>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (!JudgeIdParser.TryParse(reader.GetString(0), out var rowJudge))
+            {
+                continue;
+            }
+
+            ReviewResult? lastResult = null;
+            if (!reader.IsDBNull(7) && ReviewResultParser.TryParse(reader.GetString(7), out var parsed))
+            {
+                lastResult = parsed;
+            }
+            reviews.Add(new ReviewEntry(
+                rowJudge,
+                reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3),
+                reader.GetInt32(4),
+                ParseTime(reader.GetString(5)),
+                reader.GetString(6),
+                lastResult,
+                reader.IsDBNull(8) ? null : ParseTime(reader.GetString(8))));
+        }
+
+        return reviews;
+    }
+
+    public async Task<ReviewEntry> MarkReviewAsync(
+        JudgeId judge,
+        string externalId,
+        ReviewResult result,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(externalId))
+        {
+            throw new ArgumentException("External id must be a non-blank value.", nameof(externalId));
+        }
+
+        var trimmedId = externalId.Trim();
+        using var connection = connectionFactory.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        int stage;
+        string? lastResult;
+        DateTimeOffset? lastReviewedAt;
+        using (var existingCommand = connection.CreateCommand())
+        {
+            existingCommand.Transaction = transaction;
+            existingCommand.CommandText = "SELECT stage, last_result, last_reviewed_at FROM reviews WHERE judge = $judge AND external_id = $externalId";
+            existingCommand.Parameters.AddWithValue("$judge", judge.ToString());
+            existingCommand.Parameters.AddWithValue("$externalId", trimmedId);
+            using var reader = await existingCommand.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                stage = reader.GetInt32(0);
+                lastResult = reader.IsDBNull(1) ? null : reader.GetString(1);
+                lastReviewedAt = reader.IsDBNull(2) ? null : ParseTime(reader.GetString(2));
+            }
+            else
+            {
+                stage = 0;
+                lastResult = null;
+                lastReviewedAt = null;
+            }
+        }
+
+        var (newStage, dueAt, dueDayIndex) = ReviewIntervalLadder.ScheduleNext(result, stage, now);
+        var nowText = FormatTime(now);
+
+        using var upsertCommand = connection.CreateCommand();
+        upsertCommand.Transaction = transaction;
+        upsertCommand.CommandText = """
+            INSERT INTO reviews (judge, external_id, stage, due_at, due_day_index, last_result, last_reviewed_at, created_at)
+            VALUES ($judge, $externalId, $stage, $dueAt, $dueDayIndex, $lastResult, $lastReviewedAt, $createdAt)
+            ON CONFLICT(judge, external_id) DO UPDATE SET
+                stage = excluded.stage,
+                due_at = excluded.due_at,
+                due_day_index = excluded.due_day_index,
+                last_result = excluded.last_result,
+                last_reviewed_at = excluded.last_reviewed_at;
+            """;
+        upsertCommand.Parameters.AddWithValue("$judge", judge.ToString());
+        upsertCommand.Parameters.AddWithValue("$externalId", trimmedId);
+        upsertCommand.Parameters.AddWithValue("$stage", newStage);
+        upsertCommand.Parameters.AddWithValue("$dueAt", FormatTime(dueAt));
+        upsertCommand.Parameters.AddWithValue("$dueDayIndex", dueDayIndex);
+        upsertCommand.Parameters.AddWithValue("$lastResult", ReviewResultParser.ToWire(result));
+        upsertCommand.Parameters.AddWithValue("$lastReviewedAt", nowText);
+        upsertCommand.Parameters.AddWithValue("$createdAt", nowText);
+        await upsertCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        using var logCommand = connection.CreateCommand();
+        logCommand.Transaction = transaction;
+        logCommand.CommandText = """
+            INSERT INTO review_log (judge, external_id, result, stage, completed_at, day_index)
+            VALUES ($judge, $externalId, $result, $stage, $completedAt, $dayIndex);
+            """;
+        logCommand.Parameters.AddWithValue("$judge", judge.ToString());
+        logCommand.Parameters.AddWithValue("$externalId", trimmedId);
+        logCommand.Parameters.AddWithValue("$result", ReviewResultParser.ToWire(result));
+        logCommand.Parameters.AddWithValue("$stage", newStage);
+        logCommand.Parameters.AddWithValue("$completedAt", nowText);
+        logCommand.Parameters.AddWithValue("$dayIndex", ReviewIntervalLadder.DayIndexFor(now));
+        await logCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        string? title = null;
+        string? url = null;
+        using (var problemCommand = connection.CreateCommand())
+        {
+            problemCommand.CommandText = "SELECT title, url FROM problems WHERE judge = $judge AND external_id = $externalId";
+            problemCommand.Parameters.AddWithValue("$judge", judge.ToString());
+            problemCommand.Parameters.AddWithValue("$externalId", trimmedId);
+            using var problemReader = await problemCommand.ExecuteReaderAsync(cancellationToken);
+            if (await problemReader.ReadAsync(cancellationToken))
+            {
+                title = problemReader.GetString(0);
+                url = problemReader.GetString(1);
+            }
+        }
+
+        return new ReviewEntry(judge, trimmedId, title, url, newStage, dueAt, dueDayIndex, result, now);
     }
 
     public async Task CloseOperationAsync(

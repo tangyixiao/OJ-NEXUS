@@ -1,14 +1,21 @@
 package com.ojnexus.feature.settings
 
 import android.content.ContentResolver
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ojnexus.core.data.backup.BackupCadence
+import com.ojnexus.core.data.backup.ScheduledBackupScheduler
+import com.ojnexus.core.data.backup.SnapshotConflictReport
 import com.ojnexus.core.data.preferences.UserPreferences
 import com.ojnexus.core.data.preferences.UserPreferencesRepository
 import com.ojnexus.core.data.restore.RestoreOutcome
 import com.ojnexus.core.designsystem.NexusThemeSlot
 import com.ojnexus.core.data.repository.BackupRepository
+import com.ojnexus.core.data.repository.DatabaseMaintenanceRepository
+import com.ojnexus.core.data.repository.DatabaseMaintenanceStats
 import com.ojnexus.core.data.repository.JudgeAccountRepository
 import com.ojnexus.core.data.repository.JudgeDataRepository
 import com.ojnexus.core.data.sync.SyncPhase
@@ -39,6 +46,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -95,6 +106,7 @@ class SettingsViewModel(
     private val registry: JudgeRegistry,
     private val backupRepository: BackupRepository,
     private val preferencesRepository: UserPreferencesRepository,
+    private val maintenanceRepository: DatabaseMaintenanceRepository? = null,
     private val openAppCredentialStore: OpenAppCredentialStore? = null,
     private val openAppQuotaReader: LuoguOpenQuotaReader? = null,
     private val openAppCredentialVerifier: LuoguOpenCredentialVerifier? = null,
@@ -162,6 +174,10 @@ class SettingsViewModel(
     val retryingOperationId: StateFlow<Long?> = _retryingOperationId.asStateFlow()
     private val backupResult = MutableStateFlow<BackupResult?>(null)
     val backup: StateFlow<BackupResult?> = backupResult.asStateFlow()
+    private val wipeJudges = MutableStateFlow<Set<JudgeId>>(emptySet())
+    val wiping: StateFlow<Set<JudgeId>> = wipeJudges.asStateFlow()
+    private val wipeErrors = MutableStateFlow<Map<JudgeId, Boolean>>(emptyMap())
+    val wipeFailed: StateFlow<Map<JudgeId, Boolean>> = wipeErrors.asStateFlow()
     private val restoreStatus = MutableStateFlow(restoreStatusFor(restoreOutcome))
     val restore: StateFlow<RestoreStatus?> = restoreStatus.asStateFlow()
     val preferences: StateFlow<UserPreferences> = preferencesRepository.preferences.stateIn(
@@ -375,8 +391,197 @@ class SettingsViewModel(
         }
     }
 
+    private val pendingImport = MutableStateFlow<SnapshotConflictReport?>(null)
+    val pendingImportFlow: StateFlow<SnapshotConflictReport?> = pendingImport.asStateFlow()
+
+    /**
+     * First step of an import: inspect the archive for a conflict preview. A snapshot
+     * archive produces a report the UI must confirm; anything else (legacy raw `.db`,
+     * invalid file) imports directly as before.
+     */
+    fun inspectImport(resolver: ContentResolver, source: Uri) {
+        viewModelScope.launch {
+            val report = runCatching { backupRepository.inspectSnapshot(resolver, source) }
+                .getOrDefault(null)
+            if (report != null) {
+                pendingImport.value = report
+            } else {
+                importBackup(resolver, source)
+            }
+        }
+    }
+
+    /** Confirms the previewed import; the actual replace happens in [importBackup]. */
+    fun confirmImport(resolver: ContentResolver, source: Uri) {
+        pendingImport.value = null
+        importBackup(resolver, source)
+    }
+
+    /** Cancels the previewed import — nothing is written, the live database stays untouched. */
+    fun cancelImport() {
+        pendingImport.value = null
+    }
+
     fun dismissRestoreStatus() {
         restoreStatus.value = null
+    }
+
+    private val backupStatusDismissed = MutableStateFlow(false)
+    val backupStatusDismissedFlow: StateFlow<Boolean> = backupStatusDismissed.asStateFlow()
+
+    // --- Database housekeeping (Phase 90) ---
+
+    private val maintenanceStats = MutableStateFlow<DatabaseMaintenanceStats?>(null)
+    val maintenanceStatsFlow: StateFlow<DatabaseMaintenanceStats?> = maintenanceStats.asStateFlow()
+
+    private val vacuumRunning = MutableStateFlow(false)
+    val vacuumRunningFlow: StateFlow<Boolean> = vacuumRunning.asStateFlow()
+
+    /** Elapsed seconds while VACUUM runs — SQLite offers no real progress callback. */
+    private val vacuumElapsedSeconds = MutableStateFlow(0)
+    val vacuumElapsedFlow: StateFlow<Int> = vacuumElapsedSeconds.asStateFlow()
+
+    /** Set when a cancel raced a committing VACUUM; the vacuum finished atomically. */
+    private val vacuumCancelRaced = MutableStateFlow(false)
+    val vacuumCancelRacedFlow: StateFlow<Boolean> = vacuumCancelRaced.asStateFlow()
+
+    private var vacuumJob: Job? = null
+    private var vacuumCancelRequested = false
+
+    init {
+        refreshMaintenanceStats()
+    }
+
+    // --- Local crash log (Phase 114) — nothing leaves the device ---
+
+    private val crashFiles = MutableStateFlow<List<String>>(emptyList())
+
+    /** Newest-first crash report file names; empty when none captured. */
+    val crashFilesFlow: StateFlow<List<String>> = crashFiles.asStateFlow()
+
+    private val crashPreview = MutableStateFlow<String?>(null)
+
+    /** Content of the newest crash file for the settings dialog; null hides the dialog. */
+    val crashPreviewFlow: StateFlow<String?> = crashPreview.asStateFlow()
+
+    fun refreshCrashFiles() {
+        val filesDir = com.ojnexus.core.ui.GlobalContext.application.filesDir
+        crashFiles.value = runCatching {
+            com.ojnexus.core.crash.CrashLog.crashFiles(filesDir).map { it.name }
+        }.getOrDefault(emptyList())
+    }
+
+    fun setCrashLogEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setCrashLogEnabled(enabled)
+        }
+    }
+
+    fun openCrashPreview() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val filesDir = com.ojnexus.core.ui.GlobalContext.application.filesDir
+            val file = runCatching { com.ojnexus.core.crash.CrashLog.newest(filesDir) }
+                .getOrNull() ?: return@launch
+            val raw = runCatching { file.readText() }.getOrNull() ?: return@launch
+            crashPreview.value = raw
+        }
+    }
+
+    fun dismissCrashPreview() {
+        crashPreview.value = null
+    }
+
+    fun clearCrashFiles() {
+        val filesDir = com.ojnexus.core.ui.GlobalContext.application.filesDir
+        runCatching { com.ojnexus.core.crash.CrashLog.clear(filesDir) }
+        crashFiles.value = emptyList()
+    }
+
+    fun refreshMaintenanceStats() {
+        if (maintenanceRepository == null) return
+        viewModelScope.launch(Dispatchers.IO) {
+            maintenanceStats.value = runCatching { maintenanceRepository.maintenanceStats() }
+                .getOrDefault(null)
+        }
+    }
+
+    fun startVacuum() {
+        val repository = maintenanceRepository ?: return
+        if (vacuumRunning.value || vacuumJob?.isActive == true) return
+        vacuumCancelRequested = false
+        vacuumCancelRaced.value = false
+        vacuumRunning.value = true
+        vacuumElapsedSeconds.value = 0
+        vacuumJob = viewModelScope.launch(Dispatchers.IO) {
+            val ticker = launch {
+                while (isActive) {
+                    delay(1_000)
+                    vacuumElapsedSeconds.value += 1
+                }
+            }
+            try {
+                repository.vacuum()
+            } catch (exception: CancellationException) {
+                // The framework cannot interrupt a running VACUUM; it commits atomically.
+                if (vacuumCancelRequested) {
+                    vacuumCancelRaced.value = true
+                } else {
+                    throw exception
+                }
+            } finally {
+                ticker.cancel()
+                vacuumRunning.value = false
+                refreshMaintenanceStats()
+            }
+        }
+    }
+
+    /** Requests cancellation; VACUUM either stops before starting or finishes atomically. */
+    fun requestVacuumCancel() {
+        vacuumCancelRequested = true
+        vacuumJob?.cancel()
+    }
+
+    fun dismissVacuumCancelRaced() {
+        vacuumCancelRaced.value = false
+    }
+
+    /** Persists a user-picked SAF folder and takes persistable read/write permissions. */
+    fun chooseBackupFolder(context: Context, uri: Uri) {
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        viewModelScope.launch {
+            preferencesRepository.setBackupTreeUri(uri.toString())
+            // Re-arm the scheduler with the current cadence against the new folder.
+            ScheduledBackupScheduler.update(context.applicationContext, preferences.value.backupCadence)
+        }
+    }
+
+    fun clearBackupFolder(context: Context) {
+        viewModelScope.launch {
+            preferencesRepository.setBackupTreeUri("")
+            ScheduledBackupScheduler.update(context.applicationContext, BackupCadence.OFF)
+            preferencesRepository.setBackupCadence(BackupCadence.OFF)
+        }
+    }
+
+    fun setBackupCadence(context: Context, cadence: BackupCadence) {
+        viewModelScope.launch {
+            preferencesRepository.setBackupCadence(cadence)
+            ScheduledBackupScheduler.update(context.applicationContext, cadence)
+        }
+    }
+
+    fun setBackupKeepCount(count: Int) {
+        viewModelScope.launch { preferencesRepository.setBackupKeepCount(count) }
+    }
+
+    fun dismissBackupStatus() {
+        backupStatusDismissed.value = true
     }
 
     fun setReduceMotion(enabled: Boolean) {
@@ -433,6 +638,28 @@ class SettingsViewModel(
                 judge,
                 account.id,
             )
+        }
+    }
+
+    /**
+     * Typed-confirm guard lives in the dialog; this only runs the destructive wipe and
+     * surfaces a per-judge failure flag. The account row itself survives the wipe.
+     */
+    fun wipeJudgeData(account: JudgeAccountEntity) {
+        val judge = JudgeId.fromId(account.judge) ?: return
+        if (judge in wipeJudges.value) return
+        wipeJudges.update { it + judge }
+        viewModelScope.launch {
+            wipeErrors.update { it - judge }
+            try {
+                accountRepository.wipeJudgeData(account.judge, account.id)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                wipeErrors.update { it + (judge to true) }
+            } finally {
+                wipeJudges.update { it - judge }
+            }
         }
     }
 

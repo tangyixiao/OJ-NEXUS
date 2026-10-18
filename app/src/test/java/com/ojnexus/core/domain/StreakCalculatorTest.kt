@@ -58,6 +58,35 @@ class StreakCalculatorTest {
     }
 
     @Test
+    fun `longest streak covers the current streak`() {
+        // The longest streak over the same window is never shorter than the current one.
+        val days = activeSet(95, 96, 97, 98, 99, 100)
+        assertEquals(6, StreakCalculator.currentStreak(days, todayEpochDay = 100))
+        assertEquals(6, StreakCalculator.longestStreak(days))
+    }
+
+    @Test
+    fun `current streak never exceeds longest streak on sparse history`() {
+        // Current run of 3 (98,99,100) is shorter than an older run of 5 (10..14).
+        val days = activeSet(10, 11, 12, 13, 14, 98, 99, 100)
+        assertEquals(3, StreakCalculator.currentStreak(days, todayEpochDay = 100))
+        assertEquals(5, StreakCalculator.longestStreak(days))
+        check(StreakCalculator.currentStreak(days, todayEpochDay = 100) <= StreakCalculator.longestStreak(days))
+    }
+
+    @Test
+    fun `single day history has both streaks at one`() {
+        assertEquals(1, StreakCalculator.currentStreak(activeSet(100), todayEpochDay = 100))
+        assertEquals(1, StreakCalculator.longestStreak(activeSet(100)))
+    }
+
+    @Test
+    fun `far past history does not extend the current streak`() {
+        // Active 1, then a long gap, active yesterday: the streak is anchored at yesterday only.
+        assertEquals(1, StreakCalculator.currentStreak(activeSet(1, 99), todayEpochDay = 100))
+    }
+
+    @Test
     fun `activity policy thresholds define active days`() {
         assertEquals(true, ActivityPolicy.isActive(day(1, solved = 1)))
         assertEquals(true, ActivityPolicy.isActive(day(1, reviews = 1)))

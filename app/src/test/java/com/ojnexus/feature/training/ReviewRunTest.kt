@@ -8,7 +8,7 @@ import org.junit.Test
 class ReviewRunTest {
 
     @Test
-    fun `capture keeps due items in due-time then id order`() {
+    fun `capture keeps due items in due day then due time then id order`() {
         val queue = listOf(
             review(id = 3L, day = 10L, dueAt = 40L),
             review(id = 1L, day = 9L, dueAt = 80L),
@@ -17,7 +17,7 @@ class ReviewRunTest {
         )
 
         assertEquals(
-            listOf(2L, 3L, 1L),
+            listOf(2L, 1L, 3L),
             captureReviewRunQueue(queue, todayEpochDay = 10L).map { it.problemId },
         )
     }

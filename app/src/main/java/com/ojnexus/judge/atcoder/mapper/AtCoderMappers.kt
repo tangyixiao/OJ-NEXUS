@@ -1,6 +1,7 @@
 package com.ojnexus.judge.atcoder.mapper
 
 import com.ojnexus.core.database.entity.ContestEntity
+import com.ojnexus.core.database.entity.RatingChangeEntity
 import com.ojnexus.core.database.entity.RemoteProblemEntity
 import com.ojnexus.core.model.DifficultySource
 import com.ojnexus.core.model.JudgeId
@@ -8,6 +9,8 @@ import com.ojnexus.core.model.Verdict
 import com.ojnexus.judge.atcoder.api.dto.AtCoderContestDto
 import com.ojnexus.judge.atcoder.api.dto.AtCoderMergedProblemDto
 import com.ojnexus.judge.atcoder.api.dto.AtCoderProblemModelDto
+import com.ojnexus.judge.atcoder.api.dto.AtCoderRatingChangeDto
+import java.time.OffsetDateTime
 import kotlin.math.exp
 import kotlin.math.roundToInt
 
@@ -70,4 +73,21 @@ object AtCoderMappers {
         startTimeSeconds = contest.startEpochSecond,
         updatedAt = now,
     )
+
+    /**
+     * Maps one RATED row of the official rating history. Callers filter `IsRated` first —
+     * unrated rows carry `NewRating = 0` and would violate the "never render a missing
+     * rating as zero" rule.
+     */
+    fun AtCoderRatingChangeDto.toRatingChangeEntity(handle: String): RatingChangeEntity =
+        RatingChangeEntity(
+            judge = JudgeId.ATCODER.id,
+            handle = handle,
+            contestId = contestScreenName.substringBefore("."),
+            contestName = contestNameEn?.takeIf { it.isNotBlank() } ?: contestName,
+            rank = place,
+            oldRating = oldRating,
+            newRating = newRating,
+            ratingUpdateTimeSeconds = OffsetDateTime.parse(endTime).toInstant().epochSecond,
+        )
 }

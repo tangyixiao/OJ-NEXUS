@@ -583,6 +583,55 @@ class CodeforcesSyncTest {
         assertEquals(20_000, remote.solvedCount)
     }
 
+    @Test
+    fun `forced resync of an identical problemset skips the catalog write`() = runBlocking {
+        val account = connect()
+        adapter.problemset = CfProblemsetDto(
+            problems = listOf(
+                CfProblemDto(contestId = 1, index = "A", name = "Hello", rating = 800),
+                CfProblemDto(contestId = 1, index = "B", name = "Hard One", rating = 3500),
+            ),
+            problemStatistics = listOf(
+                CfProblemStatisticsDto(contestId = 1, index = "A", solvedCount = 20_000),
+                CfProblemStatisticsDto(contestId = 1, index = "B", solvedCount = 30),
+            ),
+        )
+        val first = coordinator.syncAccount(account.id, force = true)!!
+        val firstProblems = first.outcomes.first { it.stage == com.ojnexus.core.data.sync.SyncStage.PROBLEMS }
+        assertEquals(2, firstProblems.itemsProcessed)
+
+        val second = coordinator.syncAccount(account.id, force = true)!!
+        val secondProblems = second.outcomes.first { it.stage == com.ojnexus.core.data.sync.SyncStage.PROBLEMS }
+        // Identical content: the bounded write is skipped, rows stay intact.
+        assertEquals(0, secondProblems.itemsProcessed)
+        assertTrue(secondProblems.ok)
+        assertEquals(2, database.remoteProblemDao().countByJudge("codeforces"))
+        assertEquals(
+            20_030L,
+            database.remoteProblemDao().sumSolvedByJudge("codeforces"),
+        )
+    }
+
+    @Test
+    fun `changed solved counts rewrite the catalog`() = runBlocking {
+        val account = connect()
+        adapter.problemset = CfProblemsetDto(
+            problems = listOf(CfProblemDto(contestId = 1, index = "A", name = "Hello", rating = 800)),
+            problemStatistics = listOf(CfProblemStatisticsDto(contestId = 1, index = "A", solvedCount = 100)),
+        )
+        coordinator.syncAccount(account.id, force = true)
+
+        adapter.problemset = CfProblemsetDto(
+            problems = listOf(CfProblemDto(contestId = 1, index = "A", name = "Hello", rating = 800)),
+            problemStatistics = listOf(CfProblemStatisticsDto(contestId = 1, index = "A", solvedCount = 120)),
+        )
+        val second = coordinator.syncAccount(account.id, force = true)!!
+        val problems = second.outcomes.first { it.stage == com.ojnexus.core.data.sync.SyncStage.PROBLEMS }
+        assertEquals(1, problems.itemsProcessed)
+        assertEquals(120, database.remoteProblemDao().findByKey("codeforces", "1A")!!.solvedCount)
+        assertEquals(120L, database.remoteProblemDao().sumSolvedByJudge("codeforces"))
+    }
+
     // --- Contests ---
 
     @Test

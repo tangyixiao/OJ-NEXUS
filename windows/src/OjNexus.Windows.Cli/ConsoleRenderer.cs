@@ -20,6 +20,63 @@ public static class ConsoleRenderer
 
     public static string RenderJson(IReadOnlyList<SyncOperation> operations) => JsonSerializer.Serialize(new { operations = operations.Select(ProjectOperation) });
 
+    public static string RenderHuman(IReadOnlyList<ProblemEntry> problems) => problems.Count == 0
+        ? "PROBLEMS: EMPTY"
+        : string.Join(Environment.NewLine, problems.Select((problem, index) => $"{index + 1}. {problem.Judge.ToString().ToUpperInvariant()} {problem.ExternalId} [{(problem.Solved ? "SOLVED" : "ATTEMPTED")}] {problem.Title}"));
+
+    public static string RenderJson(IReadOnlyList<ProblemEntry> problems) => JsonSerializer.Serialize(new
+    {
+        problems = problems.Select(problem => new
+        {
+            judge = problem.Judge.ToString(),
+            externalId = problem.ExternalId,
+            title = problem.Title,
+            url = problem.Url,
+            solved = problem.Solved,
+            firstSeenAt = problem.FirstSeenAt,
+            lastSeenAt = problem.LastSeenAt,
+        }),
+    });
+
+    public static string RenderHuman(IReadOnlyList<ReviewEntry> reviews) => reviews.Count == 0
+        ? "REVIEWS DUE: EMPTY"
+        : string.Join(Environment.NewLine, reviews.Select((review, index) => $"{index + 1}. {review.Judge.ToString().ToUpperInvariant()} {review.ExternalId} [STAGE {review.Stage}] DUE {review.DueDayIndex}{(string.IsNullOrWhiteSpace(review.Title) ? string.Empty : $" — {review.Title}")}"));
+
+    public static string RenderJson(IReadOnlyList<ReviewEntry> reviews) => JsonSerializer.Serialize(new
+    {
+        reviews = reviews.Select(review => new
+        {
+            judge = review.Judge.ToString(),
+            externalId = review.ExternalId,
+            title = review.Title,
+            url = review.Url,
+            stage = review.Stage,
+            dueAt = review.DueAt,
+            dueDayIndex = review.DueDayIndex,
+            lastResult = review.LastResult is null ? null : ReviewResultParser.ToWire(review.LastResult.Value),
+            lastReviewedAt = review.LastReviewedAt,
+        }),
+    });
+
+    public static string RenderHuman(ReviewEntry review) => string.Join(Environment.NewLine,
+        $"REVIEW MARKED: {review.Judge.ToString().ToUpperInvariant()} {review.ExternalId}",
+        $"RESULT: {ReviewResultParser.ToWire(review.LastResult!.Value)}",
+        $"STAGE: {review.Stage}",
+        $"NEXT DUE: {review.DueDayIndex}");
+
+    public static string RenderJson(ReviewEntry review) => JsonSerializer.Serialize(new
+    {
+        marked = true,
+        judge = review.Judge.ToString(),
+        externalId = review.ExternalId,
+        title = review.Title,
+        url = review.Url,
+        stage = review.Stage,
+        dueAt = review.DueAt,
+        dueDayIndex = review.DueDayIndex,
+        result = ReviewResultParser.ToWire(review.LastResult!.Value),
+    });
+
     public static string RenderHuman(CodeforcesPayloadSnapshot payload) => string.Join(Environment.NewLine, "DATA: CODEFORCES", $"PROFILE: {(payload.Profile is null ? "NONE" : "PRESENT")}", $"RATINGS: {payload.Ratings.Count}", $"SUBMISSIONS: {payload.Submissions.Count}");
 
     public static string RenderJson(CodeforcesPayloadSnapshot payload) => JsonSerializer.Serialize(new

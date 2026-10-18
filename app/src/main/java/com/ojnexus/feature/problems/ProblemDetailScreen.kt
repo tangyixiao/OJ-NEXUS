@@ -29,6 +29,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +37,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,16 +57,23 @@ import com.ojnexus.core.designsystem.component.NexusTopBar
 import com.ojnexus.core.model.Attempt
 import com.ojnexus.core.model.FailureCategory
 import com.ojnexus.core.model.FailureEntry
+import com.ojnexus.core.model.NoteEditorField
+import com.ojnexus.core.model.NoteSlot
+import com.ojnexus.core.model.NoteTemplate
+import com.ojnexus.core.model.NoteTemplateField
 import com.ojnexus.core.model.ProblemDetail
 import com.ojnexus.core.model.KnowledgeArea
+import com.ojnexus.core.model.autoLinkedKnowledgeAreas
 import com.ojnexus.core.model.ReviewResult
 import com.ojnexus.core.model.Verdict
+import com.ojnexus.core.model.editorFields
 import com.ojnexus.core.ui.ContainerViewModelFactory
 import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.Loadable
 import com.ojnexus.core.ui.formatDate
 import com.ojnexus.core.ui.formatDateTime
 import com.ojnexus.core.ui.labelRes
+import com.ojnexus.core.ui.submission.SubmissionDetailSheet
 import com.ojnexus.core.ui.tone
 import java.time.LocalDate
 import java.time.ZoneId
@@ -99,6 +109,7 @@ fun ProblemDetailScreen(
                 problemRepository = it.problemRepository,
                 reviewRepository = it.reviewRepository,
                 knowledgeRepository = it.knowledgeRepository,
+                preferencesRepository = it.userPreferencesRepository,
             )
         },
     )
@@ -156,6 +167,7 @@ private fun DetailContent(
     var showAttemptDialog by remember { mutableStateOf(false) }
     var showFailureDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showTemplateSheet by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -289,6 +301,31 @@ private fun DetailContent(
                 color = colors.textTertiary,
                 modifier = Modifier.padding(bottom = NexusSpacing.xs),
             )
+            val autoLinked = autoLinkedKnowledgeAreas(detail.problem.tags)
+            val autoLinkedHere = autoLinked.filter { it in uiState.knowledge }
+            if (autoLinkedHere.isNotEmpty()) {
+                Text(
+                    text = stringResource(
+                        R.string.knowledge_auto_link_count,
+                        autoLinkedHere.size,
+                    ),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(bottom = NexusSpacing.xs),
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
+                if (uiState.autoLinkCandidates.isNotEmpty()) {
+                    ActionChip(stringResource(R.string.knowledge_auto_link)) {
+                        viewModel.autoLinkKnowledge()
+                    }
+                }
+                if (autoLinkedHere.isNotEmpty()) {
+                    ActionChip(stringResource(R.string.knowledge_auto_link_clear)) {
+                        viewModel.clearAutoLinks()
+                    }
+                }
+            }
             KnowledgeArea.entries.chunked(2).forEach { rowAreas ->
                 Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs)) {
                     rowAreas.forEach { area ->
@@ -390,29 +427,38 @@ private fun DetailContent(
         NexusSection(
             label = stringResource(R.string.detail_section_insight),
             trailing = {
-                Text(
-                    text = stringResource(
-                        if (uiState.notesSaving) R.string.notes_saving else R.string.notes_saved,
-                    ),
-                    style = NexusTheme.typography.sectionLabel,
-                    color = if (uiState.notesSaving) colors.accent else colors.textTertiary,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(
+                            if (uiState.notesSaving) R.string.notes_saving else R.string.notes_saved,
+                        ),
+                        style = NexusTheme.typography.sectionLabel,
+                        color = if (uiState.notesSaving) colors.accent else colors.textTertiary,
+                    )
+                    Spacer(modifier = Modifier.width(NexusSpacing.xs))
+                    ActionChip(stringResource(R.string.notes_template_action)) {
+                        showTemplateSheet = true
+                    }
+                }
             },
         ) {
             val draft = uiState.notesDraft
             if (draft != null) {
-                Column(verticalArrangement = Arrangement.spacedBy(NexusSpacing.sm)) {
-                    NotesField(stringResource(R.string.notes_key_insight), draft.keyInsight) { value ->
-                        viewModel.setNotesField { it.copy(keyInsight = value) }
-                    }
-                    NotesField(stringResource(R.string.notes_implementation), draft.implementationNotes) { value ->
-                        viewModel.setNotesField { it.copy(implementationNotes = value) }
-                    }
-                    NotesField(stringResource(R.string.notes_complexity), draft.complexity) { value ->
-                        viewModel.setNotesField { it.copy(complexity = value) }
-                    }
-                    NotesField(stringResource(R.string.notes_general), draft.general) { value ->
-                        viewModel.setNotesField { it.copy(general = value) }
+                val fields = uiState.noteTemplate.editorFields(draft.toNotes())
+                if (fields.isEmpty()) {
+                    SectionEmpty(stringResource(R.string.notes_template_empty))
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(NexusSpacing.sm)) {
+                        fields.forEach { field ->
+                            NotesField(
+                                label = field.label,
+                                hint = field.hint,
+                                value = field.value,
+                                onValueChange = { value ->
+                                    viewModel.setNotesField(notesDraftUpdate(field.slot, value))
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -470,6 +516,16 @@ private fun DetailContent(
             },
         )
     }
+    if (showTemplateSheet) {
+        NoteTemplateSheet(
+            template = uiState.noteTemplate,
+            onDismiss = { showTemplateSheet = false },
+            onSave = { template ->
+                viewModel.setNoteTemplate(template)
+                showTemplateSheet = false
+            },
+        )
+    }
 }
 
 @Composable
@@ -487,10 +543,14 @@ private fun reviewDueLabel(dueAt: Long): String {
 @Composable
 private fun FavoriteToggle(favorite: Boolean, onToggle: () -> Unit) {
     val colors = NexusTheme.colors
+    val favoriteDescription = stringResource(
+        if (favorite) R.string.problems_favorite_on_cd else R.string.problems_favorite_off_cd,
+    )
     Box(
         modifier = Modifier
             .size(40.dp)
-            .clickable(role = Role.Button, onClick = onToggle)
+            .clickable(role = Role.Button, onClickLabel = favoriteDescription, onClick = onToggle)
+            .semantics { contentDescription = favoriteDescription }
             .padding(12.dp)
             .background(
                 if (favorite) colors.accent else colors.surface,
@@ -531,10 +591,30 @@ private fun SectionEmpty(text: String) {
 @Composable
 private fun AttemptRow(attempt: Attempt) {
     val colors = NexusTheme.colors
+    val context = LocalContext.current
+    var sheetVisible by rememberSaveable("attempt-sheet-${attempt.id}") { mutableStateOf(false) }
+    // Deep-link to the judge-side submission page when the row carries enough origin data.
+    // Only the official URL builder may construct Codeforces URLs (docs/OJ_ADAPTERS.md).
+    val submissionUrl: String? = when {
+        attempt.sourceJudge != com.ojnexus.core.model.JudgeId.CODEFORCES.id -> null
+        attempt.contestId == null || attempt.externalSubmissionId == null -> null
+        else -> attempt.contestId.toLongOrNull()?.let { contestId ->
+            attempt.externalSubmissionId?.toLongOrNull()?.let { submissionId ->
+                com.ojnexus.judge.codeforces.CodeforcesUrls.submission(contestId, submissionId)
+            }
+        }
+    }
+    val openRemoteLabel = stringResource(R.string.attempt_open_remote)
+    val detailLabel = stringResource(R.string.attempt_open_details)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(NexusSize.tableRowHeight),
+            .height(NexusSize.tableRowHeight)
+            .clickable(
+                role = Role.Button,
+                onClickLabel = detailLabel,
+            ) { sheetVisible = true }
+            .semantics { contentDescription = detailLabel },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -545,6 +625,18 @@ private fun AttemptRow(attempt: Attempt) {
         )
         NexusTag(text = stringResource(attempt.verdict.labelRes()), tone = attempt.verdict.tone())
         Spacer(modifier = Modifier.weight(1f))
+        if (submissionUrl != null) {
+            Text(
+                text = stringResource(R.string.attempt_open_remote),
+                style = NexusTheme.typography.dataSmall,
+                color = colors.accent,
+                modifier = Modifier
+                    .clickable(role = Role.Button, onClickLabel = openRemoteLabel) {
+                        OpenInBrowser.open(context, submissionUrl)
+                    }
+                    .padding(end = NexusSpacing.xs),
+            )
+        }
         if (attempt.durationMinutes != null) {
             Text(
                 text = stringResource(R.string.format_attempt_duration, attempt.durationMinutes),
@@ -560,6 +652,14 @@ private fun AttemptRow(attempt: Attempt) {
                 color = colors.textTertiary,
             )
         }
+    }
+
+    if (sheetVisible) {
+        val detail = toSubmissionDetailModel(attempt, submissionUrl)
+        SubmissionDetailSheet(
+            detail = detail,
+            onDismiss = { sheetVisible = false },
+        )
     }
 }
 
@@ -606,6 +706,16 @@ private fun FailureRow(failure: FailureEntry, onDelete: () -> Unit) {
 
 @Composable
 private fun NotesField(label: String, value: String, onValueChange: (String) -> Unit) {
+    NotesField(label = label, hint = "", value = value, onValueChange = onValueChange)
+}
+
+@Composable
+private fun NotesField(
+    label: String,
+    hint: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+) {
     val colors = NexusTheme.colors
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -629,7 +739,23 @@ private fun NotesField(label: String, value: String, onValueChange: (String) -> 
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+        if (hint.isNotBlank()) {
+            Text(
+                text = hint,
+                style = NexusTheme.typography.dataSmall,
+                color = colors.textTertiary,
+                modifier = Modifier.padding(top = NexusSpacing.xxxs),
+            )
+        }
     }
+}
+
+/** Maps a template slot back onto the draft field it stores into. */
+private fun notesDraftUpdate(slot: NoteSlot, value: String): (NotesDraft) -> NotesDraft = when (slot) {
+    NoteSlot.KEY_INSIGHT -> { draft -> draft.copy(keyInsight = value) }
+    NoteSlot.IMPLEMENTATION -> { draft -> draft.copy(implementationNotes = value) }
+    NoteSlot.COMPLEXITY -> { draft -> draft.copy(complexity = value) }
+    NoteSlot.GENERAL -> { draft -> draft.copy(general = value) }
 }
 
 @Composable
@@ -642,6 +768,267 @@ private fun DialogTextButton(label: String, color: androidx.compose.ui.graphics.
             .clickable(role = Role.Button) { onClick() }
             .padding(NexusSpacing.xs),
     )
+}
+
+/**
+ * Editable note template. The draft is local to the sheet: nothing is persisted until SAVE,
+ * and an invalid draft keeps SAVE disabled with the reason spelled out.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun NoteTemplateSheet(
+    template: NoteTemplate,
+    onDismiss: () -> Unit,
+    onSave: (NoteTemplate) -> Unit,
+) {
+    val colors = NexusTheme.colors
+    var draft by remember { mutableStateOf(template) }
+    val valid = draft.validate()
+    val usedSlots = draft.fields.map { it.slot }.toSet()
+    val freeSlots = NoteSlot.entries.filter { it !in usedSlots }
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState()
+
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.background,
+        scrimColor = colors.background.copy(alpha = 0.72f),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = NexusSpacing.screenHorizontal)
+                .padding(bottom = NexusSpacing.lg),
+        ) {
+            Text(
+                text = stringResource(R.string.notes_template_title),
+                style = NexusTheme.typography.title,
+                color = colors.textPrimary,
+            )
+            Spacer(modifier = Modifier.height(NexusSpacing.xxs))
+            Text(
+                text = stringResource(R.string.notes_template_summary, draft.fields.size),
+                style = NexusTheme.typography.sectionLabel,
+                color = colors.textTertiary,
+            )
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            NexusDivider()
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+
+            if (draft.fields.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.notes_template_empty),
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.textTertiary,
+                )
+                Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            }
+
+            draft.fields.forEachIndexed { index, field ->
+                TemplateFieldRow(
+                    field = field,
+                    canMoveUp = index > 0,
+                    canMoveDown = index < draft.fields.lastIndex,
+                    canRemove = draft.fields.size > 1,
+                    onChange = { updated -> draft = draft.withField(updated) },
+                    onMoveUp = {
+                        draft = draft.reorder(
+                            draft.fields.map { it.slot }.toMutableList().apply {
+                                add(index - 1, removeAt(index))
+                            },
+                        )
+                    },
+                    onMoveDown = {
+                        draft = draft.reorder(
+                            draft.fields.map { it.slot }.toMutableList().apply {
+                                add(index + 1, removeAt(index))
+                            },
+                        )
+                    },
+                    onRemove = { draft = draft.without(field.slot) },
+                )
+                Spacer(modifier = Modifier.height(NexusSpacing.xs))
+            }
+
+            if (freeSlots.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xxs),
+                ) {
+                    freeSlots.forEach { slot ->
+                        ActionChip(
+                            stringResource(
+                                R.string.notes_template_add,
+                                NoteTemplate.defaultLabelFor(slot),
+                            ),
+                        ) {
+                            draft = draft.withField(
+                                NoteTemplateField(
+                                    slot = slot,
+                                    label = NoteTemplate.defaultLabelFor(slot),
+                                ),
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            }
+
+            if (!valid) {
+                val reason = if (draft.fields.isEmpty()) {
+                    stringResource(R.string.notes_template_invalid_empty)
+                } else {
+                    stringResource(R.string.notes_template_invalid_label)
+                }
+                Text(
+                    text = reason,
+                    style = NexusTheme.typography.dataSmall,
+                    color = colors.danger,
+                )
+                Spacer(modifier = Modifier.height(NexusSpacing.xs))
+            }
+
+            NexusDivider()
+            Spacer(modifier = Modifier.height(NexusSpacing.sm))
+            Row(horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs)) {
+                ActionChip(stringResource(R.string.notes_template_reset)) {
+                    draft = NoteTemplate.DEFAULT
+                }
+                ActionChip(stringResource(R.string.notes_template_preset)) {
+                    draft = NoteTemplate.PRESET_ROOT_CAUSE
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                ActionChip(
+                    label = stringResource(R.string.notes_template_cancel),
+                    danger = false,
+                    onClick = onDismiss,
+                )
+                Box(
+                    modifier = Modifier
+                        .background(
+                            if (valid) colors.surface else colors.background,
+                            NexusRadius.sm,
+                        )
+                        .border(
+                            1.dp,
+                            if (valid) colors.accent else colors.border,
+                            NexusRadius.sm,
+                        )
+                        .then(
+                            if (valid) {
+                                Modifier.clickable(role = Role.Button) { onSave(draft.sanitize()) }
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .padding(horizontal = NexusSpacing.sm, vertical = NexusSpacing.xs),
+                ) {
+                    Text(
+                        text = stringResource(R.string.notes_template_save),
+                        style = NexusTheme.typography.dataSmall,
+                        color = if (valid) colors.accent else colors.textTertiary,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TemplateFieldRow(
+    field: NoteTemplateField,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    canRemove: Boolean,
+    onChange: (NoteTemplateField) -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.surface, NexusRadius.sm)
+            .border(1.dp, colors.border, NexusRadius.sm)
+            .padding(NexusSpacing.sm),
+    ) {
+        DialogField(
+            label = stringResource(R.string.notes_template_field_label),
+            value = field.label,
+            onValueChange = { onChange(field.copy(label = it)) },
+        )
+        Spacer(modifier = Modifier.height(NexusSpacing.xs))
+        DialogField(
+            label = stringResource(R.string.notes_template_field_hint),
+            value = field.hint,
+            onValueChange = { onChange(field.copy(hint = it)) },
+        )
+        Spacer(modifier = Modifier.height(NexusSpacing.xs))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(NexusSpacing.xs),
+        ) {
+            NexusTag(
+                text = NoteTemplate.defaultLabelFor(field.slot),
+                tone = NexusTone.Neutral,
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            TemplateIconAction(
+                symbol = "↑",
+                description = stringResource(R.string.notes_template_move_up),
+                enabled = canMoveUp,
+                onClick = onMoveUp,
+            )
+            TemplateIconAction(
+                symbol = "↓",
+                description = stringResource(R.string.notes_template_move_down),
+                enabled = canMoveDown,
+                onClick = onMoveDown,
+            )
+            TemplateIconAction(
+                symbol = "×",
+                description = stringResource(R.string.notes_template_remove),
+                enabled = canRemove,
+                onClick = onRemove,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TemplateIconAction(
+    symbol: String,
+    description: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = NexusTheme.colors
+    Box(
+        modifier = Modifier
+            .size(IconTouchSize)
+            .then(
+                if (enabled) {
+                    Modifier.clickable(
+                        role = Role.Button,
+                        onClickLabel = description,
+                        onClick = onClick,
+                    )
+                } else {
+                    Modifier
+                },
+            )
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = symbol,
+            style = NexusTheme.typography.data,
+            color = if (enabled) colors.accent else colors.textTertiary,
+        )
+    }
 }
 
 @Composable

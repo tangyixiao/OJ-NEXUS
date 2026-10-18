@@ -14,4 +14,7 @@ interface RemoteProblemDetailDao {
 
     @Upsert
     suspend fun upsert(detail: RemoteProblemDetailEntity)
+
+    @Query("DELETE FROM remote_problem_details WHERE judge = :judge")
+    suspend fun deleteByJudge(judge: String)
 }

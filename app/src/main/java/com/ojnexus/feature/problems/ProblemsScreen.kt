@@ -105,8 +105,10 @@ fun ProblemsScreen(
     onBuildTraining: (List<Long>) -> Unit = {},
     onOpenWorkspace: (String) -> Unit = {},
     onOpenLuoguDetail: (String) -> Unit = {},
+    onOpenLuoguTrainings: () -> Unit = {},
     initialQuery: String? = null,
     initialJudge: JudgeId? = null,
+    initialUnsolvedRange: com.ojnexus.app.PaletteQuery.UnsolvedRange? = null,
     onInitialSearchConsumed: () -> Unit = {},
 ) {
     val container = LocalAppContainer.current
@@ -121,7 +123,15 @@ fun ProblemsScreen(
         },
     )
     var scope by rememberSaveable { mutableStateOf(ProblemScope.LIBRARY) }
-    LaunchedEffect(initialQuery, initialJudge) {
+    LaunchedEffect(initialQuery, initialJudge, initialUnsolvedRange) {
+        if (initialUnsolvedRange != null) {
+            scope = ProblemScope.LIBRARY
+            viewModel.setJudge(initialUnsolvedRange.judge)
+            viewModel.setQuery("")
+            viewModel.setDifficultyRange(initialUnsolvedRange.min, initialUnsolvedRange.max)
+            onInitialSearchConsumed()
+            return@LaunchedEffect
+        }
         problemSearchLaunch(initialQuery, initialJudge)?.let { launch ->
             scope = launch.scope
             viewModel.setJudge(launch.filter.judge)
@@ -184,6 +194,7 @@ fun ProblemsScreen(
                     onOpenWorkspace = onOpenWorkspace,
                     onOpenLuoguDetail = onOpenLuoguDetail,
                     onOpenNotes = { scope = ProblemScope.NOTES },
+                    onOpenLuoguTrainings = onOpenLuoguTrainings,
                 )
                 ProblemScope.NOTES -> when (val notes = notesState) {
                     Loadable.Loading -> LoadingState()
@@ -363,6 +374,28 @@ private fun LibraryContent(
                     onDelete = { deleteTarget = problem },
                 )
                 NexusDivider(insetEnd = NexusSpacing.xxs)
+            }
+            if (uiState.hasMoreLibrary) {
+                item(key = "show-more") {
+                    val moreLabel = stringResource(
+                        R.string.problems_show_more,
+                        uiState.summary.visible - uiState.problems.size,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button) { viewModel.loadMoreLibrary() }
+                            .padding(vertical = NexusSpacing.sm),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = moreLabel,
+                            style = NexusTheme.typography.data,
+                            color = NexusTheme.colors.accent,
+                        )
+                    }
+                    NexusDivider(insetEnd = NexusSpacing.xxs)
+                }
             }
         }
         item(key = "footer-space") {
@@ -569,12 +602,14 @@ internal fun SearchField(
             )
         }
         if (query.isNotEmpty()) {
+            val clearLabel = stringResource(R.string.problems_search_clear_cd)
             Text(
                 text = "×",
                 style = NexusTheme.typography.data,
                 color = colors.textTertiary,
                 modifier = Modifier
-                    .clickable(role = Role.Button) { onQueryChange("") }
+                    .clickable(role = Role.Button, onClickLabel = clearLabel) { onQueryChange("") }
+                    .semantics { contentDescription = clearLabel }
                     .padding(start = NexusSpacing.xs),
             )
         }
@@ -591,6 +626,7 @@ private fun RemoteCatalogContent(
     onOpenWorkspace: (String) -> Unit,
     onOpenLuoguDetail: (String) -> Unit,
     onOpenNotes: () -> Unit,
+    onOpenLuoguTrainings: () -> Unit = {},
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item(key = "remote-controls") {
@@ -655,6 +691,11 @@ private fun RemoteCatalogContent(
                             style = NexusTheme.typography.dataSmall,
                             color = NexusTheme.colors.textTertiary,
                             modifier = Modifier.weight(1f),
+                        )
+                        FilterChip(
+                            label = stringResource(R.string.problems_luogu_trainings_entry),
+                            selected = false,
+                            onClick = onOpenLuoguTrainings,
                         )
                         FilterChip(
                             label = stringResource(

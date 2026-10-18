@@ -46,3 +46,24 @@ data class AtCoderProblemModelDto(
     val variance: Double? = null,
     @SerialName("is_experimental") val isExperimental: Boolean = false,
 )
+
+/**
+ * One row of the official `users/<handle>/history/json` rating history. Field names are
+ * PascalCase exactly as AtCoder serves them. Unrated rows carry `NewRating = 0` and are
+ * filtered out by the sync layer before mapping — the UI never renders a missing rating as
+ * zero.
+ */
+@Serializable
+data class AtCoderRatingChangeDto(
+    @SerialName("IsRated") val isRated: Boolean,
+    @SerialName("Place") val place: Int? = null,
+    @SerialName("OldRating") val oldRating: Int? = null,
+    @SerialName("NewRating") val newRating: Int,
+    @SerialName("Performance") val performance: Int? = null,
+    @SerialName("InnerPerformance") val innerPerformance: Int? = null,
+    @SerialName("ContestScreenName") val contestScreenName: String,
+    @SerialName("ContestName") val contestName: String,
+    @SerialName("ContestNameEn") val contestNameEn: String? = null,
+    /** Offset timestamp such as `2016-09-04T22:50:00+09:00`; parsed with [java.time.OffsetDateTime]. */
+    @SerialName("EndTime") val endTime: String,
+)

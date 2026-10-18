@@ -36,6 +36,10 @@ class AtCoderSyncCoordinator(
         outcomes += submissions
         recordModule?.invoke(submissions)
         ensureActive(account)
+        val rating = syncRepository.syncRating(account, force)
+        outcomes += rating
+        recordModule?.invoke(rating)
+        ensureActive(account)
         val contests = syncRepository.syncContests(account, force)
         outcomes += contests
         recordModule?.invoke(contests)

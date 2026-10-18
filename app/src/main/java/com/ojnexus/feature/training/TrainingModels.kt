@@ -35,4 +35,6 @@ data class TrainingRecommendation(
     val title: String,
     val priority: Int,
     val reasons: Set<TrainingReason>,
+    /** Local rating when the problem carries one; null means unrated, never guessed. */
+    val difficulty: Int? = null,
 )

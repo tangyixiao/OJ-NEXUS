@@ -18,6 +18,9 @@
     <string name="command_palette_direct_query_hint">OPEN LOCAL PROBLEM LIBRARY</string>
     <string name="command_palette_direct_query_cd">Open local problem search</string>
     <string name="command_palette_any_judge">ALL JUDGES</string>
+    <string name="command_palette_direct_review_due">START THE REVIEW RUN — ALL DUE PROBLEMS</string>
+    <string name="command_palette_direct_sprint">FOCUS SPRINT AROUND %1$d</string>
+    <string name="command_palette_direct_unsolved">UNSOLVED %1$s · %2$s</string>
     <string name="command_open_dashboard">OPEN DASHBOARD OVERVIEW</string>
     <string name="command_open_problems">OPEN LOCAL PROBLEM LIBRARY</string>
     <string name="command_open_training">OPEN TRAINING AND REVIEW QUEUE</string>
@@ -174,6 +177,7 @@
         <item quantity="other">Build a training session from %1$d visible problems</item>
     </plurals>
     <string name="problems_favorite_on_cd">Remove problem from favorites</string>
+    <string name="problems_search_clear_cd">Clear search query</string>
     <string name="problems_favorite_off_cd">Add problem to favorites</string>
     <string name="problems_delete_cd">Delete problem</string>
     <string name="problems_sort_label">SORT</string>
@@ -185,6 +189,7 @@
     <string name="problems_empty_title">EMPTY LIBRARY</string>
     <string name="problems_empty_hint">ADD A PROBLEM TO START TRACKING</string>
     <string name="problems_no_match">NO PROBLEMS MATCH THE FILTER</string>
+    <string name="problems_show_more">SHOW MORE (%1$d MORE)</string>
     <string name="problems_no_value">—</string>
     <string name="problems_estimated_difficulty">EST. %1$d</string>
     <string name="problems_solved_count">%1$d AC</string>
@@ -233,6 +238,11 @@
     <string name="detail_section_review">REVIEW</string>
     <string name="detail_section_knowledge">KNOWLEDGE</string>
     <string name="knowledge_relation_hint">SELECT THE KNOWLEDGE AREAS THIS PROBLEM TRAINS.</string>
+    <string name="knowledge_auto_link">AUTO</string>
+    <string name="knowledge_auto_link_hint">MATCHED FROM THIS PROBLEM\'S TAGS.</string>
+    <string name="knowledge_auto_link_count">%1$d AUTO-LINKED</string>
+    <string name="knowledge_auto_link_clear">CLEAR AUTO</string>
+    <string name="knowledge_auto_link_cd">Link this area automatically</string>
     <string name="detail_section_actions">ACTIONS</string>
     <string name="problem_field_first_ac">FIRST AC</string>
     <string name="problem_field_last_attempt">LAST ATTEMPT</string>
@@ -254,7 +264,22 @@
     <string name="attempt_note">NOTE (OPTIONAL)</string>
     <string name="attempt_empty">NO ATTEMPTS RECORDED</string>
     <string name="attempt_delete_cd">Delete attempt</string>
+    <string name="attempt_open_remote">OPEN ON CODEFORCES</string>
+    <string name="attempt_open_details">VIEW ATTEMPT DETAILS</string>
     <string name="format_attempt_duration">%d MIN</string>
+
+    <!-- Unified submission detail sheet -->
+    <string name="submission_detail_open_submission">OPEN SUBMISSION</string>
+    <string name="submission_detail_open_problem">OPEN PROBLEM</string>
+    <string name="submission_detail_open_notes">ADD NOTE</string>
+    <string name="submission_detail_language">LANGUAGE</string>
+    <string name="submission_detail_submitted_at">SUBMITTED AT</string>
+    <string name="submission_detail_time">TIME</string>
+    <string name="submission_detail_memory">MEMORY</string>
+    <string name="submission_detail_score">SCORE</string>
+    <string name="submission_detail_metrics_unavailable">TIME AND MEMORY NOT REPORTED</string>
+    <string name="submission_detail_sheet_action">DETAILS</string>
+    <string name="submission_detail_sheet_action_cd">Open the unified submission detail sheet</string>
 
     <!-- Failure log -->
     <string name="failure_add">ADD FAILURE</string>
@@ -279,6 +304,25 @@
     <string name="notes_general">GENERAL NOTES</string>
     <string name="notes_saved">SAVED</string>
     <string name="notes_saving">SAVING</string>
+    <string name="notes_template_action">TEMPLATE</string>
+    <string name="notes_template_title">NOTE TEMPLATE</string>
+    <string name="notes_template_summary">%1$d FIELDS · APPLIED TO NEW NOTES</string>
+    <string name="notes_template_empty">NO TEMPLATE FIELDS — RESET TO THE DEFAULT LAYOUT.</string>
+    <string name="notes_template_field_label">FIELD LABEL</string>
+    <string name="notes_template_field_hint">PROMPT (OPTIONAL)</string>
+    <string name="notes_template_move_up">Move field up</string>
+    <string name="notes_template_move_down">Move field down</string>
+    <string name="notes_template_remove">Remove field</string>
+    <string name="notes_template_add">ADD %1$s</string>
+    <string name="notes_template_slot_used">ALL SLOTS IN USE</string>
+    <string name="notes_template_reset">RESET</string>
+    <string name="notes_template_preset">PRESET: ROOT CAUSE</string>
+    <string name="notes_template_save">SAVE</string>
+    <string name="notes_template_cancel">CANCEL</string>
+    <string name="notes_template_invalid_label">EVERY FIELD NEEDS A LABEL.</string>
+    <string name="notes_template_invalid_empty">AT LEAST ONE FIELD IS REQUIRED.</string>
+    <string name="notes_template_last_field">THE LAST FIELD CANNOT BE REMOVED.</string>
+    <string name="notes_template_saved">TEMPLATE SAVED</string>
 
     <!-- Review -->
     <string name="review_state_none">NOT IN REVIEW</string>
@@ -316,6 +360,18 @@
     <string name="review_run_close">CLOSE RUN</string>
     <string name="review_run_next_cd">Advance to the next review item</string>
     <string name="review_run_close_cd">Close the review run</string>
+    <!-- Review deck shuffle & cram mode -->
+    <string name="review_deck_mode">DECK MODE</string>
+    <string name="review_deck_schedule">SCHEDULE</string>
+    <string name="review_deck_shuffle">SHUFFLE</string>
+    <string name="review_deck_cram">CRAM</string>
+    <string name="review_deck_cram_judge">JUDGE</string>
+    <string name="review_deck_cram_tag">TAG</string>
+    <string name="review_deck_cram_hint">PICK A JUDGE, THEN OPTIONALLY NARROW BY TAG.</string>
+    <string name="review_deck_cram_empty">NO PROBLEMS MATCH THIS CRAM FILTER.</string>
+    <string name="review_deck_shuffle_seed">SHUFFLE SEED %1$d</string>
+    <string name="review_deck_cram_selected">%1$d IN CRAM SLICE</string>
+    <string name="review_deck_cram_tag_hint">TAG (OPTIONAL)</string>
 
     <!-- Sessions -->
     <string name="training_section_session">SESSION</string>
@@ -350,6 +406,21 @@
     <string name="training_focus_sprint_more">+%d MORE TARGETS</string>
     <string name="training_focus_sprint_due_source">DUE</string>
     <string name="training_focus_sprint_target_source">TARGET</string>
+    <string name="training_focus_sprint_band">DIFFICULTY LADDER</string>
+    <string name="training_focus_sprint_band_easier">EASIER</string>
+    <string name="training_focus_sprint_band_fit">FIT</string>
+    <string name="training_focus_sprint_band_stretch">STRETCH</string>
+    <string name="training_focus_sprint_band_any">ANY</string>
+    <string name="training_focus_sprint_band_empty">NO PROBLEMS IN THIS BAND</string>
+    <string name="training_focus_sprint_band_cd">Difficulty band: %1$s</string>
+    <string name="training_focus_sprint_reason_review_due">DUE</string>
+    <string name="training_focus_sprint_reason_weak_area">WEAK AREA</string>
+    <string name="training_focus_sprint_reason_failure_history">FAILURES</string>
+    <string name="training_focus_sprint_reason_review_gap">REVIEW GAP %1$dD</string>
+    <string name="training_focus_sprint_reason_difficulty_fit">DIFFICULTY FIT</string>
+    <string name="training_focus_sprint_reason_unsolved">UNSOLVED</string>
+    <string name="training_focus_sprint_reason_unrated">UNRATED</string>
+    <string name="training_focus_sprint_rating_unknown">—</string>
     <string name="session_target_duration">TARGET (MIN, OPTIONAL)</string>
     <string name="session_target_tag">TARGET TAG (OPTIONAL)</string>
     <string name="session_pick_problems">PROBLEMS</string>
@@ -396,6 +467,8 @@
     <string name="session_summary_wa">WA</string>
     <string name="session_summary_avg">AVG DIFF</string>
     <string name="session_summary_none">—</string>
+    <string name="session_summary_finished">FINISHED</string>
+    <string name="session_summary_cancelled">CANCELLED</string>
     <string name="session_history">RECENT SESSIONS</string>
     <string name="session_history_empty">NO SESSIONS YET</string>
     <string name="session_start">START</string>
@@ -420,6 +493,9 @@
     <string name="session_debrief_schedule_attention">SCHEDULE ATTENTION</string>
     <string name="session_debrief_schedule_attention_cd">Schedule %1$d session problems for review</string>
     <string name="session_debrief_review_ready">REVIEW QUEUE READY</string>
+    <string name="session_debrief_export">EXPORT</string>
+    <string name="session_debrief_export_cd">Export session debrief as Markdown</string>
+    <string name="session_debrief_export_hint">COPY OR SHARE THIS SESSION AS MARKDOWN</string>
 
     <!-- Training screen -->
     <string name="training_section_target">TODAY\'S TARGET</string>
@@ -436,9 +512,11 @@
     <string name="training_section_knowledge">KNOWLEDGE TREE</string>
     <string name="knowledge_area_count">%d AREAS</string>
     <string name="knowledge_score">%d%%</string>
+    <string name="knowledge_decay">▼ DECAY %1$d</string>
     <string name="mastery_reason_no_evidence">NO EVIDENCE</string>
     <string name="mastery_reason_low_ac">LOW AC RATE</string>
     <string name="mastery_reason_failures">FAILURE LOG</string>
+    <string name="mastery_reason_decay">STALE</string>
     <string name="target_priority">PRIORITY %d</string>
     <string name="target_range_label">RANGE</string>
     <string name="training_calibration_title">DIFFICULTY CALIBRATION</string>
@@ -513,7 +591,9 @@
     <string name="analytics_day_active">ACTIVE TIME</string>
     <string name="analytics_day_zero">ZERO ACTIVITY</string>
     <string name="analytics_day_score">SCORE %1$d · %2$d/4</string>
-    <string name="analytics_heatmap_cell_cd">Activity intensity %1$d of 4, %2$d solved</string>
+    <string name="analytics_heatmap_cell_cd">Activity intensity %1$d of 4, %2$d solved, %3$s</string>
+    <string name="analytics_heatmap_cell_padding_cd">Empty calendar cell</string>
+    <string name="analytics_streak_longest">LONGEST</string>
     <string name="format_hours">%1$dH %2$02dM</string>
 
     <!-- Profile -->
@@ -563,6 +643,13 @@
     <string name="settings_connector_sync_all">SYNC ALL</string>
     <string name="settings_connector_syncing_all">SYNCING…</string>
     <string name="settings_connector_sync_all_cd">Queue a foreground refresh for every connected judge</string>
+    <string name="settings_health_last_run">LAST RUN %1$s</string>
+    <string name="settings_health_latency">LATENCY %1$s</string>
+    <string name="settings_health_quota_idle">QUOTA NOT PROBED</string>
+    <string name="settings_health_quota_checking">QUOTA PROBE RUNNING…</string>
+    <string name="settings_health_quota_points">QUOTA %1$d PTS</string>
+    <string name="settings_health_quota_failed">QUOTA PROBE FAILED — TAP RETRY</string>
+    <string name="settings_health_quota_probe">PROBE</string>
     <string name="settings_connector_disconnected">DISCONNECTED</string>
     <string name="settings_connector_disabled">DISABLED</string>
     <string name="settings_connector_queued">QUEUED</string>
@@ -602,6 +689,12 @@
     <string name="settings_disconnect_body">UNBIND THE ACCOUNT? YOUR LOCAL TRAINING HISTORY, NOTES AND REVIEWS ARE KEPT.</string>
     <string name="settings_purge_cache">ALSO REMOVE CACHED CODEFORCES DATA</string>
     <string name="settings_purge_judge_cache">ALSO REMOVE THIS JUDGE\'S CACHED REMOTE DATA</string>
+    <string name="settings_wipe_data">WIPE DATA</string>
+    <string name="settings_wiping">WIPING…</string>
+    <string name="settings_wipe_failed">WIPE FAILED. TRY AGAIN.</string>
+    <string name="settings_wipe_title">WIPE %1$s DATA</string>
+    <string name="settings_wipe_body">DELETES THIS JUDGE\'S PROBLEMS, ATTEMPTS, NOTES, REVIEWS, CACHED CATALOG AND SYNC LEDGER FROM THIS DEVICE. THE ACCOUNT HANDLE STAYS CONNECTED. TYPE %1$s TO CONFIRM.</string>
+    <string name="settings_wipe_confirm_action">WIPE</string>
     <string name="settings_source_format">SOURCE %1$s</string>
     <string name="settings_verification_format">IDENTITY %1$s</string>
     <string name="settings_rating_unavailable">RATING DATA UNAVAILABLE</string>
@@ -631,7 +724,7 @@
     <string name="settings_openapp_quota_exceeded">OPENAPP QUOTA IS INSUFFICIENT</string>
     <string name="settings_openapp_quota_api_error">OPENAPP QUOTA QUERY FAILED</string>
     <string name="settings_section_data">LOCAL DATA</string>
-    <string name="settings_backup_hint">EXPORT A COPY OF THE LOCAL DATABASE. NO PASSWORDS OR COOKIES ARE INCLUDED.</string>
+    <string name="settings_backup_hint">EXPORT A SNAPSHOT ARCHIVE: THE DATABASE PLUS A MANIFEST OF TABLE COUNTS AND THE DATA-GENERATION STAMP. NO PASSWORDS, COOKIES OR SECRETS ARE INCLUDED.</string>
     <string name="settings_export_backup">EXPORT DATABASE BACKUP</string>
     <string name="settings_import_backup">IMPORT DATABASE BACKUP</string>
     <string name="settings_backup_success">BACKUP EXPORTED</string>
@@ -640,6 +733,39 @@
     <string name="settings_restore_applied">RESTORE APPLIED — TAP TO DISMISS</string>
     <string name="settings_restore_rolled_back">RESTORE ROLLED BACK — TAP TO DISMISS</string>
     <string name="settings_restore_rejected">RESTORE REJECTED — TAP TO DISMISS</string>
+    <string name="settings_maintenance_title">DATABASE MAINTENANCE</string>
+    <string name="settings_maintenance_unavailable">MAINTENANCE STATS UNAVAILABLE</string>
+    <string name="settings_maintenance_size_line">DB %1$s · WAL %2$s · FREE %3$s</string>
+    <string name="settings_maintenance_vacuum">VACUUM (RECLAIM FREE PAGES)</string>
+    <string name="settings_maintenance_vacuum_running">VACUUM RUNNING… %1$d s</string>
+    <string name="settings_maintenance_vacuum_cancel">CANCEL</string>
+    <string name="settings_maintenance_vacuum_finished_anyway">VACUUM FINISHED — CANCEL ARRIVED AFTER COMMIT. TAP TO DISMISS</string>
+    <string name="settings_maintenance_refresh">REFRESH STATS</string>
+    <string name="settings_crash_log_title">LOCAL CRASH LOG</string>
+    <string name="settings_crash_log_desc">CAPTURE CRASH REPORTS ON THIS DEVICE ONLY. THEY NEVER LEAVE THE DEVICE. TAKES EFFECT ON NEXT APP START.</string>
+    <string name="settings_crash_log_empty">NO CRASH REPORTS CAPTURED</string>
+    <string name="settings_crash_log_count">%1$d REPORT(S) — NEWEST %2$s</string>
+    <string name="settings_crash_log_view">VIEW LAST CRASH</string>
+    <string name="settings_crash_log_clear">CLEAR</string>
+    <string name="settings_crash_log_preview_title">CRASH REPORT</string>
+    <string name="settings_crash_log_truncated">TRUNCATED (SHOWING FIRST 8 KIB)</string>
+    <string name="settings_crash_log_close">CLOSE</string>
+    <string name="settings_import_conflict_title">IMPORT PREVIEW</string>
+    <string name="settings_import_conflict_body">THIS SNAPSHOT WILL REPLACE THE LOCAL DATABASE. TABLE COUNTS BELOW ARE INCOMING → CURRENT.</string>
+    <string name="settings_import_conflict_table_header">TABLE  INCOMING → CURRENT</string>
+    <string name="settings_import_conflict_confirm">CONFIRM IMPORT</string>
+    <string name="settings_import_conflict_cancel">CANCEL</string>
+    <string name="settings_auto_backup_title">AUTO BACKUP (LOCAL ONLY)</string>
+    <string name="settings_auto_backup_off">OFF</string>
+    <string name="settings_auto_backup_daily">DAILY</string>
+    <string name="settings_auto_backup_weekly">WEEKLY</string>
+    <string name="settings_auto_backup_no_folder">NO FOLDER PICKED — CHOOSE A FOLDER FIRST.</string>
+    <string name="settings_auto_backup_folder_set">SNAPSHOTS ARE WRITTEN TO THE PICKED FOLDER.</string>
+    <string name="settings_auto_backup_pick_folder">PICK FOLDER</string>
+    <string name="settings_auto_backup_clear_folder">CLEAR FOLDER</string>
+    <string name="settings_auto_backup_keep_count">KEEP LAST %1$d ARCHIVES</string>
+    <string name="settings_auto_backup_last_success">LAST AUTO BACKUP SUCCEEDED — TAP TO DISMISS</string>
+    <string name="settings_auto_backup_last_failed">LAST AUTO BACKUP FAILED — TAP TO DISMISS</string>
     <string name="settings_section_interaction">INTERACTION</string>
     <string name="settings_reduce_motion">REDUCE MOTION</string>
     <string name="settings_reduce_motion_desc">REMOVE NAVIGATION FADE TRANSITIONS</string>
@@ -760,6 +886,7 @@
     <string name="problems_scope_filter_unsolved">UNSOLVED</string>
     <string name="problems_load_more">LOAD MORE</string>
     <string name="problems_luogu_catalog_hint">PUBLIC CATALOG · NO ACCOUNT REQUIRED</string>
+    <string name="problems_luogu_trainings_entry">TRAININGS</string>
     <string name="problems_luogu_sync_catalog">SYNC CATALOG</string>
     <string name="problems_luogu_syncing_catalog">SYNCING CATALOG…</string>
     <string name="problems_luogu_catalog_synced">CATALOG UPDATED · %d ITEMS</string>
@@ -807,6 +934,20 @@
     <string name="luogu_problem_limits">LIMITS</string>
     <string name="luogu_problem_time_limit">TIME %d MS</string>
     <string name="luogu_problem_memory_limit">MEMORY %d MB</string>
+    <!-- Luogu public training catalog -->
+    <string name="luogu_training_title">LUOGU TRAININGS</string>
+    <string name="luogu_training_section">OFFICIAL TRAINING PLANS</string>
+    <string name="luogu_training_ladder_section">PROBLEM LADDER</string>
+    <string name="luogu_training_loading">LOADING PUBLIC TRAININGS…</string>
+    <string name="luogu_training_empty">NO PUBLIC TRAININGS REPORTED</string>
+    <string name="luogu_training_failed">TRAINING LIST UNAVAILABLE — TAP BACK AND RETRY</string>
+    <string name="luogu_training_missing">TRAINING NOT FOUND</string>
+    <string name="luogu_training_open">OPEN</string>
+    <string name="luogu_training_open_cd">OPEN TRAINING DETAIL</string>
+    <string name="luogu_training_problem_open_cd">OPEN LUOGU PROBLEM DETAIL</string>
+    <string name="luogu_training_problem_count">%d PROBLEMS</string>
+    <string name="luogu_training_mark_count">%d MARKS</string>
+    <string name="luogu_training_accepted_count">AC %d</string>
     <!-- Local Luogu Open Platform workspace -->
     <string name="workspace_title">CODE WORKSPACE</string>
     <string name="workspace_open">OPEN WORKSPACE</string>

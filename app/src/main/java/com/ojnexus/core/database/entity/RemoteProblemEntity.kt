@@ -17,6 +17,8 @@ import androidx.room.Index
     indices = [
         Index(value = ["judge", "rating"]),
         Index(value = ["name"]),
+        // Phase 106 index audit: delta-fingerprint read (judge, external_id ORDERED).
+        Index(value = ["judge", "external_id"]),
     ],
 )
 data class RemoteProblemEntity(

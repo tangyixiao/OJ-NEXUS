@@ -180,6 +180,9 @@ interface ProblemDao {
     @Query("SELECT COUNT(*) FROM problems")
     suspend fun count(): Int
 
+    @Query("DELETE FROM problems WHERE judge = :judge")
+    suspend fun deleteByJudge(judge: String)
+
     // --- Tags ---
 
     @Query("SELECT * FROM problem_tags ORDER BY name")
