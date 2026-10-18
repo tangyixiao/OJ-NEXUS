@@ -298,7 +298,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
   per screen, fixing all critical findings.
 - Refs: `docs/verification/2026-10-01-android-shared-layout.md`.
 
-#### ⬜ PHASE 113 — Localization pass
+#### ✅ PHASE 113 — Localization pass (2026-10-18)
 - Goal: audit every user-visible string is in `strings.xml` (EN+zh), no hardcoded UI text.
 - DoD: lint-style check script committed under `tools/`.
 

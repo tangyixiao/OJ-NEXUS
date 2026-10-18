@@ -3,6 +3,25 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## LOCALIZATION PASS
+
+`tools/check-localization.ps1` enforces three invariants over the string resources: the EN and
+zh-CN key sets are exactly equal (1010 keys each today), every key carries the same printf
+argument multiset on both sides (a mismatch would crash the formatter at runtime), and no
+composable renders a hardcoded `Text("…")` literal outside a reviewed allowlist. The one
+allowlisted hit is the markdown bullet renderer, whose glyph prefix decorates data text, not UI
+copy. The script itself was hardened against two false-positive classes recorded in the plan:
+BOM-less files must be read as explicit UTF-8 (PowerShell 5.1 otherwise decodes zh text as
+GBK and reports phantom format mismatches), and the literal matcher strips comments and
+excludes `ClipData.newPlainText`-style data labels via a lookbehind. Verdict: LOCALIZATION OK.
+/ `tools/check-localization.ps1` 对字符串资源执行三条不变式：EN 与 zh-CN 的键集合完全一致（当前
+各 1010 个键）；每个键在两侧的 printf 参数多重集相同（不一致会让格式化器在运行期崩溃）；任何
+组合层不得渲染白名单之外的硬编码 `Text("…")` 字面量。白名单里唯一一项是 Markdown 列表点渲染器，
+它的字形前缀修饰的是数据文本而非 UI 文案。脚本自身经历了两类假阳性的加固，已记录在计划里：
+无 BOM 文件必须显式按 UTF-8 读取（否则 PowerShell 5.1 会把中文按 GBK 解码并报出幻影格式不匹
+配），字面量匹配器会剥离注释并用 lookbehind 排除 `ClipData.newPlainText` 之类的数据标签。结论：
+LOCALIZATION OK。
+
 ## ACCESSIBILITY SWEEP
 
 A static source audit over 130 clickable call sites produced three critical findings, all fixed:
