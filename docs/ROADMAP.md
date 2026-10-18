@@ -3,6 +3,25 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## SYNC BATTERY PROFILE
+
+Periodic sync now has a documented, unit-pinned battery profile. The worker builder reads its
+6-hour cadence from `SyncPolicy.PERIODIC_SYNC_MINUTES` instead of a hardcoded literal, and adds
+`requiresBatteryNotLow` next to the existing network constraint — the same posture the
+scheduled-backup worker already had. Freshness windows (30 min profile/rating, 15 min
+submissions, 60 min contests, 24 h problemset) keep a steady-state run to at most five
+gate-spaced adapter calls (≥ 2.1 s apart) and one bounded 1000-row submissions page per account;
+manual sync stays immediate and ignores both freshness and battery state. Idle/Charging
+constraints were rejected on purpose — they would starve the cadence on daily-driver phones.
+docs/SYNC_ENGINE.md records the full table; the device battery-draw number stays honestly
+PENDING because no hardware is attached, per repo rules.
+/ 周期同步现在有了文档化并由单测钉住的电池画像。工作器构建器从 `SyncPolicy.PERIODIC_SYNC_MINUTES`
+读取 6 小时周期（不再硬编码字面量），并在网络约束旁增加 `requiresBatteryNotLow`——与定时备份工作器
+一致。新鲜度窗口（档案/Rating 30 分钟、提交 15 分钟、比赛 60 分钟、题库 24 小时）把稳态运行压到至多
+五次按门限间隔（≥2.1 秒）的适配器调用和每账号至多一页 1000 行的提交写入；手动同步保持即时，不受
+新鲜度与电池状态约束。Idle/Charging 约束被有意否决——它们会让日常手机上的周期饿死。docs/SYNC_ENGINE.md
+记录完整表格；设备电池消耗数值因主机无硬件而如实保持 PENDING。
+
 ## ROOM INDEX AUDIT
 
 The ten hottest production queries were audited with `EXPLAIN QUERY PLAN` before any index was

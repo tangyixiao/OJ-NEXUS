@@ -270,7 +270,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Constraints: migrations must be non-destructive and tested 12→13.
 - DoD: before/after timings in the phase spec.
 
-#### ⬜ PHASE 107 — Sync worker battery profile
+#### ✅ PHASE 107 — Sync worker battery profile (v0.3.99, 2026-10-18)
 - Goal: measure and cap periodic sync cost; document interval defaults.
 - DoD: `docs/SYNC_ENGINE.md` updated with measurements.
 

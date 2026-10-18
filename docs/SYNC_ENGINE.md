@@ -28,6 +28,35 @@ work and stage freshness windows. Network constraints prevent needless offline a
 bounded exponential backoff handles retryable rate-limit failures. A stage failure is recorded
 without discarding earlier successful stages, producing `PARTIAL` when appropriate.
 
+## Battery profile — Phase 107
+
+Periodic sync is deliberately cheap and bounded:
+
+| Setting | Value | Source |
+| --- | --- | --- |
+| Periodic cadence | 6 hours | `SyncPolicy.PERIODIC_SYNC_MINUTES` (read by the worker builder — one source of truth) |
+| Network constraint | `CONNECTED` | `JudgeSyncWorker.enqueuePeriodic` |
+| Battery constraint | `requiresBatteryNotLow` | `JudgeSyncWorker.enqueuePeriodic` (added Phase 107; matches the scheduled-backup worker's posture) |
+| Backoff | exponential, 10 min | `SyncPolicy.WORK_BACKOFF_SECONDS` |
+| Request spacing | ≥ 2.1 s between adapter calls | `SyncPolicy.REQUEST_INTERVAL_MS` (official 2 s limit + margin) |
+| Submissions page budget | ≤ 1000 items per run | `SyncPolicy.SUBMISSION_PAGE_SIZE` |
+
+Freshness windows (per stage): PROFILE/RATING 30 min, SUBMISSIONS 15 min, CONTESTS 60 min,
+PROBLEMSET 24 h. Because the 6-hour cadence exceeds every window, a steady-state periodic run
+performs at most 5 gated adapter calls (worst case ~8.4 s of gate spacing between them) and
+writes at most one 1000-row submissions page per judge account. Manual sync (user-initiated)
+ignores freshness and stays unconstrained by battery state — responsiveness over thrift.
+
+Idle/Charging constraints were considered and rejected: they would starve the 6-hour cadence on
+daily-driver phones. Battery-not-low is the correct floor.
+
+### Measured numbers
+
+| Measurement | Value | Source |
+| --- | --- | --- |
+| Freshness arithmetic + request-spacing bounds | deterministic, unit-tested | `SyncBatteryProfileTest` |
+| Device battery draw per periodic run | **PENDING** | no device attached to this host; per repo rules hardware numbers are recorded only from hardware (`adb shell dumpsys batterystats` before/after a forced periodic run) |
+
 Disconnect removes the account and sync state in one transaction, optionally removes cached
 remote rows, and cancels both unique work names. Local notes, reviews, failures and training
 sessions are retained.
