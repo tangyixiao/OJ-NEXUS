@@ -158,7 +158,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 
 ### ARC C — Multi-OJ depth
 
-#### ⬜ PHASE 91 — Codeforces problemset incremental sync
+#### ✅ PHASE 91 — Codeforces problemset incremental sync (v0.3.89, 2026-10-18)
 - Goal: delta sync of CF problemset via `problemset.recentStatus` + etag-style caching of
   `problemset.problems`, bounded pages, offline-merge into Room.
 - Scope: `judge/codeforces` adapter + sync worker.

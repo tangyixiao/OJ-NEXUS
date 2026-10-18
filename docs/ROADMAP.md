@@ -3,6 +3,24 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## CODEFORCES PROBLEMSET DELTA SYNC
+
+The Codeforces PROBLEMS stage no longer rewrites the whole ~10k-row catalog on every forced
+refresh. A pure `ProblemsetDeltaPlanner` decides between SKIP_FRESH (the existing 24-hour
+freshness stamp), SKIP_UNCHANGED and WRITE. The unchanged check compares the fetched catalog
+against the live table through a SHA-256 fingerprint over canonical
+`contestId:index:rating:solvedCount` rows, confirmed by two indexed SQL aggregates (row count
+and solved-count sum) before any skip is trusted. When content matches, the chunked Room write
+is skipped entirely and the ledger records 0 items; real drift still lands through the same
+bounded 2000-row transactions. Everything stays on the official public API through the request
+gate — no new endpoints, no scraping, and the 503 backoff path is untouched.
+/ Codeforces 的 PROBLEMS 阶段不再在每次强制刷新时重写整张约一万行的目录表。纯函数
+`ProblemsetDeltaPlanner` 在 SKIP_FRESH（沿用 24 小时新鲜度戳）、SKIP_UNCHANGED 与 WRITE 之间做决策。
+未变化检查先对获取到的目录按 `contestId:index:rating:solvedCount` 规范行计算 SHA-256 指纹，再由两条
+索引 SQL 聚合（行数与解题数之和）确认后才允许跳过；内容一致时完全跳过分块写入并在台账记录 0 项，
+真实漂移仍走同样的 2000 行有界事务。全部经由请求网关走官方公开 API——不新增端点、不爬页面，
+503 退避路径保持不变。
+
 ## DATABASE HOUSEKEEPING PANEL
 
 The settings data section now reports the database honestly: one line shows the DB size, WAL file

@@ -51,6 +51,10 @@ interface RemoteProblemDao {
     @Query("SELECT COUNT(*) FROM remote_problems WHERE judge = :judge")
     suspend fun countByJudge(judge: String): Int
 
+    /** Cheap delta-sync proxy: sum of solved counts for the whole judge catalog. */
+    @Query("SELECT COALESCE(SUM(solved_count), 0) FROM remote_problems WHERE judge = :judge")
+    suspend fun sumSolvedByJudge(judge: String): Long
+
     @Query(
         "SELECT * FROM remote_problems WHERE judge = :judge " +
             "AND (:query = '' OR name LIKE '%' || :query || '%' OR external_id LIKE '%' || :query || '%') " +
@@ -81,6 +85,10 @@ interface RemoteProblemDao {
         "SELECT * FROM remote_problems WHERE judge = :judge AND external_id = :externalId LIMIT 1",
     )
     suspend fun findByKey(judge: String, externalId: String): RemoteProblemEntity?
+
+    /** Full catalog for one judge — delta-sync fingerprinting only; callers chunk writes. */
+    @Query("SELECT * FROM remote_problems WHERE judge = :judge ORDER BY external_id")
+    suspend fun findAllByJudge(judge: String): List<RemoteProblemEntity>
 
     @Query("DELETE FROM remote_problems WHERE judge = :judge")
     suspend fun deleteByJudge(judge: String)
