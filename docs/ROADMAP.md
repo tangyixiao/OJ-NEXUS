@@ -3,6 +3,23 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## REPRODUCIBLE BUILD CHECK
+
+`tools/check-reproducible-build.ps1` builds `:app:assembleRelease` twice from clean state,
+copies each APK out of the build tree, and compares SHA256. On this host the two passes produced
+the identical hash `D411D62D…3843A6D6` for `app-release-unsigned.apk` — the unsigned release
+output carries no signature block, so nothing machine-local enters the hash. The debug APK is
+excluded by design: it is signed with the host debug keystore and is host-specific on purpose.
+When a future toolchain change breaks bit-for-bit output, the script prints the documented diff
+sources (embedded timestamps, zip entry ordering / MANIFEST.MF, dependency cache drift) so the
+cause gets recorded instead of guessed.
+/ `tools/check-reproducible-build.ps1` 从干净状态连续两次构建 `:app:assembleRelease`，把每次产出的
+APK 拷出构建树并比较 SHA256。在本机上两次产出 `app-release-unsigned.apk` 的哈希完全一致
+（`D411D62D…3843A6D6`）——未签名的 release 产物不含签名块，任何机器本地信息都不会进入哈希。调试
+APK 被刻意排除：它用本机 debug keystore 签名，哈希天然只属于这台机器。将来工具链升级若破坏逐位一
+致，脚本会打印已归档的差异来源（内嵌时间戳、zip 条目顺序 / MANIFEST.MF、依赖缓存漂移），让原因
+被记录而不是靠猜。
+
 ## STORE METADATA
 
 The repo now carries fastlane-style store metadata under `fastlane/metadata/android/` for en-US

@@ -289,7 +289,7 @@ Hard invariants for ALL phases (from AGENTS.md, restated so executors can't miss
 - Goal: fastlane-style metadata folder (descriptions EN/zh, screenshots) in repo.
 - Constraints: no marketing copy; telemetry tone.
 
-#### ⬜ PHASE 111 — Reproducible build check
+#### ✅ PHASE 111 — Reproducible build check (2026-10-18)
 - Goal: document and script a build-reproducibility check for the APK.
 - DoD: two clean builds produce identical hashes or documented diff sources.
 
