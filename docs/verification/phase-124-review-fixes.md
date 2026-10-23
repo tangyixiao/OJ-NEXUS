@@ -49,3 +49,30 @@ absent PID; the coordinating full CTest run includes those tests.
 ## Source provenance
 
 The original Linux source worktree at `D:\AndroidAppCoding\.worktrees\linux-client` remained read-only. Recomputed size and SHA-256 for all 41 entries in `phase-124-linux-provenance.md` matched the pre-copy manifest (41/41). The audit at `C:\Users\tangy\AppData\Local\Temp\ojnexus-phase121-platform-audit.md` was read; it was not under the repository's `TEMP` folder. The original manifest remains the integration baseline; these review fixes are a separate worktree diff.
+
+## Final-source repeat and published preview
+
+At `cf36f89` (production code unchanged from `551376c`), the coordinating lane also repeated
+public Codeforces sync for `tourist` using `linux/build/root-live-state`: PROFILE 1,
+RATING 310, SUBMISSIONS 1000, CONTESTS 2161, PROBLEMSET 11467, all SUCCESS. This final-source
+run completed 2026-10-23 at 14:15:13 UTC. A process-local proxy to `127.0.0.1:9` then caused
+all five modules to return typed OFFLINE and CLI exit3; cached profile timestamp,
+310 rating records and1000 submissions remained unchanged. Logs/JSON are
+`%TEMP%/phase124-root-live.log`, `%TEMP%/phase124-root-offline.log` and the ignored
+`linux/build/root-{live,offline}-*.json` files. No host network setting was changed.
+
+Hosted [Ubuntu CI](https://github.com/tangyixiao/OJ-NEXUS/actions/runs/39967113915) passed
+8/8 CTest and built the DEB. Root packaging additionally used a native Linux filesystem
+for staging: staging directly on a Windows-mounted filesystem had exposed incorrect
+Unix file modes, so that experimental artifact was not published. The native-staged DEB
+has executables0755, desktop/README0644; it was copied intact into ignored build output.
+Its extracted CLI ran `status --json` successfully and `ldd` showed no missing library.
+No installation or Qt desktop interaction was performed.
+
+Published [Linux CLI preview RC1](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/linux-v0.1.0-rc.1)
+is a prerelease with `latest=false`, tagged at the reviewed unmerged `cf36f89` source.
+Asset `ojnexus-0.1.0-Ubuntu24.04-amd64.deb` is unsigned and only qualified here as a CLI
+preview; the contained Qt GUI remains interactive-unverified. SHA256:
+`762c200ffa75fcd7a1df62fa1a0d06ea67fff73240040eb3d84bcbf00a6622fb`.
+A matching checksum file is attached to the release. This does not complete the full
+Phase124 desktop/clean-host gate or merge PR#16.
