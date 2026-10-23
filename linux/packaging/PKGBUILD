@@ -1,0 +1,42 @@
+pkgname=ojnexus
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='OJ NEXUS native Linux client and CLI'
+arch=('x86_64')
+url='https://github.com/tangyixiao/OJ-NEXUS'
+license=('MIT')
+depends=('qt6-base' 'qt6-declarative')
+makedepends=('cmake' 'ninja')
+source=("ojnexus-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+_ojnexus_source_dir() {
+  local candidate
+  for candidate in "$srcdir" "$srcdir"/*; do
+    if [[ -f "$candidate/CMakeLists.txt" && -f "$candidate/packaging/ojnexus.desktop" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+    if [[ -f "$candidate/linux/CMakeLists.txt" && -f "$candidate/linux/packaging/ojnexus.desktop" ]]; then
+      printf '%s/linux\n' "$candidate"
+      return 0
+    fi
+  done
+
+  error 'could not locate the OJ NEXUS Linux source directory'
+  return 1
+}
+
+build() {
+  local source_dir
+  source_dir="$(_ojnexus_source_dir)"
+  cmake -S "$source_dir" -B "$source_dir/build" -G Ninja -DOJNEXUS_BUILD_GUI=ON -DOJNEXUS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
+  cmake --build "$source_dir/build"
+}
+
+package() {
+  local source_dir
+  source_dir="$(_ojnexus_source_dir)"
+  DESTDIR="$pkgdir" cmake --install "$source_dir/build"
+  install -Dm644 "$source_dir/packaging/ojnexus.desktop" "$pkgdir/usr/share/applications/ojnexus.desktop"
+}
