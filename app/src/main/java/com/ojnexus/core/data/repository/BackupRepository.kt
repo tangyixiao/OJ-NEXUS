@@ -233,58 +233,47 @@ class BackupRepository(
     }
 
     private fun countTables(snapshot: File): List<ManifestTableCount> {
-        val opened: SQLiteDatabase? = runCatching {
-            SQLiteDatabase.openDatabase(snapshot.path, null, SQLiteDatabase.OPEN_READONLY)
-        }.getOrNull()
-        // When the standalone snapshot cannot be opened (some embedded SQLite builds refuse
-        // files they did not create themselves), the counts come from the live database,
-        // which the truncate checkpoint in createSnapshotFile just made consistent.
-        val counts = mutableListOf<ManifestTableCount>()
-        if (opened != null) {
-            REQUIRED_TABLES.forEach { table ->
-                opened.rawQuery("SELECT COUNT(*) FROM \"$table\"", null).use { cursor ->
-                    val rows = if (cursor.moveToFirst()) cursor.getInt(0) else 0
-                    counts += ManifestTableCount(table, rows)
-                }
+        val opened = SQLiteDatabase.openDatabase(snapshot.path, null, SQLiteDatabase.OPEN_READONLY)
+        return opened.use { standalone ->
+            val integrity = standalone.rawQuery("PRAGMA integrity_check", null).use { cursor ->
+                check(cursor.moveToFirst()) { "snapshot integrity check returned no result" }
+                cursor.getString(0)
             }
-            opened.close()
-        } else {
-            val live = database.openHelper.writableDatabase
-            REQUIRED_TABLES.forEach { table ->
-                live.query("SELECT COUNT(*) FROM \"$table\"").use { cursor ->
-                    val rows = if (cursor.moveToFirst()) cursor.getInt(0) else 0
-                    counts += ManifestTableCount(table, rows)
+            check(integrity.equals("ok", ignoreCase = true)) {
+                "snapshot integrity check failed: $integrity"
+            }
+            check(standalone.version == schemaVersion()) {
+                "snapshot schema version does not match the active database"
+            }
+            REQUIRED_TABLES.map { table ->
+                val rows = standalone.rawQuery("SELECT COUNT(*) FROM \"$table\"", null).use { cursor ->
+                    check(cursor.moveToFirst()) { "snapshot count query returned no result for $table" }
+                    cursor.getInt(0)
                 }
+                ManifestTableCount(table, rows)
             }
         }
-        return counts
     }
 
     private fun createSnapshotFile(): File {
-        // A truncate checkpoint makes the copied main file self-contained even when Room
-        // opened the database in production WAL mode.
-        database.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { }
+        val live = database.openHelper.writableDatabase
         val snapshot = File.createTempFile(
-            "oj-nexus-export-${UUID.randomUUID()}-",
+            "ojn-${UUID.randomUUID().toString().take(8)}-",
             ".db",
             context.cacheDir,
         ).also { it.delete() }
-        val escapedPath = snapshot.absolutePath.replace("\\", "/").replace("'", "''")
-        val vacuumed = runCatching {
-            database.openHelper.writableDatabase
-                .query("VACUUM INTO '$escapedPath'")
-                .use { }
-            snapshot.isFile
-        }.getOrDefault(false)
-        if (!vacuumed) {
-            // Older SQLite builds do not implement VACUUM INTO. The truncate
-            // checkpoint above leaves a safe main-file snapshot for those builds.
-            val source = File(requireNotNull(database.openHelper.writableDatabase.path))
-            require(source.isFile) { "database file unavailable" }
-            source.copyTo(snapshot, overwrite = true)
+        try {
+            val escapedPath = snapshot.absolutePath.replace("\\", "/").replace("'", "''")
+            // VACUUM INTO reads through SQLite's live connection and creates a self-contained
+            // database. If this SQLite version lacks the command, fail closed instead of
+            // copying the main database file and silently omitting WAL contents.
+            live.execSQL("VACUUM INTO '$escapedPath'")
+            check(snapshot.isFile && snapshot.length() > 0L) { "database snapshot unavailable" }
+            return snapshot
+        } catch (error: Exception) {
+            snapshot.delete()
+            throw IllegalStateException("could not create a consistent database snapshot", error)
         }
-        require(snapshot.isFile) { "database snapshot unavailable" }
-        return snapshot
     }
 
     companion object {
