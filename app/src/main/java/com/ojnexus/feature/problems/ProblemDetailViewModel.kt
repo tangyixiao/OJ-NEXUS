@@ -72,32 +72,33 @@ class ProblemDetailViewModel(
         problemRepository.observeDetail(problemId),
         knowledgeRepository.observeRelations(problemId),
         preferencesRepository.noteTemplate,
-    ) { detail, knowledge, noteTemplate ->
-            if (detail == null) {
-                Loadable.Failed(NOT_FOUND)
-            } else {
-                // Seed the draft from storage once; later edits stay user-owned.
-                if (notesDraft.value == null) {
-                    notesDraft.value = NotesDraft(
-                        problemId = problemId,
-                        keyInsight = detail.notes?.keyInsight ?: "",
-                        implementationNotes = detail.notes?.implementationNotes ?: "",
-                        complexity = detail.notes?.complexity ?: "",
-                        general = detail.notes?.general ?: "",
-                    )
-                }
-                Loadable.Ready(
-                    ProblemDetailUiState(
-                        detail = detail,
-                        notesDraft = notesDraft.value,
-                        notesSaving = notesSaving.value,
-                        knowledge = knowledge,
-                        noteTemplate = noteTemplate,
-                        autoLinkCandidates = pendingAutoLinks(detail.problem.tags, knowledge),
-                    ),
-                )
-            }
+        notesDraft,
+        notesSaving,
+    ) { detail, knowledge, noteTemplate, draft, saving ->
+        if (detail == null) {
+            Loadable.Failed(NOT_FOUND)
+        } else {
+            // Seed the draft from storage once; later edits stay user-owned. Read the flow's
+            // current value as well in case another upstream emission overtakes its combine slot.
+            val currentDraft = notesDraft.value ?: draft ?: NotesDraft(
+                problemId = problemId,
+                keyInsight = detail.notes?.keyInsight ?: "",
+                implementationNotes = detail.notes?.implementationNotes ?: "",
+                complexity = detail.notes?.complexity ?: "",
+                general = detail.notes?.general ?: "",
+            ).also { notesDraft.value = it }
+            Loadable.Ready(
+                ProblemDetailUiState(
+                    detail = detail,
+                    notesDraft = currentDraft,
+                    notesSaving = saving,
+                    knowledge = knowledge,
+                    noteTemplate = noteTemplate,
+                    autoLinkCandidates = pendingAutoLinks(detail.problem.tags, knowledge),
+                ),
+            )
         }
+    }
         .catch { emit(Loadable.Failed(it.message ?: com.ojnexus.core.ui.localizedString(com.ojnexus.R.string.error_load_failed))) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Loadable.Loading)
 
