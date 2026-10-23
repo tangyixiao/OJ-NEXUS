@@ -1,0 +1,905 @@
+{
+  "format_version": 1,
+  "synthetic": true,
+  "vectors": [
+    {
+      "id": "RV001",
+      "operation": "IMPORT",
+      "fault": "TRUNCATED_INPUT",
+      "checkpoint": "PRECHECK",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "INVALID_INPUT",
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Select complete valid input and repeat precheck"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Corrected complete input"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes TRUNCATED_INPUT at PRECHECK for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV002",
+      "operation": "IMPORT",
+      "fault": "SCHEMA_MISMATCH",
+      "checkpoint": "PRECHECK",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "UNSUPPORTED_SCHEMA",
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Select supported input and repeat precheck"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Supported schema input"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes SCHEMA_MISMATCH at PRECHECK for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV003",
+      "operation": "IMPORT",
+      "fault": "INTEGRITY_FAILURE",
+      "checkpoint": "PRECHECK",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "INTEGRITY_FAILURE",
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Select intact input and repeat precheck"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Input passes integrity validation"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes INTEGRITY_FAILURE at PRECHECK for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV004",
+      "operation": "IMPORT",
+      "fault": "ENOSPC_CREATE_STAGING_TEMP",
+      "checkpoint": "STAGING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "STORAGE_FULL",
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Free storage and repeat precheck"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Storage available and precheck passes"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes ENOSPC_CREATE_STAGING_TEMP at STAGING for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV005",
+      "operation": "IMPORT",
+      "fault": "ENOSPC_WRITE_STAGING",
+      "checkpoint": "STAGING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "STORAGE_FULL",
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Free storage and repeat precheck"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Storage available and precheck passes"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes ENOSPC_WRITE_STAGING at STAGING for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV006",
+      "operation": "IMPORT",
+      "fault": "ENOSPC_WRITE_JOURNAL",
+      "checkpoint": "STAGING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "STORAGE_FULL",
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Free storage and repeat precheck"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Storage available and precheck passes"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes ENOSPC_WRITE_JOURNAL at STAGING for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV007",
+      "operation": "IMPORT",
+      "fault": "CANCEL_PREVIEW",
+      "checkpoint": "PRECHECK",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "CANCELLED",
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Start new import preview"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "User starts a new preview"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes CANCEL_PREVIEW at PRECHECK for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV008",
+      "operation": "IMPORT",
+      "fault": "CANCEL_STAGED_BEFORE_COMMIT",
+      "checkpoint": "STAGED",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "CANCELLED",
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Start new import preview"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "User starts a new preview"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes CANCEL_STAGED_BEFORE_COMMIT at STAGED for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV009",
+      "operation": "IMPORT",
+      "fault": "CANCEL_AFTER_LOGICAL_COMMIT",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": "CANCEL_TOO_LATE",
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Reconcile committed result"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Committed generation is readable"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes CANCEL_AFTER_LOGICAL_COMMIT at COMMITTED for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV010",
+      "operation": "IMPORT",
+      "fault": "RESTART_COMPLETE_STAGED",
+      "checkpoint": "STAGED",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": null,
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Validate staged input and apply atomically"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Staged input and journal validate"
+      },
+      "android": {
+        "kind": "RECOVERY_DECISION",
+        "journal": {
+          "stage": "STAGED",
+          "generation": "g-new",
+          "detail": null
+        },
+        "files": {
+          "target": true,
+          "candidate": true,
+          "rollback": false,
+          "staged": true
+        },
+        "expected_action": "APPLY_CANDIDATE"
+      },
+      "preconditions": [
+        "User confirmation to replace the active store was obtained and durably recorded before restart; the complete staged input and journal validate."
+      ]
+    },
+    {
+      "id": "RV011",
+      "operation": "IMPORT",
+      "fault": "RESTART_MISSING_STAGED_INPUT",
+      "checkpoint": "STAGED",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "RECOVERY_SOURCE_MISSING",
+        "preserve_artifacts": true,
+        "active_writes_allowed": false,
+        "next_action": "Reject incomplete staging and select input again"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "A complete input is selected"
+      },
+      "android": {
+        "kind": "RECOVERY_DECISION",
+        "journal": {
+          "stage": "STAGED",
+          "generation": "g-new",
+          "detail": null
+        },
+        "files": {
+          "target": true,
+          "candidate": false,
+          "rollback": false,
+          "staged": false
+        },
+        "expected_action": "REJECT_STAGING"
+      },
+      "preconditions": [
+        "Synthetic setup establishes RESTART_MISSING_STAGED_INPUT at STAGED for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV012",
+      "operation": "IMPORT",
+      "fault": "RESTART_TARGET_MISSING_ROLLBACK_VALID",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": null,
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Validate rollback and restore old target"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Rollback validates"
+      },
+      "android": {
+        "kind": "RECOVERY_DECISION",
+        "journal": {
+          "stage": "SWAPPING",
+          "generation": "g-new",
+          "detail": null
+        },
+        "files": {
+          "target": false,
+          "candidate": false,
+          "rollback": true,
+          "staged": true
+        },
+        "expected_action": "RESTORE_ROLLBACK"
+      },
+      "preconditions": [
+        "Synthetic setup establishes RESTART_TARGET_MISSING_ROLLBACK_VALID at RECOVERING for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV013",
+      "operation": "IMPORT",
+      "fault": "RESTART_TARGET_AND_ROLLBACK_VALID",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": null,
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Validate target and finish commit before cleanup"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Target validates and generation is durable"
+      },
+      "android": {
+        "kind": "RECOVERY_DECISION",
+        "journal": {
+          "stage": "SWAPPING",
+          "generation": "g-new",
+          "detail": null
+        },
+        "files": {
+          "target": true,
+          "candidate": false,
+          "rollback": true,
+          "staged": true
+        },
+        "expected_action": "VALIDATE_TARGET"
+      },
+      "preconditions": [
+        "Synthetic setup establishes RESTART_TARGET_AND_ROLLBACK_VALID at RECOVERING for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV014",
+      "operation": "IMPORT",
+      "fault": "RESTART_TARGET_INVALID_ROLLBACK_VALID",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "INTEGRITY_FAILURE",
+        "preserve_artifacts": true,
+        "active_writes_allowed": false,
+        "next_action": "Restore validated rollback and preserve sources"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Rollback validates"
+      },
+      "android": {
+        "kind": "RECOVERY_DECISION",
+        "journal": {
+          "stage": "SWAPPING",
+          "generation": "g-new",
+          "detail": "INTEGRITY_FAILURE"
+        },
+        "files": {
+          "target": true,
+          "candidate": false,
+          "rollback": true,
+          "staged": true
+        },
+        "expected_action": "VALIDATE_TARGET"
+      },
+      "preconditions": [
+        "Synthetic setup establishes RESTART_TARGET_INVALID_ROLLBACK_VALID at RECOVERING for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV015",
+      "operation": "IMPORT",
+      "fault": "APPLIED_MARKER_GENERATION_OLD",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": null,
+        "preserve_artifacts": true,
+        "active_writes_allowed": false,
+        "next_action": "Validate target, persist generation, then clean artifacts"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Target validates and generation update succeeds"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes APPLIED_MARKER_GENERATION_OLD at RECOVERING for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV016",
+      "operation": "IMPORT",
+      "fault": "RESTART_AFTER_COMMIT_CLEANUP_INTERRUPTED",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": null,
+        "preserve_artifacts": true,
+        "active_writes_allowed": false,
+        "next_action": "Run idempotent cleanup"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Committed target and generation validate"
+      },
+      "android": {
+        "kind": "RECOVERY_DECISION",
+        "journal": {
+          "stage": "APPLIED",
+          "generation": "g-new",
+          "detail": null
+        },
+        "files": {
+          "target": true,
+          "candidate": false,
+          "rollback": true,
+          "staged": false
+        },
+        "expected_action": "CLEAR_COMPLETED_ARTIFACTS"
+      },
+      "preconditions": [
+        "Synthetic setup establishes RESTART_AFTER_COMMIT_CLEANUP_INTERRUPTED at RECOVERING for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV017",
+      "operation": "IMPORT",
+      "fault": "ROLLBACK_IO_FAILURE",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "BLOCKED",
+        "active_data": "NONE_BLOCKED",
+        "generation": "OLD",
+        "error": "RECOVERY_BLOCKED",
+        "preserve_artifacts": true,
+        "active_writes_allowed": false,
+        "next_action": "Preserve recovery sources and require inspection"
+      },
+      "retry": {
+        "allowed": false,
+        "after": "NONE"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes ROLLBACK_IO_FAILURE at RECOVERING for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV018",
+      "operation": "IMPORT",
+      "fault": "MALFORMED_JOURNAL",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "BLOCKED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "RECOVERY_BLOCKED",
+        "preserve_artifacts": true,
+        "active_writes_allowed": false,
+        "next_action": "Preserve artifacts and require journal inspection"
+      },
+      "retry": {
+        "allowed": false,
+        "after": "NONE"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes MALFORMED_JOURNAL at RECOVERING for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV019",
+      "operation": "OPEN",
+      "fault": "NO_VALID_RECOVERY_SOURCE",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "BLOCKED",
+        "active_data": "NONE_BLOCKED",
+        "generation": "UNCHANGED",
+        "error": "RECOVERY_SOURCE_MISSING",
+        "preserve_artifacts": true,
+        "active_writes_allowed": false,
+        "next_action": "Preserve bytes and require repair or explicit source"
+      },
+      "retry": {
+        "allowed": false,
+        "after": "NONE"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes NO_VALID_RECOVERY_SOURCE at RECOVERING for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV020",
+      "operation": "WORK",
+      "fault": "OLD_GENERATION_COMPLETION",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "WORK_ITEM",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": "STALE_GENERATION",
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Discard stale completion and enqueue current generation work"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Explicit current generation is available"
+      },
+      "android": {
+        "kind": "GENERATION_DECISION",
+        "expected_generation": "g-old",
+        "current_generation": "g-new",
+        "expected_decision": "STALE"
+      },
+      "preconditions": [
+        "Synthetic setup establishes OLD_GENERATION_COMPLETION at COMMITTED for WORK_ITEM without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV021",
+      "operation": "WORK",
+      "fault": "MATCHING_GENERATION_COMPLETION",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "WORK_ITEM",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": null,
+        "preserve_artifacts": false,
+        "active_writes_allowed": true,
+        "next_action": "Write only within this worker atomic unit"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Expected generation equals current generation"
+      },
+      "android": {
+        "kind": "GENERATION_DECISION",
+        "expected_generation": "g-current",
+        "current_generation": "g-current",
+        "expected_decision": "PROCEED"
+      },
+      "preconditions": [
+        "Synthetic setup establishes MATCHING_GENERATION_COMPLETION at COMMITTED for WORK_ITEM without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV022",
+      "operation": "WORK",
+      "fault": "GENERATION_ABSENT",
+      "checkpoint": "BLOCKED",
+      "atomic_unit": "WORK_ITEM",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "BLOCKED",
+        "active_data": "NEW",
+        "generation": "UNCHANGED",
+        "error": "GENERATION_UNKNOWN",
+        "preserve_artifacts": true,
+        "active_writes_allowed": false,
+        "next_action": "Reconcile and requeue with explicit current generation"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Current generation is explicitly established"
+      },
+      "android": {
+        "kind": "GENERATION_DECISION",
+        "expected_generation": null,
+        "current_generation": "g-current",
+        "expected_decision": "LEGACY"
+      },
+      "preconditions": [
+        "Synthetic setup establishes GENERATION_ABSENT at BLOCKED for WORK_ITEM without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV023",
+      "operation": "EXPORT",
+      "fault": "COMMITTED_WAL_DATA",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "STORE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": null,
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Export consistent snapshot including committed WAL rows"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Snapshot point is consistent"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes COMMITTED_WAL_DATA at COMMITTED for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV024",
+      "operation": "EXPORT",
+      "fault": "DESTINATION_FAILURE",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "STORE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "STORAGE_IO",
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Remove export temp and choose writable destination"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Destination is writable"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes DESTINATION_FAILURE at COMMITTED for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV025",
+      "operation": "OPEN",
+      "fault": "TRUNCATED_EXISTING_STORE",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "BLOCKED",
+        "active_data": "NONE_BLOCKED",
+        "generation": "UNCHANGED",
+        "error": "INTEGRITY_FAILURE",
+        "preserve_artifacts": true,
+        "active_writes_allowed": false,
+        "next_action": "Preserve original bytes and require explicit recovery"
+      },
+      "retry": {
+        "allowed": false,
+        "after": "NONE"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes TRUNCATED_EXISTING_STORE at RECOVERING for STORE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV026",
+      "operation": "MIGRATE",
+      "fault": "STORAGE_FAILURE",
+      "checkpoint": "COMMITTING",
+      "atomic_unit": "WORKSPACE_FILE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "STORAGE_FULL",
+        "preserve_artifacts": true,
+        "active_writes_allowed": false,
+        "next_action": "Rollback migration and retry after storage recovery"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Rollback completes and storage is available"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes STORAGE_FAILURE at COMMITTING for WORKSPACE_FILE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV027",
+      "operation": "WRITE",
+      "fault": "WORKSPACE_ATOMIC_WRITE_STORAGE_FAILURE",
+      "checkpoint": "COMMITTING",
+      "atomic_unit": "WORKSPACE_FILE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "STORAGE_IO",
+        "preserve_artifacts": true,
+        "active_writes_allowed": false,
+        "next_action": "Keep old workspace readable and retry after storage recovery"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Storage is available and source validates"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes WORKSPACE_ATOMIC_WRITE_STORAGE_FAILURE at COMMITTING for WORKSPACE_FILE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV028",
+      "operation": "WRITE",
+      "fault": "RESTART_AFTER_COMMITTED_REPLACEMENT",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "WORKSPACE_FILE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": null,
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Read committed replacement and retain generation"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Committed replacement validates"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes RESTART_AFTER_COMMITTED_REPLACEMENT at COMMITTED for WORKSPACE_FILE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV029",
+      "operation": "SYNC",
+      "fault": "VALID_EMPTY_REPLACE",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "MODULE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "EMPTY",
+        "generation": "UNCHANGED",
+        "error": null,
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Commit valid empty replacement"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Empty response is valid and complete"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes VALID_EMPTY_REPLACE at COMMITTED for MODULE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV030",
+      "operation": "SYNC",
+      "fault": "VALID_EMPTY_UPSERT",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "MODULE",
+      "write_semantics": "UPSERT",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "OLD",
+        "generation": "UNCHANGED",
+        "error": null,
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Commit valid no-op upsert and retain existing rows"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Empty response is valid and complete"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes VALID_EMPTY_UPSERT at COMMITTED for MODULE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV031",
+      "operation": "SYNC",
+      "fault": "MISSING_REQUIRED_PAYLOAD_FIELD",
+      "checkpoint": "COMMITTING",
+      "atomic_unit": "MODULE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "UNCHANGED",
+        "error": "INVALID_INPUT",
+        "preserve_artifacts": false,
+        "active_writes_allowed": false,
+        "next_action": "Reject response without writing and fetch complete payload"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Required payload fields are present"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes MISSING_REQUIRED_PAYLOAD_FIELD at COMMITTING for MODULE without user data or platform bytes."
+      ]
+    },
+    {
+      "id": "RV032",
+      "operation": "WORK",
+      "fault": "PAYLOAD_DURABLE_LEDGER_COMPLETION_INTERRUPTED",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "WORK_ITEM",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "RECOVERING",
+        "active_data": "NEW",
+        "generation": "UNCHANGED",
+        "error": "STORAGE_IO",
+        "preserve_artifacts": true,
+        "active_writes_allowed": false,
+        "next_action": "Preserve committed payload and reconcile ledger"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Payload is durable and ledger can be reconciled"
+      },
+      "android": null,
+      "preconditions": [
+        "Synthetic setup establishes PAYLOAD_DURABLE_LEDGER_COMPLETION_INTERRUPTED at RECOVERING for WORK_ITEM without user data or platform bytes."
+      ]
+    }
+  ]
+}

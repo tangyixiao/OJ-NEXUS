@@ -68,6 +68,12 @@ android {
         compose = true
         buildConfig = true
     }
+
+    sourceSets {
+        getByName("test") {
+            resources.directories.add(rootProject.file("contracts").absolutePath)
+        }
+    }
 }
 
 kotlin {
