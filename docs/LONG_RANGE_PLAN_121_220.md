@@ -203,6 +203,7 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 
 #### [x] PHASE 126 — S · 数据恢复故障向量
 - **状态：** VERIFIED（共享契约与直接决策消费者范围，2026-10-23）；[设计](superpowers/specs/2026-10-23-phase-126-recovery-vectors-design.md)、[实施计划](superpowers/plans/2026-10-23-phase-126-recovery-vectors.md)与[验收记录](verification/phase-126-recovery-vectors.md)。32 个规范向量、9 个 Android 决策投影；源码 `6a5e2f4`，794 项单测与 debug 构建通过，独立任务审查和整分支审查通过。未执行原生文件故障，不继承为 127–130 设备验收。
+- **PR：** [#19](https://github.com/tangyixiao/OJ-NEXUS/pull/19)，base 为 121 证据分支；未合并，无新增应用发行。
 - **依赖 / 范围：** 121；S，现有 DATA_SAFETY/RestoreProtocol 与各端存储。
 - **交付：** 统一“预检→暂存→提交→恢复”状态和错误类别；提供截断、磁盘写满、取消、重启、旧 generation 的合成故障向量；规定提交前不改活动数据。
 - **验收：** G-S；每个向量给出旧/新数据应保留哪份、可重试点和恢复结果；不要求桌面复制 Android 数据库结构。

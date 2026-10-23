@@ -2,6 +2,9 @@
 
 Status: VERIFIED for the shared contract and direct Android decision-consumer scope. This phase does not certify physical
 crash recovery on any platform. Source base: `becc0e3` on `codex/phase-121-platform-baseline`.
+Pull request: [#19](https://github.com/tangyixiao/OJ-NEXUS/pull/19), stacked on PR #12;
+unmerged, with no new application release. Main-target-only workflows do not automatically
+execute on this feature-branch target; the fresh local full gate below is the execution evidence.
 
 ## Scope and inputs
 
