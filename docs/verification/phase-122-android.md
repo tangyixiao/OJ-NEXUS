@@ -1,6 +1,6 @@
 # Phase 122 — Android regression evidence
 
-Status: **ACTIVE** — fresh build, unit and connected gates pass; two reproducible application defects block completion. This record describes actual Windows-host execution on 2026-10-23, not historical test totals. No source/version changes were made by the verification lane.
+Current status: **VERIFIED for the Phase 122 API 37 dedicated-emulator regression scope**, on combined commit `19f0bbcb74cdc2c729874fc5795ff8ab1bc47d24`. D1/D2/D3 were repaired and the final build, 785 unit tests, 33 connected tests, note/review restart and WAL-complete snapshot/preview-cancel checks passed. Physical-device, TalkBack, battery and older SQLite compatibility remain separate debts. Earlier ACTIVE/failure sections below are historical evidence; the final acceptance section supersedes their outstanding-item status. No source/version changes were made by the verification lane.
 
 ## Host and device
 
@@ -134,3 +134,68 @@ Evidence under `%TEMP%`:
 - `phase122-fixed-import-preview.xml`, `phase122-fixed-import-canceled.xml`, `phase122-fixed-after-cancel-notes.xml`, `phase122-fixed-cancel.png`.
 
 The dedicated AVD remains online, offline network settings retained for retest. No physical device was touched. Need D3 repair and fresh unit/build/archive/device acceptance before VERIFIED. TalkBack, battery, physical-device performance and signed-installation acceptance have not been performed; the scoped emulator result will not erase those wider debts.
+
+
+## Final acceptance — combined commit 19f0bbc
+
+**VERIFIED for Phase 122's current API 37 dedicated-AVD regression scope**, 2026-10-23. This does not claim all Android versions, physical-device performance, TalkBack or battery acceptance. The full failure-to-fix history above is retained so the original defects and their evidence remain reviewable.
+
+### Final build identity and host gates
+
+- Acceptance commit `19f0bbcb74cdc2c729874fc5795ff8ab1bc47d24`, containing the notes/state repair, snapshot UI wiring and D3 `01f4608b0273e5cd067feaada6f909589c616e31` WAL snapshot repair. The final D3 implementation directly executes VACUUM INTO and does not require a checkpoint or copy the main database file. No checkpoint/busy-path coverage is claimed for the final code.
+- Coordinator ran `testDebugUnitTest --rerun test assembleDebug assembleRelease assembleDebugAndroidTest`: exit0, BUILD SUCCESSFUL in 2m12s. Fresh XML independently retained at `%TEMP%/phase122-final-19f0bbc/unit`: **173 suites / 785 tests / 0 failures / 0 errors / 0 skipped**.
+- Installed debug APK from `C:/Users/tangy/.codex/worktrees/phase-122-note-state/AndroidAppCoding/app/build/outputs/apk/debug/app-debug.apk`, SHA256 **7DD718D4AECC30E042B3CD500796DE94A4721EE72C59756A99242014907B2315**. Used `adb -s emulator-5580 install -r` before any final connected run, preserving the actual prior 8/16 dataset and existing marker for D3 reproduction.
+- Environment stayed the same API37/Android17 dedicated AVD, x86_64 16KB system image, WHPX, 1080x2400/420dpi, en-US, font1.0. Wi-Fi/data remained disabled through all offline runtime checks.
+- Actual Android SQLite **3.50.6** was queried using a temporary Android Java diagnostic that creates an in-memory SQLiteDatabase and executes `SELECT sqlite_version()`. It was compiled/dexed under `%TEMP%/phase122-sqlite-probe`, pushed only to `/data/local/tmp/phase122-sqlite-probe.dex` on the dedicated AVD, and run as `CLASSPATH=... app_process /system/bin SQLiteVersionProbe`. Output `%TEMP%/phase122-final-android-sqlite-version.txt`. No app DB was changed by this query. The device lacks a sqlite3 shell binary; earlier `-Djava.class.path` diagnostic invocations aborted before running the query, while the corrected CLASSPATH invocation succeeded. Those aborts belonged to the diagnostic process, not OJ NEXUS. Device diagnostic DEX was deleted afterward.
+
+### Final note/review/WAL snapshot acceptance
+
+The preserved CF1029E note was edited through the actual UI input field, appending `_FINAL_WAL_19F0BBC` to produce:
+
+`PHASE122_CONTINUOUS_20261023_FINAL_WAL_19F0BBC`
+
+The entire string rendered and SAVED appeared. A newly displayed system notification permission prompt was denied on this disposable AVD to continue; no real-device permission changed. Before export, the app WAL sidecar was **449112 bytes**, with the latest note committed. Existing local review remained STAGE2/DUE10-26; its successful PASS transition and persistence were separately observed above.
+
+Through Settings EXPORT DATABASE BACKUP → system Save, the final app created **oj-nexus-snapshot (2).zip**, 8822 bytes. This newer file was selected explicitly; the two older diagnostic exports remained distinct. Saved local copy `%TEMP%/phase122-final-snapshot.zip`.
+
+- ZIP magic `504b0304`; exactly `manifest.json` and `database.db`.
+- Extracted standalone DB schema15, integrity_check=ok, opened without the source WAL.
+- **Every one of the 22 manifest table counts equals both its standalone DB count and the static live DB count**. Full machine-readable comparison `%TEMP%/phase122-final-compare.json`; manifest `%TEMP%/phase122-final-manifest.json`.
+- Complete note content, across all four note text fields and problem ID, matches between archive and live DB, including FINAL_WAL_19F0BBC.
+
+| Acceptance data | Manifest | Standalone archive | Live |
+| --- | --- | --- | --- |
+| problems | 8 | 8 | 8 |
+| attempts | 16 | 16 | 16 |
+| problem_notes | 1 | 1 with full final marker | 1 with full final marker |
+| review_log | 1 | 1 | 1 |
+| training_tasks | 3 | 3 | 3 |
+| reviews | 2 | 2 | 2 |
+
+Actual IMPORT DATABASE BACKUP → select **oj-nexus-snapshot (2).zip** opened IMPORT PREVIEW. XML and screenshot show PROBLEMS8→8, ATTEMPTS16→16, NOTES1→1, REVIEW_LOG1→1, TRAINING_TASKS3→3. CANCEL returned to Settings. Before/after generation stayed `8dd213a5-f134-4191-a164-d5984bf140d1`; the files directory contained only generation/profileInstalled, no pending restore/journal.
+
+After force-stop and COLD restart, library still showed 8 problems, CF1029E still showed STAGE2/DUE10-26, full FINAL marker and SAVED. A fresh read-only DB copy confirmed 8 problems/16 attempts/2 reviews/1 review_log/3 tasks/1 note. Generation and no-staging checks still matched. Thus D3's prior loss of current notes/review/tasks is demonstrably fixed, and CANCEL did not stage an older or new restore.
+
+Final runtime evidence under `%TEMP%`:
+
+- `phase122-final-note-before.xml`, `...-final-note-written.xml`, `...-final-note-saved.xml`.
+- `phase122-final-live.sqlite` + `-wal` (static source copy), `phase122-final-archive.sqlite` (only archive DB entry), `phase122-final-compare.json`.
+- `phase122-final-import-preview.xml`, `phase122-final-preview.png`, `phase122-final-import-canceled.xml`.
+- `phase122-final-reopen-library.xml`, `phase122-final-reopen-notes.xml`, `phase122-final-reopened.sqlite` + `-wal`, `phase122-final-reopened-state.json`.
+- `phase122-final-dbinfo.txt` records the live Android connection pool in WAL mode.
+
+### Final connected gate and scoped completion
+
+Only after preserving all runtime export/cancel/restart evidence, ran the final same-worktree `gradlew.bat connectedDebugAndroidTest` with process-local JAVA_HOME/ANDROID_HOME/ANDROID_SERIAL as above. Session91751: **exit0, BUILD SUCCESSFUL in 1m25s**. Fresh XML: **33 tests / 0 failures / 0 errors / 0 skipped**, device time70.818s, timestamp2026-10-23T14:26:21Z. Log `%TEMP%/phase122-final-connected.log`; retained reports `%TEMP%/phase122-final-19f0bbc/connected`.
+
+This final gate again verifies the existing library→session editable start/cancel/quick-verdict integration, dashboard and all bottom destinations, note-index components, connector error display and layout cases. It uninstalled target/test APKs and their dedicated test data on completion. The prior actual 8/16/final-note runtime scenario was therefore deliberately verified and retained first. No real app data was cleared.
+
+The earlier offline cold launch/local library/detail, remote-catalog empty cache and actual public-handle CONNECT error were observed on the same API37 AVD; the final APK additionally passed offline note/review/restart and backup paths. No real API success, populated remote-cache scenario, successful account connection or physical-device result is fabricated.
+
+### Cleanup and remaining platform debts
+
+- Restored dedicated AVD Wi-Fi=1 and mobile_data=1 after offline checks. Wi-Fi's initial value1 was captured; mobile_data's initial numeric value had not been separately captured before disabling, so it was re-enabled instead of claiming an exact saved-value restoration.
+- Confirmed font_scale1.0, physical1080x2400/420dpi, default en-US, airplane_mode0; no locale/font/size override had been applied.
+- Removed the temporary device diagnostic DEX. Called only `adb -s emulator-5580 emu kill`, retained the dedicated AVD files, and checked device inventory after exit. No other AVD/device was stopped or removed.
+- Older SQLite below3.27 does not support VACUUM INTO. The final code fails closed instead of offering a stale-file fallback; that compatibility/device-policy decision and an actual old-SQLite test remain **Phase127 follow-up**, not a passed Phase122 coverage claim.
+- Physical-device installation/performance, actual TalkBack, battery/background execution, signed distribution and broader locale/font system-level checks remain the separate platform-phase debts. Component large-font instrumentation does not replace those checks.

@@ -175,8 +175,8 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **交付：** 新建四端能力矩阵，按功能列代码入口、支持状态、最近 commit、构建、设备和 Release；纠正旧文档的失真链接、版本与“工具已交付即实测通过”。定义平台 tag 命名。
 - **验收：** 每条“支持”都能定位实现与测试；未知项标未验证；完整列出旧 102/103 与设备性能欠账；G-S，无伪造补测结果。
 
-#### [ ] PHASE 122 — A · Android 当前版回归基线
-- **状态：** ACTIVE（2026-10-23）；[现场记录](verification/phase-122-android.md)。笔记与 ZIP 接线已复验，另发现 WAL 最新记录未进入快照，修复及复验完成前不勾选。
+#### [x] PHASE 122 — A · Android 当前版回归基线（VERIFIED，2026-10-23，API 37 模拟器范围）
+- **状态：** [最终现场记录](verification/phase-122-android.md) 对应组合提交 `19f0bbc`，785 项单测、33 项 connected、笔记/复习重启、22 表 WAL 完整快照及预览取消均通过；[PR #14](https://github.com/tangyixiao/OJ-NEXUS/pull/14)、[#15](https://github.com/tangyixiao/OJ-NEXUS/pull/15)、[#18](https://github.com/tangyixiao/OJ-NEXUS/pull/18) 待审查。真机、读屏、电量及旧 SQLite 兼容不在此完成范围。
 - **依赖 / 范围：** 121；A-TEST、A-FEATURE、启动与备份入口，按失败点修复。
 - **交付：** 在当前版本重跑单测、debug/release、迁移；覆盖导航、笔记、复习、训练、同步和导入基本路径，记录设备/模拟器区别。
 - **验收：** G-A；可用设备上启动、离线浏览、编辑重开均成功；复现的崩溃有回归；无设备时运行栏阻塞，不能引用 779 个旧测试冒充本次结果。
@@ -188,7 +188,7 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **验收：** G-W；隔离数据目录从启动到本地题库/复习操作并重启检查；干净 VM 不可用则安装验收保持阻塞；README 不再把旧三页 UI 描述成完整现状。
 
 #### [ ] PHASE 124 — L · Linux 分支收敛到可维护主线
-- **状态：** ACTIVE（2026-10-23）；[集成 PR #16](https://github.com/tangyixiao/OJ-NEXUS/pull/16) 已完成五项审查修复，独立原生构建及 8/8 CTest 通过，[Ubuntu CI](https://github.com/tangyixiao/OJ-NEXUS/actions/runs/39967113915) 也通过；原 worktree 保留不变。Qt 桌面交互和干净主机安装尚未验收。
+- **状态：** ACTIVE（2026-10-23）；[集成 PR #16](https://github.com/tangyixiao/OJ-NEXUS/pull/16) 已完成五项审查修复，独立原生构建及 8/8 CTest 通过，[Ubuntu CI](https://github.com/tangyixiao/OJ-NEXUS/actions/runs/39967113915) 也通过；[CLI 预览版 RC](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/linux-v0.1.0-rc.1) 已发布并回下载验哈希。原 worktree 保留不变，Qt 桌面交互和干净主机安装尚未验收。
 - **依赖 / 范围：** 121；L 的既有分支 diff、构建、测试与拟新增 Linux CI。
 - **交付：** 审查独立 Linux worktree 的未合并内容和共同历史，提交 scoped 集成 PR；处理实质冲突，建立主线可构建的 linux 路径与 Ubuntu Qt/CTest CI。
 - **验收：** G-L；公共账号同步与离线历史可操作；CLI exit code 契约不变；保留原 worktree 的无关改动；合并前，后续 L 阶段不得假定 main 已含其文件。
@@ -207,6 +207,7 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **验收：** G-S；每个向量给出旧/新数据应保留哪份、可重试点和恢复结果；不要求桌面复制 Android 数据库结构。
 
 #### [ ] PHASE 127 — A · 备份恢复与后台任务隔离
+- **新增接续项（来自 122）：** 当前 WAL 修复使用 `VACUUM INTO`，API 37 的 SQLite 3.50.6 已实测；低于 SQLite 3.27 的设备会明确导出失败。为 minSdk 26 确定兼容策略并做真实旧引擎验证，不能恢复复制过时主库的回退。
 - **依赖 / 范围：** 122、126；A-CORE 的 BackupRepository、DatabaseRestoreCoordinator、backup worker，A-TEST。
 - **交付：** 对现有快照导入、定时备份增加中断恢复与旧任务写回回归；修复被证实的暂存、generation 或文件替换缺口。
 - **验收：** G-A；故障注入后重启得到完整旧库或完整新库；旧 worker 不回写；取消预览不动库；OpenApp 凭据保持独立。

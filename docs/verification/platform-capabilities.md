@@ -1,5 +1,11 @@
 # Native platform capability and evidence ledger
 
+Execution follow-up: [Android 122 final API 37 acceptance](phase-122-android.md),
+[Windows 123 partial acceptance](phase-123-windows.md),
+[Linux integration PR #16](https://github.com/tangyixiao/OJ-NEXUS/pull/16), and
+[Apple 125 runtime gate](phase-125-apple.md). The original audit snapshot below is retained;
+later tests, fixes and preview releases do not silently rewrite its historical evidence.
+
 Audit date: 2026-10-23 (Asia/Shanghai). This is the Phase 121 source/evidence inventory.
 It separates implemented code, reachable UI/CLI, build/test results, runtime checks and published assets.
 It is not a claim that the four platforms have identical features or release readiness.
