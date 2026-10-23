@@ -41,7 +41,8 @@ modify test resources in `app/build.gradle.kts` to include root `contracts/`.
 version, missing/unknown fields, invalid enums, duplicate IDs and broken invariants.
 
 - [ ] Add the fixture tests before the corpus/loader. Run the focused class and record a meaningful RED.
-- [ ] Encode exactly the 32 spec cases and nine projections; document each key and symbolic old/new meaning.
+- [ ] Encode exactly the 32 spec cases and nine projections; require nonempty preconditions, including
+  durably authorized STAGED for RV010, and document each key and symbolic old/new meaning.
 - [ ] Load the single classpath resource `recovery/v1/vectors.json`; no second copied corpus.
 - [ ] Assert exact IDs/projection set; no-write cases have writes=false, blocked cases preserve artifacts,
   aborted imports keep OLD/OLD, valid empty cases use distinct semantics, and denied retry uses after=NONE.

@@ -30,7 +30,11 @@ The selected corpus approach gives common assertions without changing platform o
 
 Logical phases are PRECHECK, STAGING, STAGED, COMMITTING, COMMITTED, RECOVERING, ABORTED and
 BLOCKED. They describe obligations, not required on-disk enum spellings. Precheck/staging
-must not write active data. Staged import requires explicit confirmation before replacement.
+must not write active data. Staged import requires explicit authorization before replacement.
+For RV010, STAGED means the user's apply decision has already been obtained and durably
+represented by the staging/journal state. An unconfirmed preview has not entered that state.
+Current Android legacy raw-file selection is a direct import action, not a cancellable snapshot
+preview; this corpus does not invent an extra confirmation bit in the existing production API.
 Once commit begins, a late cancel must report too-late/reconcile rather than pretend rollback.
 
 The commit boundary includes validated active data **and its durable generation**. File rename
@@ -52,7 +56,9 @@ commit followed by missing ledger completion requires reconciliation, not a fabr
 
 Canonical path: `contracts/recovery/v1/vectors.json`. Root keys are `format_version: 1`,
 `synthetic: true`, and `vectors`. Every vector has `id`, `operation`, `fault`, `checkpoint`,
-`atomic_unit`, `write_semantics`, `expected`, `retry` and nullable `android` projection.
+`atomic_unit`, `write_semantics`, nonempty `preconditions` string array, `expected`, `retry`
+and nullable `android` projection. Preconditions state the symbolic setup and authorization,
+including validity of old/new/rollback images where that affects the required outcome.
 
 - IDs are `RV001` through `RV032`, unique and stable.
 - Operations: IMPORT, EXPORT, WORK, MIGRATE, OPEN, WRITE, SYNC.
@@ -123,6 +129,12 @@ Publish a platform matrix with exact source owners, atomic units, consumer IDs a
 CORPUS_VALIDATED, DECISION_ONLY, FILE_SIMULATION or DEVICE_FAULT. Only record levels actually
 executed. Windows/Apple do not gain restore entries from this phase; Linux remains on PR16.
 Windows/Apple replace empty responses while Linux currently upserts; retain that distinction.
+
+The 32 scenarios are normative contract assertions, not 32 end-to-end executable fault tests.
+In 127–130, each native consumer must add platform-specific setup, actual fault injection and
+an independent end-state oracle for the same ID. Loading a label/expected result or passing
+the corpus validator cannot replace those pieces. RV013/RV014 intentionally share a routing
+decision while requiring different validation and final results in the later IO consumer.
 
 Acceptance: strict corpus positive/negative tests, all 9 direct production-decision consumers,
 fresh full Android JVM tests and assembleDebug, independent review, relative-link/diff checks,
