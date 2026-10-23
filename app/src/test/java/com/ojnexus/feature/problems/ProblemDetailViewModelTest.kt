@@ -1,6 +1,7 @@
 package com.ojnexus.feature.problems
 
 import android.content.Context
+import androidx.lifecycle.ViewModelStore
 import androidx.room.Room
 import androidx.room.withTransaction
 import androidx.test.core.app.ApplicationProvider
@@ -10,6 +11,7 @@ import com.ojnexus.core.data.repository.ProblemRepository
 import com.ojnexus.core.data.repository.ReviewRepository
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.database.entity.ProblemEntity
+import com.ojnexus.core.database.entity.ProblemNoteEntity
 import com.ojnexus.core.model.KnowledgeArea
 import com.ojnexus.core.model.ProblemNotes
 import com.ojnexus.core.time.SystemLocalDaySource
@@ -22,6 +24,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -45,6 +48,7 @@ class ProblemDetailViewModelTest {
     private lateinit var database: OjNexusDatabase
     private lateinit var problemRepository: ProblemRepository
     private lateinit var viewModel: ProblemDetailViewModel
+    private lateinit var viewModelStore: ViewModelStore
     private lateinit var testScope: CoroutineScope
     private lateinit var stateCollector: Job
     private var problemId = 0L
@@ -76,6 +80,9 @@ class ProblemDetailViewModelTest {
             knowledgeRepository = knowledgeRepository,
             preferencesRepository = UserPreferencesRepository(context),
         )
+        viewModelStore = ViewModelStore().apply {
+            put("problem-detail", viewModel)
+        }
         stateCollector = testScope.launch {
             viewModel.state.collect { state ->
                 if (state is com.ojnexus.core.ui.Loadable.Ready && state.value.notesSaving) {
@@ -87,9 +94,46 @@ class ProblemDetailViewModelTest {
     }
 
     @After
-    fun tearDown() {
+    fun tearDown() = runBlocking {
+        val expectedDraft = (viewModel.state.value as? com.ojnexus.core.ui.Loadable.Ready)
+            ?.value?.notesDraft
+        val teardownSentinel = ProblemNotes(
+            problemId = problemId,
+            keyInsight = "teardown sentinel",
+            implementationNotes = "teardown sentinel",
+            complexity = "teardown sentinel",
+            general = "teardown sentinel",
+            updatedAt = 0,
+        )
         testScope.cancel()
-        database.close()
+        try {
+            try {
+                if (expectedDraft != null) {
+                    // Force the onCleared NonCancellable flush to write a value different from
+                    // the current row, so an already-saved debounce result cannot satisfy below.
+                    problemRepository.saveNotes(teardownSentinel)
+                }
+            } finally {
+                viewModelStore.clear()
+            }
+            if (expectedDraft != null) {
+                withTimeout(3_000) {
+                    while (!database.noteDao().findByProblem(problemId).matches(expectedDraft)) {
+                        shadowOf(android.os.Looper.getMainLooper()).idle()
+                        delay(5)
+                    }
+                }
+                // The matching row proves the flush transaction committed. Drain its Main
+                // continuation so the post-save notesSaving=false update runs before Room closes.
+                database.withTransaction { }
+                shadowOf(android.os.Looper.getMainLooper()).idle()
+                delay(5)
+                shadowOf(android.os.Looper.getMainLooper()).idle()
+            }
+        } finally {
+            viewModelStore.clear()
+            database.close()
+        }
     }
 
     @Test
@@ -109,20 +153,32 @@ class ProblemDetailViewModelTest {
         viewModel.setNotesField { it.copy(implementationNotes = "first step") }
         drainMainLooper()
 
+        val staleDetailNotes = "stale stored value"
         problemRepository.saveNotes(
             ProblemNotes(
                 problemId = problemId,
-                keyInsight = "stale stored value",
+                keyInsight = staleDetailNotes,
                 implementationNotes = "",
                 complexity = "",
                 general = "",
                 updatedAt = 0,
             ),
         )
-        KnowledgeArea.entries.firstOrNull()?.let { area ->
-            viewModel.setKnowledge(area, true)
+        withTimeout(3_000) {
+            while (readyState().detail.notes?.keyInsight != staleDetailNotes) {
+                shadowOf(android.os.Looper.getMainLooper()).idle()
+                delay(5)
+            }
         }
-        drainMainLooper()
+
+        val area = KnowledgeArea.entries.first()
+        viewModel.setKnowledge(area, true)
+        withTimeout(3_000) {
+            while (area !in readyState().knowledge) {
+                shadowOf(android.os.Looper.getMainLooper()).idle()
+                delay(5)
+            }
+        }
 
         val draft = readyState().notesDraft
         assertEquals("the insight", draft?.keyInsight)
@@ -133,49 +189,56 @@ class ProblemDetailViewModelTest {
     fun `debounced save persists complete latest draft and state exposes saving flow`() = runBlocking {
         val transactionStarted = CompletableDeferred<Unit>()
         val releaseTransaction = CompletableDeferred<Unit>()
-        val blocker = CoroutineScope(Dispatchers.IO).launch {
+        val blockerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val blocker = blockerScope.launch {
             database.withTransaction {
                 transactionStarted.complete(Unit)
                 releaseTransaction.await()
             }
         }
-        transactionStarted.await()
+        try {
+            withTimeout(3_000) { transactionStarted.await() }
 
-        viewModel.setNotesField { it.copy(keyInsight = "full key insight") }
-        drainMainLooper()
-        viewModel.setNotesField { it.copy(implementationNotes = "full implementation") }
-        drainMainLooper()
-        viewModel.setNotesField { it.copy(complexity = "O(n log n)", general = "Unicode: 题解") }
-        drainMainLooper()
+            viewModel.setNotesField { it.copy(keyInsight = "full key insight") }
+            drainMainLooper()
+            viewModel.setNotesField { it.copy(implementationNotes = "full implementation") }
+            drainMainLooper()
+            viewModel.setNotesField { it.copy(complexity = "O(n log n)", general = "Unicode: 题解") }
+            drainMainLooper()
 
-        assertEquals("O(n log n)", readyState().notesDraft?.complexity)
-        withTimeout(3_000) {
-            while (!readyState().notesSaving) {
-                shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(10))
-                delay(5)
+            assertEquals("O(n log n)", readyState().notesDraft?.complexity)
+            withTimeout(3_000) {
+                while (!readyState().notesSaving) {
+                    shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(10))
+                    delay(5)
+                }
             }
-        }
-        assertTrue(readyState().notesSaving)
-        releaseTransaction.complete(Unit)
-        blocker.join()
+            assertTrue(readyState().notesSaving)
+            releaseTransaction.complete(Unit)
+            withTimeout(3_000) { blocker.join() }
 
-        withTimeout(3_000) {
-            while (database.noteDao().findByProblem(problemId) == null) {
-                shadowOf(android.os.Looper.getMainLooper()).idle()
-                delay(5)
+            withTimeout(3_000) {
+                while (database.noteDao().findByProblem(problemId) == null) {
+                    shadowOf(android.os.Looper.getMainLooper()).idle()
+                    delay(5)
+                }
             }
-        }
-        val saved = database.noteDao().findByProblem(problemId)
-        assertEquals("full key insight", saved?.keyInsight)
-        assertEquals("full implementation", saved?.implementationNotes)
-        assertEquals("O(n log n)", saved?.complexity)
-        assertEquals("Unicode: 题解", saved?.general)
-        assertTrue(notesSavingWasObserved)
-        withTimeout(3_000) {
-            while (readyState().notesSaving) {
-                shadowOf(android.os.Looper.getMainLooper()).idle()
-                delay(5)
+            val saved = database.noteDao().findByProblem(problemId)
+            assertEquals("full key insight", saved?.keyInsight)
+            assertEquals("full implementation", saved?.implementationNotes)
+            assertEquals("O(n log n)", saved?.complexity)
+            assertEquals("Unicode: 题解", saved?.general)
+            assertTrue(notesSavingWasObserved)
+            withTimeout(3_000) {
+                while (readyState().notesSaving) {
+                    shadowOf(android.os.Looper.getMainLooper()).idle()
+                    delay(5)
+                }
             }
+        } finally {
+            releaseTransaction.complete(Unit)
+            blocker.cancelAndJoin()
+            blockerScope.cancel()
         }
     }
 
@@ -198,4 +261,11 @@ class ProblemDetailViewModelTest {
 
     private fun readyState(): ProblemDetailUiState =
         (viewModel.state.value as com.ojnexus.core.ui.Loadable.Ready).value
+
+    private fun ProblemNoteEntity?.matches(expected: NotesDraft): Boolean =
+        this != null &&
+            keyInsight == expected.keyInsight &&
+            implementationNotes == expected.implementationNotes &&
+            complexity == expected.complexity &&
+            general == expected.general
 }
