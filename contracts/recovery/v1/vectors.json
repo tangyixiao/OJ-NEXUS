@@ -24,7 +24,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes TRUNCATED_INPUT at PRECHECK for STORE without user data or platform bytes."
+        "ACTIVE_STORE=OLD_DATA is independently readable and OLD_GEN is current; candidate bytes end before a complete input can be validated."
       ]
     },
     {
@@ -49,7 +49,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes SCHEMA_MISMATCH at PRECHECK for STORE without user data or platform bytes."
+        "ACTIVE_STORE=OLD_DATA is readable under OLD_GEN; candidate declares unsupported SCHEMA_V99 and no staging write has begun."
       ]
     },
     {
@@ -74,7 +74,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes INTEGRITY_FAILURE at PRECHECK for STORE without user data or platform bytes."
+        "ACTIVE_STORE=OLD_DATA is readable under OLD_GEN; candidate checksum does not match its declared digest and precheck rejects it."
       ]
     },
     {
@@ -99,7 +99,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes ENOSPC_CREATE_STAGING_TEMP at STAGING for STORE without user data or platform bytes."
+        "ACTIVE_STORE=OLD_DATA and OLD_GEN remain authoritative; capacity probe succeeds, then allocation of STAGING_TEMP fails before any active write."
       ]
     },
     {
@@ -124,7 +124,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes ENOSPC_WRITE_STAGING at STAGING for STORE without user data or platform bytes."
+        "ACTIVE_STORE=OLD_DATA and OLD_GEN remain authoritative; STAGING_TEMP exists, its first payload write exhausts capacity, and active paths were never opened for writing."
       ]
     },
     {
@@ -149,7 +149,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes ENOSPC_WRITE_JOURNAL at STAGING for STORE without user data or platform bytes."
+        "ACTIVE_STORE=OLD_DATA and OLD_GEN remain authoritative; staged payload is complete but durable JOURNAL creation fails before commit begins."
       ]
     },
     {
@@ -174,7 +174,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes CANCEL_PREVIEW at PRECHECK for STORE without user data or platform bytes."
+        "ACTIVE_STORE=OLD_DATA under OLD_GEN is unchanged; user exits the preview before a staged artifact or active write exists."
       ]
     },
     {
@@ -199,7 +199,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes CANCEL_STAGED_BEFORE_COMMIT at STAGED for STORE without user data or platform bytes."
+        "ACTIVE_STORE=OLD_DATA under OLD_GEN is unchanged; authorized STAGED_DATA exists but commit has not started, so its temporary artifact can be removed safely."
       ]
     },
     {
@@ -224,7 +224,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes CANCEL_AFTER_LOGICAL_COMMIT at COMMITTED for STORE without user data or platform bytes."
+        "ACTIVE_STORE=NEW_DATA and NEW_GEN crossed the durable commit boundary; cancellation arrives afterward and cannot reverse that committed result."
       ]
     },
     {
@@ -263,7 +263,7 @@
         "expected_action": "APPLY_CANDIDATE"
       },
       "preconditions": [
-        "User confirmation to replace the active store was obtained and durably recorded before restart; the complete staged input and journal validate."
+        "OLD_DATA and OLD_GEN were active before restart; user replacement confirmation is durably recorded; complete NEW_DATA and its STAGED journal validate and are authorized for apply."
       ]
     },
     {
@@ -302,7 +302,7 @@
         "expected_action": "REJECT_STAGING"
       },
       "preconditions": [
-        "Synthetic setup establishes RESTART_MISSING_STAGED_INPUT at STAGED for STORE without user data or platform bytes."
+        "ACTIVE_STORE=OLD_DATA is independently valid under OLD_GEN; STAGED journal references absent STAGED_DATA, so no new candidate can be applied."
       ]
     },
     {
@@ -341,7 +341,7 @@
         "expected_action": "RESTORE_ROLLBACK"
       },
       "preconditions": [
-        "Synthetic setup establishes RESTART_TARGET_MISSING_ROLLBACK_VALID at RECOVERING for STORE without user data or platform bytes."
+        "TARGET is absent; ROLLBACK_DATA is independently valid and represents OLD_DATA; OLD_GEN is recorded and candidate data is not needed to restore it."
       ]
     },
     {
@@ -380,7 +380,7 @@
         "expected_action": "VALIDATE_TARGET"
       },
       "preconditions": [
-        "Synthetic setup establishes RESTART_TARGET_AND_ROLLBACK_VALID at RECOVERING for STORE without user data or platform bytes."
+        "TARGET contains independently validated NEW_DATA; ROLLBACK_DATA independently contains OLD_DATA; journal marks the swap in progress and NEW_GEN can be durably recorded after validation."
       ]
     },
     {
@@ -419,7 +419,7 @@
         "expected_action": "VALIDATE_TARGET"
       },
       "preconditions": [
-        "Synthetic setup establishes RESTART_TARGET_INVALID_ROLLBACK_VALID at RECOVERING for STORE without user data or platform bytes."
+        "TARGET exists but fails validation; ROLLBACK_DATA independently validates as OLD_DATA and OLD_GEN remains available for restoration."
       ]
     },
     {
@@ -444,7 +444,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes APPLIED_MARKER_GENERATION_OLD at RECOVERING for STORE without user data or platform bytes."
+        "TARGET independently validates as NEW_DATA; APPLIED marker is durable; generation ledger still says OLD_GEN, while a valid rollback copy remains until reconciliation finishes."
       ]
     },
     {
@@ -483,7 +483,7 @@
         "expected_action": "CLEAR_COMPLETED_ARTIFACTS"
       },
       "preconditions": [
-        "Synthetic setup establishes RESTART_AFTER_COMMIT_CLEANUP_INTERRUPTED at RECOVERING for STORE without user data or platform bytes."
+        "TARGET=NEW_DATA and durable generation=NEW_GEN are both committed; only redundant rollback or staging cleanup remains and can be retried idempotently."
       ]
     },
     {
@@ -508,7 +508,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes ROLLBACK_IO_FAILURE at RECOVERING for STORE without user data or platform bytes."
+        "TARGET is unavailable; the rollback source ROLLBACK_DATA still contains independently recoverable OLD_DATA and OLD_GEN, but an injected rollback IO error prevents using it; all remaining source artifacts must stay preserved."
       ]
     },
     {
@@ -533,7 +533,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes MALFORMED_JOURNAL at RECOVERING for STORE without user data or platform bytes."
+        "ACTIVE_STORE independently validates as OLD_DATA and OLD_GEN is known; journal bytes are malformed and cannot safely identify candidate, rollback, or a completed transition."
       ]
     },
     {
@@ -558,7 +558,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes NO_VALID_RECOVERY_SOURCE at RECOVERING for STORE without user data or platform bytes."
+        "TARGET, rollback, and staged candidate are each missing or invalid; the existing store bytes are not a valid readable dataset and the generation marker is left untouched."
       ]
     },
     {
@@ -588,7 +588,7 @@
         "expected_decision": "STALE"
       },
       "preconditions": [
-        "Synthetic setup establishes OLD_GENERATION_COMPLETION at COMMITTED for WORK_ITEM without user data or platform bytes."
+        "WORK_ITEM captured OLD_GEN; current workspace is independently readable as NEW_DATA under NEW_GEN; completion arrives only after the generation changed."
       ]
     },
     {
@@ -618,7 +618,7 @@
         "expected_decision": "PROCEED"
       },
       "preconditions": [
-        "Synthetic setup establishes MATCHING_GENERATION_COMPLETION at COMMITTED for WORK_ITEM without user data or platform bytes."
+        "WORK_ITEM captured NEW_GEN; current workspace is independently readable as NEW_DATA under the same NEW_GEN; its own write unit remains current."
       ]
     },
     {
@@ -648,7 +648,7 @@
         "expected_decision": "LEGACY"
       },
       "preconditions": [
-        "Synthetic setup establishes GENERATION_ABSENT at BLOCKED for WORK_ITEM without user data or platform bytes."
+        "CURRENT_DATA is readable but has no durable generation marker; no generation identity can authorize an old or resumed worker write."
       ]
     },
     {
@@ -673,7 +673,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes COMMITTED_WAL_DATA at COMMITTED for STORE without user data or platform bytes."
+        "ACTIVE_STORE=OLD_DATA remains current under OLD_GEN; committed rows include WAL-resident changes at snapshot time and export reads a consistent database snapshot."
       ]
     },
     {
@@ -698,7 +698,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes DESTINATION_FAILURE at COMMITTED for STORE without user data or platform bytes."
+        "ACTIVE_STORE=OLD_DATA under OLD_GEN is untouched; export temporary output is partial, destination rejects further writes, and the temporary can be removed independently."
       ]
     },
     {
@@ -723,7 +723,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes TRUNCATED_EXISTING_STORE at RECOVERING for STORE without user data or platform bytes."
+        "Existing store bytes are truncated and fail integrity validation; no valid rollback or candidate is available; active generation marker is not advanced."
       ]
     },
     {
@@ -748,7 +748,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes STORAGE_FAILURE at COMMITTING for WORKSPACE_FILE without user data or platform bytes."
+        "Migration begins from independently readable OLD_DATA under OLD_GEN inside one transaction; injected storage failure occurs before transaction commit and rollback can restore that state."
       ]
     },
     {
@@ -773,7 +773,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes WORKSPACE_ATOMIC_WRITE_STORAGE_FAILURE at COMMITTING for WORKSPACE_FILE without user data or platform bytes."
+        "WORKSPACE_FILE=OLD_FILE is readable; replacement is written to a separate temporary file; storage fails before atomic rename, leaving OLD_FILE at its original path."
       ]
     },
     {
@@ -798,7 +798,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes RESTART_AFTER_COMMITTED_REPLACEMENT at COMMITTED for WORKSPACE_FILE without user data or platform bytes."
+        "WORKSPACE_FILE=NEW_FILE and NEW_GEN were durably committed together before restart; any leftover staging file is redundant and not needed to read the replacement."
       ]
     },
     {
@@ -823,7 +823,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes VALID_EMPTY_REPLACE at COMMITTED for MODULE without user data or platform bytes."
+        "A complete response passes required-field and integrity checks and intentionally contains zero module rows; REPLACE targets that module only and current generation stays unchanged."
       ]
     },
     {
@@ -848,7 +848,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes VALID_EMPTY_UPSERT at COMMITTED for MODULE without user data or platform bytes."
+        "A complete response passes required-field and integrity checks and intentionally contains zero module rows; UPSERT leaves existing module rows untouched and current generation stays unchanged."
       ]
     },
     {
@@ -873,7 +873,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes MISSING_REQUIRED_PAYLOAD_FIELD at COMMITTING for MODULE without user data or platform bytes."
+        "ACTIVE_MODULE=OLD_ROWS is readable under its current generation; response omits a required payload field, so validation fails before any module write starts."
       ]
     },
     {
@@ -898,7 +898,7 @@
       },
       "android": null,
       "preconditions": [
-        "Synthetic setup establishes PAYLOAD_DURABLE_LEDGER_COMPLETION_INTERRUPTED at RECOVERING for WORK_ITEM without user data or platform bytes."
+        "MODULE_PAYLOAD=NEW_ROWS is durably committed while its ledger completion marker is absent; the payload is independently readable and its ledger key can be reconciled without fabricating a rollback."
       ]
     }
   ]

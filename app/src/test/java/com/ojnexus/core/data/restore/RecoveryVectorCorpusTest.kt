@@ -1,6 +1,15 @@
 package com.ojnexus.core.data.restore
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -32,7 +41,52 @@ class RecoveryVectorCorpusTest {
         assertEquals(WriteSemantics.REPLACE, vectors.getValue("RV029").write_semantics)
         assertEquals(WriteSemantics.UPSERT, vectors.getValue("RV030").write_semantics)
         assertTrue(vectors.getValue("RV010").preconditions.any { it.contains("confirmation") && it.contains("durably recorded") })
+        assertTrue(vectors.getValue("RV013").preconditions.any { it.contains("NEW_DATA") && it.contains("valid") })
+        assertTrue(vectors.getValue("RV018").preconditions.any { it.contains("OLD_DATA") && it.contains("OLD_GEN") && it.contains("valid") })
+        assertTrue(vectors.getValue("RV017").preconditions.any { it.contains("rollback source", ignoreCase = true) && it.contains("target is unavailable", ignoreCase = true) })
+        assertTrue(vectors.getValue("RV026").preconditions.any { it.contains("OLD_DATA") && it.contains("transaction") && it.contains("rollback") })
         vectors.values.filter { !it.retry.allowed }.forEach { assertEquals("NONE", it.retry.after) }
+    }
+
+    @Test
+    fun `nullable contract keys are required and recovery journal may be explicitly null`() {
+        val valid = RecoveryVectorFixtures.loadTextForTest()
+        val nullJournal = mutateVector(valid, "RV010") { vector ->
+            val android = vector.getValue("android").jsonObject.toMutableMap()
+            android["journal"] = JsonNull
+            vector["android"] = JsonObject(android)
+        }
+        assertNull(RecoveryVectorFixtures.decode(nullJournal).vectors.single { it.id == "RV010" }.android?.journal)
+        val legacyProjection = RecoveryVectorFixtures.load().vectors.single { it.id == "RV022" }.android
+        assertNull(legacyProjection?.expected_generation)
+        assertEquals(RestoreWorkDecision.LEGACY, legacyProjection?.expected_decision)
+
+        assertRejected(mutateVector(valid, "RV010") { it.remove("android") })
+        assertRejected(mutateVector(valid, "RV002") { vector ->
+            val expected = vector.getValue("expected").jsonObject.toMutableMap()
+            expected.remove("error")
+            vector["expected"] = JsonObject(expected)
+        })
+        assertRejected(mutateVector(valid, "RV010") { vector ->
+            val android = vector.getValue("android").jsonObject.toMutableMap()
+            android.remove("journal")
+            vector["android"] = JsonObject(android)
+        })
+        assertRejected(mutateVector(valid, "RV020") { vector ->
+            val android = vector.getValue("android").jsonObject.toMutableMap()
+            android.remove("expected_generation")
+            vector["android"] = JsonObject(android)
+        })
+        assertRejected(mutateVector(valid, "RV010") { vector ->
+            val android = vector.getValue("android").jsonObject.toMutableMap()
+            android["expected_generation"] = JsonNull
+            vector["android"] = JsonObject(android)
+        })
+        assertRejected(mutateVector(valid, "RV020") { vector ->
+            val android = vector.getValue("android").jsonObject.toMutableMap()
+            android["journal"] = JsonNull
+            vector["android"] = JsonObject(android)
+        })
     }
 
     @Test
@@ -58,6 +112,7 @@ class RecoveryVectorCorpusTest {
         assertRejected(beforeBlocked + blockedVector.replaceFirst("\"preserve_artifacts\": true", "\"preserve_artifacts\": false"))
         assertRejected(valid.replaceFirst("\"active_data\": \"EMPTY\"", "\"active_data\": \"OLD\""))
         assertRejected(Regex("\"allowed\": false,\\s+\"after\": \"NONE\"").replaceFirst(valid, "\"allowed\": true, \"after\": \"NONE\""))
+        assertRejected(valid.replaceFirst("\"after\": \"Corrected complete input\"", "\"after\": \"RETRY\""))
     }
 
     private fun assertRejected(text: String) {
@@ -67,5 +122,17 @@ class RecoveryVectorCorpusTest {
         } catch (_: IllegalArgumentException) {
             // Expected validation failure.
         }
+    }
+
+    private fun mutateVector(text: String, id: String, mutation: (MutableMap<String, JsonElement>) -> Unit): String {
+        val root = Json.parseToJsonElement(text).jsonObject
+        val updatedVectors = root.getValue("vectors").jsonArray.map { element ->
+            val vector = element.jsonObject
+            if (vector.getValue("id").jsonPrimitive.content != id) return@map element
+            val updated = vector.toMutableMap()
+            mutation(updated)
+            JsonObject(updated)
+        }
+        return JsonObject(root.toMutableMap().apply { put("vectors", JsonArray(updatedVectors)) }).toString()
     }
 }

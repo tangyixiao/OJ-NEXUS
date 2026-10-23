@@ -3,6 +3,11 @@ package com.ojnexus.core.data.restore
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
 data class RecoveryVectorCorpus(val format_version: Int, val synthetic: Boolean, val vectors: List<RecoveryVector>)
@@ -39,12 +44,46 @@ data class FileProjection(val target: Boolean, val candidate: Boolean, val rollb
 object RecoveryVectorFixtures {
     private val json = Json { ignoreUnknownKeys = false; isLenient = false; coerceInputValues = false }
     fun decode(text: String): RecoveryVectorCorpus {
+        text.validateStructure()
         val corpus = json.decodeFromString<RecoveryVectorCorpus>(text)
         corpus.requireValid()
         return corpus
     }
     fun load(): RecoveryVectorCorpus = decode(loadTextForTest())
     internal fun loadTextForTest(): String = requireNotNull(javaClass.getResourceAsStream("/recovery/v1/vectors.json")) { "Missing classpath recovery vector corpus" }.bufferedReader(Charsets.UTF_8).use { it.readText() }
+
+    private fun String.validateStructure() {
+        val root = json.parseToJsonElement(this).jsonObject
+        root.requireKeys("root", setOf("format_version", "synthetic", "vectors"))
+        root.getValue("vectors").jsonArray.forEachIndexed { index, element ->
+            val vector = element.jsonObject
+            vector.requireKeys("vector[$index]", VECTOR_KEYS)
+            val expected = vector.getValue("expected").jsonObject
+            expected.requireKeys("${vector.getValue("id").jsonPrimitive.content}.expected", EXPECTED_KEYS)
+            vector.getValue("retry").jsonObject.requireKeys("vector[$index].retry", RETRY_KEYS)
+            val projection = vector.getValue("android")
+            if (projection !is JsonNull) projection.jsonObject.requireProjectionKeys()
+        }
+    }
+
+    private fun JsonObject.requireProjectionKeys() {
+        val kind = getValue("kind").jsonPrimitive.content
+        val expectedKeys = when (kind) {
+            AndroidProjectionKind.RECOVERY_DECISION.name -> RECOVERY_PROJECTION_KEYS
+            AndroidProjectionKind.GENERATION_DECISION.name -> GENERATION_PROJECTION_KEYS
+            else -> throw IllegalArgumentException("Unknown Android projection kind: $kind")
+        }
+        require(keys == expectedKeys) { "Projection $kind has missing, unknown, or foreign-kind keys" }
+        if (kind == AndroidProjectionKind.RECOVERY_DECISION.name) {
+            val journal = getValue("journal")
+            if (journal !is JsonNull) journal.jsonObject.requireKeys("recovery journal", JOURNAL_KEYS)
+            getValue("files").jsonObject.requireKeys("recovery files", FILE_KEYS)
+        }
+    }
+
+    private fun JsonObject.requireKeys(label: String, expected: Set<String>) {
+        require(keys == expected) { "$label keys must be exactly $expected; got $keys" }
+    }
 
     private fun RecoveryVectorCorpus.requireValid() {
         require(format_version == 1) { "Unsupported recovery corpus version: $format_version" }
@@ -59,6 +98,7 @@ object RecoveryVectorFixtures {
             require(v.preconditions.isNotEmpty() && v.preconditions.all(String::isNotBlank)) { "${v.id} needs explicit preconditions" }
             require(v.expected.next_action.isNotBlank()) { "${v.id} needs a concrete next action" }
             require(v.retry.after.isNotBlank()) { "${v.id} needs a concrete retry prerequisite" }
+            require(!v.retry.after.equals("RETRY", ignoreCase = true)) { "${v.id} retry prerequisite cannot be a generic RETRY" }
             require(v.retry.allowed || v.retry.after == "NONE") { "${v.id} denied retry must say NONE" }
             require(!v.retry.allowed || v.retry.after != "NONE") { "${v.id} retry needs a prerequisite" }
             require(v.expected.phase != VectorPhase.BLOCKED || v.expected.preserve_artifacts) { "${v.id} must preserve artifacts while blocked" }
@@ -85,4 +125,11 @@ object RecoveryVectorFixtures {
         require(replace.expected.active_data != upsert.expected.active_data) { "Empty REPLACE and UPSERT must differ" }
     }
     private val ANDROID_IDS = setOf("RV010", "RV011", "RV012", "RV013", "RV014", "RV016", "RV020", "RV021", "RV022")
+    private val VECTOR_KEYS = setOf("id", "operation", "fault", "checkpoint", "preconditions", "atomic_unit", "write_semantics", "expected", "retry", "android")
+    private val EXPECTED_KEYS = setOf("phase", "active_data", "generation", "error", "preserve_artifacts", "originating_work_may_write", "next_action")
+    private val RETRY_KEYS = setOf("allowed", "after")
+    private val RECOVERY_PROJECTION_KEYS = setOf("kind", "journal", "files", "expected_action")
+    private val GENERATION_PROJECTION_KEYS = setOf("kind", "expected_generation", "current_generation", "expected_decision")
+    private val JOURNAL_KEYS = setOf("stage", "generation", "detail")
+    private val FILE_KEYS = setOf("target", "candidate", "rollback", "staged")
 }
