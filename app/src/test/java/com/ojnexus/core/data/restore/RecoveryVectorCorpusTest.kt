@@ -45,6 +45,15 @@ class RecoveryVectorCorpusTest {
         assertTrue(vectors.getValue("RV018").preconditions.any { it.contains("OLD_DATA") && it.contains("OLD_GEN") && it.contains("valid") })
         assertTrue(vectors.getValue("RV017").preconditions.any { it.contains("rollback source", ignoreCase = true) && it.contains("target is unavailable", ignoreCase = true) })
         assertTrue(vectors.getValue("RV026").preconditions.any { it.contains("OLD_DATA") && it.contains("transaction") && it.contains("rollback") })
+        val unknownGenerationWork = vectors.getValue("RV022")
+        assertNull(unknownGenerationWork.android?.expected_generation)
+        assertEquals("g-current", unknownGenerationWork.android?.current_generation)
+        assertEquals(RestoreWorkDecision.LEGACY, unknownGenerationWork.android?.expected_decision)
+        assertTrue(unknownGenerationWork.preconditions.single().let {
+            it.contains("NEW_DATA") && it.contains("NEW_GEN") &&
+                it.contains("no captured expected_generation") && it.contains("no write authorization")
+        })
+        assertEquals("Work is reconciled and requeued with captured expected_generation NEW_GEN", unknownGenerationWork.retry.after)
         vectors.values.filter { !it.retry.allowed }.forEach { assertEquals("NONE", it.retry.after) }
     }
 

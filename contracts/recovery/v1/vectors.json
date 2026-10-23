@@ -639,7 +639,7 @@
       },
       "retry": {
         "allowed": true,
-        "after": "Current generation is explicitly established"
+        "after": "Work is reconciled and requeued with captured expected_generation NEW_GEN"
       },
       "android": {
         "kind": "GENERATION_DECISION",
@@ -648,7 +648,7 @@
         "expected_decision": "LEGACY"
       },
       "preconditions": [
-        "CURRENT_DATA is readable but has no durable generation marker; no generation identity can authorize an old or resumed worker write."
+        "CURRENT_DATA=NEW_DATA is readable and durable CURRENT_GEN=NEW_GEN is known; this resumed WORK_ITEM carries no captured expected_generation, so it has no write authorization until reconciled and requeued with NEW_GEN."
       ]
     },
     {
