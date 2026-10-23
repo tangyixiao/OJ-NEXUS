@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
 using OjNexus.Windows.Core.Storage;
 
@@ -426,8 +427,8 @@ public sealed class SqliteSyncStoreTests
     [Fact]
     public async Task Store_MarkReviewThenDueListUsesSharedLadderSemantics()
     {
-        using var database = new TemporaryDatabase();
         var now = DateTimeOffset.Parse("2026-10-18T09:00:00+00:00");
+        using var database = new TemporaryDatabase(new FixedClock(now));
 
         var first = await database.Store.MarkReviewAsync(JudgeId.Codeforces, "2134/C", ReviewResult.Fail, now, CancellationToken.None);
         Assert.Equal(0, first.Stage);
@@ -454,6 +455,31 @@ public sealed class SqliteSyncStoreTests
         ExecuteNonQuery(database.DatabasePath, "UPDATE reviews SET due_day_index = '2026-10-01' WHERE external_id = '2134/C'");
         Assert.Single(await database.Store.GetDueReviewsAsync(null, 10, CancellationToken.None));
         Assert.Empty(await database.Store.GetDueReviewsAsync(JudgeId.AtCoder, 10, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Store_GetDueReviewsUsesClockAndLocalDayKey()
+    {
+        var now = DateTimeOffset.Parse("2026-10-18T09:00:00+00:00");
+        var clock = new FixedClock(now);
+        using var database = new TemporaryDatabase(clock);
+
+        var marked = await database.Store.MarkReviewAsync(
+            JudgeId.Codeforces,
+            "2134/C",
+            ReviewResult.Fail,
+            clock.UtcNow,
+            CancellationToken.None);
+
+        Assert.Equal(now.ToLocalTime().AddDays(1).ToString("yyyy-MM-dd"), marked.DueDayIndex);
+        Assert.Empty(await database.Store.GetDueReviewsAsync(null, 10, CancellationToken.None));
+
+        clock.UtcNow = now.AddDays(1);
+        Assert.Equal(marked.DueDayIndex, ReviewIntervalLadder.DayIndexFor(clock.UtcNow));
+        Assert.Single(await database.Store.GetDueReviewsAsync(null, 10, CancellationToken.None));
+
+        clock.UtcNow = now.AddDays(2);
+        Assert.Single(await database.Store.GetDueReviewsAsync(null, 10, CancellationToken.None));
     }
 
     [Fact]
@@ -836,13 +862,18 @@ public sealed class SqliteSyncStoreTests
 
     private sealed class TemporaryDatabase : TemporaryDatabaseDirectory
     {
-        public TemporaryDatabase()
+        public TemporaryDatabase(IClock? clock = null)
         {
             var factory = new SqliteConnectionFactory(Path.GetDirectoryName(DatabasePath));
-            Store = new SqliteSyncStore(factory);
+            Store = new SqliteSyncStore(factory, clock);
             Assert.Equal(DatabasePath, factory.DatabasePath);
         }
 
         public SqliteSyncStore Store { get; }
+    }
+
+    private sealed class FixedClock(DateTimeOffset utcNow) : IClock
+    {
+        public DateTimeOffset UtcNow { get; set; } = utcNow;
     }
 }

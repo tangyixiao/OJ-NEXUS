@@ -6,7 +6,7 @@ using OjNexus.Windows.Core.Sync;
 
 namespace OjNexus.Windows.Core.Storage;
 
-public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) : ISyncStore
+public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, IClock? clock = null) : ISyncStore
 {
     private const int CompletedOperationRetention = 20;
 
@@ -766,7 +766,7 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory) :
             return Array.Empty<ReviewEntry>();
         }
 
-        var today = ReviewIntervalLadder.DayIndexFor(DateTimeOffset.Now);
+        var today = ReviewIntervalLadder.DayIndexFor(clock?.UtcNow ?? DateTimeOffset.UtcNow);
         using var connection = connectionFactory.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """

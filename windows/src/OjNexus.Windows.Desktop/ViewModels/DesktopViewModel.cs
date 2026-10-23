@@ -803,14 +803,15 @@ public static class DesktopRuntime
     {
         var dataDirectory = WindowsPaths.GetDataDirectory();
         var connectionFactory = new SqliteConnectionFactory(dataDirectory);
-        var store = new SqliteSyncStore(connectionFactory);
+        var clock = new SystemClock();
+        var store = new SqliteSyncStore(connectionFactory, clock);
         var adapters = new Dictionary<JudgeId, IJudgeAdapter>
         {
             [JudgeId.Codeforces] = new CodeforcesAdapter(PublicHttpClientFactory.Create),
             [JudgeId.AtCoder] = new AtCoderAdapter(PublicHttpClientFactory.Create),
             [JudgeId.Luogu] = new LuoguAdapter(PublicHttpClientFactory.Create),
         };
-        var syncService = new SyncService(adapters, store, new SystemClock(), static () => "windows-desktop-v1");
+        var syncService = new SyncService(adapters, store, clock, static () => "windows-desktop-v1");
         return new DesktopViewModel(store, syncService, dataDirectory);
     }
 
