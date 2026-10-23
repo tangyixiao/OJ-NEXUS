@@ -1,6 +1,6 @@
 # Phase 126 — Recovery Fault Vectors
 
-Status: ACTIVE. This is a contract and decision-consumer phase; it does not certify physical
+Status: VERIFIED for the shared contract and direct Android decision-consumer scope. This phase does not certify physical
 crash recovery on any platform. Source base: `becc0e3` on `codex/phase-121-platform-baseline`.
 
 ## Scope and inputs
@@ -59,8 +59,9 @@ See [SQLite's documented POSIX close hazard](https://www.sqlite.org/howtocorrupt
 ## Verification gates
 
 Implementation source: `6a5e2f4` on `codex/phase-126-recovery-vectors`, based on `becc0e3`.
-Task 1 strict loader/corpus and Task 2 decision-consumer reviews passed. Whole-branch review
-remains the final gate before marking the phase verified.
+Task 1 strict loader/corpus and Task 2 decision-consumer reviews passed. Independent whole-branch
+review of `becc0e3..1a74c46` passed with no actionable P1/P2 findings, including all 32 cases,
+their preconditions, strict decoding, nine bindings and the platform evidence boundaries.
 
 | Check | Result |
 | --- | --- |

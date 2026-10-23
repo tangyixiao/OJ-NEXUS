@@ -40,16 +40,16 @@ modify test resources in `app/build.gradle.kts` to include root `contracts/`.
 `vectors`, `id`, `expected`, `retry`, nullable typed `android` projection. Reject unsupported
 version, missing/unknown fields, invalid enums, duplicate IDs and broken invariants.
 
-- [ ] Add the fixture tests before the corpus/loader. Run the focused class and record a meaningful RED.
-- [ ] Encode exactly the 32 spec cases and nine projections; require nonempty preconditions, including
+- [x] Add the fixture tests before the corpus/loader. Run the focused class and record a meaningful RED.
+- [x] Encode exactly the 32 spec cases and nine projections; require nonempty preconditions, including
   durably authorized STAGED for RV010, and document each key and symbolic old/new meaning.
-- [ ] Load the single classpath resource `recovery/v1/vectors.json`; no second copied corpus.
-- [ ] Assert exact IDs/projection set; originating-work permission is true only for RV021, blocked cases preserve artifacts,
+- [x] Load the single classpath resource `recovery/v1/vectors.json`; no second copied corpus.
+- [x] Assert exact IDs/projection set; originating-work permission is true only for RV021, blocked cases preserve artifacts,
   aborted imports keep OLD/OLD, valid empty cases use distinct semantics, and denied retry uses after=NONE.
-- [ ] Mutation negatives: version2, duplicate ID, missing expected, unknown enum/field, old worker originating_work_may_write=true,
+- [x] Mutation negatives: version2, duplicate ID, missing expected, unknown enum/field, old worker originating_work_may_write=true,
   blocked cleanup=false, identical replacement/upsert empty result, retry allowed with no prerequisite.
-- [ ] Run `:app:testDebugUnitTest --tests '*RecoveryVectorCorpusTest'`; require all positives/negatives pass.
-- [ ] Commit only this coherent corpus/loader/resource change after diff/secrets check.
+- [x] Run `:app:testDebugUnitTest --tests '*RecoveryVectorCorpusTest'`; require all positives/negatives pass.
+- [x] Commit only this coherent corpus/loader/resource change after diff/secrets check.
 
 ## Task 2 — Actual decision consumption and honest platform adoption
 
@@ -60,16 +60,16 @@ version, missing/unknown fields, invalid enums, duplicate IDs and broken invaria
 `RestoreFileState` and call `decideRestoreRecovery`. For GENERATION_DECISION call
 `decideRestoreWorkGeneration`. No duplicate decision implementation or simulated storage engine.
 
-- [ ] Add parameterized tests for each of the nine projections with IDs in JUnit display names.
-- [ ] Assert RV015/RV017 and all unbound cases are explicitly not covered by this consumer.
-- [ ] Run the focused corpus/decision classes; retain XML counts and exact executed IDs.
-- [ ] Record platform source/atomic-unit/adoption matrix and 127–130 handoff gaps from the design/audits.
-- [ ] Correct DATA_SAFETY export wording with explicit reviewed-branch/main/release identity; do not
+- [x] Add parameterized tests for each of the nine projections with IDs in JUnit display names.
+- [x] Assert RV015/RV017 and all unbound cases are explicitly not covered by this consumer.
+- [x] Run the focused corpus/decision classes; retain XML counts and exact executed IDs.
+- [x] Record platform source/atomic-unit/adoption matrix and 127–130 handoff gaps from the design/audits.
+- [x] Correct DATA_SAFETY export wording with explicit reviewed-branch/main/release identity; do not
   advertise unmerged 122 source as the already-published v1.0.3 behavior.
-- [ ] Run fresh `testDebugUnitTest --rerun test assembleDebug` using process-local JBR/SDK variables.
+- [x] Run fresh `testDebugUnitTest --rerun test assembleDebug` using process-local JBR/SDK variables.
   Record BUILD SUCCESSFUL and actual XML totals; no emulator/device-fault claim from these pure tests.
-- [ ] Independently review all vectors/projections/relational negatives and the coverage matrix.
-- [ ] Check links/diff/secrets, commit, push and create a scoped PR based on
+- [x] Independently review all vectors/projections/relational negatives and the coverage matrix.
+- [x] Check links/diff/secrets, commit, push and create a scoped PR based on
   `codex/phase-121-platform-baseline`; attach it. Mark 126 VERIFIED only for this contract scope.
 
 Phase127 then consumes these exact IDs plus the Phase122 accepted implementation; Windows128,
