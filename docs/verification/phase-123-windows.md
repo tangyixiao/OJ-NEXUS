@@ -1,8 +1,8 @@
 # Phase 123 — Windows baseline and distribution evidence
 
 Status: **ACTIVE / PARTIAL** (2026-10-23). The deterministic review-clock repair and
-unsigned ZIP candidate have passed their scoped gates. Problems-screen acceptance and a
-clean-VM installation are still missing, so Phase 123 is not VERIFIED.
+unsigned ZIP candidate have passed their scoped gates. The follow-up Problems empty-screen
+smoke also passed; clean-VM installation remains missing, so Phase 123 is not VERIFIED.
 
 ## Source and review
 
@@ -63,8 +63,14 @@ release is inferred from this ZIP. The historical latest Android release is unch
 
 ## Remaining gates
 
-- Exercise the actual WPF Problems screen and filters, with explicitly sourced local data or
-  a clearly marked synthetic fixture; extend the current smoke coverage where useful.
+- Follow-up source `9d9b5b4` ([PR #17](https://github.com/tangyixiao/OJ-NEXUS/pull/17), stacked
+  on #13) extends the smoke to the real Problems screen. Fresh 167 tests/build/startup smoke
+  passed. The coordinating lane independently repeated the four-page run: visible ledger
+  heading, exactly two visible filters, visible empty state, four distinct WPF-rendered
+  captures; exit 0. It inspected the actual Problems screenshot. Log
+  `%TEMP%/phase123-root-four-view.log`, captures `%TEMP%/phase123-root-four-view/`.
+  Product source and the published RC are unchanged. This proves the fresh-data empty state;
+  populated-data filter interaction remains separate.
 - Establish clean-VM install, launch, upgrade/uninstall and signing evidence independently.
   The earlier VM availability query did not succeed; this is unknown availability, not proof
   that the machine has no usable VM.
