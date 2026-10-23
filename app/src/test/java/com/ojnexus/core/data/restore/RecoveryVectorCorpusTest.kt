@@ -1,7 +1,6 @@
 package com.ojnexus.core.data.restore
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -19,7 +18,10 @@ class RecoveryVectorCorpusTest {
     @Test
     fun `relations keep blocked aborted empty and retry outcomes honest`() {
         val vectors = RecoveryVectorFixtures.load().vectors.associateBy { it.id }
-        vectors.values.filter { !it.expected.active_writes_allowed }.forEach { assertFalse(it.expected.active_writes_allowed) }
+        assertEquals(
+            setOf("RV021"),
+            vectors.values.filter { it.expected.originating_work_may_write }.map { it.id }.toSet(),
+        )
         vectors.values.filter { it.expected.phase == VectorPhase.BLOCKED }.forEach { assertTrue(it.expected.preserve_artifacts) }
         vectors.values.filter { it.expected.phase == VectorPhase.ABORTED && it.operation == VectorOperation.IMPORT }.forEach {
             assertEquals(ActiveData.OLD, it.expected.active_data)
@@ -46,7 +48,10 @@ class RecoveryVectorCorpusTest {
     fun `decoder rejects unknown enum and broken safety relations`() {
         val valid = RecoveryVectorFixtures.loadTextForTest()
         assertRejected(valid.replaceFirst("\"operation\": \"IMPORT\"", "\"operation\": \"PURGE\""))
-        assertRejected(valid.replaceFirst("\"active_writes_allowed\": false", "\"active_writes_allowed\": true"))
+        val oldWorkerStart = valid.indexOf("\"id\": \"RV020\"")
+        val beforeOldWorker = valid.substring(0, oldWorkerStart)
+        val oldWorkerVector = valid.substring(oldWorkerStart)
+        assertRejected(beforeOldWorker + oldWorkerVector.replaceFirst("\"originating_work_may_write\": false", "\"originating_work_may_write\": true"))
         val blockedVectorStart = valid.indexOf("\"id\": \"RV017\"")
         val beforeBlocked = valid.substring(0, blockedVectorStart)
         val blockedVector = valid.substring(blockedVectorStart)

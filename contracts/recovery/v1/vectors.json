@@ -15,7 +15,7 @@
         "generation": "OLD",
         "error": "INVALID_INPUT",
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Select complete valid input and repeat precheck"
       },
       "retry": {
@@ -40,7 +40,7 @@
         "generation": "OLD",
         "error": "UNSUPPORTED_SCHEMA",
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Select supported input and repeat precheck"
       },
       "retry": {
@@ -65,7 +65,7 @@
         "generation": "OLD",
         "error": "INTEGRITY_FAILURE",
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Select intact input and repeat precheck"
       },
       "retry": {
@@ -90,7 +90,7 @@
         "generation": "OLD",
         "error": "STORAGE_FULL",
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Free storage and repeat precheck"
       },
       "retry": {
@@ -115,7 +115,7 @@
         "generation": "OLD",
         "error": "STORAGE_FULL",
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Free storage and repeat precheck"
       },
       "retry": {
@@ -140,7 +140,7 @@
         "generation": "OLD",
         "error": "STORAGE_FULL",
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Free storage and repeat precheck"
       },
       "retry": {
@@ -165,7 +165,7 @@
         "generation": "OLD",
         "error": "CANCELLED",
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Start new import preview"
       },
       "retry": {
@@ -190,7 +190,7 @@
         "generation": "OLD",
         "error": "CANCELLED",
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Start new import preview"
       },
       "retry": {
@@ -215,7 +215,7 @@
         "generation": "NEW",
         "error": "CANCEL_TOO_LATE",
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Reconcile committed result"
       },
       "retry": {
@@ -240,7 +240,7 @@
         "generation": "NEW",
         "error": null,
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Validate staged input and apply atomically"
       },
       "retry": {
@@ -279,7 +279,7 @@
         "generation": "OLD",
         "error": "RECOVERY_SOURCE_MISSING",
         "preserve_artifacts": true,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Reject incomplete staging and select input again"
       },
       "retry": {
@@ -318,7 +318,7 @@
         "generation": "OLD",
         "error": null,
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Validate rollback and restore old target"
       },
       "retry": {
@@ -357,7 +357,7 @@
         "generation": "NEW",
         "error": null,
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Validate target and finish commit before cleanup"
       },
       "retry": {
@@ -396,7 +396,7 @@
         "generation": "OLD",
         "error": "INTEGRITY_FAILURE",
         "preserve_artifacts": true,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Restore validated rollback and preserve sources"
       },
       "retry": {
@@ -435,7 +435,7 @@
         "generation": "NEW",
         "error": null,
         "preserve_artifacts": true,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Validate target, persist generation, then clean artifacts"
       },
       "retry": {
@@ -460,7 +460,7 @@
         "generation": "NEW",
         "error": null,
         "preserve_artifacts": true,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Run idempotent cleanup"
       },
       "retry": {
@@ -499,7 +499,7 @@
         "generation": "OLD",
         "error": "RECOVERY_BLOCKED",
         "preserve_artifacts": true,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Preserve recovery sources and require inspection"
       },
       "retry": {
@@ -524,7 +524,7 @@
         "generation": "OLD",
         "error": "RECOVERY_BLOCKED",
         "preserve_artifacts": true,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Preserve artifacts and require journal inspection"
       },
       "retry": {
@@ -549,7 +549,7 @@
         "generation": "UNCHANGED",
         "error": "RECOVERY_SOURCE_MISSING",
         "preserve_artifacts": true,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Preserve bytes and require repair or explicit source"
       },
       "retry": {
@@ -574,7 +574,7 @@
         "generation": "NEW",
         "error": "STALE_GENERATION",
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Discard stale completion and enqueue current generation work"
       },
       "retry": {
@@ -604,7 +604,7 @@
         "generation": "NEW",
         "error": null,
         "preserve_artifacts": false,
-        "active_writes_allowed": true,
+        "originating_work_may_write": true,
         "next_action": "Write only within this worker atomic unit"
       },
       "retry": {
@@ -634,7 +634,7 @@
         "generation": "UNCHANGED",
         "error": "GENERATION_UNKNOWN",
         "preserve_artifacts": true,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Reconcile and requeue with explicit current generation"
       },
       "retry": {
@@ -664,7 +664,7 @@
         "generation": "OLD",
         "error": null,
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Export consistent snapshot including committed WAL rows"
       },
       "retry": {
@@ -689,7 +689,7 @@
         "generation": "OLD",
         "error": "STORAGE_IO",
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Remove export temp and choose writable destination"
       },
       "retry": {
@@ -714,7 +714,7 @@
         "generation": "UNCHANGED",
         "error": "INTEGRITY_FAILURE",
         "preserve_artifacts": true,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Preserve original bytes and require explicit recovery"
       },
       "retry": {
@@ -739,7 +739,7 @@
         "generation": "OLD",
         "error": "STORAGE_FULL",
         "preserve_artifacts": true,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Rollback migration and retry after storage recovery"
       },
       "retry": {
@@ -764,7 +764,7 @@
         "generation": "OLD",
         "error": "STORAGE_IO",
         "preserve_artifacts": true,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Keep old workspace readable and retry after storage recovery"
       },
       "retry": {
@@ -789,7 +789,7 @@
         "generation": "NEW",
         "error": null,
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Read committed replacement and retain generation"
       },
       "retry": {
@@ -814,7 +814,7 @@
         "generation": "UNCHANGED",
         "error": null,
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Commit valid empty replacement"
       },
       "retry": {
@@ -839,7 +839,7 @@
         "generation": "UNCHANGED",
         "error": null,
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Commit valid no-op upsert and retain existing rows"
       },
       "retry": {
@@ -864,7 +864,7 @@
         "generation": "UNCHANGED",
         "error": "INVALID_INPUT",
         "preserve_artifacts": false,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Reject response without writing and fetch complete payload"
       },
       "retry": {
@@ -889,7 +889,7 @@
         "generation": "UNCHANGED",
         "error": "STORAGE_IO",
         "preserve_artifacts": true,
-        "active_writes_allowed": false,
+        "originating_work_may_write": false,
         "next_action": "Preserve committed payload and reconcile ledger"
       },
       "retry": {

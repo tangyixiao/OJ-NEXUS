@@ -23,7 +23,7 @@ enum class GenerationOutcome { OLD, NEW, UNCHANGED }
 @Serializable
 enum class SafeVectorError { INVALID_INPUT, UNSUPPORTED_SCHEMA, INTEGRITY_FAILURE, STORAGE_FULL, STORAGE_IO, CANCELLED, CANCEL_TOO_LATE, STALE_GENERATION, GENERATION_UNKNOWN, RECOVERY_SOURCE_MISSING, RECOVERY_BLOCKED }
 @Serializable
-data class VectorExpected(val phase: VectorPhase, val active_data: ActiveData, val generation: GenerationOutcome, val error: SafeVectorError? = null, val preserve_artifacts: Boolean, val active_writes_allowed: Boolean, val next_action: String)
+data class VectorExpected(val phase: VectorPhase, val active_data: ActiveData, val generation: GenerationOutcome, val error: SafeVectorError? = null, val preserve_artifacts: Boolean, val originating_work_may_write: Boolean, val next_action: String)
 @Serializable
 data class VectorRetry(val allowed: Boolean, val after: String)
 @Serializable
@@ -62,14 +62,14 @@ object RecoveryVectorFixtures {
             require(v.retry.allowed || v.retry.after == "NONE") { "${v.id} denied retry must say NONE" }
             require(!v.retry.allowed || v.retry.after != "NONE") { "${v.id} retry needs a prerequisite" }
             require(v.expected.phase != VectorPhase.BLOCKED || v.expected.preserve_artifacts) { "${v.id} must preserve artifacts while blocked" }
-            require(v.expected.active_writes_allowed == (v.id == "RV021")) { "Only matching-generation RV021 may allow writes" }
+            require(v.expected.originating_work_may_write == (v.id == "RV021")) { "Only matching-generation RV021 may allow writes" }
             if (v.operation == VectorOperation.IMPORT && v.expected.phase == VectorPhase.ABORTED) {
                 require(v.expected.active_data == ActiveData.OLD && v.expected.generation == GenerationOutcome.OLD) { "${v.id} aborted import must preserve OLD/OLD" }
             }
             v.android?.let { projection ->
                 when (projection.kind) {
                     AndroidProjectionKind.RECOVERY_DECISION -> {
-                        require(projection.journal != null && projection.files != null && projection.expected_action != null) { "${v.id} incomplete recovery projection" }
+                        require(projection.files != null && projection.expected_action != null) { "${v.id} incomplete recovery projection" }
                         require(projection.expected_generation == null && projection.current_generation == null && projection.expected_decision == null) { "${v.id} mixes projection kinds" }
                     }
                     AndroidProjectionKind.GENERATION_DECISION -> {
