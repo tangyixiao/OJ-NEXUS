@@ -65,9 +65,9 @@ including validity of old/new/rollback images where that affects the required ou
 - Write semantics: REPLACE, UPSERT, NONE. Atomic units: STORE, MODULE, WORKSPACE_FILE, WORK_ITEM.
 - `expected` has `phase`, `active_data` (OLD, NEW, EMPTY, NONE_BLOCKED), `generation`
   (OLD, NEW, UNCHANGED), `error` (safe category or null), `preserve_artifacts` (boolean),
-  `active_writes_allowed` (boolean) and `next_action` (explicit string defined per vector).
+  `originating_work_may_write` (boolean) and `next_action` (explicit string defined per vector).
 - `retry` has `allowed` and `after` (a concrete prerequisite, or NONE if retry is not allowed).
-- All generation/image names are logical symbols. Corpus validation checks required fields,
+- All generation/image names are logical symbols. The write permission applies to the originating work before reconciliation, not to the coordinator executing the specified authorized recovery action. Only matching-generation RV021 permits that work to continue. Corpus validation checks required fields,
   enums, exact version, IDs and relational invariants; it is not a recovery implementation.
 
 | IDs | Scenario / required result |

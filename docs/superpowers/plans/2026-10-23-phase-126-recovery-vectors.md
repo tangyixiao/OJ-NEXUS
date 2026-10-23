@@ -44,9 +44,9 @@ version, missing/unknown fields, invalid enums, duplicate IDs and broken invaria
 - [ ] Encode exactly the 32 spec cases and nine projections; require nonempty preconditions, including
   durably authorized STAGED for RV010, and document each key and symbolic old/new meaning.
 - [ ] Load the single classpath resource `recovery/v1/vectors.json`; no second copied corpus.
-- [ ] Assert exact IDs/projection set; no-write cases have writes=false, blocked cases preserve artifacts,
+- [ ] Assert exact IDs/projection set; originating-work permission is true only for RV021, blocked cases preserve artifacts,
   aborted imports keep OLD/OLD, valid empty cases use distinct semantics, and denied retry uses after=NONE.
-- [ ] Mutation negatives: version2, duplicate ID, missing expected, unknown enum/field, old worker writes=true,
+- [ ] Mutation negatives: version2, duplicate ID, missing expected, unknown enum/field, old worker originating_work_may_write=true,
   blocked cleanup=false, identical replacement/upsert empty result, retry allowed with no prerequisite.
 - [ ] Run `:app:testDebugUnitTest --tests '*RecoveryVectorCorpusTest'`; require all positives/negatives pass.
 - [ ] Commit only this coherent corpus/loader/resource change after diff/secrets check.
