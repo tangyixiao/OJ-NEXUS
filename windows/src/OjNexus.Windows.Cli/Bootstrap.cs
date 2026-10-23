@@ -25,14 +25,15 @@ public sealed class Bootstrap
     {
         var dataDirectory = WindowsPaths.GetDataDirectory(dataDirectoryOverride);
         var connectionFactory = new SqliteConnectionFactory(dataDirectory);
-        var store = new SqliteSyncStore(connectionFactory);
+        var clock = new SystemClock();
+        var store = new SqliteSyncStore(connectionFactory, clock);
         var effectiveAdapters = adapters ?? new Dictionary<JudgeId, IJudgeAdapter>
         {
             [JudgeId.Codeforces] = new CodeforcesAdapter(PublicHttpClientFactory.Create),
             [JudgeId.AtCoder] = new AtCoderAdapter(PublicHttpClientFactory.Create),
             [JudgeId.Luogu] = new LuoguAdapter(PublicHttpClientFactory.Create),
         };
-        var syncService = new SyncService(effectiveAdapters, store, new SystemClock(), static () => "windows-cli-v1");
+        var syncService = new SyncService(effectiveAdapters, store, clock, static () => "windows-cli-v1");
         return new Bootstrap(dataDirectory, connectionFactory, store, syncService);
     }
 
