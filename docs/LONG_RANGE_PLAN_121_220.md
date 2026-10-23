@@ -176,21 +176,25 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **验收：** 每条“支持”都能定位实现与测试；未知项标未验证；完整列出旧 102/103 与设备性能欠账；G-S，无伪造补测结果。
 
 #### [ ] PHASE 122 — A · Android 当前版回归基线
+- **状态：** ACTIVE（2026-10-23）；[现场记录](verification/phase-122-android.md)。笔记与 ZIP 接线已复验，另发现 WAL 最新记录未进入快照，修复及复验完成前不勾选。
 - **依赖 / 范围：** 121；A-TEST、A-FEATURE、启动与备份入口，按失败点修复。
 - **交付：** 在当前版本重跑单测、debug/release、迁移；覆盖导航、笔记、复习、训练、同步和导入基本路径，记录设备/模拟器区别。
 - **验收：** G-A；可用设备上启动、离线浏览、编辑重开均成功；复现的崩溃有回归；无设备时运行栏阻塞，不能引用 779 个旧测试冒充本次结果。
 
 #### [ ] PHASE 123 — W · Windows 实际功能与安装验收
+- **状态：** ACTIVE（2026-10-23）；[时钟修复 PR #13](https://github.com/tangyixiao/OJ-NEXUS/pull/13) 已通过五项 CI，[未签名 Windows RC](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/windows-v0.1.1-rc.1) 已发布。完整 Problems/review 与干净 VM 安装仍独立待验。
 - **依赖 / 范围：** 121；W，尤其 MainWindow、DesktopViewModel、CLI、安装脚本。
 - **交付：** 核实已存储的题库/复习在 CLI 与 WPF 中的真实可达性；补充现有 smoke 对新入口的覆盖，记录 ZIP/installer 当前能力。
 - **验收：** G-W；隔离数据目录从启动到本地题库/复习操作并重启检查；干净 VM 不可用则安装验收保持阻塞；README 不再把旧三页 UI 描述成完整现状。
 
 #### [ ] PHASE 124 — L · Linux 分支收敛到可维护主线
+- **状态：** ACTIVE（2026-10-23）；已建立有限源文件清单及独立集成分支，正在修复审查发现的数据归属、运行状态和打包问题；原 worktree 保留不变。
 - **依赖 / 范围：** 121；L 的既有分支 diff、构建、测试与拟新增 Linux CI。
 - **交付：** 审查独立 Linux worktree 的未合并内容和共同历史，提交 scoped 集成 PR；处理实质冲突，建立主线可构建的 linux 路径与 Ubuntu Qt/CTest CI。
 - **验收：** G-L；公共账号同步与离线历史可操作；CLI exit code 契约不变；保留原 worktree 的无关改动；合并前，后续 L 阶段不得假定 main 已含其文件。
 
 #### [ ] PHASE 125 — P · Apple 102/103 的真实验收接续
+- **状态：** BLOCKED（交互宿主，2026-10-23）；[接续记录](verification/phase-125-apple.md) 记录远程 89 项测试和两个产品编译通过。macOS/iOS 实际启动和离线操作尚未验收。
 - **依赖 / 范围：** 121；P 的既有 Core/UI/apps/CI。
 - **交付：** 恢复 Swift/macOS/iOS 构建证据；在具备 macOS/Xcode 的环境运行 app，核查 dashboard、连接器、公开 profile/rating，形成两个平台的欠账清单。
 - **验收：** G-P；macOS 与 iOS 模拟器分别启动、离线重启和错误态操作；没有宿主机只记录 BLOCKED 与接续命令，不把远程 CI 当交互验收。
