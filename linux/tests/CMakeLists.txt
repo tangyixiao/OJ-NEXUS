@@ -68,6 +68,7 @@ add_executable(ojnexus-gui-tests
     gui/MainViewModelTest.cpp
     ../src/gui/viewmodel.cpp
     ../src/gui/viewmodel.h
+    ../src/gui/qml.qrc
 )
 target_include_directories(ojnexus-gui-tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/gui
@@ -76,5 +77,8 @@ target_link_libraries(ojnexus-gui-tests PRIVATE
     OjNexusCore
     Qt6::Test
     Qt6::Gui
+    Qt6::Qml
+    Qt6::Quick
+    Qt6::QuickControls2
 )
 add_test(NAME ojnexus-gui-tests COMMAND ojnexus-gui-tests)

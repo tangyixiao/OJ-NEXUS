@@ -1,8 +1,12 @@
 #include <QtTest/QtTest>
 
 #include <QSqlDatabase>
+#include <QSqlError>
 #include <QSqlQuery>
 #include <QTemporaryDir>
+#include <QFile>
+
+#include <unistd.h>
 
 #include "ojnexus/core/store.h"
 
@@ -15,6 +19,8 @@ private slots:
     void persistsOperationErrorForHistory();
     void limitsCompletedHistoryWithoutDeletingRunningRows();
     void recoversRunningOperationsOnReopen();
+    void keepsLiveOperationRunningAcrossRefreshInitialization();
+    void migratesLegacyCacheWithoutDroppingOrGuessingOwners();
     void storesAndReadsLatestProfile();
     void storesAndReadsRecentSubmissionProjection();
     void rejectsUnsafeProfileHandleAtPersistenceBoundary();
@@ -25,9 +31,10 @@ private slots:
     void supportsAtomicPayloadTransactions();
     void updatesAndRemovesAccounts();
     void removesProfileSnapshot();
-    void changingHandleClearsAllCachedJudgeDataButKeepsHistory();
+    void changingHandleRetainsCachesButScopesPersonalRows();
     void preservesCachedDataWhenEquivalentLuoguHandleChanges();
     void preservesDisabledStateWhenEquivalentHandleChanges();
+    void keepsOneShotHandleCacheSeparateFromConfiguredAccount();
 };
 
 void SqliteStoreTest::createsSchemaAndStoresAccount() {
@@ -35,7 +42,7 @@ void SqliteStoreTest::createsSchemaAndStoresAccount() {
     QVERIFY(dir.isValid());
     OjNexus::SqliteStore store(dir.filePath("state.db"));
     QVERIFY(store.initialize().has_value());
-    QCOMPARE(store.schemaVersion(), 1);
+    QCOMPARE(store.schemaVersion(), 2);
 
     const auto account = OjNexus::JudgeAccount::create(OjNexus::JudgeId::Codeforces, "  demo  ");
     QVERIFY(account.has_value());
@@ -107,14 +114,106 @@ void SqliteStoreTest::recoversRunningOperationsOnReopen() {
         const auto account = OjNexus::JudgeAccount::create(OjNexus::JudgeId::Codeforces, "tourist").value();
         QVERIFY(store.upsertAccount(account).has_value());
         QVERIFY(store.openOperation(account, "generation-1").has_value());
+        QVERIFY(store.openOperation(account, "generation-2").has_value());
+    }
+
+    {
+        const auto connectionName = QStringLiteral("stale-operation-fixture");
+        auto database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+        database.setDatabaseName(databasePath);
+        QVERIFY(database.open());
+        QFile bootIdFile(QStringLiteral("/proc/sys/kernel/random/boot_id"));
+        QVERIFY(bootIdFile.open(QIODevice::ReadOnly | QIODevice::Text));
+        const QString bootId = QString::fromLatin1(bootIdFile.readAll()).trimmed();
+        QVERIFY(!bootId.isEmpty());
+        QSqlQuery query(database);
+        query.prepare(QStringLiteral("UPDATE sync_operations SET owner_pid=?, owner_boot_id=?, owner_start_ticks=1 WHERE data_generation=?"));
+        query.addBindValue(static_cast<qlonglong>(getpid()));
+        query.addBindValue(bootId);
+        query.addBindValue(QStringLiteral("generation-1"));
+        QVERIFY(query.exec());
+        query.prepare(QStringLiteral("UPDATE sync_operations SET owner_pid=?, owner_boot_id=?, owner_start_ticks=1 WHERE data_generation=?"));
+        query.addBindValue(2147483647);
+        query.addBindValue(bootId);
+        query.addBindValue(QStringLiteral("generation-2"));
+        QVERIFY(query.exec());
+        database.close();
+        database = {};
+        QSqlDatabase::removeDatabase(connectionName);
     }
 
     OjNexus::SqliteStore reopened(databasePath);
     QVERIFY(reopened.initialize().has_value());
     const auto rows = reopened.recentOperations(std::nullopt, 10);
+    QCOMPARE(rows.size(), 2);
+    for (const auto& row : rows) {
+        QCOMPARE(row.status, OjNexus::SyncOperationStatus::Cancelled);
+        QVERIFY(row.finishedAt.has_value());
+    }
+}
+
+void SqliteStoreTest::keepsLiveOperationRunningAcrossRefreshInitialization() {
+    QTemporaryDir dir;
+    const auto databasePath = dir.filePath("state.db");
+    OjNexus::SqliteStore store(databasePath);
+    QVERIFY(store.initialize().has_value());
+    const auto account = OjNexus::JudgeAccount::create(OjNexus::JudgeId::Codeforces, QStringLiteral("tourist")).value();
+    QVERIFY(store.upsertAccount(account).has_value());
+    QVERIFY(store.openOperation(account, QStringLiteral("active-worker")).has_value());
+    QVERIFY(store.initialize().has_value());
+    const auto rows = store.recentOperations(std::nullopt, 10);
     QCOMPARE(rows.size(), 1);
-    QCOMPARE(rows.first().status, OjNexus::SyncOperationStatus::Cancelled);
-    QVERIFY(rows.first().finishedAt.has_value());
+    QCOMPARE(rows.first().status, OjNexus::SyncOperationStatus::Running);
+}
+
+void SqliteStoreTest::migratesLegacyCacheWithoutDroppingOrGuessingOwners() {
+    QTemporaryDir dir;
+    const auto databasePath = dir.filePath("legacy.db");
+    const auto name = QStringLiteral("legacy-v1-fixture");
+    {
+        auto database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+        database.setDatabaseName(databasePath);
+        QVERIFY(database.open());
+        QSqlQuery query(database);
+        const QStringList schema{
+            QStringLiteral("CREATE TABLE schema_metadata(version INTEGER NOT NULL)"),
+            QStringLiteral("INSERT INTO schema_metadata VALUES(1)"),
+            QStringLiteral("CREATE TABLE accounts(judge TEXT PRIMARY KEY, handle TEXT NOT NULL, enabled INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
+            QStringLiteral("CREATE TABLE sync_operations(id INTEGER PRIMARY KEY AUTOINCREMENT, judge TEXT NOT NULL, handle TEXT NOT NULL, data_generation TEXT NOT NULL, status TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER, error_type TEXT NOT NULL DEFAULT '')"),
+            QStringLiteral("CREATE TABLE sync_modules(operation_id INTEGER NOT NULL, stage TEXT NOT NULL, status TEXT NOT NULL, attempted_count INTEGER NOT NULL, imported_count INTEGER NOT NULL, updated_count INTEGER NOT NULL, failure_type TEXT NOT NULL DEFAULT '', PRIMARY KEY(operation_id, stage))"),
+            QStringLiteral("CREATE INDEX sync_operations_judge_started ON sync_operations(judge, started_at DESC)"),
+            QStringLiteral("CREATE TABLE profiles(judge TEXT PRIMARY KEY, handle TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL)"),
+            QStringLiteral("CREATE TABLE rating_changes(judge TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(judge, external_id))"),
+            QStringLiteral("CREATE TABLE submissions(judge TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(judge, external_id))"),
+            QStringLiteral("CREATE TABLE problems(judge TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(judge, external_id))"),
+            QStringLiteral("CREATE TABLE contests(judge TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(judge, external_id))"),
+            QStringLiteral("INSERT INTO profiles VALUES('codeforces','tourist','{\"rating\":3800}',1)"),
+            QStringLiteral("INSERT INTO rating_changes VALUES('codeforces','1','{\"contestId\":1}',1)"),
+            QStringLiteral("INSERT INTO submissions VALUES('codeforces','2','{\"id\":2}',1)"),
+            QStringLiteral("INSERT INTO problems VALUES('codeforces','1A','{\"id\":\"1A\"}',1)"),
+            QStringLiteral("INSERT INTO contests VALUES('codeforces','3','{\"id\":3}',1)"),
+            QStringLiteral("INSERT INTO sync_operations(judge, handle, data_generation, status, started_at) VALUES('codeforces','tourist','legacy-running','RUNNING',2)"),
+        };
+        for (const auto& sql : schema) QVERIFY2(query.exec(sql), qPrintable(query.lastError().text()));
+        database.close();
+    }
+    QSqlDatabase::removeDatabase(name);
+
+    OjNexus::SqliteStore migrated(databasePath);
+    QVERIFY(migrated.initialize().has_value());
+    QCOMPARE(migrated.schemaVersion(), 2);
+    const auto profile = migrated.latestProfile(OjNexus::JudgeId::Codeforces, QStringLiteral("tourist"));
+    QVERIFY(profile.has_value());
+    QCOMPARE(profile->payload.value(QStringLiteral("rating")).toInt(), 3800);
+    QCOMPARE(migrated.ratingChangeCount(OjNexus::JudgeId::Codeforces), 1);
+    QCOMPARE(migrated.ratingChangeCount(OjNexus::JudgeId::Codeforces, QStringLiteral("tourist")), 0);
+    QCOMPARE(migrated.submissionCount(OjNexus::JudgeId::Codeforces), 1);
+    QCOMPARE(migrated.submissionCount(OjNexus::JudgeId::Codeforces, QStringLiteral("tourist")), 0);
+    QCOMPARE(migrated.problemCount(OjNexus::JudgeId::Codeforces), 1);
+    QCOMPARE(migrated.contestCount(OjNexus::JudgeId::Codeforces), 1);
+    const auto operations = migrated.recentOperations(OjNexus::JudgeId::Codeforces, 10);
+    QCOMPARE(operations.size(), 1);
+    QCOMPARE(operations.first().status, OjNexus::SyncOperationStatus::Running);
 }
 
 void SqliteStoreTest::storesAndReadsLatestProfile() {
@@ -287,8 +386,8 @@ void SqliteStoreTest::ignoresUnsafePersistedProfileRows() {
         QVERIFY(database.open());
         QSqlQuery query(database);
         QVERIFY(query.exec(QStringLiteral(
-            "INSERT INTO profiles(judge, handle, payload, updated_at) "
-            "VALUES ('codeforces', 'tourist&handles=other', '{}', 0)")));
+            "INSERT INTO profiles(scope, judge, handle, payload, updated_at) "
+            "VALUES ('ACCOUNT', 'codeforces', 'tourist&handles=other', '{}', 0)")));
         database.close();
     }
     QSqlDatabase::removeDatabase(connectionName);
@@ -344,7 +443,7 @@ void SqliteStoreTest::removesProfileSnapshot() {
     QVERIFY(!store.latestProfile(OjNexus::JudgeId::Codeforces).has_value());
 }
 
-void SqliteStoreTest::changingHandleClearsAllCachedJudgeDataButKeepsHistory() {
+void SqliteStoreTest::changingHandleRetainsCachesButScopesPersonalRows() {
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     OjNexus::SqliteStore store(dir.filePath("state.db"));
@@ -357,9 +456,9 @@ void SqliteStoreTest::changingHandleClearsAllCachedJudgeDataButKeepsHistory() {
     QVERIFY(store.closeOperation(operation.value(), OjNexus::SyncOperationStatus::Success, std::nullopt).has_value());
     QVERIFY(store.upsertProfile(OjNexus::JudgeId::Codeforces, oldAccount.handle,
                                 QJsonObject{{QStringLiteral("rating"), 3800}}).has_value());
-    QVERIFY(store.upsertRatingChange(OjNexus::JudgeId::Codeforces,
+    QVERIFY(store.upsertRatingChange(OjNexus::JudgeId::Codeforces, oldAccount.handle,
                                      QJsonObject{{QStringLiteral("contestId"), 1}}).has_value());
-    QVERIFY(store.upsertSubmission(OjNexus::JudgeId::Codeforces,
+    QVERIFY(store.upsertSubmission(OjNexus::JudgeId::Codeforces, oldAccount.handle,
                                    QJsonObject{{QStringLiteral("id"), 2}}).has_value());
     QVERIFY(store.upsertProblem(OjNexus::JudgeId::Codeforces,
                                 QJsonObject{{QStringLiteral("externalId"), QStringLiteral("1A")}}).has_value());
@@ -369,11 +468,14 @@ void SqliteStoreTest::changingHandleClearsAllCachedJudgeDataButKeepsHistory() {
     QVERIFY(store.configureAccount(newAccount).has_value());
 
     QCOMPARE(store.accounts().first().handle, QStringLiteral("new-user"));
-    QVERIFY(!store.latestProfile(OjNexus::JudgeId::Codeforces).has_value());
-    QCOMPARE(store.ratingChangeCount(OjNexus::JudgeId::Codeforces), 0);
-    QCOMPARE(store.submissionCount(OjNexus::JudgeId::Codeforces), 0);
-    QCOMPARE(store.problemCount(OjNexus::JudgeId::Codeforces), 0);
-    QCOMPARE(store.contestCount(OjNexus::JudgeId::Codeforces), 0);
+    QVERIFY(!store.latestProfile(OjNexus::JudgeId::Codeforces, newAccount.handle).has_value());
+    QCOMPARE(store.ratingChangeCount(OjNexus::JudgeId::Codeforces, newAccount.handle), 0);
+    QCOMPARE(store.submissionCount(OjNexus::JudgeId::Codeforces, newAccount.handle), 0);
+    QVERIFY(store.latestProfile(OjNexus::JudgeId::Codeforces, oldAccount.handle).has_value());
+    QCOMPARE(store.ratingChangeCount(OjNexus::JudgeId::Codeforces, oldAccount.handle), 1);
+    QCOMPARE(store.submissionCount(OjNexus::JudgeId::Codeforces, oldAccount.handle), 1);
+    QCOMPARE(store.problemCount(OjNexus::JudgeId::Codeforces), 1);
+    QCOMPARE(store.contestCount(OjNexus::JudgeId::Codeforces), 1);
     QCOMPARE(store.recentOperations(std::nullopt, 10).size(), 1);
 }
 
@@ -406,6 +508,47 @@ void SqliteStoreTest::preservesCachedDataWhenEquivalentLuoguHandleChanges() {
     QCOMPARE(store.contestCount(OjNexus::JudgeId::Luogu), 1);
 }
 
+void SqliteStoreTest::keepsOneShotHandleCacheSeparateFromConfiguredAccount() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    OjNexus::SqliteStore store(dir.filePath("state.db"));
+    QVERIFY(store.initialize().has_value());
+    const auto configured = OjNexus::JudgeAccount::create(OjNexus::JudgeId::Codeforces, "account-a").value();
+    QVERIFY(store.configureAccount(configured).has_value());
+    QVERIFY(store.upsertProfile(OjNexus::JudgeId::Codeforces, configured.handle,
+                                QJsonObject{{QStringLiteral("handle"), configured.handle},
+                                            {QStringLiteral("rating"), 1200}}).has_value());
+    QVERIFY(store.upsertRatingChange(OjNexus::JudgeId::Codeforces, configured.handle,
+                                     QJsonObject{{QStringLiteral("contestId"), 10}}).has_value());
+    QVERIFY(store.upsertSubmission(OjNexus::JudgeId::Codeforces, configured.handle,
+                                   QJsonObject{{QStringLiteral("id"), 11}}).has_value());
+
+    const auto oneShot = OjNexus::JudgeAccount::create(OjNexus::JudgeId::Codeforces, "account-b").value();
+    QVERIFY(store.upsertProfile(OjNexus::JudgeId::Codeforces, oneShot.handle,
+                                QJsonObject{{QStringLiteral("handle"), oneShot.handle},
+                                            {QStringLiteral("rating"), 2400}}).has_value());
+    QVERIFY(store.upsertRatingChange(OjNexus::JudgeId::Codeforces, oneShot.handle,
+                                     QJsonObject{{QStringLiteral("contestId"), 20}}).has_value());
+    QVERIFY(store.upsertSubmission(OjNexus::JudgeId::Codeforces, oneShot.handle,
+                                   QJsonObject{{QStringLiteral("id"), 21}}).has_value());
+
+    QCOMPARE(store.accounts().first().handle, QStringLiteral("account-a"));
+    const auto configuredProfile = store.latestProfile(OjNexus::JudgeId::Codeforces);
+    QVERIFY(configuredProfile.has_value());
+    QCOMPARE(configuredProfile->handle, QStringLiteral("account-a"));
+    QCOMPARE(configuredProfile->payload.value(QStringLiteral("rating")).toInt(), 1200);
+    QCOMPARE(store.ratingChangeCount(OjNexus::JudgeId::Codeforces, configured.handle), 1);
+    QCOMPARE(store.submissionCount(OjNexus::JudgeId::Codeforces, configured.handle), 1);
+    QCOMPARE(store.latestProfile(OjNexus::JudgeId::Codeforces, oneShot.handle)->payload.value(QStringLiteral("rating")).toInt(), 2400);
+    QCOMPARE(store.ratingChangeCount(OjNexus::JudgeId::Codeforces, oneShot.handle), 1);
+    QCOMPARE(store.submissionCount(OjNexus::JudgeId::Codeforces, oneShot.handle), 1);
+    QVERIFY(store.removeAccount(OjNexus::JudgeId::Codeforces).has_value());
+    QVERIFY(store.latestProfile(OjNexus::JudgeId::Codeforces, configured.handle).has_value());
+    QCOMPARE(store.ratingChangeCount(OjNexus::JudgeId::Codeforces, configured.handle), 1);
+    QCOMPARE(store.submissionCount(OjNexus::JudgeId::Codeforces, configured.handle), 1);
+    QVERIFY(store.configureAccount(oneShot).has_value());
+    QCOMPARE(store.latestProfile(OjNexus::JudgeId::Codeforces)->handle, QStringLiteral("account-b"));
+}
 void SqliteStoreTest::preservesDisabledStateWhenEquivalentHandleChanges() {
     QTemporaryDir dir;
     QVERIFY(dir.isValid());

@@ -1,4 +1,7 @@
 #include <QtTest>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QTemporaryDir>
 
 #include "viewmodel.h"
 #include "ojnexus/core/store.h"
@@ -6,10 +9,19 @@
 using namespace OjNexus;
 using namespace OjNexus::Gui;
 
+class OfflineTransport final : public IHttpTransport {
+public:
+    Result<HttpResponse> get(const QUrl&, const QMap<QByteArray, QByteArray>&, int, std::stop_token) override {
+        return SyncError::Offline;
+    }
+};
+
 class MainViewModelTest final : public QObject {
     Q_OBJECT
 
 private slots:
+    void loadsRealMainQmlOffscreen();
+    void asyncOfflineCompletionRemainsVisibleAfterRefresh();
     void summarizesSyncCompletionStatus();
     void configuresPublicAccountFromGui();
     void rejectsInvalidPublicAccountFromGui();
@@ -28,6 +40,30 @@ private slots:
     void clearsStaleProfileWhenHandleChanges();
     void exposesAdapterDeclaredCapabilityRows();
 };
+
+void MainViewModelTest::loadsRealMainQmlOffscreen() {
+    QTemporaryDir data;
+    QVERIFY(data.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", data.path().toUtf8());
+    MainViewModel viewModel;
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty(QStringLiteral("viewModel"), &viewModel);
+    engine.load(QUrl(QStringLiteral("qrc:/ojnexus/Main.qml")));
+    QCOMPARE(engine.rootObjects().size(), 1);
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+}
+
+void MainViewModelTest::asyncOfflineCompletionRemainsVisibleAfterRefresh() {
+    QTemporaryDir data;
+    QVERIFY(data.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", data.path().toUtf8());
+    MainViewModel viewModel(std::make_shared<OfflineTransport>());
+    viewModel.configureAccount(QStringLiteral("codeforces"), QStringLiteral("demo"));
+    viewModel.startSync(QStringLiteral("codeforces"));
+    QTRY_VERIFY_WITH_TIMEOUT(!viewModel.busy(), 15000);
+    QCOMPARE(viewModel.statusLine(), QStringLiteral("OFFLINE / RETRY WHEN ONLINE"));
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+}
 
 void MainViewModelTest::summarizesSyncCompletionStatus() {
     const auto report = [](SyncOperationStatus status, std::optional<SyncError> error = std::nullopt) {
@@ -112,7 +148,7 @@ void MainViewModelTest::exposesStoredRatingSummaryAfterRefresh() {
     const auto paths = AppPaths::fromEnvironment();
     SqliteStore store(paths.databaseFile);
     QVERIFY(store.initialize().has_value());
-    QVERIFY(store.upsertRatingChange(JudgeId::Codeforces,
+    QVERIFY(store.upsertRatingChange(JudgeId::Codeforces, QStringLiteral("tourist"),
                                      QJsonObject{{QStringLiteral("contestId"), 1},
                                                  {QStringLiteral("newRating"), 3800}}).has_value());
 
@@ -133,7 +169,7 @@ void MainViewModelTest::exposesStoredSubmissionHistoryAfterRefresh() {
     const auto paths = AppPaths::fromEnvironment();
     SqliteStore store(paths.databaseFile);
     QVERIFY(store.initialize().has_value());
-    QVERIFY(store.upsertSubmission(JudgeId::Codeforces,
+    QVERIFY(store.upsertSubmission(JudgeId::Codeforces, QStringLiteral("tourist"),
                                    QJsonObject{
                                        {QStringLiteral("id"), 9},
                                        {QStringLiteral("creationTimeSeconds"), 1700000000},

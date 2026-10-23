@@ -229,7 +229,7 @@ QList<SyncModuleOutcome> CodeforcesAdapter::sync(const JudgeAccount& account, Sy
         QJsonArray rows; const auto count = envelopeArray(context.transport, url, context.requestIntervalMs, token, rows, context.requestHeaders);
         if (!count.has_value()) return count.error();
         return persistJsonRows(rows, token, [&](const QJsonObject& value) {
-            return context.store.upsertRatingChange(judge(), value);
+            return context.store.upsertRatingChange(judge(), account.handle, value);
         });
     }));
     outcomes.push_back(runStage(QStringLiteral("SUBMISSIONS"), context, cancellation, [&](std::stop_token token, SyncModuleOutcome&) -> Result<int> {
@@ -237,7 +237,7 @@ QList<SyncModuleOutcome> CodeforcesAdapter::sync(const JudgeAccount& account, Sy
         QJsonArray rows; const auto count = envelopeArray(context.transport, url, context.requestIntervalMs, token, rows, context.requestHeaders);
         if (!count.has_value()) return count.error();
         return persistJsonRows(rows, token, [&](const QJsonObject& value) {
-            return context.store.upsertSubmission(judge(), value);
+            return context.store.upsertSubmission(judge(), account.handle, value);
         });
     }));
     outcomes.push_back(runStage(QStringLiteral("CONTESTS"), context, cancellation, [&](std::stop_token token, SyncModuleOutcome&) -> Result<int> {
@@ -300,7 +300,7 @@ QList<SyncModuleOutcome> AtCoderAdapter::sync(const JudgeAccount& account, SyncC
         return persistJsonRows(rows, token, [&](const QJsonObject& value) {
             auto row = value;
             row.insert(QStringLiteral("contestId"), row.value(QStringLiteral("contest_id")));
-            return context.store.upsertRatingChange(judge(), row);
+            return context.store.upsertRatingChange(judge(), account.handle, row);
         });
     }));
     outcomes.push_back(runStage(QStringLiteral("SUBMISSIONS"), context, cancellation, [&](std::stop_token token, SyncModuleOutcome&) -> Result<int> {
@@ -310,7 +310,7 @@ QList<SyncModuleOutcome> AtCoderAdapter::sync(const JudgeAccount& account, SyncC
         if (!result.has_value()) return result.error();
         const auto rows = result.value();
         return persistJsonRows(rows, token, [&](const QJsonObject& value) {
-            return context.store.upsertSubmission(judge(), value);
+            return context.store.upsertSubmission(judge(), account.handle, value);
         });
     }));
     outcomes.push_back(runStage(QStringLiteral("CONTESTS"), context, cancellation, [&](std::stop_token token, SyncModuleOutcome&) -> Result<int> {
@@ -374,7 +374,7 @@ QList<SyncModuleOutcome> LuoguAdapter::sync(const JudgeAccount& account, SyncCon
         const auto records = listResult(content.value(), QStringLiteral("records"));
         if (!records.has_value()) return records.error();
         return persistJsonRows(records.value(), token, [&](const QJsonObject& value) {
-            return context.store.upsertSubmission(judge(), value);
+            return context.store.upsertSubmission(judge(), account.handle, value);
         });
     }));
     outcomes.push_back(runStage(QStringLiteral("CONTESTS"), context, cancellation, [&](std::stop_token token, SyncModuleOutcome&) -> Result<int> {

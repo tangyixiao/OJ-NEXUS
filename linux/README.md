@@ -94,9 +94,12 @@ Each module's payload batch is committed as one SQLite transaction before its mo
 recorded; cancellation is checked while persisting each row and before that commit, rolling back
 the active module without waiting for the rest of a large payload. Operation history timestamps
 cover the complete sync run.
-Changing a configured handle clears cached judge data before the new handle is stored, so
-ratings, submissions, problems, contests, and the profile snapshot cannot cross-contaminate
-accounts; the local sync history remains available for audit.
+Personal profile, rating, and submission cache rows are scoped to a validated judge/handle pair.
+One-shot syncs write under their requested public handle without replacing the configured
+account's view. Changing or removing an account keeps its owned cache and sync history; another
+handle cannot read those personal rows. Contest and problem catalogs are shared public data per
+judge. Version-1 rating/submission rows without a stored owner remain unassigned and are retained,
+but are not attributed to a handle. Version-1 profile rows retain their validated stored handle.
 Re-saving an equivalent handle preserves the existing canonical spelling and disabled state,
 so account configuration does not silently re-enable a connector.
 `auth status` and `auth logout` operate only on an already configured account, including a

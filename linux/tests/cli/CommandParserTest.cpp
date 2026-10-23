@@ -301,10 +301,10 @@ void CommandParserTest::statusIncludesLastSyncAndProfileFreshness() {
     QVERIFY(store.upsertAccount(account).has_value());
     QVERIFY(store.upsertProfile(OjNexus::JudgeId::Codeforces, account.handle,
                                 QJsonObject{{QStringLiteral("rating"), 3800}}).has_value());
-    QVERIFY(store.upsertRatingChange(OjNexus::JudgeId::Codeforces,
+    QVERIFY(store.upsertRatingChange(OjNexus::JudgeId::Codeforces, account.handle,
                                      QJsonObject{{QStringLiteral("contestId"), 1},
                                                  {QStringLiteral("newRating"), 3800}}).has_value());
-    QVERIFY(store.upsertSubmission(OjNexus::JudgeId::Codeforces,
+    QVERIFY(store.upsertSubmission(OjNexus::JudgeId::Codeforces, account.handle,
                                    QJsonObject{
                                        {QStringLiteral("id"), 9},
                                        {QStringLiteral("creationTimeSeconds"), 1700000000},
@@ -373,7 +373,7 @@ void CommandParserTest::statusHumanOutputIncludesAccountDetails() {
     QCOMPARE(code, OjNexus::Cli::Ok);
     QVERIFY2(errorText.isEmpty(), qPrintable(errorText));
     QVERIFY(outputText.contains(QStringLiteral("DATABASE: READY")));
-    QVERIFY(outputText.contains(QStringLiteral("SCHEMA VERSION: 1")));
+    QVERIFY(outputText.contains(QStringLiteral("SCHEMA VERSION: 2")));
     QVERIFY(outputText.contains(QStringLiteral("ACCOUNTS: 1")));
     QVERIFY(outputText.contains(QStringLiteral("CODEFORCES / tourist / DISABLED")));
     QVERIFY(outputText.contains(QStringLiteral("LAST SYNC NEVER")));

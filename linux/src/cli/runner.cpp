@@ -219,8 +219,8 @@ int execute(const Command& command, QTextStream& input, QTextStream& output, QTe
                                     {QStringLiteral("lastSyncFinishedAt"), QString()},
                                     {QStringLiteral("lastSyncError"), QString()},
                                     {QStringLiteral("lastProfileUpdatedAt"), QString()},
-                                    {QStringLiteral("ratingChangeCount"), store.ratingChangeCount(account.judge)},
-                                    {QStringLiteral("submissionCount"), store.submissionCount(account.judge)}};
+                                    {QStringLiteral("ratingChangeCount"), store.ratingChangeCount(account.judge, account.handle)},
+                                    {QStringLiteral("submissionCount"), store.submissionCount(account.judge, account.handle)}};
             const auto recent = store.recentOperations(account.judge, 1000);
             const auto last = std::find_if(recent.cbegin(), recent.cend(), [&account](const auto& operation) {
                 return judgeHandlesMatch(account.judge, operation.account.handle, account.handle);
@@ -232,12 +232,12 @@ int execute(const Command& command, QTextStream& input, QTextStream& output, QTe
                                    last->finishedAt ? last->finishedAt->toString(Qt::ISODateWithMs) : QString());
                 if (last->error) accountJson.insert(QStringLiteral("lastSyncError"), syncErrorToString(*last->error));
             }
-            const auto profile = store.latestProfile(account.judge);
+            const auto profile = store.latestProfile(account.judge, account.handle);
             if (profile && judgeHandlesMatch(account.judge, profile->handle, account.handle)) {
                 accountJson.insert(QStringLiteral("lastProfileUpdatedAt"), profile->updatedAt.toString(Qt::ISODateWithMs));
             }
             QJsonArray recentSubmissions;
-            for (const auto& submission : store.recentSubmissions(account.judge, 20)) {
+            for (const auto& submission : store.recentSubmissions(account.judge, 20, account.handle)) {
                 recentSubmissions.push_back(submissionJson(submission));
             }
             accountJson.insert(QStringLiteral("recentSubmissions"), recentSubmissions);

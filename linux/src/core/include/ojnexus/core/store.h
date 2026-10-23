@@ -50,23 +50,26 @@ public:
 
     Result<void> upsertProfile(JudgeId::Value judge, const QString& handle, const QJsonObject& profile);
     Result<void> removeProfile(JudgeId::Value judge);
-    std::optional<StoredProfile> latestProfile(JudgeId::Value judge) const;
+    std::optional<StoredProfile> latestProfile(JudgeId::Value judge, const QString& handle = {}) const;
     Result<void> upsertRatingChange(JudgeId::Value judge, const QJsonObject& change);
+    Result<void> upsertRatingChange(JudgeId::Value judge, const QString& handle, const QJsonObject& change);
     Result<void> upsertSubmission(JudgeId::Value judge, const QJsonObject& submission);
-    QList<StoredSubmission> recentSubmissions(JudgeId::Value judge, int limit) const;
+    Result<void> upsertSubmission(JudgeId::Value judge, const QString& handle, const QJsonObject& submission);
+    QList<StoredSubmission> recentSubmissions(JudgeId::Value judge, int limit, const QString& handle = {}) const;
     Result<void> upsertProblem(JudgeId::Value judge, const QJsonObject& problem);
     Result<void> upsertContest(JudgeId::Value judge, const QJsonObject& contest);
     int profileCount(JudgeId::Value judge) const;
-    int ratingChangeCount(JudgeId::Value judge) const;
-    int submissionCount(JudgeId::Value judge) const;
+    int ratingChangeCount(JudgeId::Value judge, const QString& handle = {}) const;
+    int submissionCount(JudgeId::Value judge, const QString& handle = {}) const;
     int problemCount(JudgeId::Value judge) const;
     int contestCount(JudgeId::Value judge) const;
 
 private:
     Result<void> exec(const QString& sql) const;
+    QString cacheHandle(JudgeId::Value judge, const QString& handle) const;
     Result<void> recoverRunningOperations() const;
     Result<void> pruneCompleted(const JudgeId::Value judge) const;
-    Result<void> upsertPayload(const QString& table, JudgeId::Value judge, const QString& key, const QJsonObject& payload);
+    Result<void> upsertPayload(const QString& table, JudgeId::Value judge, const QString& scope, const QString& handle, const QString& key, const QJsonObject& payload);
     std::optional<SyncOperation> readOperation(class QSqlQuery& query) const;
 
     QString databasePath_;

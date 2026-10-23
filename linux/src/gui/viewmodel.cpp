@@ -86,8 +86,8 @@ void HistoryModel::setOperations(QList<SyncOperation> operations) {
     endResetModel();
 }
 
-MainViewModel::MainViewModel(QObject* parent)
-    : QObject(parent), paths_(AppPaths::fromEnvironment()), store_(paths_.databaseFile) {
+MainViewModel::MainViewModel(std::shared_ptr<IHttpTransport> transport, QObject* parent)
+    : QObject(parent), paths_(AppPaths::fromEnvironment()), store_(paths_.databaseFile), transport_(std::move(transport)) {
     refresh();
 }
 
@@ -139,7 +139,7 @@ void MainViewModel::refresh() {
     }
     emit capabilityRowsChanged();
     const auto profileSummaryFor = [this](const JudgeAccount& account) {
-        const auto profile = store_.latestProfile(account.judge);
+        const auto profile = store_.latestProfile(account.judge, account.handle);
         if (!profile.has_value()) return QStringLiteral("NO PROFILE SNAPSHOT");
         if (!judgeHandlesMatch(account.judge, profile->handle, account.handle)) {
             return QStringLiteral("NO PROFILE SNAPSHOT");
@@ -167,7 +167,7 @@ void MainViewModel::refresh() {
     };
     const auto recentSubmissionRowsFor = [this](const JudgeAccount& account) {
         QVariantList rows;
-        for (const auto& submission : store_.recentSubmissions(account.judge, 20)) {
+        for (const auto& submission : store_.recentSubmissions(account.judge, 20, account.handle)) {
             rows.append(QVariantMap{
                 {QStringLiteral("id"), submission.externalId},
                 {QStringLiteral("problemId"), submission.problemId},
@@ -194,7 +194,7 @@ void MainViewModel::refresh() {
         QString submissionSummary = QStringLiteral("NO SUBMISSIONS");
         if (!recentSubmissionRows.isEmpty()) {
             const auto latest = recentSubmissionRows.first().toMap();
-            QStringList fields{QStringLiteral("SUBMISSIONS %1").arg(store_.submissionCount(account.judge))};
+            QStringList fields{QStringLiteral("SUBMISSIONS %1").arg(store_.submissionCount(account.judge, account.handle))};
             const auto verdict = latest.value(QStringLiteral("verdict")).toString();
             if (!verdict.isEmpty()) fields.append(QStringLiteral("LATEST %1").arg(verdict));
             const auto problemId = latest.value(QStringLiteral("problemId")).toString();
@@ -207,7 +207,7 @@ void MainViewModel::refresh() {
             {QStringLiteral("enabled"), account.enabled},
             {QStringLiteral("profileSummary"), profileSummaryFor(account)},
             {QStringLiteral("ratingSummary"), QStringLiteral("RATING CHANGES %1")
-                .arg(store_.ratingChangeCount(account.judge))},
+                .arg(store_.ratingChangeCount(account.judge, account.handle))},
             {QStringLiteral("submissionSummary"), submissionSummary},
             {QStringLiteral("recentSubmissions"), recentSubmissionRows},
             {QStringLiteral("lastSyncSummary"), lastSyncSummary},
@@ -347,14 +347,15 @@ void MainViewModel::startSyncAccounts(const QList<JudgeAccount>& accounts, const
     const auto dbPath = paths_.databaseFile;
     setBusy(true);
     setStatusLine(QStringLiteral("SYNCING / %1").arg(label));
-    syncThread_ = QThread::create([this, dbPath, accounts, stop] {
+    syncThread_ = QThread::create([this, dbPath, accounts, stop, transport = transport_] {
         SqliteStore workerStore(dbPath);
         if (!workerStore.initialize().has_value()) {
             QMetaObject::invokeMethod(this, [this] { setStatusLine(QStringLiteral("ERROR / LOCAL STORE UNAVAILABLE")); setBusy(false); }, Qt::QueuedConnection);
             return;
         }
-        QtHttpTransport transport;
-        SyncEngine engine(workerStore, transport);
+        QtHttpTransport defaultTransport;
+        auto& selectedTransport = transport ? *transport : static_cast<IHttpTransport&>(defaultTransport);
+        SyncEngine engine(workerStore, selectedTransport);
         QList<SyncReport> reports;
         for (const auto& account : accounts) {
             const auto report = engine.sync(account, QStringLiteral("linux-0.1"), {}, stop->get_token());
@@ -362,8 +363,8 @@ void MainViewModel::startSyncAccounts(const QList<JudgeAccount>& accounts, const
         }
         QMetaObject::invokeMethod(this, [this, reports] {
             setBusy(false);
-            setStatusLine(syncCompletionStatusLine(reports));
             refresh();
+            setStatusLine(syncCompletionStatusLine(reports));
         }, Qt::QueuedConnection);
     });
     connect(syncThread_, &QThread::finished, this, [this] { syncThread_->deleteLater(); syncThread_ = nullptr; stopSource_.reset(); });

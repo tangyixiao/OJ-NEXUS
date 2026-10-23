@@ -8,6 +8,7 @@
 
 #include "ojnexus/core/paths.h"
 #include "ojnexus/core/store.h"
+#include "ojnexus/core/http_transport.h"
 
 namespace OjNexus::Gui {
 
@@ -40,7 +41,7 @@ class MainViewModel final : public QObject {
     Q_PROPERTY(HistoryModel* history READ history CONSTANT)
 
 public:
-    explicit MainViewModel(QObject* parent = nullptr);
+    explicit MainViewModel(std::shared_ptr<IHttpTransport> transport = {}, QObject* parent = nullptr);
     ~MainViewModel() override;
 
     QString currentPage() const { return currentPage_; }
@@ -90,6 +91,7 @@ private:
     bool busy_ = false;
     QThread* syncThread_ = nullptr;
     std::shared_ptr<std::stop_source> stopSource_;
+    std::shared_ptr<IHttpTransport> transport_;
 };
 
 } // namespace OjNexus::Gui

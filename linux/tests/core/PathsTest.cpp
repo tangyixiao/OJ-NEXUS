@@ -1,4 +1,5 @@
 #include <QtTest/QtTest>
+#include <QCoreApplication>
 
 #include "ojnexus/core/paths.h"
 
@@ -8,6 +9,7 @@ class PathsTest final : public QObject {
 private slots:
     void usesExplicitDataDirectoryOverride();
     void usesXdgRootsAndCreatesDirectories();
+    void defaultPathsAreIndependentOfApplicationNameAndHonorXdgOverride();
 };
 
 void PathsTest::usesExplicitDataDirectoryOverride() {
@@ -46,6 +48,32 @@ void PathsTest::usesXdgRootsAndCreatesDirectories() {
     QVERIFY(QDir(paths.dataDirectory).exists());
     QVERIFY(QDir(paths.configDirectory).exists());
     QVERIFY(QDir(paths.stateDirectory).exists());
+}
+
+void PathsTest::defaultPathsAreIndependentOfApplicationNameAndHonorXdgOverride() {
+    QTemporaryDir home;
+    QVERIFY(home.isValid());
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+    qunsetenv("XDG_DATA_HOME");
+    qunsetenv("XDG_CONFIG_HOME");
+    qunsetenv("XDG_STATE_HOME");
+    qputenv("HOME", home.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ojnexus"));
+    const auto cli = OjNexus::AppPaths::fromEnvironment();
+    QCoreApplication::setApplicationName(QStringLiteral("ojnexus-gui"));
+    const auto gui = OjNexus::AppPaths::fromEnvironment();
+    QCOMPARE(cli.databaseFile, gui.databaseFile);
+    QCOMPARE(cli.configFile, gui.configFile);
+    QCOMPARE(cli.logFile, gui.logFile);
+
+    qputenv("XDG_DATA_HOME", (home.path() + "/xdg-data").toUtf8());
+    qputenv("XDG_CONFIG_HOME", (home.path() + "/xdg-config").toUtf8());
+    const auto overridden = OjNexus::AppPaths::fromEnvironment();
+    QVERIFY(overridden.databaseFile.startsWith(home.path() + "/xdg-data/ojnexus/"));
+    QVERIFY(overridden.configFile.startsWith(home.path() + "/xdg-config/ojnexus/"));
+    qunsetenv("HOME");
+    qunsetenv("XDG_DATA_HOME");
+    qunsetenv("XDG_CONFIG_HOME");
 }
 
 QTEST_MAIN(PathsTest)

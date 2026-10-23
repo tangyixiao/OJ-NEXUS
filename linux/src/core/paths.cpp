@@ -15,15 +15,12 @@ AppPaths AppPaths::fromEnvironment() {
                 config + QStringLiteral("/config.json"), state + QStringLiteral("/ojnexus.log")};
     }
 
-    const auto data = qEnvironmentVariable("XDG_DATA_HOME").isEmpty()
-        ? QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
-        : qEnvironmentVariable("XDG_DATA_HOME") + QStringLiteral("/ojnexus");
-    const auto config = qEnvironmentVariable("XDG_CONFIG_HOME").isEmpty()
-        ? QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
-        : qEnvironmentVariable("XDG_CONFIG_HOME") + QStringLiteral("/ojnexus");
-    const auto state = qEnvironmentVariable("XDG_STATE_HOME").isEmpty()
-        ? QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+    const auto data = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/ojnexus"));
+    const auto config = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/ojnexus"));
+    const auto stateRoot = qEnvironmentVariable("XDG_STATE_HOME").trimmed().isEmpty()
+        ? data + QStringLiteral("/state")
         : qEnvironmentVariable("XDG_STATE_HOME") + QStringLiteral("/ojnexus");
+    const auto state = QDir::cleanPath(stateRoot);
     return {data, config, state, data + QStringLiteral("/state.db"), config + QStringLiteral("/config.json"), state + QStringLiteral("/ojnexus.log")};
 }
 
