@@ -182,7 +182,7 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **验收：** G-A；可用设备上启动、离线浏览、编辑重开均成功；复现的崩溃有回归；无设备时运行栏阻塞，不能引用 779 个旧测试冒充本次结果。
 
 #### [ ] PHASE 123 — W · Windows 实际功能与安装验收
-- **状态：** ACTIVE（2026-10-23）；[时钟修复 PR #13](https://github.com/tangyixiao/OJ-NEXUS/pull/13) 已通过五项 CI，[未签名 Windows RC](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/windows-v0.1.1-rc.1) 已发布。完整 Problems/review 与干净 VM 安装仍独立待验。
+- **状态：** ACTIVE（2026-10-23）；[验收记录](verification/phase-123-windows.md) 包含 [PR #13](https://github.com/tangyixiao/OJ-NEXUS/pull/13) 五项 CI、CLI 复习跨进程持久化及[未签名 Windows RC](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/windows-v0.1.1-rc.1)。WPF Problems 与干净 VM 安装仍独立待验。
 - **依赖 / 范围：** 121；W，尤其 MainWindow、DesktopViewModel、CLI、安装脚本。
 - **交付：** 核实已存储的题库/复习在 CLI 与 WPF 中的真实可达性；补充现有 smoke 对新入口的覆盖，记录 ZIP/installer 当前能力。
 - **验收：** G-W；隔离数据目录从启动到本地题库/复习操作并重启检查；干净 VM 不可用则安装验收保持阻塞；README 不再把旧三页 UI 描述成完整现状。
