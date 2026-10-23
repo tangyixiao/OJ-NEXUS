@@ -377,7 +377,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             backupResult.value = BackupResult(
                 operation = BackupOperation.EXPORT,
-                success = backupRepository.exportTo(resolver, destination),
+                success = backupRepository.exportSnapshot(resolver, destination),
             )
         }
     }
