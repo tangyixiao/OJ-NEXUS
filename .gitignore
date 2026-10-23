@@ -51,3 +51,9 @@ windows/**/obj/
 .worktrees/
 .workbuddy-ai/
 .workbuddy/
+
+# Linux client build and packages
+linux/build/
+linux/_CPack_Packages/
+linux/*.deb
+linux/*.rpm

@@ -1,0 +1,57 @@
+name: Linux client
+
+on:
+  push:
+    paths:
+      - 'linux/**'
+      - '.github/workflows/linux.yml'
+  pull_request:
+    paths:
+      - 'linux/**'
+      - '.github/workflows/linux.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu-24-04:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt 6 and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build g++ dpkg-dev jq \
+            qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools \
+            qt6-tools-dev qt6-tools-dev-tools \
+            qml6-module-qtqml qml6-module-qtqml-workerscript qml6-module-qttest \
+            qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+            qml6-module-qtquick-templates
+      - name: Configure
+        run: cmake -S linux -B build/linux -G Ninja -DOJNEXUS_BUILD_GUI=ON -DOJNEXUS_BUILD_TESTS=ON
+      - name: Build
+        run: cmake --build build/linux --parallel 2
+      - name: Test offscreen
+        run: ctest --test-dir build/linux --output-on-failure --output-junit "$RUNNER_TEMP/linux-ctest.xml"
+      - name: CLI and offline smoke
+        env:
+          OJ_NEXUS_DATA_DIRECTORY: ${{ runner.temp }}/ojnexus-linux-smoke
+        run: |
+          ./build/linux/src/cli/ojnexus status --json | tee "$RUNNER_TEMP/linux-status.json"
+          jq -e '.accounts == []' "$RUNNER_TEMP/linux-status.json"
+          ./build/linux/src/cli/ojnexus history --json | jq -e '.operations == []'
+          ./build/linux/src/cli/ojnexus config show --json | jq -e .
+      - name: Build DEB
+        run: cpack --config build/linux/CPackConfig.cmake -G DEB
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-ubuntu-24.04-test-report
+          path: ${{ runner.temp }}/linux-ctest.xml
+          if-no-files-found: warn
