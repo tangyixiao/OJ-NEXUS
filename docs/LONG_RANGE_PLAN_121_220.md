@@ -201,7 +201,9 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 
 ### 第 02 轮 · 中断恢复与数据保护（126–130）
 
-#### [ ] PHASE 126 — S · 数据恢复故障向量
+#### [x] PHASE 126 — S · 数据恢复故障向量
+- **状态：** VERIFIED（共享契约与直接决策消费者范围，2026-10-23）；[设计](superpowers/specs/2026-10-23-phase-126-recovery-vectors-design.md)、[实施计划](superpowers/plans/2026-10-23-phase-126-recovery-vectors.md)与[验收记录](verification/phase-126-recovery-vectors.md)。32 个规范向量、9 个 Android 决策投影；源码 `6a5e2f4`，794 项单测与 debug 构建通过，独立任务审查和整分支审查通过。未执行原生文件故障，不继承为 127–130 设备验收。
+- **PR：** [#19](https://github.com/tangyixiao/OJ-NEXUS/pull/19)，base 为 121 证据分支；未合并，无新增应用发行。
 - **依赖 / 范围：** 121；S，现有 DATA_SAFETY/RestoreProtocol 与各端存储。
 - **交付：** 统一“预检→暂存→提交→恢复”状态和错误类别；提供截断、磁盘写满、取消、重启、旧 generation 的合成故障向量；规定提交前不改活动数据。
 - **验收：** G-S；每个向量给出旧/新数据应保留哪份、可重试点和恢复结果；不要求桌面复制 Android 数据库结构。
@@ -218,6 +220,7 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **验收：** G-W；中断后旧文件可打开，失败不生成空库覆盖原文件；重启后的 CLI/WPF 展示一致；测试只操作隔离目录。
 
 #### [ ] PHASE 129 — L · SQLite 与配置文件故障恢复
+- **接续核查：** 当前配置以 SQLite 设置为实际权威，独立 JSON config 路径没有对应写入实现。先核实实际写入链，再决定恢复范围，避免新增第二份权威配置。
 - **依赖 / 范围：** 124、126；L 的 store、paths、CLI runner、Qt 错误状态。
 - **交付：** 对 SQLite 与配置文件更新定义临时文件/替换顺序，处理只读目录、损坏行和取消，增加本端备份恢复路径。
 - **验收：** G-L；强制中断不产生半配置；存储错误保持既有 exit code；GUI 可读旧缓存并显示错误，正常 XDG 用户目录未被测试污染。
