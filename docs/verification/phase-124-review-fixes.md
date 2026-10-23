@@ -30,6 +30,22 @@ Environment: WSL distro `Ubuntu-24.04`; Qt 6.4.2, GCC 13.3, CMake 3.28.3, Ninja 
 
 The isolated CLI environment was `OJ_NEXUS_DATA_DIRECTORY=/tmp/ojnexus-phase124-cli-state`; no real HOME/XDG data or credentials were used. The DEB was inspected only and was not installed.
 
+## Independent coordinating-lane acceptance
+
+After commit `551376c5eecfc0c990bdb2fe83f612c911084bf6`, the coordinating lane independently
+configured and built the unchanged production source under the managed worktree's ignored
+`linux/build/` directory, explicitly targeting the already-running `Ubuntu-24.04` WSL distro.
+All **56 Ninja steps** and **8/8 CTest executables** passed; exit 0, test duration 16.85s.
+The complete log is `%TEMP%/phase124-root-acceptance.log`, with JUnit output in
+`linux/build/root-acceptance.xml`. This persistent build directory avoids relying on an
+earlier ephemeral `/tmp` build for review. No package was installed and no interactive
+Qt desktop gate was satisfied by this repeat.
+
+An independent read-only reviewer checked the five production fixes and identified the
+Ubuntu QML dependency gap before it was corrected. No remaining blocking issue was reported.
+The final process-owner tests were subsequently expanded to include PID reuse and a definitely
+absent PID; the coordinating full CTest run includes those tests.
+
 ## Source provenance
 
 The original Linux source worktree at `D:\AndroidAppCoding\.worktrees\linux-client` remained read-only. Recomputed size and SHA-256 for all 41 entries in `phase-124-linux-provenance.md` matched the pre-copy manifest (41/41). The audit at `C:\Users\tangy\AppData\Local\Temp\ojnexus-phase121-platform-audit.md` was read; it was not under the repository's `TEMP` folder. The original manifest remains the integration baseline; these review fixes are a separate worktree diff.

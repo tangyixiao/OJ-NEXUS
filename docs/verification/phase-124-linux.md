@@ -1,5 +1,10 @@
 # Phase 124 Linux integration verification
 
+This is the initial integration snapshot, before the five review fixes. For the current
+schema-v2 implementation, corrected QML dependencies and final host results, read
+[the review-fix verification](phase-124-review-fixes.md). The original observations below
+are retained as historical evidence rather than silently rewritten into later successes.
+
 Date: 2026-10-23 (Asia/Shanghai)
 Worktree: `C:\Users\tangy\.codex\worktrees\phase-124-linux-integration\AndroidAppCoding`
 Base: `11555095e2a66c8dfc4dd9918118ed81d97720da`
