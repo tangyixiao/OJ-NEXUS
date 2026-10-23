@@ -3,6 +3,24 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 121 — NATIVE CAPABILITY AND EVIDENCE BASELINE
+
+The [platform ledger](verification/platform-capabilities.md) now maps nine feature areas to
+actual source, UI/CLI reachability, coverage entry points and separate build/runtime/release
+evidence. Windows review is CLI/store-only, Apple already has native Core/UI/app targets,
+and the Linux implementation is uncommitted local source outside main rather than a sequence
+of cherry-pickable commits. The [audit](verification/phase-121-baseline.md) carries forward
+device/signing debt, the Windows date-dependent CI failure, and platform tag namespaces.
+This phase completes the inventory only; it adds no runtime feature, network endpoint,
+database migration or credential flow and does not certify another platform's acceptance.
+/
+[四端能力台账](verification/platform-capabilities.md)已按九类功能记录真实源码、UI/CLI 可达性、
+测试入口及独立的构建、运行和发布证据。Windows 复习目前仅 CLI/存储层，Apple 已有原生
+Core/UI/app；Linux 实现仍是主线之外的未提交文件，不能直接 cherry-pick。
+[审计记录](verification/phase-121-baseline.md)明确承接设备与签名欠账、Windows 日期依赖测试失败，
+并确定各端 tag 命名。此期仅完成基线审计，不新增运行时功能、接口、数据库迁移或凭据流程，
+也不代表后续阶段或其他端已验收。
+
 ## PHASE 121–220 — BALANCED NATIVE DEVELOPMENT PLAN (PLANNED)
 
 The [next 100-phase plan](LONG_RANGE_PLAN_121_220.md) is now written as 20 waves of five
