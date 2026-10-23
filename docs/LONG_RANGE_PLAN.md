@@ -1,5 +1,11 @@
 # OJ NEXUS — Long-Range Executable Plan (Phase 78 → Phase 120)
 
+> **Continuation, 2026-10-23:** use [Phase 121–220](LONG_RANGE_PLAN_121_220.md) for the next
+> 100 phases. It balances Android, Windows, Linux and Apple, and separates implementation,
+> build, device and release evidence. This file remains the historical 78–120 plan;
+> its original baseline/version arithmetic and completion labels are not current acceptance
+> evidence. Apple 102/103 and unfinished device checks are explicitly carried into 121–125.
+
 > Purpose: a far-horizon plan that ANY coding model can pick up and execute without
 > re-discovering context. Read this file first, then `AGENTS.md`, then the relevant doc in
 > `docs/`. Every phase below is written to be executed independently: scope, exact touchpoints,

@@ -25,6 +25,20 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
+Current development baseline (2026-10-23): Android `1.0.3 / versionCode 105`, Room v15;
+[PR #10](https://github.com/tangyixiao/OJ-NEXUS/pull/10) and
+[v1.0.3](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v1.0.3) are published history.
+The next planning cycle is [Phase 121–220](docs/LONG_RANGE_PLAN_121_220.md): 100 planned phases,
+balanced across shared contracts, Android, Windows, Linux and Apple. Implementation, build,
+device and release evidence are tracked separately. The phase notes below describe earlier
+milestones; the sync PoC is not production E2EE. /
+当前开发基线（2026-10-23）为 Android `1.0.3 / 105`、Room v15；后续
+[121–220 期规划](docs/LONG_RANGE_PLAN_121_220.md)覆盖 100 期，按公共契约、Android、Windows、
+Linux、Apple 均衡推进。规划尚未实现；代码、构建、设备与发布证据分别验收。
+下方保留历史阶段说明；同步 PoC 不代表生产级端到端加密同步已交付。
+
+### Historical milestones
+
 Early development — **Phase 77 (Note Index)**: the problem library gains a third scope that indexes
 every problem with saved local notes, newest note first. Rows carry judge, public problem id, title,
 a text status, and a preview of a selected note field; search covers the note text of the chosen

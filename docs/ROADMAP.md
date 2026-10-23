@@ -3,6 +3,25 @@
 Each phase ends with: `assembleDebug` BUILD SUCCESSFUL, `test` green, code review, docs updated,
 commits pushed.
 
+## PHASE 121–220 — BALANCED NATIVE DEVELOPMENT PLAN (PLANNED)
+
+The [next 100-phase plan](LONG_RANGE_PLAN_121_220.md) is now written as 20 waves of five
+deliverables: a shared contract/evidence phase and one native phase each for Android, Windows,
+Linux and Apple. It covers recovery, portable workspace exchange, library, notes, review,
+sessions, explainable training, contests, submissions, connectors, analytics, accessibility,
+performance, identity isolation, privacy, sync safety, conflict previews and distribution.
+Each phase states its dependencies, write scope and acceptance criteria. None is marked
+implemented. Platform-specific build gates apply; device/runtime and signing checks remain
+separate. Coherent PRs and qualified releases accompany actual delivery; a docs-only planning
+prerelease does not change app versions or claim a new application build.
+/
+[后续 100 期规划](LONG_RANGE_PLAN_121_220.md)按 20 轮编排，每轮分别交付公共契约/证据、Android、
+Windows、Linux、Apple 各一期。各期写明依赖、修改范围和验收标准，均保持待实现状态；从数据恢复与
+手动交换，逐步推进题库、笔记、复习、训练、竞赛、提交、连接器、分析、可访问性、性能、身份隔离、
+隐私、同步安全、冲突预演及原生分发。各端独立执行构建闸门，设备与签名结果单列；真实交付对应
+可审查 PR 和达到标准的 Release。仅文档的规划预发布不提升应用版本，也不宣称新增应用二进制。
+本次规划不新增接口、数据库迁移、凭据流程或网络同步实现；现有安全边界保持不变。
+
 ## SYNC TRANSPORT SLICE
 
 The final reserved slot closes the sync POC's local lifecycle: an abstract `SyncRemoteStore`
