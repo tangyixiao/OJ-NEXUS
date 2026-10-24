@@ -3,6 +3,8 @@
 
 #include <QtTest/QtTest>
 #include <QJsonDocument>
+#include <QFile>
+#include <QTemporaryDir>
 
 #include "ojnexus/cli/command_parser.h"
 #include "ojnexus/cli/runner.h"
@@ -15,6 +17,7 @@ class CommandParserTest final : public QObject {
 private slots:
     void summarizesSyncResultsForAutomation();
     void exitCodesMatchTheSharedCrossPlatformContract();
+    void rejectedStoreReturnsStorageExitCode();
     void cancelledSyncPersistsCancelledResult();
     void jsonSyncReportsInvalidConfiguration();
     void parsesSyncAll();
@@ -38,6 +41,24 @@ private slots:
     void authStatusReportsConfiguredAccountState();
     void loginClearsStaleProfileWhenHandleChanges();
 };
+
+void CommandParserTest::rejectedStoreReturnsStorageExitCode() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", dir.path().toUtf8());
+    const auto paths = OjNexus::AppPaths::fromEnvironment();
+    QVERIFY(paths.ensureDirectories().has_value());
+    QFile invalid(paths.databaseFile);
+    QVERIFY(invalid.open(QIODevice::WriteOnly));
+    invalid.close();
+    OjNexus::Cli::Command command;
+    command.kind = OjNexus::Cli::CommandKind::Status;
+    QString inText, outText, errText;
+    QTextStream input(&inText, QIODevice::ReadOnly), output(&outText, QIODevice::WriteOnly), error(&errText, QIODevice::WriteOnly);
+    const auto result = OjNexus::Cli::execute(command, input, output, error);
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+    QCOMPARE(result, OjNexus::Cli::StorageError);
+}
 
 void CommandParserTest::exitCodesMatchTheSharedCrossPlatformContract() {
     // The same numbers as the Windows client; pinned here so a renumbering fails in CI
