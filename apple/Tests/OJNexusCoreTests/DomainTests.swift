@@ -120,6 +120,7 @@ final class DomainTests: XCTestCase {
         _ = ledger.open(account: account, generation: "apple-0.1", at: Date(timeIntervalSince1970: 30))
         let state = LocalWorkspaceState(accounts: [account], ledger: ledger)
 
+        _ = try await store.load()
         try await store.save(state)
         let loaded = try await store.load()
 
@@ -200,6 +201,7 @@ final class DomainTests: XCTestCase {
             occurredAt: Date(timeIntervalSince1970: 100)))
         let state = LocalWorkspaceState(accounts: [account], ratingChanges: [change])
 
+        _ = try await store.load()
         try await store.save(state)
         let loaded = try await store.load()
 
@@ -222,6 +224,7 @@ final class DomainTests: XCTestCase {
             submittedAt: Date(timeIntervalSince1970: 100)))
         let state = LocalWorkspaceState(submissions: [submission])
 
+        _ = try await store.load()
         try await store.save(state)
         let loaded = try await store.load()
 
@@ -240,8 +243,8 @@ final class DomainTests: XCTestCase {
         do {
             _ = try await LocalWorkspaceStore(url: url).load()
             XCTFail("unsafe persisted account must be rejected")
-        } catch is DecodingError {
-            // Expected: persisted accounts must pass the same validation as new accounts.
+        } catch WorkspaceStorageFailure.corrupt {
+            // The disk codec reports invalid persisted content as corrupt state.
         } catch {
             XCTFail("unexpected persistence error: \(error)")
         }
@@ -259,8 +262,8 @@ final class DomainTests: XCTestCase {
         do {
             _ = try await LocalWorkspaceStore(url: url).load()
             XCTFail("unsafe persisted profile must be rejected")
-        } catch is DecodingError {
-            // Expected: persisted profiles must pass the same validation as accounts.
+        } catch WorkspaceStorageFailure.corrupt {
+            // The disk codec reports invalid persisted content as corrupt state.
         } catch {
             XCTFail("unexpected persistence error: \(error)")
         }
