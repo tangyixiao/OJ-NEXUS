@@ -129,6 +129,14 @@ function Wait-AutomationId($root, [string] $id, [int] $seconds = 15, [Diagnostic
     $manifest.uiAutomationDiagnostic = $diagnosticPath
     if ($null -ne $process) {
         try {
+            $probeScript = Join-Path $PSScriptRoot 'storage-uia-probe.ps1'
+            $probeOutput = & (Join-Path $PSHOME 'pwsh.exe') -NoProfile -ExecutionPolicy Bypass -File $probeScript -ProcessId $process.Id -AutomationId $id -TimeoutSeconds 3 2>&1
+            $probePath = Join-Path $EvidenceDirectory 'ui-automation-child-probe.json'
+            [IO.File]::WriteAllLines($probePath, [string[]]$probeOutput)
+            $manifest.uiAutomationChildProbe = $probePath
+        }
+        catch { $manifest.uiAutomationChildProbeError = $_.Exception.Message }
+        try {
             $screenshotPath = Join-Path $EvidenceDirectory "ui-automation-failure-$id.png"
             Save-BlockedScreenshot $process $screenshotPath
             $manifest.uiAutomationFailureScreenshot = $screenshotPath
