@@ -22,6 +22,15 @@ The build requires Qt 6 Core/Network/Sql/Quick/QuickControls2 and SQLite's Qt SQ
 Runtime packages must provide Qt QML modules as well as `QtQml.WorkerScript` for the optional
 QML test.
 
+At startup, the SQLite ledger is created only when its path is absent and can be reserved
+exclusively. Existing files must pass SQLite `quick_check`, contain one supported integer
+schema version, and match the required v1 or v2 table shape before migration or stale-operation
+recovery is considered. Empty, malformed, incomplete, duplicate-metadata, and unsupported
+version stores return a storage error without schema repair. First-use schema DDL and its version
+row commit in one transaction. Read-only validation of a WAL database may create or update
+SQLite sidecar files; this startup check does not provide restore or interrupted-replacement
+recovery.
+
 ## CLI
 
 ```sh

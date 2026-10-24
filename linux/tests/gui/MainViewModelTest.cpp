@@ -2,6 +2,8 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QTemporaryDir>
+#include <QFile>
+#include "ojnexus/core/paths.h"
 
 #include "viewmodel.h"
 #include "ojnexus/core/store.h"
@@ -21,6 +23,7 @@ class MainViewModelTest final : public QObject {
 
 private slots:
     void loadsRealMainQmlOffscreen();
+    void rejectedStoreShowsUnavailableState();
     void asyncOfflineCompletionRemainsVisibleAfterRefresh();
     void summarizesSyncCompletionStatus();
     void configuresPublicAccountFromGui();
@@ -40,6 +43,20 @@ private slots:
     void clearsStaleProfileWhenHandleChanges();
     void exposesAdapterDeclaredCapabilityRows();
 };
+
+void MainViewModelTest::rejectedStoreShowsUnavailableState() {
+    QTemporaryDir data;
+    QVERIFY(data.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", data.path().toUtf8());
+    const auto paths = AppPaths::fromEnvironment();
+    QVERIFY(paths.ensureDirectories().has_value());
+    QFile invalid(paths.databaseFile);
+    QVERIFY(invalid.open(QIODevice::WriteOnly));
+    invalid.close();
+    MainViewModel viewModel;
+    QCOMPARE(viewModel.statusLine(), QStringLiteral("ERROR / LOCAL STORE UNAVAILABLE"));
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+}
 
 void MainViewModelTest::loadsRealMainQmlOffscreen() {
     QTemporaryDir data;

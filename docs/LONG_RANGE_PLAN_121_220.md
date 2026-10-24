@@ -220,6 +220,7 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **验收：** G-W；中断后旧文件可打开，失败不生成空库覆盖原文件；重启后的 CLI/WPF 展示一致；测试只操作隔离目录。
 
 #### [ ] PHASE 129 — L · SQLite 与配置文件故障恢复
+- **状态：** ACTIVE（2026-10-24）；[129A 设计](superpowers/specs/2026-10-24-phase-129a-linux-storage-startup.md)与[实施计划](superpowers/plans/2026-10-24-phase-129a-linux-storage-startup.md)已落地。启动保护与首次 schema 事务化已通过限定范围复审、独立构建/CTest 8/8 与真实 CLI 故障复验，完整分支审查也已通过；[PR #22](https://github.com/tangyixiao/OJ-NEXUS/pull/22) 已创建、Linux 托管 CI 已通过，见 [129A 验收记录](verification/phase-129a-linux-storage-startup.md)。读取错误、备份恢复与中断收敛仍待后续切片，本期不勾选完成。
 - **接续核查：** 当前配置以 SQLite 设置为实际权威，独立 JSON config 路径没有对应写入实现。先核实实际写入链，再决定恢复范围，避免新增第二份权威配置。
 - **依赖 / 范围：** 124、126；L 的 store、paths、CLI runner、Qt 错误状态。
 - **交付：** 对 SQLite 与配置文件更新定义临时文件/替换顺序，处理只读目录、损坏行和取消，增加本端备份恢复路径。

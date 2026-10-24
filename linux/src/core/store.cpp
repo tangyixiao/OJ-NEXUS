@@ -1,4 +1,5 @@
 #include "ojnexus/core/store.h"
+#include "storage_schema.h"
 
 #include <algorithm>
 #include <atomic>
@@ -8,6 +9,7 @@
 #include <QSqlQuery>
 #include <QJsonDocument>
 #include <QFile>
+#include <QFileInfo>
 #include <QRegularExpression>
 #include <cerrno>
 #include <signal.h>
@@ -159,69 +161,96 @@ QString SqliteStore::cacheHandle(JudgeId::Value judge, const QString& handle) co
 }
 
 Result<void> SqliteStore::initialize() {
-    if (!database_.open()) return SyncError::Storage;
-    if (!exec(QStringLiteral("PRAGMA foreign_keys = ON")).has_value()) return SyncError::Storage;
-    if (!exec(QStringLiteral("PRAGMA busy_timeout = 5000")).has_value()) return SyncError::Storage;
-    if (!exec(QStringLiteral("CREATE TABLE IF NOT EXISTS schema_metadata (version INTEGER NOT NULL)")).has_value()) return SyncError::Storage;
+    schemaVersion_ = 0;
+    if (database_.isOpen()) database_.close();
 
-    QSqlQuery versionQuery(database_);
-    if (!versionQuery.exec(QStringLiteral("SELECT version FROM schema_metadata LIMIT 1"))) return SyncError::Storage;
-    if (versionQuery.next()) {
-        schemaVersion_ = versionQuery.value(0).toInt();
-        versionQuery.finish();
-        if (schemaVersion_ == 1) {
+    const QFileInfo pathInfo(databasePath_);
+    bool newlyReserved = false;
+    if (!pathInfo.exists()) {
+        QFile reservation(databasePath_);
+        if (!reservation.open(QIODevice::WriteOnly | QIODevice::NewOnly)) return SyncError::Storage;
+        reservation.close();
+        newlyReserved = true;
+    } else if (!pathInfo.isFile()) {
+        return SyncError::Storage;
+    }
+
+    int validatedVersion = 0;
+    if (!newlyReserved) {
+        const auto probeName = QStringLiteral("ojnexus-probe-%1").arg(++connectionCounter);
+        {
+            auto probe = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), probeName);
+            probe.setDatabaseName(databasePath_);
+            probe.setConnectOptions(QStringLiteral("QSQLITE_OPEN_READONLY"));
+            if (!probe.open()) {
+                probe = {};
+                QSqlDatabase::removeDatabase(probeName);
+                return SyncError::Storage;
+            }
+            const auto checked = StorageSchema::validateExistingSchema(probe);
+            if (checked.has_value()) validatedVersion = checked.value();
+            probe.close();
+            probe = {};
+        }
+        QSqlDatabase::removeDatabase(probeName);
+        if (validatedVersion == 0) return SyncError::Storage;
+    }
+
+    database_.setConnectOptions(QString{});
+    if (!database_.open()) return SyncError::Storage;
+    if (!exec(QStringLiteral("PRAGMA foreign_keys = ON")).has_value() ||
+        !exec(QStringLiteral("PRAGMA busy_timeout = 5000")).has_value()) return SyncError::Storage;
+
+    if (newlyReserved) {
+        if (!StorageSchema::createInitialSchema(database_).has_value()) return SyncError::Storage;
+        validatedVersion = 2;
+    } else {
+        const auto revalidated = StorageSchema::validateExistingSchema(database_);
+        if (!revalidated.has_value() || revalidated.value() != validatedVersion) return SyncError::Storage;
+        if (validatedVersion == 1) {
             if (!database_.transaction()) return SyncError::Storage;
             const QStringList migrations{
                 QStringLiteral("ALTER TABLE profiles RENAME TO profiles_v1"),
                 QStringLiteral("CREATE TABLE profiles (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle))"),
-                QStringLiteral("INSERT INTO profiles SELECT 'ACCOUNT', judge, handle, payload, updated_at FROM profiles_v1"),
+                QStringLiteral("INSERT INTO profiles(scope, judge, handle, payload, updated_at) SELECT 'ACCOUNT', judge, handle, payload, updated_at FROM profiles_v1"),
                 QStringLiteral("DROP TABLE profiles_v1"),
                 QStringLiteral("ALTER TABLE rating_changes RENAME TO rating_changes_v1"),
                 QStringLiteral("CREATE TABLE rating_changes (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle, external_id))"),
-                QStringLiteral("INSERT INTO rating_changes SELECT 'UNASSIGNED', judge, '', external_id, payload, updated_at FROM rating_changes_v1"),
+                QStringLiteral("INSERT INTO rating_changes(scope, judge, handle, external_id, payload, updated_at) SELECT 'UNASSIGNED', judge, '', external_id, payload, updated_at FROM rating_changes_v1"),
                 QStringLiteral("DROP TABLE rating_changes_v1"),
                 QStringLiteral("ALTER TABLE submissions RENAME TO submissions_v1"),
                 QStringLiteral("CREATE TABLE submissions (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle, external_id))"),
-                QStringLiteral("INSERT INTO submissions SELECT 'UNASSIGNED', judge, '', external_id, payload, updated_at FROM submissions_v1"),
+                QStringLiteral("INSERT INTO submissions(scope, judge, handle, external_id, payload, updated_at) SELECT 'UNASSIGNED', judge, '', external_id, payload, updated_at FROM submissions_v1"),
                 QStringLiteral("DROP TABLE submissions_v1"),
                 QStringLiteral("ALTER TABLE problems RENAME TO problems_v1"),
                 QStringLiteral("CREATE TABLE problems (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle, external_id))"),
-                QStringLiteral("INSERT INTO problems SELECT 'GLOBAL', judge, '', external_id, payload, updated_at FROM problems_v1"),
+                QStringLiteral("INSERT INTO problems(scope, judge, handle, external_id, payload, updated_at) SELECT 'GLOBAL', judge, '', external_id, payload, updated_at FROM problems_v1"),
                 QStringLiteral("DROP TABLE problems_v1"),
                 QStringLiteral("ALTER TABLE contests RENAME TO contests_v1"),
                 QStringLiteral("CREATE TABLE contests (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle, external_id))"),
-                QStringLiteral("INSERT INTO contests SELECT 'GLOBAL', judge, '', external_id, payload, updated_at FROM contests_v1"),
+                QStringLiteral("INSERT INTO contests(scope, judge, handle, external_id, payload, updated_at) SELECT 'GLOBAL', judge, '', external_id, payload, updated_at FROM contests_v1"),
                 QStringLiteral("DROP TABLE contests_v1"),
                 QStringLiteral("ALTER TABLE sync_operations ADD COLUMN owner_pid INTEGER NOT NULL DEFAULT 0"),
                 QStringLiteral("ALTER TABLE sync_operations ADD COLUMN owner_boot_id TEXT NOT NULL DEFAULT ''"),
                 QStringLiteral("ALTER TABLE sync_operations ADD COLUMN owner_start_ticks INTEGER NOT NULL DEFAULT 0"),
                 QStringLiteral("UPDATE schema_metadata SET version=2"),
             };
-            for (const auto& sql : migrations) if (!exec(sql).has_value()) { database_.rollback(); return SyncError::Storage; }
-            if (!database_.commit()) return SyncError::Storage;
-            schemaVersion_ = 2;
+            bool failed = false;
+            for (const auto& sql : migrations) if (!exec(sql).has_value()) { failed = true; break; }
+            if (failed || !database_.commit()) { database_.rollback(); return SyncError::Storage; }
+            validatedVersion = 2;
         }
-        if (schemaVersion_ != 2) return SyncError::Storage;
-        return recoverRunningOperations();
+        const auto finalCheck = StorageSchema::validateExistingSchema(database_);
+        if (!finalCheck.has_value() || finalCheck.value() != 2) return SyncError::Storage;
     }
-
-    const QStringList schema{
-        QStringLiteral("CREATE TABLE accounts (judge TEXT PRIMARY KEY, handle TEXT NOT NULL, enabled INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
-        QStringLiteral("CREATE TABLE sync_operations (id INTEGER PRIMARY KEY AUTOINCREMENT, judge TEXT NOT NULL, handle TEXT NOT NULL, data_generation TEXT NOT NULL, status TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER, error_type TEXT NOT NULL DEFAULT '', owner_pid INTEGER NOT NULL DEFAULT 0, owner_boot_id TEXT NOT NULL DEFAULT '', owner_start_ticks INTEGER NOT NULL DEFAULT 0)"),
-        QStringLiteral("CREATE TABLE sync_modules (operation_id INTEGER NOT NULL REFERENCES sync_operations(id) ON DELETE CASCADE, stage TEXT NOT NULL, status TEXT NOT NULL, attempted_count INTEGER NOT NULL, imported_count INTEGER NOT NULL, updated_count INTEGER NOT NULL, failure_type TEXT NOT NULL DEFAULT '', PRIMARY KEY(operation_id, stage))"),
-        QStringLiteral("CREATE INDEX sync_operations_judge_started ON sync_operations(judge, started_at DESC)"),
-        QStringLiteral("CREATE TABLE profiles (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle))"),
-        QStringLiteral("CREATE TABLE rating_changes (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle, external_id))"),
-        QStringLiteral("CREATE TABLE submissions (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle, external_id))"),
-        QStringLiteral("CREATE TABLE problems (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle, external_id))"),
-        QStringLiteral("CREATE TABLE contests (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle, external_id))"),
-        QStringLiteral("INSERT INTO schema_metadata(version) VALUES (2)"),
-    };
-    for (const auto& statement : schema) {
-        if (!exec(statement).has_value()) return SyncError::Storage;
+    if (newlyReserved) {
+        const auto finalCheck = StorageSchema::validateExistingSchema(database_);
+        if (!finalCheck.has_value() || finalCheck.value() != 2) return SyncError::Storage;
     }
+    const auto recovery = recoverRunningOperations();
+    if (!recovery.has_value()) return SyncError::Storage;
     schemaVersion_ = 2;
-    return recoverRunningOperations();
+    return {};
 }
 
 Result<void> SqliteStore::recoverRunningOperations() const {

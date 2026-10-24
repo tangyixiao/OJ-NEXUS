@@ -1,0 +1,87 @@
+{
+  "phase": "129A",
+  "date": "2026-10-24",
+  "status": "verified_in_scope_full_phase129_open",
+  "fullPhase129Complete": false,
+  "sourceCommit": "52c485c4714860f9b3513bd3d22023acc7b77962",
+  "linuxTree": "48c6b1649cd9264e0cfebe14b6acec3ba228a6cf",
+  "integrationBase": "820db1f519e74c3be75d09aff07eb5b13562273b",
+  "baselineLinuxSource": "bf2dbea4d36884d52ed506466b44cc166dbbb023",
+  "baselineCliUnexpectedSuccess": [
+    "zero_byte",
+    "missing_metadata",
+    "empty_metadata"
+  ],
+  "reviews": {
+    "initialImportant": 5,
+    "fix1Addressed": 5,
+    "fix1NewImportant": 1,
+    "fix2Addressed": 1,
+    "fix2NewCritical": 0,
+    "fix2NewImportant": 0,
+    "fix2NewMinor": 0,
+    "wholeBranch": "APPROVE scoped PR; Critical 0, Important 0, Minor 0 at cdce665"
+  },
+  "finalIndependentRun": {
+    "status": "passed",
+    "sourceCommit": "52c485c4714860f9b3513bd3d22023acc7b77962",
+    "configureExit": 0,
+    "buildExit": 0,
+    "ctestExit": 0,
+    "ctestTargets": 8,
+    "ctestFailed": 0,
+    "qtReportedPasses": 150,
+    "qtReportedSkipped": 0,
+    "sourceHashesUnchanged": true,
+    "archiveExit": 0,
+    "cliExit": 0,
+    "cliCases": 8,
+    "cliInvocationsPerCase": 2,
+    "rejectedMainHashesPreserved": true,
+    "cliSha256": "35F3913418E9C143DDEC93AC1DB503CCB07E1CB821BBCB92E99267E9174B3FE0",
+    "guiSha256": "D7D25755F08BACE7BD815DB1F671551DCA908F9176CC2D99D57BFCB97EA7D28F",
+    "cliManifest": "protected-b142a389036447b5b00b1b2b14c46a5a/manifest.json"
+  },
+  "focusedStoreQtReportedPasses": 57,
+  "qtTotalsIncludeFrameworkHooks": true,
+  "androidIntegration": {
+    "buildSuccessful": true,
+    "exitCode": 0,
+    "executedTasks": 46,
+    "suites": 173,
+    "tests": 794,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "appTree": "e6eb8ef274a6c16718b01f0e3a2cc21c956d3dcf",
+    "apkSha256": "8291BF201E4C181C8853B961CB585F85DC0565D9C3C540B2B2D30BD9C3A5FD40"
+  },
+  "limits": [
+    "offscreen Qt, no visible GUI or physical-device acceptance",
+    "WAL/SHM sidecar immutability not claimed",
+    "exclusive-create competitor fixture does not deterministically hit the reservation interval",
+    "typed read/JSON final outcome and full backup/restore remain pending",
+    "no Linux release; hosted CI belongs to the exact remote PR head"
+  ],
+  "publication": {
+    "pr": "https://github.com/tangyixiao/OJ-NEXUS/pull/22",
+    "recordedRemoteHead": "0e1a52f6b6aca364328831b159e1fa4eb5b40db8",
+    "state": "open",
+    "merged": false,
+    "mergeable": true,
+    "hostedCiAtRecordedHead": [
+      {
+        "run": 40107849812,
+        "event": "pull_request",
+        "conclusion": "success"
+      },
+      {
+        "run": 40107794860,
+        "event": "push",
+        "conclusion": "success"
+      }
+    ],
+    "linuxReleasePublished": false,
+    "latestChecks": "See exact PR head metadata"
+  }
+}

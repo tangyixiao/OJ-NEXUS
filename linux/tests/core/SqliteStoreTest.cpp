@@ -5,16 +5,30 @@
 #include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QFile>
+#include <QCryptographicHash>
+#include <QDir>
+#include <QFileInfo>
 
 #include <unistd.h>
 
 #include "ojnexus/core/store.h"
+#include "../../src/core/storage_schema.h"
 
 class SqliteStoreTest final : public QObject {
     Q_OBJECT
 
 private slots:
     void createsSchemaAndStoresAccount();
+    void rejectsExistingEmptyFileWithoutMutation();
+    void rejectsMalformedExistingStores_data();
+    void rejectsMalformedExistingStores();
+    void acceptedIntegerRowidKeysSupportOperationLifecycle();
+    void acceptsNonNullLiteralDefaultsForExtraRequiredColumns();
+    void acceptsOwnerColumnsWithoutDefaultsAndSupportsOperationLifecycle();
+    void repeatedFailureClearsSchemaVersion();
+    void rollsBackPartialInitialSchema();
+    void firstUseDoesNotOverwriteCompetitor();
+    void opensValidWalStoreWithLiveConnection();
     void recordsModulesOnlyBeforeClosingOperation();
     void persistsOperationErrorForHistory();
     void limitsCompletedHistoryWithoutDeletingRunningRows();
@@ -36,6 +50,330 @@ private slots:
     void preservesDisabledStateWhenEquivalentHandleChanges();
     void keepsOneShotHandleCacheSeparateFromConfiguredAccount();
 };
+
+void SqliteStoreTest::rejectsExistingEmptyFileWithoutMutation() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto path = dir.filePath(QStringLiteral("existing-empty.db"));
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.close();
+    auto bytes = [&] { QFile f(path); if (!f.open(QIODevice::ReadOnly)) return QByteArray{}; return f.readAll(); };
+    const auto before = QCryptographicHash::hash(bytes(), QCryptographicHash::Sha256);
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        {
+            OjNexus::SqliteStore store(path);
+            const auto result = store.initialize();
+            QVERIFY(!result.has_value());
+            QCOMPARE(result.error(), OjNexus::SyncError::Storage);
+            QCOMPARE(store.schemaVersion(), 0);
+        }
+        QCOMPARE(QCryptographicHash::hash(bytes(), QCryptographicHash::Sha256), before);
+    }
+}
+
+void SqliteStoreTest::repeatedFailureClearsSchemaVersion() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto path = dir.filePath(QStringLiteral("state.db"));
+    OjNexus::SqliteStore store(path);
+    QVERIFY(store.initialize().has_value());
+    QCOMPARE(store.schemaVersion(), 2);
+    const auto name = QStringLiteral("repeat-init-corruption");
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+        db.setDatabaseName(path);
+        QVERIFY(db.open());
+        QSqlQuery query(db);
+        QVERIFY(query.exec(QStringLiteral("UPDATE schema_metadata SET version=3")));
+        db.close();
+        db = {};
+    }
+    QSqlDatabase::removeDatabase(name);
+    QVERIFY(!store.initialize().has_value());
+    QCOMPARE(store.schemaVersion(), 0);
+}
+
+void SqliteStoreTest::rejectsMalformedExistingStores_data() {
+    QTest::addColumn<QString>("kind");
+    for (const auto& kind : {"non-sqlite", "truncated", "no-metadata", "empty-metadata", "duplicate-metadata",
+                             "null-version", "text-version", "real-version", "future-version", "missing-table",
+                             "missing-column", "missing-primary-key", "wrong-affinity",
+                             "large-positive-version-1", "large-positive-version-2", "large-negative-version-1", "large-negative-version-2",
+                             "operation-bigint-key", "operation-desc-key", "operation-without-rowid", "finished-not-null",
+                             "error-default-missing", "owner-nullable", "extra-null-default",
+                             "extra-parenthesized-null-default", "handle-charint"})
+        QTest::newRow(kind) << QString::fromLatin1(kind);
+}
+
+void SqliteStoreTest::rejectsMalformedExistingStores() {
+    QFETCH(QString, kind);
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto path = dir.filePath(QStringLiteral("malformed.db"));
+    if (kind == QStringLiteral("non-sqlite") || kind == QStringLiteral("truncated")) {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(kind == QStringLiteral("non-sqlite") ? QByteArray("not a database") : QByteArray("SQLite format 3\0broken", 22));
+        file.close();
+    } else {
+        { OjNexus::SqliteStore valid(path); QVERIFY(valid.initialize().has_value()); }
+        const auto name = QStringLiteral("malformed-fixture-%1").arg(kind);
+        {
+            auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+            db.setDatabaseName(path);
+            QVERIFY(db.open());
+            QSqlQuery q(db);
+            QStringList statements;
+            if (kind == "no-metadata") statements << "DROP TABLE schema_metadata";
+            else if (kind == "empty-metadata") statements << "DELETE FROM schema_metadata";
+            else if (kind == "duplicate-metadata") statements << "INSERT INTO schema_metadata(version) VALUES (2)";
+            else if (kind == "null-version") statements << "CREATE TABLE metadata_bad(version INTEGER)" << "INSERT INTO metadata_bad VALUES (NULL)" << "DROP TABLE schema_metadata" << "ALTER TABLE metadata_bad RENAME TO schema_metadata";
+            else if (kind == "text-version") statements << "UPDATE schema_metadata SET version='two'";
+            else if (kind == "real-version") statements << "UPDATE schema_metadata SET version=2.5";
+            else if (kind == "future-version") statements << "UPDATE schema_metadata SET version=99";
+            else if (kind == "missing-table") statements << "DROP TABLE contests";
+            else if (kind == "missing-column") statements << "ALTER TABLE accounts DROP COLUMN updated_at";
+            else if (kind == "missing-primary-key") statements << "CREATE TABLE accounts_bad(judge TEXT NOT NULL, handle TEXT NOT NULL, enabled INTEGER NOT NULL, updated_at INTEGER NOT NULL)" << "INSERT INTO accounts_bad SELECT * FROM accounts" << "DROP TABLE accounts" << "ALTER TABLE accounts_bad RENAME TO accounts";
+            else if (kind == "wrong-affinity") statements << "CREATE TABLE accounts_bad(judge TEXT PRIMARY KEY, handle BLOB NOT NULL, enabled INTEGER NOT NULL, updated_at INTEGER NOT NULL)" << "INSERT INTO accounts_bad SELECT * FROM accounts" << "DROP TABLE accounts" << "ALTER TABLE accounts_bad RENAME TO accounts";
+            else if (kind == "large-positive-version-1") statements << "UPDATE schema_metadata SET version=4294967297";
+            else if (kind == "large-positive-version-2") statements << "UPDATE schema_metadata SET version=4294967298";
+            else if (kind == "large-negative-version-1") statements << "UPDATE schema_metadata SET version=-4294967295";
+            else if (kind == "large-negative-version-2") statements << "UPDATE schema_metadata SET version=-4294967294";
+            else if (kind.startsWith("operation-")) {
+                QString idDefinition;
+                QString suffix;
+                if (kind == "operation-bigint-key") idDefinition = QStringLiteral("BIGINT PRIMARY KEY");
+                else if (kind == "operation-desc-key") idDefinition = QStringLiteral("INTEGER PRIMARY KEY DESC");
+                else { idDefinition = QStringLiteral("INTEGER PRIMARY KEY"); suffix = QStringLiteral(" WITHOUT ROWID"); }
+                const auto replacement = QStringLiteral("CREATE TABLE operations_bad(id %1, judge TEXT NOT NULL, handle TEXT NOT NULL, data_generation TEXT NOT NULL, status TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER, error_type TEXT NOT NULL DEFAULT '', owner_pid INTEGER NOT NULL DEFAULT 0, owner_boot_id TEXT NOT NULL DEFAULT '', owner_start_ticks INTEGER NOT NULL DEFAULT 0)%2")
+                    .arg(idDefinition, suffix);
+                statements << replacement << "DROP TABLE sync_operations" << "ALTER TABLE operations_bad RENAME TO sync_operations";
+            }
+            else if (kind == "finished-not-null" || kind == "error-default-missing" || kind == "owner-nullable") {
+                const QString finished = kind == "finished-not-null" ? QStringLiteral("finished_at INTEGER NOT NULL") : QStringLiteral("finished_at INTEGER");
+                const QString error = kind == "error-default-missing" ? QStringLiteral("error_type TEXT NOT NULL") : QStringLiteral("error_type TEXT NOT NULL DEFAULT ''");
+                const QString ownerPid = kind == "owner-nullable" ? QStringLiteral("owner_pid INTEGER DEFAULT 0") : QStringLiteral("owner_pid INTEGER NOT NULL");
+                const auto replacement = QStringLiteral("CREATE TABLE operations_bad(id INTEGER PRIMARY KEY AUTOINCREMENT, judge TEXT NOT NULL, handle TEXT NOT NULL, data_generation TEXT NOT NULL, status TEXT NOT NULL, started_at INTEGER NOT NULL, %1, %2, %3, owner_boot_id TEXT NOT NULL DEFAULT '', owner_start_ticks INTEGER NOT NULL DEFAULT 0)")
+                    .arg(finished, error, ownerPid);
+                statements << replacement << "DROP TABLE sync_operations" << "ALTER TABLE operations_bad RENAME TO sync_operations";
+            }
+            else if (kind == "extra-null-default") statements << "ALTER TABLE accounts ADD COLUMN blocker TEXT NOT NULL DEFAULT NULL";
+            else if (kind == "extra-parenthesized-null-default") statements << "ALTER TABLE accounts ADD COLUMN blocker TEXT NOT NULL DEFAULT (NULL)";
+            else if (kind == "handle-charint") {
+                statements << "CREATE TABLE accounts_bad(judge TEXT PRIMARY KEY, handle CHARINT NOT NULL, enabled INTEGER NOT NULL, updated_at INTEGER NOT NULL)"
+                           << "DROP TABLE accounts" << "ALTER TABLE accounts_bad RENAME TO accounts"
+                           << "INSERT INTO accounts(judge, handle, enabled, updated_at) VALUES ('codeforces', '001234', 1, 0)";
+            }
+            for (const auto& statement : statements) QVERIFY2(q.exec(statement), qPrintable(q.lastError().text()));
+            if (kind == "handle-charint") {
+                QVERIFY(q.exec(QStringLiteral("SELECT typeof(handle), handle FROM accounts WHERE judge='codeforces'")));
+                QVERIFY(q.next());
+                QCOMPARE(q.value(0).toString(), QStringLiteral("integer"));
+                QCOMPARE(q.value(1).toLongLong(), 1234LL);
+            }
+            db.close();
+            db = {};
+        }
+        QSqlDatabase::removeDatabase(name);
+    }
+    auto fileBytes = [&] { QFile file(path); if (!file.open(QIODevice::ReadOnly)) return QByteArray{}; return file.readAll(); };
+    const auto before = QCryptographicHash::hash(fileBytes(), QCryptographicHash::Sha256);
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        OjNexus::SqliteStore store(path);
+        const auto result = store.initialize();
+        QVERIFY(!result.has_value());
+        QCOMPARE(result.error(), OjNexus::SyncError::Storage);
+        QCOMPARE(store.schemaVersion(), 0);
+        QCOMPARE(QCryptographicHash::hash(fileBytes(), QCryptographicHash::Sha256), before);
+    }
+}
+
+void SqliteStoreTest::acceptedIntegerRowidKeysSupportOperationLifecycle() {
+    for (const bool withoutAutoincrement : {false, true}) {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const auto path = dir.filePath(QStringLiteral("rowid.db"));
+        { OjNexus::SqliteStore initial(path); QVERIFY(initial.initialize().has_value()); }
+        if (withoutAutoincrement) {
+            const auto name = QStringLiteral("rowid-key-shape");
+            {
+                auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+                db.setDatabaseName(path);
+                QVERIFY(db.open());
+                QSqlQuery q(db);
+                QVERIFY(q.exec(QStringLiteral("CREATE TABLE operations_new(id INTEGER PRIMARY KEY, judge TEXT NOT NULL, handle TEXT NOT NULL, data_generation TEXT NOT NULL, status TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER, error_type TEXT NOT NULL DEFAULT '', owner_pid INTEGER NOT NULL DEFAULT 0, owner_boot_id TEXT NOT NULL DEFAULT '', owner_start_ticks INTEGER NOT NULL DEFAULT 0)")));
+                QVERIFY(q.exec(QStringLiteral("DROP TABLE sync_operations")));
+                QVERIFY(q.exec(QStringLiteral("ALTER TABLE operations_new RENAME TO sync_operations")));
+                db.close();
+                db = {};
+            }
+            QSqlDatabase::removeDatabase(name);
+        }
+        OjNexus::SqliteStore store(path);
+        QVERIFY(store.initialize().has_value());
+        const auto account = OjNexus::JudgeAccount::create(OjNexus::JudgeId::Codeforces, QStringLiteral("001234")).value();
+        QVERIFY(store.upsertAccount(account).has_value());
+        const auto operation = store.openOperation(account, QStringLiteral("rowid-key-test"));
+        QVERIFY(operation.has_value());
+        const auto rows = store.recentOperations(OjNexus::JudgeId::Codeforces, 1);
+        QCOMPARE(rows.size(), 1);
+        QCOMPARE(rows.first().id, operation.value());
+        QCOMPARE(rows.first().account.handle, QStringLiteral("001234"));
+        QVERIFY(store.closeOperation(operation.value(), OjNexus::SyncOperationStatus::Success, std::nullopt).has_value());
+        QCOMPARE(store.recentOperations(OjNexus::JudgeId::Codeforces, 1).first().status, OjNexus::SyncOperationStatus::Success);
+    }
+}
+
+void SqliteStoreTest::acceptsNonNullLiteralDefaultsForExtraRequiredColumns() {
+    for (const auto& declaration : {QStringLiteral("TEXT NOT NULL DEFAULT 'local'"), QStringLiteral("INTEGER NOT NULL DEFAULT 7")}) {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const auto path = dir.filePath(QStringLiteral("extra-default.db"));
+        { OjNexus::SqliteStore initial(path); QVERIFY(initial.initialize().has_value()); }
+        const auto name = QStringLiteral("extra-default-fixture");
+        {
+            auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+            db.setDatabaseName(path);
+            QVERIFY(db.open());
+            QSqlQuery query(db);
+            QVERIFY2(query.exec(QStringLiteral("ALTER TABLE accounts ADD COLUMN extra_required %1").arg(declaration)), qPrintable(query.lastError().text()));
+            db.close();
+            db = {};
+        }
+        QSqlDatabase::removeDatabase(name);
+        OjNexus::SqliteStore store(path);
+        QVERIFY(store.initialize().has_value());
+        const auto account = OjNexus::JudgeAccount::create(OjNexus::JudgeId::AtCoder, QStringLiteral("leading-zero-001")).value();
+        QVERIFY(store.upsertAccount(account).has_value());
+        QCOMPARE(store.accounts().first().handle, QStringLiteral("leading-zero-001"));
+    }
+}
+
+void SqliteStoreTest::acceptsOwnerColumnsWithoutDefaultsAndSupportsOperationLifecycle() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto path = dir.filePath(QStringLiteral("owner-defaults-optional.db"));
+    { OjNexus::SqliteStore initial(path); QVERIFY(initial.initialize().has_value()); }
+    const auto name = QStringLiteral("owner-defaults-optional-fixture");
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+        db.setDatabaseName(path);
+        QVERIFY(db.open());
+        QSqlQuery q(db);
+        QVERIFY(q.exec(QStringLiteral("CREATE TABLE operations_new(id INTEGER PRIMARY KEY AUTOINCREMENT, judge TEXT NOT NULL, handle TEXT NOT NULL, data_generation TEXT NOT NULL, status TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER, error_type TEXT NOT NULL DEFAULT '', owner_pid INTEGER NOT NULL, owner_boot_id TEXT NOT NULL, owner_start_ticks INTEGER NOT NULL)")));
+        QVERIFY(q.exec(QStringLiteral("DROP TABLE sync_operations")));
+        QVERIFY(q.exec(QStringLiteral("ALTER TABLE operations_new RENAME TO sync_operations")));
+        db.close();
+        db = {};
+    }
+    QSqlDatabase::removeDatabase(name);
+
+    OjNexus::SqliteStore store(path);
+    QVERIFY(store.initialize().has_value());
+    QCOMPARE(store.schemaVersion(), 2);
+    const auto account = OjNexus::JudgeAccount::create(OjNexus::JudgeId::Codeforces, QStringLiteral("owner-default-optional")).value();
+    QVERIFY(store.upsertAccount(account).has_value());
+    const auto operation = store.openOperation(account, QStringLiteral("owner-default-optional-test"));
+    QVERIFY(operation.has_value());
+    const auto rows = store.recentOperations(OjNexus::JudgeId::Codeforces, 1);
+    QCOMPARE(rows.size(), 1);
+    QCOMPARE(rows.first().id, operation.value());
+    const auto verifyName = QStringLiteral("owner-defaults-optional-verify");
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), verifyName);
+        db.setDatabaseName(path);
+        QVERIFY(db.open());
+        QSqlQuery q(db);
+        q.prepare(QStringLiteral("SELECT owner_pid, owner_boot_id, owner_start_ticks FROM sync_operations WHERE id=?"));
+        q.addBindValue(operation.value());
+        QVERIFY(q.exec());
+        QVERIFY(q.next());
+        QVERIFY(q.value(0).toLongLong() > 0);
+        QVERIFY(!q.value(1).toString().isEmpty());
+        QVERIFY(q.value(2).toLongLong() > 0);
+        db.close();
+        db = {};
+    }
+    QSqlDatabase::removeDatabase(verifyName);
+    QVERIFY(store.closeOperation(operation.value(), OjNexus::SyncOperationStatus::Success, std::nullopt).has_value());
+    QCOMPARE(store.recentOperations(OjNexus::JudgeId::Codeforces, 1).first().status, OjNexus::SyncOperationStatus::Success);
+}
+
+void SqliteStoreTest::rollsBackPartialInitialSchema() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto path = dir.filePath(QStringLiteral("collision.db"));
+    const auto name = QStringLiteral("schema-rollback-fixture");
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+        db.setDatabaseName(path);
+        QVERIFY(db.open());
+        QSqlQuery q(db);
+        QVERIFY(q.exec(QStringLiteral("CREATE TABLE profiles(marker TEXT NOT NULL)")));
+        QVERIFY(q.exec(QStringLiteral("INSERT INTO profiles VALUES ('preserve-me')")));
+        QVERIFY(!OjNexus::StorageSchema::createInitialSchema(db).has_value());
+        QVERIFY(q.exec(QStringLiteral("SELECT marker FROM profiles")));
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toString(), QStringLiteral("preserve-me"));
+        QVERIFY(q.exec(QStringLiteral("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('schema_metadata','accounts','sync_operations','sync_modules')")));
+        QVERIFY(!q.next());
+        db.close();
+        db = {};
+    }
+    QSqlDatabase::removeDatabase(name);
+}
+
+void SqliteStoreTest::firstUseDoesNotOverwriteCompetitor() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto path = dir.filePath(QStringLiteral("reserved.db"));
+    QFile competitor(path);
+    QVERIFY(competitor.open(QIODevice::WriteOnly | QIODevice::NewOnly));
+    const QByteArray marker("competitor-owned");
+    QCOMPARE(competitor.write(marker), marker.size());
+    competitor.close();
+    OjNexus::SqliteStore losingInitializer(path);
+    const auto result = losingInitializer.initialize();
+    QVERIFY(!result.has_value());
+    QCOMPARE(result.error(), OjNexus::SyncError::Storage);
+    QCOMPARE(losingInitializer.schemaVersion(), 0);
+    QFile preserved(path);
+    QVERIFY(preserved.open(QIODevice::ReadOnly));
+    QCOMPARE(preserved.readAll(), marker);
+}
+
+void SqliteStoreTest::opensValidWalStoreWithLiveConnection() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto path = dir.filePath(QStringLiteral("live-wal.db"));
+    OjNexus::SqliteStore initial(path);
+    QVERIFY(initial.initialize().has_value());
+    const auto name = QStringLiteral("live-wal-writer");
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+        db.setDatabaseName(path);
+        QVERIFY(db.open());
+        QSqlQuery q(db);
+        QVERIFY(q.exec(QStringLiteral("PRAGMA journal_mode=WAL")));
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toString().toLower(), QStringLiteral("wal"));
+        q.finish();
+        QVERIFY(q.exec(QStringLiteral("INSERT INTO accounts(judge, handle, enabled, updated_at) VALUES ('codeforces', 'wal-user', 1, 0)")));
+        q.finish();
+        const QFileInfo wal(path + QStringLiteral("-wal"));
+        const QFileInfo shm(path + QStringLiteral("-shm"));
+        qInfo() << "WAL sidecars observed" << wal.exists() << shm.exists();
+        OjNexus::SqliteStore concurrent(path);
+        const auto initialized = concurrent.initialize();
+        QVERIFY2(initialized.has_value(), "valid WAL store failed read-only preflight or writable reopen");
+        QCOMPARE(concurrent.schemaVersion(), 2);
+        QCOMPARE(concurrent.accounts().size(), 1);
+        db.close();
+        db = {};
+    }
+    QSqlDatabase::removeDatabase(name);
+}
 
 void SqliteStoreTest::createsSchemaAndStoresAccount() {
     QTemporaryDir dir;
