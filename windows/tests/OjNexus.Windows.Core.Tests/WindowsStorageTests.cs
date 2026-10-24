@@ -87,6 +87,31 @@ public sealed class WindowsStorageTests
         await scope.DisposeAsync();
     }
 
+    [Fact]
+    public async Task ConcurrentFirstRunProcessesReturnOnlyReadyOrBusyWithoutDamagingStore()
+    {
+        var root = NewRoot();
+        using var first = Start(FindHost(), root, "open");
+        using var second = Start(FindHost(), root, "open");
+        Assert.Equal("PREPARED", await first.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
+        Assert.Equal("PREPARED", await second.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
+        first.StandardInput.WriteLine("go"); second.StandardInput.WriteLine("go");
+        var firstResult = await first.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(20));
+        var secondResult = await second.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(20));
+        Assert.Contains(firstResult, new[] { "READY", "BUSY" });
+        Assert.Contains(secondResult, new[] { "READY", "BUSY" });
+        Assert.Contains("READY", new[] { firstResult, secondResult });
+        foreach (var child in new[] { first, second })
+        {
+            if (!child.HasExited) { child.StandardInput.WriteLine("release"); await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10)); }
+        }
+        Assert.True(new FileInfo(Path.Combine(root, "ojnexus.db")).Length > 16);
+        Assert.Equal("v1\n", File.ReadAllText(Path.Combine(root, "ojnexus.initialized")));
+        var verify = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+        Assert.True(verify.IsReady, verify.Failure?.WireCode);
+        await verify.Session!.DisposeAsync();
+    }
+
     private static Process Start(string host, string root, string mode) => Process.Start(new ProcessStartInfo("dotnet")
     {
         ArgumentList = { host, root, mode }, RedirectStandardInput = true, RedirectStandardOutput = true,
