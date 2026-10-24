@@ -74,7 +74,9 @@ The Settings mapping handles Blocked as no Settings banner because pregraph scre
 **Files:** modify `OjNexusApplication.kt`, `MainActivity.kt`, three Worker files
 `judge/sync/JudgeSyncWorker.kt`, `judge/luogu/open/LuoguOpenResultWorker.kt`,
 `core/data/backup/ScheduledBackupWorker.kt`, `core/data/backup/BackupCadence.kt`; create `app/RecoveryStartup.kt` and
-`app/RecoveryBlockedScreen.kt`; add resource strings in `res/values/strings.xml`.
+`app/RecoveryBlockedScreen.kt`; add resource strings in `res/values/strings.xml` and mirror the
+four keys in `res/values-zh-rCN/strings.xml` for the existing locale-key contract. This slice
+retains the specified uppercase English recovery copy in both catalogs.
 Create `app/src/test/java/com/ojnexus/RecoveryStartupTest.kt`,
 `app/src/test/java/com/ojnexus/RecoveryWorkerGateTest.kt`, a shared test WorkerParameters helper,
 and `app/src/androidTest/java/com/ojnexus/app/RecoveryBlockedScreenComposeTest.kt`.

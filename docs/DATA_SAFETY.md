@@ -20,7 +20,7 @@ cookies, OpenApp secrets, source code, custom input and private OJ sessions. Who
 backups are distinct from portable workspace exchange; the shared recovery vectors do not
 change either backup format.
 
-The existing restore coordinator validates SQLite format, the current schema version,
+The restore coordinator validates SQLite format, the current schema version,
 quick/integrity checks and required table names. This does not compare the complete Room column,
 index and identity schema. The pending file is applied before Room opens, with the target and
 WAL/SHM companions retained as a same-directory rollback set while replacement validates.
@@ -32,9 +32,18 @@ durable generation transitions and preservation of recovery artifacts when no va
 can be established. It forbids silently replacing unrecoverable data with an empty database.
 Phase 126 executes only the documented Android routing/classification subset, not physical faults.
 
-Static inspection identified follow-up gaps: an APPLIED journal can precede generation persistence
-(RV015); failed rollback can become eligible for terminal cleanup (RV017); staging-temp creation
-can fail outside the import error handler (RV004); and worker entry checks do not establish a
-generation guard at every write (RV020–RV022). Scheduled backups currently have no generation
-guard. Phase 127 must verify these paths with fault injection and startup/write gating. The
-[Phase 126 evidence](verification/phase-126-recovery-vectors.md) records the coverage boundary.
+The unmerged Phase127A branch adds source-preserving copies, explicit interruption stages and
+blocked readiness. APPLIED reconciles the exact journal generation before cleanup; failed rollback
+preserves sources and refuses automatic retries. Application constructs its graph only after Ready;
+Activity, all three Workers and public scheduling entry points consume that readiness. Starting work
+retries; blocked work fails before business I/O. The [Phase127A evidence](verification/phase-127a-recovery-safety.md)
+records real SQLite/WAL fault tests, 829 passing unit tests, 35 connected tests and actual blocked
+Activity launches with unchanged evidence hashes. These changes are not in published `v1.0.3`.
+
+Strict stale/missing-generation work admission (RV020–RV022), including scheduled-backup stamps and
+stale-ledger writes, remains open Phase127 work. Staging-temp creation can still fail outside the
+import error handler (RV004); typed storage-full import handling and functional minSdk26 backup
+compatibility also remain open. Startup readiness is not a claim that all old work is write-isolated.
+The [Phase126 evidence](verification/phase-126-recovery-vectors.md) retains the narrower pure-decision
+boundary. Full Room schema validation, physical-device behavior and directory-entry power-loss
+durability are not established by the Phase127A slice.

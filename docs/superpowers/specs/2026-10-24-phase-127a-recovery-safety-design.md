@@ -66,6 +66,8 @@ preferences, NexusApp composition and onResume. Blocked uses a DB-free default N
 with resource-backed uppercase copy: `LOCAL RECOVERY BLOCKED`, `LOCAL FILES PRESERVED`, and
 `AUTOMATIC RECOVERY STOPPED. CLOSE THE APP AND KEEP THE LOCAL FILES FOR INSPECTION.` No raw paths
 or exception text. Starting shows a resource-backed initialization state without container access.
+The four recovery keys must also exist in the current Chinese resource catalog to preserve its
+key/placeholder parity contract; this slice retains the specified uppercase English copy there.
 
 All three Workers resolve the startup owner before preferences, generation lookup, account reads,
 ledger writes, export, network or result-status persistence. Starting returns retry with no business
