@@ -1,6 +1,6 @@
 # Phase 129A — Linux guarded SQLite startup
 
-Status: **LOCAL ACCEPTANCE PASSED; WHOLE-BRANCH REVIEW PENDING** (2026-10-24).
+Status: **129A VERIFIED IN SCOPE; FULL PHASE 129 OPEN** (2026-10-24).
 This is a startup prerequisite of Phase 129. Full Phase 129 remains open.
 [Machine-readable summary](evidence/phase-129a-summary.json).
 
@@ -55,7 +55,8 @@ is not claimed.
 Independent task review found five Important validator gaps. Round 1 addressed all
 five; its scoped review found one new false rejection of compatible owner columns.
 Round 2 fixed that compatibility regression. Scoped rereview reported no new
-Critical, Important or Minor issue. Whole-branch review is a separate final gate.
+Critical, Important or Minor issue. Whole-branch review of `820db1f..cdce665`
+approved the scoped PR with zero Critical, Important or Minor findings.
 
 - Implementer round 1: full CLI/GUI build and CTest 8/8 passed at `2c6339d`.
 - Round 2: focused store build and QtTest 57 reported passes, zero failed at
@@ -92,7 +93,8 @@ directories. The preserved build tree is evidence, not a relocatable distributio
 
 Linux's existing workflow has Linux-path filters for push and pull_request, without
 a main-only branch filter. Hosted results must be read from the exact pushed head;
-local results are not hosted CI. No source PR is published at this checkpoint.
+local results are not hosted CI. PR metadata provides the live remote head and
+publication/check state separately from this local acceptance record.
 The integration dependencies remain unmerged. CMake reported missing optional XKB while configuration and build succeeded. Android has known nonfatal compiler,
 native-strip and JDK/dependency warnings; BUILD SUCCESSFUL does not mean warning-free.
 

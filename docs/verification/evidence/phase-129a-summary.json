@@ -1,7 +1,7 @@
 {
   "phase": "129A",
   "date": "2026-10-24",
-  "status": "local_acceptance_passed_whole_branch_review_pending",
+  "status": "verified_in_scope_full_phase129_open",
   "fullPhase129Complete": false,
   "sourceCommit": "52c485c4714860f9b3513bd3d22023acc7b77962",
   "linuxTree": "48c6b1649cd9264e0cfebe14b6acec3ba228a6cf",
@@ -20,7 +20,7 @@
     "fix2NewCritical": 0,
     "fix2NewImportant": 0,
     "fix2NewMinor": 0,
-    "wholeBranch": "pending"
+    "wholeBranch": "APPROVE scoped PR; Critical 0, Important 0, Minor 0 at cdce665"
   },
   "finalIndependentRun": {
     "status": "passed",
@@ -61,6 +61,6 @@
     "WAL/SHM sidecar immutability not claimed",
     "exclusive-create competitor fixture does not deterministically hit the reservation interval",
     "typed read/JSON final outcome and full backup/restore remain pending",
-    "no release or hosted CI result claimed at this checkpoint"
+    "no Linux release; hosted CI belongs to the exact remote PR head"
   ]
 }
