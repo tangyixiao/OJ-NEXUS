@@ -80,29 +80,19 @@ class DatabaseRestoreCoordinator(
             return blocked(RestoreFailure.INTEGRITY_FAILURE)
         }
 
-        val effectiveJournal = journal ?: RestoreJournal(
-            stage = RestoreStage.STAGED,
-            generation = UUID.randomUUID().toString(),
-            detail = null,
-        )
-        if (journal != null) {
-            when (journal.stage) {
-                RestoreStage.SAVING_ROLLBACK -> return abortSaving(journal, RestoreFailure.FILE_REPLACEMENT_FAILURE)
-                RestoreStage.ROLLING_BACK -> return blocked(RestoreFailure.ROLLBACK_FAILURE)
-                RestoreStage.INSTALLING -> {
-                    if (!rollbackFile().isFile) return blocked(RestoreFailure.ROLLBACK_FAILURE)
-                    if (pendingFile().isFile) return applyCandidate(journal)
-                    return blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE, RecoveryDisposition.RECONCILE_FORWARD_ON_NEXT_START)
-                }
-                else -> Unit
+        val effectiveJournal = journal ?: return blocked(RestoreFailure.INTEGRITY_FAILURE)
+        when (effectiveJournal.stage) {
+            RestoreStage.SAVING_ROLLBACK -> return abortSaving(effectiveJournal, RestoreFailure.FILE_REPLACEMENT_FAILURE)
+            RestoreStage.ROLLING_BACK -> return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            RestoreStage.INSTALLING -> {
+                if (!hasCompleteRollbackSources()) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+                return restoreRollback(effectiveJournal, RestoreFailure.FILE_REPLACEMENT_FAILURE)
             }
-            if (journal.stage == RestoreStage.SWAPPING) {
-                if (splitLegacySources() || !rollbackFile().isFile) return blocked(RestoreFailure.ROLLBACK_FAILURE)
-            }
-            if (journal.stage == RestoreStage.ROLLED_BACK || journal.stage == RestoreStage.ROLLING_BACK) {
-                return blocked(RestoreFailure.ROLLBACK_FAILURE)
-            }
+            RestoreStage.ROLLED_BACK -> return completeInterruptedJournal(effectiveJournal)
+            else -> Unit
         }
+        if (effectiveJournal.stage == RestoreStage.SWAPPING &&
+            (splitLegacySources() || !rollbackFile().isFile)) return blocked(RestoreFailure.ROLLBACK_FAILURE)
         val action = decideRestoreRecovery(effectiveJournal, fileState())
         return when (action) {
             RestoreRecoveryAction.APPLY_CANDIDATE -> applyCandidate(effectiveJournal)
@@ -134,21 +124,12 @@ class DatabaseRestoreCoordinator(
     private fun applyCandidate(journal: RestoreJournal): RestoreOutcome {
         val originalTargetExisted = targetFile().isFile
         var savingRollback = false
+        if (journal.stage == RestoreStage.STAGED || journal.stage == RestoreStage.SWAPPING) {
+            if (!stagedOwnershipIsKnown()) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+        }
         return try {
             validate(pendingFile())
             if (journal.stage == RestoreStage.STAGED || journal.stage == RestoreStage.SWAPPING) {
-                if (candidateFile().exists() || listOf(
-                        backupTemp(rollbackFile()), backupTemp(rollbackWalFile()), backupTemp(rollbackShmFile()),
-                        rollbackInstallTemp(targetFile()), rollbackInstallTemp(targetWalFile()), rollbackInstallTemp(targetShmFile()),
-                        File(journalFile().path + ".tmp"), File(generationFile().path + ".tmp"),
-                    ).any(File::exists)
-                ) return blocked(RestoreFailure.ROLLBACK_FAILURE)
-                if (!targetFile().isFile && (targetWalFile().exists() || targetShmFile().exists())) {
-                    return blocked(RestoreFailure.ROLLBACK_FAILURE)
-                }
-                if (rollbackFile().exists() || rollbackWalFile().exists() || rollbackShmFile().exists()) {
-                    return blocked(RestoreFailure.ROLLBACK_FAILURE)
-                }
                 writeJournal(journal.copy(stage = RestoreStage.SAVING_ROLLBACK, detail = null))
                 savingRollback = true
                 saveLiveFilesToRollback()
@@ -156,6 +137,10 @@ class DatabaseRestoreCoordinator(
                 savingRollback = false
             }
             pendingFile().let { files.copyAndSync(it, candidateFile()) }
+            if (journal.stage == RestoreStage.STAGED || journal.stage == RestoreStage.SWAPPING) {
+                files.deleteChecked(targetWalFile())
+                files.deleteChecked(targetShmFile())
+            }
             files.atomicReplace(candidateFile(), targetFile())
             validate(targetFile())
             finalizeForward(journal)
@@ -167,6 +152,7 @@ class DatabaseRestoreCoordinator(
             else recoverAfterSwapFailure(journal, RestoreFailure.INVALID_SQLITE, originalTargetExisted)
         } catch (_: Throwable) {
             if (savingRollback) abortSaving(journal, RestoreFailure.FILE_REPLACEMENT_FAILURE)
+            else if (hasCompleteRollbackSources()) restoreRollback(journal, RestoreFailure.FILE_REPLACEMENT_FAILURE)
             else blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE, RecoveryDisposition.RECONCILE_FORWARD_ON_NEXT_START)
         }
     }
@@ -232,14 +218,20 @@ class DatabaseRestoreCoordinator(
 
     private fun rejectStaging(failure: RestoreFailure): RestoreOutcome {
         return try {
-            if (rollbackFile().exists() || rollbackWalFile().exists() || rollbackShmFile().exists()) {
+            if (rollbackFile().exists() || rollbackWalFile().exists() || rollbackShmFile().exists() ||
+                candidateFile().exists() || recoveryMetadataTemps().any(File::exists)) {
                 return blocked(RestoreFailure.ROLLBACK_FAILURE)
             }
-            if (targetFile().isFile) validate(targetFile())
-            val generation = readJournal()?.generation ?: currentDataGeneration()
-            writeJournal(RestoreJournal(RestoreStage.REJECTED, generation, failure))
+            val journal = readJournal() ?: return blocked(RestoreFailure.INTEGRITY_FAILURE)
+            val generation = readGeneration()
+            if (targetFile().isFile) {
+                validate(targetFile())
+                if (generation == null || generation == journal.generation) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            } else if (generation != null || targetWalFile().exists() || targetShmFile().exists()) {
+                return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            }
+            writeJournal(journal.copy(stage = RestoreStage.REJECTED, detail = failure))
             files.deleteChecked(pendingFile())
-            files.deleteChecked(candidateFile())
             files.deleteChecked(journalFile())
             RestoreOutcome.Rejected(failure)
         } catch (validation: RestoreValidationException) {
@@ -252,12 +244,22 @@ class DatabaseRestoreCoordinator(
     private fun completeInterruptedJournal(journal: RestoreJournal): RestoreOutcome {
         return when (journal.stage) {
             RestoreStage.APPLIED -> finalizeForward(journal)
-            RestoreStage.ROLLED_BACK -> blocked(RestoreFailure.ROLLBACK_FAILURE)
+            RestoreStage.ROLLED_BACK -> completeRolledBack(journal)
             RestoreStage.REJECTED -> try {
-                cleanupRecoveryFiles()
+                if (!targetFile().isFile || !readGeneration().let { it != null && it != journal.generation }) {
+                    return blocked(RestoreFailure.ROLLBACK_FAILURE)
+                }
+                validate(targetFile())
+                if (rollbackFile().exists() || rollbackWalFile().exists() || rollbackShmFile().exists() ||
+                    candidateFile().exists() || recoveryMetadataTemps().any(File::exists)) {
+                    return blocked(RestoreFailure.ROLLBACK_FAILURE)
+                }
+                files.deleteChecked(pendingFile())
+                files.deleteChecked(pendingTempFile())
                 files.deleteChecked(journalFile())
                 RestoreOutcome.Rejected(journal.detail ?: RestoreFailure.INTEGRITY_FAILURE)
-            } catch (_: Throwable) { blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE) }
+            } catch (validation: RestoreValidationException) { blocked(validation.category) }
+              catch (_: Throwable) { blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE) }
             else -> RestoreOutcome.NothingToRestore
         }
     }
@@ -269,18 +271,20 @@ class DatabaseRestoreCoordinator(
         staged = pendingFile().isFile,
     )
 
-    private fun finalizeForward(journal: RestoreJournal): RestoreOutcome = try {
-        validate(targetFile())
-        writeJournal(journal.copy(stage = RestoreStage.APPLIED, detail = null))
-        writeTextAtomically(generationFile(), journal.generation)
-        if (readGeneration() != journal.generation) throw IllegalStateException("Generation readback failed")
-        cleanupRecoveryFiles()
-        files.deleteChecked(journalFile())
-        RestoreOutcome.Applied(journal.generation)
-    } catch (failure: RestoreValidationException) {
-        blocked(failure.category, RecoveryDisposition.RECONCILE_FORWARD_ON_NEXT_START)
-    } catch (_: Throwable) {
-        blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE, RecoveryDisposition.RECONCILE_FORWARD_ON_NEXT_START)
+    private fun finalizeForward(journal: RestoreJournal): RestoreOutcome {
+        try { validate(targetFile()) } catch (failure: RestoreValidationException) {
+            return blocked(failure.category, RecoveryDisposition.INSPECTION_REQUIRED)
+        }
+        return try {
+            writeJournal(journal.copy(stage = RestoreStage.APPLIED, detail = null))
+            writeTextAtomically(generationFile(), journal.generation)
+            if (readGeneration() != journal.generation) throw IllegalStateException("Generation readback failed")
+            cleanupRecoveryFiles()
+            files.deleteChecked(journalFile())
+            RestoreOutcome.Applied(journal.generation)
+        } catch (_: Throwable) {
+            blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE, RecoveryDisposition.RECONCILE_FORWARD_ON_NEXT_START)
+        }
     }
 
     private fun abortSaving(journal: RestoreJournal, failure: RestoreFailure): RestoreOutcome = try {
@@ -313,6 +317,33 @@ class DatabaseRestoreCoordinator(
         rollbackInstallTemp(targetFile()), rollbackInstallTemp(targetWalFile()), rollbackInstallTemp(targetShmFile()),
         File(journalFile().path + ".tmp"), File(generationFile().path + ".tmp"),
     )
+
+    private fun stagedOwnershipIsKnown(): Boolean =
+        !candidateFile().exists() && !rollbackFile().exists() && !rollbackWalFile().exists() && !rollbackShmFile().exists() &&
+            recoveryMetadataTemps().none(File::exists) &&
+            (targetFile().isFile || (!targetWalFile().exists() && !targetShmFile().exists()))
+
+    private fun recoveryMetadataTemps(): List<File> = listOf(
+        backupTemp(rollbackFile()), backupTemp(rollbackWalFile()), backupTemp(rollbackShmFile()),
+        rollbackInstallTemp(targetFile()), rollbackInstallTemp(targetWalFile()), rollbackInstallTemp(targetShmFile()),
+        File(journalFile().path + ".tmp"), File(generationFile().path + ".tmp"), pendingTempFile(),
+    )
+
+    private fun hasCompleteRollbackSources(): Boolean = rollbackFile().isFile &&
+        (!targetWalFile().exists() || rollbackWalFile().isFile) &&
+        (!targetShmFile().exists() || rollbackShmFile().isFile)
+
+    private fun completeRolledBack(journal: RestoreJournal): RestoreOutcome {
+        if (journal.detail == RestoreFailure.ROLLBACK_FAILURE) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+        return try {
+            validate(targetFile())
+            val oldGeneration = readGeneration() ?: return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            if (oldGeneration == journal.generation) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            cleanupRecoveryFiles()
+            files.deleteChecked(journalFile())
+            RestoreOutcome.RolledBack(oldGeneration, journal.detail ?: RestoreFailure.FILE_REPLACEMENT_FAILURE)
+        } catch (_: Throwable) { blocked(RestoreFailure.ROLLBACK_FAILURE) }
+    }
 
     private fun backupTemp(file: File) = File(file.path + ".tmp")
     private fun rollbackInstallTemp(file: File) = File(file.path + ".restore-rollback-install")

@@ -14,8 +14,8 @@ enum class RestoreStage {
 
     fun canTransitionTo(next: RestoreStage): Boolean = when (this) {
         STAGED -> next == SWAPPING || next == SAVING_ROLLBACK || next == REJECTED
-        SWAPPING -> next == APPLIED || next == ROLLED_BACK || next == SAVING_ROLLBACK || next == INSTALLING
-        SAVING_ROLLBACK -> next == INSTALLING || next == ROLLED_BACK
+        SWAPPING -> next == APPLIED || next == ROLLED_BACK || next == SAVING_ROLLBACK || next == INSTALLING || next == ROLLING_BACK
+        SAVING_ROLLBACK -> next == INSTALLING || next == ROLLED_BACK || next == REJECTED
         INSTALLING -> next == APPLIED || next == ROLLING_BACK
         ROLLING_BACK -> next == ROLLED_BACK
         APPLIED, ROLLED_BACK, REJECTED -> false
