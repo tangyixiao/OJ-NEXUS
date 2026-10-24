@@ -48,6 +48,12 @@ Only intended serial `emulator-5582` belongs to this phase. Existing Phase122 AV
 AVD creation is preparation, not a boot, application-launch or device-test result. Device startup
 and application evidence will be recorded after the actual checks.
 
+Preparation update: `emulator-5582` confirmed its own AVD name, boot-complete=1 and the Android
+package service. Reported SDK37 / Android17, en-US, 1080x2400, 420dpi, font scale1.0. Original Wi-Fi
+and mobile-data settings were both enabled; both were disabled only on this dedicated AVD for
+offline acceptance preparation and their prior values are saved for restoration. No application
+launch or recovery runtime result has been collected yet.
+
 All database records used in fault tests are synthetic fixture identities. Materialized checkpoint
 files and injected I/O exceptions are reported separately from real process termination. No
 power-loss durability, physical-device behavior or old-engine compatibility is inferred.
