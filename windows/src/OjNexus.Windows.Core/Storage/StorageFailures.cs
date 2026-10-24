@@ -29,6 +29,9 @@ public sealed record StorageFailure(StorageFailureCode Code, string Stage)
 public sealed class StorageException(StorageFailure failure, Exception? inner = null) : Exception(failure.WireCode, inner)
 {
     public StorageFailure Failure { get; } = failure;
+
+    public static StorageException ForPersistence(Exception exception, string stage) =>
+        StorageExceptionClassifier.Classify(exception, stage);
 }
 
 internal static class StorageExceptionClassifier

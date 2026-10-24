@@ -40,6 +40,43 @@ public sealed class ProgramTests : IDisposable
         Assert.True(File.Exists(System.IO.Path.Combine(_dataDirectory, "ojnexus.db")));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RunAsync_ExistingZeroByteDatabase_IsBlockedWithoutMutation(bool json)
+    {
+        File.WriteAllBytes(Path.Combine(_dataDirectory, "ojnexus.db"), []);
+        var before = File.ReadAllBytes(Path.Combine(_dataDirectory, "ojnexus.db"));
+        var (exitCode, output, error) = await RunAsync(json ? ["status", "--json"] : ["status"]);
+
+        Assert.Equal(6, exitCode);
+        Assert.Equal(before, File.ReadAllBytes(Path.Combine(_dataDirectory, "ojnexus.db")));
+        if (json)
+        {
+            using var document = JsonDocument.Parse(output.ToString());
+            Assert.Equal("blocked", document.RootElement.GetProperty("status").GetString());
+            Assert.Equal("INTEGRITY_FAILURE", document.RootElement.GetProperty("error").GetString());
+        }
+        else
+        {
+            Assert.Contains("INTEGRITY_FAILURE", output.ToString(), StringComparison.Ordinal);
+        }
+        Assert.DoesNotContain(_dataDirectory, output.ToString() + error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_MissingEstablishedDatabase_IsBlockedWithWireJson()
+    {
+        File.WriteAllText(Path.Combine(_dataDirectory, "ojnexus.initialized"), "v1\n");
+        var (exitCode, output, error) = await RunAsync(["status", "--json"]);
+
+        Assert.Equal(6, exitCode);
+        using var document = JsonDocument.Parse(output.ToString());
+        Assert.Equal("blocked", document.RootElement.GetProperty("status").GetString());
+        Assert.Equal("RECOVERY_SOURCE_MISSING", document.RootElement.GetProperty("error").GetString());
+        Assert.DoesNotContain(_dataDirectory, output.ToString() + error, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task RunAsync_HistoryJson_ReportsEmptyOperationsAndSuccessExit()
     {
@@ -164,11 +201,12 @@ public sealed class ProgramTests : IDisposable
 
         var (exitCode, output, error) = await RunAsync(["status", "--json"]);
 
-        Assert.Equal((int)CliExitCode.GeneralError, exitCode);
-        Assert.Equal(string.Empty, output.ToString());
-        Assert.StartsWith("CLI ERROR:", error.ToString(), StringComparison.Ordinal);
-        Assert.DoesNotContain("at OjNexus", error.ToString(), StringComparison.Ordinal);
-        Assert.DoesNotContain("Exception", error.ToString(), StringComparison.Ordinal);
+        Assert.Equal((int)CliExitCode.Storage, exitCode);
+        using var document = JsonDocument.Parse(output.ToString());
+        Assert.Equal("blocked", document.RootElement.GetProperty("status").GetString());
+        Assert.Equal("INTEGRITY_FAILURE", document.RootElement.GetProperty("error").GetString());
+        Assert.DoesNotContain("at OjNexus", output.ToString() + error);
+        Assert.DoesNotContain("Exception", output.ToString() + error);
     }
 
     [Fact]

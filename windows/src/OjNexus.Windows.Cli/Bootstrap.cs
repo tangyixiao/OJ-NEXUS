@@ -6,35 +6,28 @@ using OjNexus.Windows.Core.Sync;
 
 namespace OjNexus.Windows.Cli;
 
-public sealed class Bootstrap
+public sealed class Bootstrap(WindowsStorageSession session, SyncService syncService) : IAsyncDisposable
 {
-    private Bootstrap(string dataDirectory, SqliteConnectionFactory connectionFactory, SqliteSyncStore store, SyncService syncService)
-    {
-        DataDirectory = dataDirectory;
-        ConnectionFactory = connectionFactory;
-        Store = store;
-        SyncService = syncService;
-    }
+    public WindowsStorageSession Session { get; } = session;
+    public SyncService SyncService { get; } = syncService;
+    public ValueTask DisposeAsync() => Session.DisposeAsync();
 
-    public string DataDirectory { get; }
-    public SqliteConnectionFactory ConnectionFactory { get; }
-    public SqliteSyncStore Store { get; }
-    public SyncService SyncService { get; }
-
-    public static Bootstrap Create(string? dataDirectoryOverride = null, IReadOnlyDictionary<JudgeId, IJudgeAdapter>? adapters = null)
+    public static async Task<Bootstrap> OpenAsync(
+        string? dataDirectoryOverride = null,
+        IReadOnlyDictionary<JudgeId, IJudgeAdapter>? adapters = null,
+        CancellationToken cancellationToken = default)
     {
-        var dataDirectory = WindowsPaths.GetDataDirectory(dataDirectoryOverride);
-        var connectionFactory = new SqliteConnectionFactory(dataDirectory);
+        var opened = await WindowsStorage.OpenAsync(dataDirectoryOverride, new SystemClock(), cancellationToken);
+        if (opened.Session is null)
+            throw new StorageException(opened.Failure ?? new StorageFailure(StorageFailureCode.IoFailure, "startup"));
         var clock = new SystemClock();
-        var store = new SqliteSyncStore(connectionFactory, clock);
         var effectiveAdapters = adapters ?? new Dictionary<JudgeId, IJudgeAdapter>
         {
             [JudgeId.Codeforces] = new CodeforcesAdapter(PublicHttpClientFactory.Create),
             [JudgeId.AtCoder] = new AtCoderAdapter(PublicHttpClientFactory.Create),
             [JudgeId.Luogu] = new LuoguAdapter(PublicHttpClientFactory.Create),
         };
-        var syncService = new SyncService(effectiveAdapters, store, clock, static () => "windows-cli-v1");
-        return new Bootstrap(dataDirectory, connectionFactory, store, syncService);
+        return new Bootstrap(opened.Session, new SyncService(effectiveAdapters, clock, static () => "windows-cli-v1"));
     }
 
     private sealed class SystemClock : IClock

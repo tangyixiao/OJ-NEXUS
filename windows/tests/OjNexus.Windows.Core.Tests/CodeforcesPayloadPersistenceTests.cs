@@ -111,11 +111,10 @@ public sealed class CodeforcesPayloadPersistenceTests
                 new CodeforcesProfilePayload("tourist", 3800, "legend", 4000, "legend")));
         var service = new SyncService(
             new Dictionary<JudgeId, IJudgeAdapter> { [JudgeId.Codeforces] = adapter },
-            database.Store,
             new FixedClock(DateTimeOffset.Parse("2026-09-12T01:02:03+00:00")),
             () => "generation-1");
 
-        var report = await service.RunAsync(account, force: false, CancellationToken.None);
+        var report = await service.RunAsync(account, force: false, database.Store, CancellationToken.None);
         var snapshot = await database.Store.GetCodeforcesPayloadAsync("tourist", CancellationToken.None);
 
         Assert.Equal(SyncOperationStatus.Success, report.Status);

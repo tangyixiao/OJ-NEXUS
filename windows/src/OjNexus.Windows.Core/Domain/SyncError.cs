@@ -9,4 +9,5 @@ public enum SyncError
     Cancelled,
     Offline,
     InvalidConfiguration,
+    Storage,
 }

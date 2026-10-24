@@ -457,7 +457,7 @@ public sealed class DesktopViewModelTests
     private static DesktopViewModel CreateViewModel(InMemorySyncStore store, params IJudgeAdapter[] adapters)
     {
         var adapterMap = adapters.ToDictionary(adapter => adapter.Judge);
-        var service = new SyncService(adapterMap, store, new FixedClock(), static () => "desktop-test");
+        var service = new SyncService(adapterMap, new FixedClock(), static () => "desktop-test");
         return new DesktopViewModel(store, service, "TEST-DATA");
     }
 

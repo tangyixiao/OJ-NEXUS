@@ -21,7 +21,7 @@ public sealed class SyncServiceTests
         var store = new InMemorySyncStore();
         var service = CreateService(adapter, store);
 
-        var report = await service.RunAsync(account, force: false, CancellationToken.None);
+        var report = await service.RunAsync(account, force: false, store, CancellationToken.None);
 
         Assert.Equal(SyncOperationStatus.Success, report.Status);
         Assert.Null(report.Error);
@@ -44,7 +44,7 @@ public sealed class SyncServiceTests
         ]);
         var store = new InMemorySyncStore();
 
-        var report = await CreateService(adapter, store).RunAsync(account, force: false, CancellationToken.None);
+        var report = await CreateService(adapter, store).RunAsync(account, force: false, store, CancellationToken.None);
 
         Assert.Equal(SyncOperationStatus.Partial, report.Status);
         Assert.Null(report.Error);
@@ -60,7 +60,7 @@ public sealed class SyncServiceTests
         var adapter = new ThrowingAdapter(JudgeId.Luogu, new InvalidOperationException("secret HTTP body"));
         var store = new InMemorySyncStore();
 
-        var report = await CreateService(adapter, store).RunAsync(account, force: false, CancellationToken.None);
+        var report = await CreateService(adapter, store).RunAsync(account, force: false, store, CancellationToken.None);
 
         Assert.Equal(SyncOperationStatus.Error, report.Status);
         Assert.Equal(SyncError.Network, report.Error);
@@ -77,7 +77,7 @@ public sealed class SyncServiceTests
         [new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 1, 1, 0, null)]);
         var store = new InMemorySyncStore();
 
-        var report = await CreateService(adapter, store).RunAsync(account, force: false, CancellationToken.None);
+        var report = await CreateService(adapter, store).RunAsync(account, force: false, store, CancellationToken.None);
 
         Assert.Equal(SyncOperationStatus.Error, report.Status);
         Assert.Equal(SyncError.InvalidConfiguration, report.Error);
@@ -93,7 +93,7 @@ public sealed class SyncServiceTests
         var store = new InMemorySyncStore();
         using var cancellation = new CancellationTokenSource();
 
-        var run = CreateService(adapter, store).RunAsync(account, force: false, cancellation.Token);
+        var run = CreateService(adapter, store).RunAsync(account, force: false, store, cancellation.Token);
         await adapter.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         cancellation.Cancel();
         var report = await run;
@@ -112,11 +112,10 @@ public sealed class SyncServiceTests
         var store = new InMemorySyncStore();
         var service = new SyncService(
             new Dictionary<JudgeId, IJudgeAdapter>(),
-            store,
             new TestClock(Now),
             () => "generation-4");
 
-        var report = await service.RunAsync(account, force: false, CancellationToken.None);
+        var report = await service.RunAsync(account, force: false, store, CancellationToken.None);
 
         Assert.Equal(SyncOperationStatus.Error, report.Status);
         Assert.Equal(SyncError.UnsupportedJudge, report.Error);
@@ -134,8 +133,8 @@ public sealed class SyncServiceTests
         var store = new InMemorySyncStore();
         var service = CreateService(adapter, store);
 
-        var rejected = await service.RunAsync(account, force: false, CancellationToken.None);
-        var forced = await service.RunAsync(account, force: true, CancellationToken.None);
+        var rejected = await service.RunAsync(account, force: false, store, CancellationToken.None);
+        var forced = await service.RunAsync(account, force: true, store, CancellationToken.None);
 
         Assert.Equal(SyncError.InvalidConfiguration, rejected.Error);
         Assert.Equal(SyncOperationStatus.Error, rejected.Status);
@@ -155,9 +154,9 @@ public sealed class SyncServiceTests
         var store = new InMemorySyncStore();
         var service = CreateService(adapter, store);
 
-        var first = service.RunAsync(account, force: false, CancellationToken.None);
+        var first = service.RunAsync(account, force: false, store, CancellationToken.None);
         await adapter.FirstCallStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        var second = service.RunAsync(account, force: false, CancellationToken.None);
+        var second = service.RunAsync(account, force: false, store, CancellationToken.None);
         await Task.Yield();
         Assert.Equal(1, adapter.CallCount);
 
@@ -179,10 +178,10 @@ public sealed class SyncServiceTests
         var store = new InMemorySyncStore();
         var service = CreateService(adapter, store);
 
-        var first = service.RunAsync(account, force: false, CancellationToken.None);
+        var first = service.RunAsync(account, force: false, store, CancellationToken.None);
         await adapter.FirstCallStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         using var cancellation = new CancellationTokenSource();
-        var second = service.RunAsync(account, force: false, cancellation.Token);
+        var second = service.RunAsync(account, force: false, store, cancellation.Token);
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
@@ -202,7 +201,7 @@ public sealed class SyncServiceTests
         var adapter = new RecordingAdapter(JudgeId.Luogu,
         [new SyncModuleOutcome("PROFILE", SyncOperationStatus.Error, 1, 0, 0, sensitiveText)]);
 
-        var report = await CreateService(adapter, database.Store).RunAsync(account, force: false, CancellationToken.None);
+        var report = await CreateService(adapter, database.Store).RunAsync(account, force: false, database.Store, CancellationToken.None);
 
         Assert.Equal(SyncOperationStatus.Partial, report.Status);
         var operation = Assert.Single(await database.Store.GetRecentOperationsAsync(JudgeId.Luogu, 10, CancellationToken.None));
@@ -224,10 +223,10 @@ public sealed class SyncServiceTests
             new SyncModuleOutcome("A", SyncOperationStatus.Success, 2, 2, 0, null),
         ];
         var memoryStore = new InMemorySyncStore();
-        var report = await CreateService(new RecordingAdapter(JudgeId.Luogu, outcomes), memoryStore).RunAsync(account, force: false, CancellationToken.None);
+        var report = await CreateService(new RecordingAdapter(JudgeId.Luogu, outcomes), memoryStore).RunAsync(account, force: false, memoryStore, CancellationToken.None);
         var memoryOperation = Assert.Single(await memoryStore.GetRecentOperationsAsync(JudgeId.Luogu, 10, CancellationToken.None));
 
-        await CreateService(new RecordingAdapter(JudgeId.Luogu, outcomes), database.Store).RunAsync(account, force: false, CancellationToken.None);
+        await CreateService(new RecordingAdapter(JudgeId.Luogu, outcomes), database.Store).RunAsync(account, force: false, database.Store, CancellationToken.None);
         var storedOperation = Assert.Single(await database.Store.GetRecentOperationsAsync(JudgeId.Luogu, 10, CancellationToken.None));
 
         Assert.Equal(new[] { "B", "A" }, report.Operation.Modules.Select(module => module.Stage));
@@ -263,7 +262,6 @@ public sealed class SyncServiceTests
     private static SyncService CreateService(IJudgeAdapter adapter, ISyncStore store) =>
         new(
             new Dictionary<JudgeId, IJudgeAdapter> { [adapter.Judge] = adapter },
-            store,
             new TestClock(Now),
             () => "generation-4");
 

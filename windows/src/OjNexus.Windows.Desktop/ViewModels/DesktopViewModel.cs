@@ -577,7 +577,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         LastError = string.Empty;
         try
         {
-            var report = await _syncService.RunAsync(JudgeAccount.Create(row.Judge, row.Handle), false, linkedCancellation.Token);
+            var report = await _syncService.RunAsync(JudgeAccount.Create(row.Judge, row.Handle), false, _store, linkedCancellation.Token);
             row.Status = report.Status.ToString().ToUpperInvariant();
             if (report.Error is not null)
             {
@@ -811,7 +811,7 @@ public static class DesktopRuntime
             [JudgeId.AtCoder] = new AtCoderAdapter(PublicHttpClientFactory.Create),
             [JudgeId.Luogu] = new LuoguAdapter(PublicHttpClientFactory.Create),
         };
-        var syncService = new SyncService(adapters, store, clock, static () => "windows-desktop-v1");
+        var syncService = new SyncService(adapters, clock, static () => "windows-desktop-v1");
         return new DesktopViewModel(store, syncService, dataDirectory);
     }
 
