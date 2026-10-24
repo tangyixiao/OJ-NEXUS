@@ -6,6 +6,11 @@ import com.ojnexus.core.data.repository.BackupRepository
 import com.ojnexus.core.data.repository.DatabaseMaintenanceRepository
 import com.ojnexus.core.data.restore.DatabaseRestoreCoordinator
 import com.ojnexus.core.data.restore.RestoreOutcome
+import com.ojnexus.core.data.restore.RestoreReadiness
+import com.ojnexus.core.data.restore.RecoveryDisposition
+import com.ojnexus.core.data.restore.RestoreFailure
+import com.ojnexus.app.NexusStartupState
+import com.ojnexus.app.NexusStartupStateOwner
 import com.ojnexus.core.time.LocalDaySource
 import com.ojnexus.core.time.SystemLocalDaySource
 import com.ojnexus.core.data.repository.ContestFocusRepository
@@ -79,12 +84,11 @@ import kotlinx.coroutines.launch
  * handful of singletons and AGP 9's built-in Kotlin toolchain is new — stability beats
  * framework dogma (see AGENTS.md / docs/ARCHITECTURE.md). Revisit when the graph grows.
  */
-class AppContainer(context: android.content.Context) {
-    /** Recovery must converge before any Room property below is initialized. */
-    private val restoreCoordinator = DatabaseRestoreCoordinator(context.applicationContext)
-    val restoreOutcome: RestoreOutcome = restoreCoordinator.restoreBeforeRoomOpen()
+class AppContainer(context: android.content.Context, readiness: RestoreReadiness.Ready) {
+    val restoreOutcome: RestoreOutcome = readiness.outcome
+    private val resolvedGeneration: String = readiness.generation
 
-    fun currentDataGeneration(): String = restoreCoordinator.currentDataGeneration()
+    fun currentDataGeneration(): String = resolvedGeneration
 
     /**
      * Application context for platform services the UI may reach directly (clipboard, share
@@ -253,14 +257,40 @@ class AppContainer(context: android.content.Context) {
  * Single-activity app entry point. Compose owns all navigation and theming; this class only
  * provides the dependency container.
  */
-class OjNexusApplication : Application() {
+open class OjNexusApplication : Application(), NexusStartupStateOwner {
 
     private val applicationScope = kotlinx.coroutines.CoroutineScope(
         kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
     )
 
-    lateinit var container: AppContainer
-        private set
+    @Volatile private var publishedStartupState: NexusStartupState = NexusStartupState.Starting
+    override val startupState: NexusStartupState get() = publishedStartupState
+    val container: AppContainer get() = (publishedStartupState as? NexusStartupState.Ready)?.container
+        ?: error("Application data is not ready")
+
+    protected open fun resolveStartupReadiness(): RestoreReadiness =
+        DatabaseRestoreCoordinator(this).resolveBeforeRoomOpen()
+
+    protected open fun createAppContainer(readiness: RestoreReadiness.Ready): AppContainer =
+        AppContainer(this, readiness)
+
+    protected open fun bootstrapReadyContainer(container: AppContainer) {
+        applicationScope.launch {
+            JudgeSyncBootstrap(
+                activeAccount = container.judgeAccountRepository::findActive,
+                backgroundJudges = container.judgeRegistry.supportedJudges().filter { judge ->
+                    JudgeCapability.BACKGROUND_SYNC in container.judgeRegistry.adapter(judge).capabilities
+                }.toSet(),
+                enqueuePeriodic = { judge, accountId -> JudgeSyncWorker.enqueuePeriodic(this@OjNexusApplication, judge, accountId) },
+            ).reconcile()
+            LuoguResultWorkBootstrap(container.database.submissionJobDao(), container.luoguResultWorkScheduler,
+                container::currentDataGeneration).reconcilePending()
+            val preferences = container.userPreferencesRepository.preferences.first()
+            ScheduledBackupScheduler.update(this@OjNexusApplication, preferences.backupCadence)
+        }
+    }
+
+    protected open fun initializeGlobalContext() { com.ojnexus.core.ui.GlobalContext.init(this) }
 
     /**
      * Cold-start tracing (Phase 105). Spans begin at container construction and close when the
@@ -271,31 +301,18 @@ class OjNexusApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         startupTracer.begin("app-create")
-        container = AppContainer(this)
-        com.ojnexus.core.ui.GlobalContext.init(this)
-        installCrashLogIfOptedIn()
+        when (val readiness = resolveStartupReadiness()) {
+            is RestoreReadiness.Blocked -> publishedStartupState = NexusStartupState.Blocked(readiness.failure, readiness.recovery)
+            is RestoreReadiness.Ready -> {
+                val ready = createAppContainer(readiness)
+                publishedStartupState = NexusStartupState.Ready(ready)
+                initializeGlobalContext()
+                installCrashLogIfOptedIn(ready)
+            }
+        }
         startupTracer.end("app-create")
         startupTracer.begin("bootstrap-launch")
-        applicationScope.launch {
-            JudgeSyncBootstrap(
-                activeAccount = container.judgeAccountRepository::findActive,
-                backgroundJudges = container.judgeRegistry.supportedJudges().filter { judge ->
-                    JudgeCapability.BACKGROUND_SYNC in container.judgeRegistry.adapter(judge).capabilities
-                }.toSet(),
-                enqueuePeriodic = { judge, accountId ->
-                    JudgeSyncWorker.enqueuePeriodic(this@OjNexusApplication, judge, accountId)
-                },
-            ).reconcile()
-            LuoguResultWorkBootstrap(
-                submissionJobDao = container.database.submissionJobDao(),
-                scheduler = container.luoguResultWorkScheduler,
-                currentDataGeneration = container::currentDataGeneration,
-            ).reconcilePending()
-            // Re-align the opt-in local backup schedule with the stored cadence. UPDATE
-            // policy makes this idempotent across every cold start (survives reboots).
-            val preferences = container.userPreferencesRepository.preferences.first()
-            ScheduledBackupScheduler.update(this@OjNexusApplication, preferences.backupCadence)
-        }
+        (publishedStartupState as? NexusStartupState.Ready)?.container?.let(::bootstrapReadyContainer)
         startupTracer.end("bootstrap-launch")
     }
 
@@ -304,7 +321,7 @@ class OjNexusApplication : Application() {
      * any bootstrap work so a crash during bootstrap is still captured. Read blocks the main
      * thread once — DataStore's first read is a small file; acceptable at cold start.
      */
-    private fun installCrashLogIfOptedIn() {
+    protected open fun installCrashLogIfOptedIn(container: AppContainer) {
         val enabled = kotlinx.coroutines.runBlocking {
             runCatching {
                 container.userPreferencesRepository.preferences.first().crashLogEnabled

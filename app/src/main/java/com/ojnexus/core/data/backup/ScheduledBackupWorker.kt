@@ -6,6 +6,7 @@ import android.provider.DocumentsContract
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.ojnexus.OjNexusApplication
+import com.ojnexus.app.NexusStartupState
 import com.ojnexus.core.data.repository.BackupRepository
 import com.ojnexus.core.data.preferences.UserPreferencesRepository
 import java.time.Instant
@@ -24,6 +25,12 @@ class ScheduledBackupWorker(
 ) : CoroutineWorker(context, parameters) {
 
     override suspend fun doWork(): Result {
+        val application = applicationContext as? OjNexusApplication ?: return Result.failure()
+        val container = when (val state = application.startupState) {
+            NexusStartupState.Starting -> return Result.retry()
+            is NexusStartupState.Blocked -> return Result.failure(androidx.work.workDataOf("result" to "RECOVERY_BLOCKED"))
+            is NexusStartupState.Ready -> state.container
+        }
         val repository = UserPreferencesRepository(applicationContext)
         val preferences = repository.preferences.first()
         val treeUri = preferences.backupTreeUri
@@ -33,8 +40,6 @@ class ScheduledBackupWorker(
         }
         val startedAt = System.currentTimeMillis()
         val exported = runCatching {
-            val container = (applicationContext as? OjNexusApplication)?.container
-                ?: return@runCatching false
             exportToTree(
                 context = applicationContext,
                 treeUri = treeUri,
