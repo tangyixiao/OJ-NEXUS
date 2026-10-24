@@ -2,7 +2,8 @@
 
 Execution follow-up: [Android 122 final API 37 acceptance](phase-122-android.md),
 [Windows 123 partial acceptance](phase-123-windows.md),
-[Linux integration PR #16](https://github.com/tangyixiao/OJ-NEXUS/pull/16), and
+[Linux integration PR #16](https://github.com/tangyixiao/OJ-NEXUS/pull/16),
+[Linux 129A startup verification](phase-129a-linux-storage-startup.md), and
 [Apple 125 runtime gate](phase-125-apple.md). The original audit snapshot below is retained;
 later tests, fixes and preview releases do not silently rewrite its historical evidence.
 
