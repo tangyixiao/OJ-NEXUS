@@ -1,0 +1,905 @@
+{
+  "format_version": 1,
+  "synthetic": true,
+  "vectors": [
+    {
+      "id": "RV001",
+      "operation": "IMPORT",
+      "fault": "TRUNCATED_INPUT",
+      "checkpoint": "PRECHECK",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "INVALID_INPUT",
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Select complete valid input and repeat precheck"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Corrected complete input"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_STORE=OLD_DATA is independently readable and OLD_GEN is current; candidate bytes end before a complete input can be validated."
+      ]
+    },
+    {
+      "id": "RV002",
+      "operation": "IMPORT",
+      "fault": "SCHEMA_MISMATCH",
+      "checkpoint": "PRECHECK",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "UNSUPPORTED_SCHEMA",
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Select supported input and repeat precheck"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Supported schema input"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_STORE=OLD_DATA is readable under OLD_GEN; candidate declares unsupported SCHEMA_V99 and no staging write has begun."
+      ]
+    },
+    {
+      "id": "RV003",
+      "operation": "IMPORT",
+      "fault": "INTEGRITY_FAILURE",
+      "checkpoint": "PRECHECK",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "INTEGRITY_FAILURE",
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Select intact input and repeat precheck"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Input passes integrity validation"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_STORE=OLD_DATA is readable under OLD_GEN; candidate checksum does not match its declared digest and precheck rejects it."
+      ]
+    },
+    {
+      "id": "RV004",
+      "operation": "IMPORT",
+      "fault": "ENOSPC_CREATE_STAGING_TEMP",
+      "checkpoint": "STAGING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "STORAGE_FULL",
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Free storage and repeat precheck"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Storage available and precheck passes"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_STORE=OLD_DATA and OLD_GEN remain authoritative; capacity probe succeeds, then allocation of STAGING_TEMP fails before any active write."
+      ]
+    },
+    {
+      "id": "RV005",
+      "operation": "IMPORT",
+      "fault": "ENOSPC_WRITE_STAGING",
+      "checkpoint": "STAGING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "STORAGE_FULL",
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Free storage and repeat precheck"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Storage available and precheck passes"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_STORE=OLD_DATA and OLD_GEN remain authoritative; STAGING_TEMP exists, its first payload write exhausts capacity, and active paths were never opened for writing."
+      ]
+    },
+    {
+      "id": "RV006",
+      "operation": "IMPORT",
+      "fault": "ENOSPC_WRITE_JOURNAL",
+      "checkpoint": "STAGING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "STORAGE_FULL",
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Free storage and repeat precheck"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Storage available and precheck passes"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_STORE=OLD_DATA and OLD_GEN remain authoritative; staged payload is complete but durable JOURNAL creation fails before commit begins."
+      ]
+    },
+    {
+      "id": "RV007",
+      "operation": "IMPORT",
+      "fault": "CANCEL_PREVIEW",
+      "checkpoint": "PRECHECK",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "CANCELLED",
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Start new import preview"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "User starts a new preview"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_STORE=OLD_DATA under OLD_GEN is unchanged; user exits the preview before a staged artifact or active write exists."
+      ]
+    },
+    {
+      "id": "RV008",
+      "operation": "IMPORT",
+      "fault": "CANCEL_STAGED_BEFORE_COMMIT",
+      "checkpoint": "STAGED",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "CANCELLED",
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Start new import preview"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "User starts a new preview"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_STORE=OLD_DATA under OLD_GEN is unchanged; authorized STAGED_DATA exists but commit has not started, so its temporary artifact can be removed safely."
+      ]
+    },
+    {
+      "id": "RV009",
+      "operation": "IMPORT",
+      "fault": "CANCEL_AFTER_LOGICAL_COMMIT",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": "CANCEL_TOO_LATE",
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Reconcile committed result"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Committed generation is readable"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_STORE=NEW_DATA and NEW_GEN crossed the durable commit boundary; cancellation arrives afterward and cannot reverse that committed result."
+      ]
+    },
+    {
+      "id": "RV010",
+      "operation": "IMPORT",
+      "fault": "RESTART_COMPLETE_STAGED",
+      "checkpoint": "STAGED",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": null,
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Validate staged input and apply atomically"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Staged input and journal validate"
+      },
+      "android": {
+        "kind": "RECOVERY_DECISION",
+        "journal": {
+          "stage": "STAGED",
+          "generation": "g-new",
+          "detail": null
+        },
+        "files": {
+          "target": true,
+          "candidate": true,
+          "rollback": false,
+          "staged": true
+        },
+        "expected_action": "APPLY_CANDIDATE"
+      },
+      "preconditions": [
+        "OLD_DATA and OLD_GEN were active before restart; user replacement confirmation is durably recorded; complete NEW_DATA and its STAGED journal validate and are authorized for apply."
+      ]
+    },
+    {
+      "id": "RV011",
+      "operation": "IMPORT",
+      "fault": "RESTART_MISSING_STAGED_INPUT",
+      "checkpoint": "STAGED",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "RECOVERY_SOURCE_MISSING",
+        "preserve_artifacts": true,
+        "originating_work_may_write": false,
+        "next_action": "Reject incomplete staging and select input again"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "A complete input is selected"
+      },
+      "android": {
+        "kind": "RECOVERY_DECISION",
+        "journal": {
+          "stage": "STAGED",
+          "generation": "g-new",
+          "detail": null
+        },
+        "files": {
+          "target": true,
+          "candidate": false,
+          "rollback": false,
+          "staged": false
+        },
+        "expected_action": "REJECT_STAGING"
+      },
+      "preconditions": [
+        "ACTIVE_STORE=OLD_DATA is independently valid under OLD_GEN; STAGED journal references absent STAGED_DATA, so no new candidate can be applied."
+      ]
+    },
+    {
+      "id": "RV012",
+      "operation": "IMPORT",
+      "fault": "RESTART_TARGET_MISSING_ROLLBACK_VALID",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": null,
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Validate rollback and restore old target"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Rollback validates"
+      },
+      "android": {
+        "kind": "RECOVERY_DECISION",
+        "journal": {
+          "stage": "SWAPPING",
+          "generation": "g-new",
+          "detail": null
+        },
+        "files": {
+          "target": false,
+          "candidate": false,
+          "rollback": true,
+          "staged": true
+        },
+        "expected_action": "RESTORE_ROLLBACK"
+      },
+      "preconditions": [
+        "TARGET is absent; ROLLBACK_DATA is independently valid and represents OLD_DATA; OLD_GEN is recorded and candidate data is not needed to restore it."
+      ]
+    },
+    {
+      "id": "RV013",
+      "operation": "IMPORT",
+      "fault": "RESTART_TARGET_AND_ROLLBACK_VALID",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": null,
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Validate target and finish commit before cleanup"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Target validates and generation is durable"
+      },
+      "android": {
+        "kind": "RECOVERY_DECISION",
+        "journal": {
+          "stage": "SWAPPING",
+          "generation": "g-new",
+          "detail": null
+        },
+        "files": {
+          "target": true,
+          "candidate": false,
+          "rollback": true,
+          "staged": true
+        },
+        "expected_action": "VALIDATE_TARGET"
+      },
+      "preconditions": [
+        "TARGET contains independently validated NEW_DATA; ROLLBACK_DATA independently contains OLD_DATA; journal marks the swap in progress and NEW_GEN can be durably recorded after validation."
+      ]
+    },
+    {
+      "id": "RV014",
+      "operation": "IMPORT",
+      "fault": "RESTART_TARGET_INVALID_ROLLBACK_VALID",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "INTEGRITY_FAILURE",
+        "preserve_artifacts": true,
+        "originating_work_may_write": false,
+        "next_action": "Restore validated rollback and preserve sources"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Rollback validates"
+      },
+      "android": {
+        "kind": "RECOVERY_DECISION",
+        "journal": {
+          "stage": "SWAPPING",
+          "generation": "g-new",
+          "detail": "INTEGRITY_FAILURE"
+        },
+        "files": {
+          "target": true,
+          "candidate": false,
+          "rollback": true,
+          "staged": true
+        },
+        "expected_action": "VALIDATE_TARGET"
+      },
+      "preconditions": [
+        "TARGET exists but fails validation; ROLLBACK_DATA independently validates as OLD_DATA and OLD_GEN remains available for restoration."
+      ]
+    },
+    {
+      "id": "RV015",
+      "operation": "IMPORT",
+      "fault": "APPLIED_MARKER_GENERATION_OLD",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": null,
+        "preserve_artifacts": true,
+        "originating_work_may_write": false,
+        "next_action": "Validate target, persist generation, then clean artifacts"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Target validates and generation update succeeds"
+      },
+      "android": null,
+      "preconditions": [
+        "TARGET independently validates as NEW_DATA; APPLIED marker is durable; generation ledger still says OLD_GEN, while a valid rollback copy remains until reconciliation finishes."
+      ]
+    },
+    {
+      "id": "RV016",
+      "operation": "IMPORT",
+      "fault": "RESTART_AFTER_COMMIT_CLEANUP_INTERRUPTED",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": null,
+        "preserve_artifacts": true,
+        "originating_work_may_write": false,
+        "next_action": "Run idempotent cleanup"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Committed target and generation validate"
+      },
+      "android": {
+        "kind": "RECOVERY_DECISION",
+        "journal": {
+          "stage": "APPLIED",
+          "generation": "g-new",
+          "detail": null
+        },
+        "files": {
+          "target": true,
+          "candidate": false,
+          "rollback": true,
+          "staged": false
+        },
+        "expected_action": "CLEAR_COMPLETED_ARTIFACTS"
+      },
+      "preconditions": [
+        "TARGET=NEW_DATA and durable generation=NEW_GEN are both committed; only redundant rollback or staging cleanup remains and can be retried idempotently."
+      ]
+    },
+    {
+      "id": "RV017",
+      "operation": "IMPORT",
+      "fault": "ROLLBACK_IO_FAILURE",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "BLOCKED",
+        "active_data": "NONE_BLOCKED",
+        "generation": "OLD",
+        "error": "RECOVERY_BLOCKED",
+        "preserve_artifacts": true,
+        "originating_work_may_write": false,
+        "next_action": "Preserve recovery sources and require inspection"
+      },
+      "retry": {
+        "allowed": false,
+        "after": "NONE"
+      },
+      "android": null,
+      "preconditions": [
+        "TARGET is unavailable; the rollback source ROLLBACK_DATA still contains independently recoverable OLD_DATA and OLD_GEN, but an injected rollback IO error prevents using it; all remaining source artifacts must stay preserved."
+      ]
+    },
+    {
+      "id": "RV018",
+      "operation": "IMPORT",
+      "fault": "MALFORMED_JOURNAL",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "BLOCKED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "RECOVERY_BLOCKED",
+        "preserve_artifacts": true,
+        "originating_work_may_write": false,
+        "next_action": "Preserve artifacts and require journal inspection"
+      },
+      "retry": {
+        "allowed": false,
+        "after": "NONE"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_STORE independently validates as OLD_DATA and OLD_GEN is known; journal bytes are malformed and cannot safely identify candidate, rollback, or a completed transition."
+      ]
+    },
+    {
+      "id": "RV019",
+      "operation": "OPEN",
+      "fault": "NO_VALID_RECOVERY_SOURCE",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "BLOCKED",
+        "active_data": "NONE_BLOCKED",
+        "generation": "UNCHANGED",
+        "error": "RECOVERY_SOURCE_MISSING",
+        "preserve_artifacts": true,
+        "originating_work_may_write": false,
+        "next_action": "Preserve bytes and require repair or explicit source"
+      },
+      "retry": {
+        "allowed": false,
+        "after": "NONE"
+      },
+      "android": null,
+      "preconditions": [
+        "TARGET, rollback, and staged candidate are each missing or invalid; the existing store bytes are not a valid readable dataset and the generation marker is left untouched."
+      ]
+    },
+    {
+      "id": "RV020",
+      "operation": "WORK",
+      "fault": "OLD_GENERATION_COMPLETION",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "WORK_ITEM",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": "STALE_GENERATION",
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Discard stale completion and enqueue current generation work"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Explicit current generation is available"
+      },
+      "android": {
+        "kind": "GENERATION_DECISION",
+        "expected_generation": "g-old",
+        "current_generation": "g-new",
+        "expected_decision": "STALE"
+      },
+      "preconditions": [
+        "WORK_ITEM captured OLD_GEN; current workspace is independently readable as NEW_DATA under NEW_GEN; completion arrives only after the generation changed."
+      ]
+    },
+    {
+      "id": "RV021",
+      "operation": "WORK",
+      "fault": "MATCHING_GENERATION_COMPLETION",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "WORK_ITEM",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": null,
+        "preserve_artifacts": false,
+        "originating_work_may_write": true,
+        "next_action": "Write only within this worker atomic unit"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Expected generation equals current generation"
+      },
+      "android": {
+        "kind": "GENERATION_DECISION",
+        "expected_generation": "g-current",
+        "current_generation": "g-current",
+        "expected_decision": "PROCEED"
+      },
+      "preconditions": [
+        "WORK_ITEM captured NEW_GEN; current workspace is independently readable as NEW_DATA under the same NEW_GEN; its own write unit remains current."
+      ]
+    },
+    {
+      "id": "RV022",
+      "operation": "WORK",
+      "fault": "GENERATION_ABSENT",
+      "checkpoint": "BLOCKED",
+      "atomic_unit": "WORK_ITEM",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "BLOCKED",
+        "active_data": "NEW",
+        "generation": "UNCHANGED",
+        "error": "GENERATION_UNKNOWN",
+        "preserve_artifacts": true,
+        "originating_work_may_write": false,
+        "next_action": "Reconcile and requeue with explicit current generation"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Work is reconciled and requeued with captured expected_generation NEW_GEN"
+      },
+      "android": {
+        "kind": "GENERATION_DECISION",
+        "expected_generation": null,
+        "current_generation": "g-current",
+        "expected_decision": "LEGACY"
+      },
+      "preconditions": [
+        "CURRENT_DATA=NEW_DATA is readable and durable CURRENT_GEN=NEW_GEN is known; this resumed WORK_ITEM carries no captured expected_generation, so it has no write authorization until reconciled and requeued with NEW_GEN."
+      ]
+    },
+    {
+      "id": "RV023",
+      "operation": "EXPORT",
+      "fault": "COMMITTED_WAL_DATA",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "STORE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": null,
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Export consistent snapshot including committed WAL rows"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Snapshot point is consistent"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_STORE=OLD_DATA remains current under OLD_GEN; committed rows include WAL-resident changes at snapshot time and export reads a consistent database snapshot."
+      ]
+    },
+    {
+      "id": "RV024",
+      "operation": "EXPORT",
+      "fault": "DESTINATION_FAILURE",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "STORE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "STORAGE_IO",
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Remove export temp and choose writable destination"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Destination is writable"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_STORE=OLD_DATA under OLD_GEN is untouched; export temporary output is partial, destination rejects further writes, and the temporary can be removed independently."
+      ]
+    },
+    {
+      "id": "RV025",
+      "operation": "OPEN",
+      "fault": "TRUNCATED_EXISTING_STORE",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "STORE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "BLOCKED",
+        "active_data": "NONE_BLOCKED",
+        "generation": "UNCHANGED",
+        "error": "INTEGRITY_FAILURE",
+        "preserve_artifacts": true,
+        "originating_work_may_write": false,
+        "next_action": "Preserve original bytes and require explicit recovery"
+      },
+      "retry": {
+        "allowed": false,
+        "after": "NONE"
+      },
+      "android": null,
+      "preconditions": [
+        "Existing store bytes are truncated and fail integrity validation; no valid rollback or candidate is available; active generation marker is not advanced."
+      ]
+    },
+    {
+      "id": "RV026",
+      "operation": "MIGRATE",
+      "fault": "STORAGE_FAILURE",
+      "checkpoint": "COMMITTING",
+      "atomic_unit": "WORKSPACE_FILE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "STORAGE_FULL",
+        "preserve_artifacts": true,
+        "originating_work_may_write": false,
+        "next_action": "Rollback migration and retry after storage recovery"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Rollback completes and storage is available"
+      },
+      "android": null,
+      "preconditions": [
+        "Migration begins from independently readable OLD_DATA under OLD_GEN inside one transaction; injected storage failure occurs before transaction commit and rollback can restore that state."
+      ]
+    },
+    {
+      "id": "RV027",
+      "operation": "WRITE",
+      "fault": "WORKSPACE_ATOMIC_WRITE_STORAGE_FAILURE",
+      "checkpoint": "COMMITTING",
+      "atomic_unit": "WORKSPACE_FILE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "OLD",
+        "error": "STORAGE_IO",
+        "preserve_artifacts": true,
+        "originating_work_may_write": false,
+        "next_action": "Keep old workspace readable and retry after storage recovery"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Storage is available and source validates"
+      },
+      "android": null,
+      "preconditions": [
+        "WORKSPACE_FILE=OLD_FILE is readable; replacement is written to a separate temporary file; storage fails before atomic rename, leaving OLD_FILE at its original path."
+      ]
+    },
+    {
+      "id": "RV028",
+      "operation": "WRITE",
+      "fault": "RESTART_AFTER_COMMITTED_REPLACEMENT",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "WORKSPACE_FILE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "NEW",
+        "generation": "NEW",
+        "error": null,
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Read committed replacement and retain generation"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Committed replacement validates"
+      },
+      "android": null,
+      "preconditions": [
+        "WORKSPACE_FILE=NEW_FILE and NEW_GEN were durably committed together before restart; any leftover staging file is redundant and not needed to read the replacement."
+      ]
+    },
+    {
+      "id": "RV029",
+      "operation": "SYNC",
+      "fault": "VALID_EMPTY_REPLACE",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "MODULE",
+      "write_semantics": "REPLACE",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "EMPTY",
+        "generation": "UNCHANGED",
+        "error": null,
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Commit valid empty replacement"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Empty response is valid and complete"
+      },
+      "android": null,
+      "preconditions": [
+        "A complete response passes required-field and integrity checks and intentionally contains zero module rows; REPLACE targets that module only and current generation stays unchanged."
+      ]
+    },
+    {
+      "id": "RV030",
+      "operation": "SYNC",
+      "fault": "VALID_EMPTY_UPSERT",
+      "checkpoint": "COMMITTED",
+      "atomic_unit": "MODULE",
+      "write_semantics": "UPSERT",
+      "expected": {
+        "phase": "COMMITTED",
+        "active_data": "OLD",
+        "generation": "UNCHANGED",
+        "error": null,
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Commit valid no-op upsert and retain existing rows"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Empty response is valid and complete"
+      },
+      "android": null,
+      "preconditions": [
+        "A complete response passes required-field and integrity checks and intentionally contains zero module rows; UPSERT leaves existing module rows untouched and current generation stays unchanged."
+      ]
+    },
+    {
+      "id": "RV031",
+      "operation": "SYNC",
+      "fault": "MISSING_REQUIRED_PAYLOAD_FIELD",
+      "checkpoint": "COMMITTING",
+      "atomic_unit": "MODULE",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "ABORTED",
+        "active_data": "OLD",
+        "generation": "UNCHANGED",
+        "error": "INVALID_INPUT",
+        "preserve_artifacts": false,
+        "originating_work_may_write": false,
+        "next_action": "Reject response without writing and fetch complete payload"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Required payload fields are present"
+      },
+      "android": null,
+      "preconditions": [
+        "ACTIVE_MODULE=OLD_ROWS is readable under its current generation; response omits a required payload field, so validation fails before any module write starts."
+      ]
+    },
+    {
+      "id": "RV032",
+      "operation": "WORK",
+      "fault": "PAYLOAD_DURABLE_LEDGER_COMPLETION_INTERRUPTED",
+      "checkpoint": "RECOVERING",
+      "atomic_unit": "WORK_ITEM",
+      "write_semantics": "NONE",
+      "expected": {
+        "phase": "RECOVERING",
+        "active_data": "NEW",
+        "generation": "UNCHANGED",
+        "error": "STORAGE_IO",
+        "preserve_artifacts": true,
+        "originating_work_may_write": false,
+        "next_action": "Preserve committed payload and reconcile ledger"
+      },
+      "retry": {
+        "allowed": true,
+        "after": "Payload is durable and ledger can be reconciled"
+      },
+      "android": null,
+      "preconditions": [
+        "MODULE_PAYLOAD=NEW_ROWS is durably committed while its ledger completion marker is absent; the payload is independently readable and its ledger key can be reconciled without fabricating a rollback."
+      ]
+    }
+  ]
+}
