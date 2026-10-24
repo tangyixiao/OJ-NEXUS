@@ -191,9 +191,13 @@ public sealed class WindowsStorageTests
     public async Task ValidMarkerDoesNotAuthorizeAnOldSchemaWithoutMigration()
     {
         var root = NewRoot();
-        var legacy = new SqliteConnectionFactory(root);
-        using (var connection = legacy.OpenConnection())
+        var initial = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+        Assert.True(initial.IsReady, initial.Failure?.WireCode);
+        await initial.Session!.DisposeAsync();
+        var database = Path.Combine(root, "ojnexus.db");
+        using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = database, Mode = SqliteOpenMode.ReadWrite, Pooling = false }.ToString()))
         {
+            connection.Open();
             using var cmd = connection.CreateCommand();
             cmd.CommandText = "UPDATE schema_metadata SET value='6' WHERE key='schema_version'; DROP TABLE review_log; DROP TABLE reviews;";
             cmd.ExecuteNonQuery();
@@ -202,7 +206,7 @@ public sealed class WindowsStorageTests
         var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
         Assert.True(opened.IsReady, opened.Failure?.WireCode);
         await opened.Session!.DisposeAsync();
-        using var verify = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = legacy.DatabasePath, Mode = SqliteOpenMode.ReadOnly }.ToString());
+        using var verify = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = database, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString());
         verify.Open();
         using var version = verify.CreateCommand(); version.CommandText = "SELECT value FROM schema_metadata WHERE key='schema_version'";
         Assert.Equal("7", Convert.ToString(version.ExecuteScalar()));
@@ -212,7 +216,9 @@ public sealed class WindowsStorageTests
     public async Task MarkerTempBlocksEvenWithValidMarkerAndCurrentDatabase()
     {
         var root = NewRoot();
-        var legacy = new SqliteConnectionFactory(root);
+        var initial = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+        Assert.True(initial.IsReady, initial.Failure?.WireCode);
+        await initial.Session!.DisposeAsync();
         await File.WriteAllTextAsync(Path.Combine(root, "ojnexus.initialized"), "v1\n");
         var evidence = Path.Combine(root, "ojnexus.initialized.tmp");
         await File.WriteAllTextAsync(evidence, "keep");
@@ -221,7 +227,7 @@ public sealed class WindowsStorageTests
         Assert.False(opened.IsReady);
         Assert.Equal("RECOVERY_BLOCKED", opened.Failure?.WireCode);
         Assert.Equal(before, await File.ReadAllBytesAsync(evidence));
-        Assert.True(File.Exists(legacy.DatabasePath));
+        Assert.True(File.Exists(Path.Combine(root, "ojnexus.db")));
     }
 
     [Fact]

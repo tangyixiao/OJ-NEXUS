@@ -1,5 +1,6 @@
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
+using OjNexus.Windows.Core.Storage;
 using OjNexus.Windows.Core.Sync;
 using OjNexus.Windows.Desktop.ViewModels;
 
@@ -7,6 +8,55 @@ namespace OjNexus.Windows.Desktop.Tests;
 
 public sealed class DesktopViewModelTests
 {
+    [Fact]
+    public async Task DisposeAsync_WaitsUntilSyncFinalRefreshAndCleanupDrainComplete()
+    {
+        var inner = new InMemorySyncStore();
+        var refreshStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowRefresh = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var store = new FaultingSyncStore(inner, _ => null, async method =>
+        {
+            if (method == nameof(ISyncStore.GetAccountsAsync))
+            {
+                refreshStarted.TrySetResult();
+                await allowRefresh.Task;
+            }
+        });
+        var source = new StorageOperationScope(store);
+        var adapter = new SuccessfulAdapter(JudgeId.Codeforces);
+        var vm = new DesktopViewModel(source,
+            new SyncService(new Dictionary<JudgeId, IJudgeAdapter> { [JudgeId.Codeforces] = adapter }, new FixedClock(), () => "desktop-drain"),
+            "TEST-DATA");
+        var connector = vm.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        connector.Handle = "tourist";
+
+        var action = vm.SyncConnectorAsync(connector, CancellationToken.None);
+        await refreshStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var shutdown = vm.DisposeAsync().AsTask();
+        Assert.False(shutdown.IsCompleted);
+        allowRefresh.TrySetResult();
+        await action.WaitAsync(TimeSpan.FromSeconds(5));
+        await shutdown.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task SyncConnectorAsync_StorageFailureSurvivesSuccessfulFinalRefresh()
+    {
+        var inner = new InMemorySyncStore();
+        var store = new FaultingSyncStore(inner, method =>
+            method == nameof(ISyncStore.AppendModuleAsync) ? new IOException("private path") : null);
+        var vm = CreateViewModelWithStore(store, new SuccessfulAdapter(JudgeId.Codeforces));
+        var connector = vm.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        connector.Handle = "tourist";
+
+        var success = await vm.SyncConnectorAsync(connector, CancellationToken.None);
+
+        Assert.False(success);
+        Assert.Equal("ERROR", vm.StatusText);
+        Assert.Equal("STORAGE_IO_FAILURE", vm.LastError);
+        await vm.DisposeAsync();
+    }
+
     [Fact]
     public async Task Refresh_ProjectsAllJudgesAndLatestLocalOperation()
     {
@@ -458,7 +508,14 @@ public sealed class DesktopViewModelTests
     {
         var adapterMap = adapters.ToDictionary(adapter => adapter.Judge);
         var service = new SyncService(adapterMap, new FixedClock(), static () => "desktop-test");
-        return new DesktopViewModel(store, service, "TEST-DATA");
+        return new DesktopViewModel(new StorageOperationScope(store), service, "TEST-DATA");
+    }
+
+    private static DesktopViewModel CreateViewModelWithStore(ISyncStore store, params IJudgeAdapter[] adapters)
+    {
+        var adapterMap = adapters.ToDictionary(adapter => adapter.Judge);
+        var service = new SyncService(adapterMap, new FixedClock(), static () => "desktop-test");
+        return new DesktopViewModel(new StorageOperationScope(store), service, "TEST-DATA");
     }
 
     private sealed class FixedClock : IClock

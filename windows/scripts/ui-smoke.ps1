@@ -171,7 +171,7 @@ function Wait-ForElement {
     param(
         [System.Windows.Automation.AutomationElement] $Root,
         [string] $Name,
-        [int] $TimeoutMilliseconds = 5000
+        [int] $TimeoutMilliseconds = 15000
     )
 
     $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
@@ -361,6 +361,8 @@ try {
         throw 'Could not create a UI Automation root for the desktop window.'
     }
 
+    # Storage now opens asynchronously after the shell is created; wait for the Ready shell.
+    [void](Wait-ForElement -Root $root -Name 'DASHBOARD')
     foreach ($navigationName in @('DASHBOARD', 'CONNECTORS', 'SYNC HISTORY', 'PROBLEMS')) {
         [void](Require-DescendantByName -Root $root -Name $navigationName)
     }

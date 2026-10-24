@@ -843,16 +843,18 @@ public sealed class SqliteSyncStoreTests
         }
 
         public string DatabasePath => Path.Combine(_directoryPath, "ojnexus.db");
+        protected StorageTestScope? StorageScope { get; set; }
 
         public string ConnectionString => new SqliteConnectionStringBuilder
         {
             DataSource = DatabasePath,
             ForeignKeys = true,
+            Pooling = false,
         }.ToString();
 
         public void Dispose()
         {
-            SqliteConnection.ClearAllPools();
+            StorageScope?.Dispose();
             if (Directory.Exists(_directoryPath))
             {
                 Directory.Delete(_directoryPath, recursive: true);
@@ -864,12 +866,12 @@ public sealed class SqliteSyncStoreTests
     {
         public TemporaryDatabase(IClock? clock = null)
         {
-            var factory = new SqliteConnectionFactory(Path.GetDirectoryName(DatabasePath));
-            Store = new SqliteSyncStore(factory, clock);
-            Assert.Equal(DatabasePath, factory.DatabasePath);
+            StorageScope = new StorageTestScope(Path.GetDirectoryName(DatabasePath)!, clock: clock);
+            Store = StorageScope.Store;
+            Assert.Equal(DatabasePath, StorageScope.DatabasePath);
         }
 
-        public SqliteSyncStore Store { get; }
+        public ISyncStore Store { get; }
     }
 
     private sealed class FixedClock(DateTimeOffset utcNow) : IClock

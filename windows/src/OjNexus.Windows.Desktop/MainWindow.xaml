@@ -8,7 +8,8 @@
         MinWidth="900"
         Background="{StaticResource NexusBackgroundBrush}"
         Foreground="{StaticResource NexusTextBrush}">
-  <Grid Margin="24" Background="{StaticResource NexusBackgroundBrush}">
+  <Grid Background="{StaticResource NexusBackgroundBrush}">
+   <Grid x:Name="NormalShell" Margin="24" Background="{StaticResource NexusBackgroundBrush}" Visibility="Collapsed">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="220" />
       <ColumnDefinition Width="36" />
@@ -213,5 +214,15 @@
         </Grid>
       </ScrollViewer>
     </Grid>
+   </Grid>
+   <StackPanel x:Name="StorageStartupPanel" AutomationProperties.AutomationId="StorageStartupPanel" HorizontalAlignment="Center" VerticalAlignment="Center" Width="520" Visibility="Visible">
+     <TextBlock x:Name="StorageStartupHeading" AutomationProperties.AutomationId="StorageStartupHeading" Text="OPENING LOCAL STORAGE" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
+     <TextBlock Text="LOCAL FILES PRESERVED" Margin="0,12,0,0" Foreground="{StaticResource NexusMutedTextBrush}" />
+     <TextBlock x:Name="StorageFailureCode" AutomationProperties.AutomationId="StorageFailureCode" Text="CHECKING" Margin="0,12,0,0" Foreground="{StaticResource NexusAccentBrush}" FontFamily="Consolas" />
+     <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
+       <Button x:Name="RetryStorageOpen" AutomationProperties.AutomationId="RetryStorageOpen" Content="RETRY OPEN" Style="{StaticResource ActionButton}" Click="RetryStorageOpen_Click" IsEnabled="False" />
+       <Button x:Name="ExitStorage" AutomationProperties.AutomationId="ExitStorage" Content="EXIT" Style="{StaticResource ActionButton}" Margin="12,0,0,0" Click="ExitStorage_Click" />
+     </StackPanel>
+   </StackPanel>
   </Grid>
 </Window>

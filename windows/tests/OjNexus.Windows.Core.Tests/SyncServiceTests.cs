@@ -10,6 +10,55 @@ public sealed class SyncServiceTests
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-09-08T01:02:03+00:00");
 
     [Fact]
+    public async Task RunAsync_AppendStorageFailure_ClosesLedgerAsStorageThenPreservesWireFailure()
+    {
+        var inner = new InMemorySyncStore();
+        var store = new FaultingSyncStore(inner, method => method == nameof(ISyncStore.AppendModuleAsync) ? new IOException("private path") : null);
+        var service = CreateService(new RecordingAdapter(JudgeId.Codeforces,
+            [new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 1, 1, 0, null)]), store);
+
+        var exception = await Assert.ThrowsAsync<StorageException>(() => service.RunAsync(
+            JudgeAccount.Create(JudgeId.Codeforces, "tourist"), false, store, CancellationToken.None));
+
+        Assert.Equal("STORAGE_IO_FAILURE", exception.Failure.WireCode);
+        var operation = Assert.Single(await inner.GetRecentOperationsAsync(null, 10, CancellationToken.None));
+        Assert.Equal(SyncOperationStatus.Error, operation.Status);
+        Assert.Equal(SyncError.Storage, operation.Error);
+    }
+
+    [Fact]
+    public async Task RunAsync_CloseStorageFailureWinsOverAppendStorageFailure()
+    {
+        var inner = new InMemorySyncStore();
+        var store = new FaultingSyncStore(inner, method => method switch
+        {
+            nameof(ISyncStore.AppendModuleAsync) => new UnauthorizedAccessException(),
+            nameof(ISyncStore.CloseOperationAsync) => new IOException(),
+            _ => null,
+        });
+        var service = CreateService(new RecordingAdapter(JudgeId.Codeforces,
+            [new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 1, 1, 0, null)]), store);
+
+        var exception = await Assert.ThrowsAsync<StorageException>(() => service.RunAsync(
+            JudgeAccount.Create(JudgeId.Codeforces, "tourist"), false, store, CancellationToken.None));
+
+        Assert.Equal("STORAGE_IO_FAILURE", exception.Failure.WireCode);
+    }
+
+    [Fact]
+    public async Task RunAsync_OpenStorageFailureUsesTypedWireBoundary()
+    {
+        var store = new FaultingSyncStore(new InMemorySyncStore(), method =>
+            method == nameof(ISyncStore.OpenOperationAsync) ? new UnauthorizedAccessException() : null);
+        var service = CreateService(new RecordingAdapter(JudgeId.Codeforces, []), store);
+
+        var exception = await Assert.ThrowsAsync<StorageException>(() => service.RunAsync(
+            JudgeAccount.Create(JudgeId.Codeforces, "tourist"), false, store, CancellationToken.None));
+
+        Assert.Equal("PERMISSION_DENIED", exception.Failure.WireCode);
+    }
+
+    [Fact]
     public async Task RunAsync_Success_AppendsAdapterModulesInOrderAndClosesOperation()
     {
         var account = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
@@ -336,20 +385,21 @@ public sealed class SyncServiceTests
     private sealed class TemporaryDatabase : IDisposable
     {
         private readonly string _directoryPath = Path.Combine(Path.GetTempPath(), "oj-nexus-tests", Guid.NewGuid().ToString("N"));
+        private readonly StorageTestScope _scope;
 
         public TemporaryDatabase()
         {
-            Directory.CreateDirectory(_directoryPath);
-            Store = new SqliteSyncStore(new SqliteConnectionFactory(_directoryPath));
+            _scope = new StorageTestScope(_directoryPath);
+            Store = _scope.Store;
         }
 
         public string DatabasePath => Path.Combine(_directoryPath, "ojnexus.db");
 
-        public SqliteSyncStore Store { get; }
+        public ISyncStore Store { get; }
 
         public void Dispose()
         {
-            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            _scope.Dispose();
             Directory.Delete(_directoryPath, recursive: true);
         }
     }

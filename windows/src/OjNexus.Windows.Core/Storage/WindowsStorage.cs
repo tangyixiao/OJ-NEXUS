@@ -34,7 +34,7 @@ public sealed class WindowsStorageSession : IStorageOperationSource
     public string DatabasePath { get; }
 
     public StorageOperationContext BeginOperation(CancellationToken cancellationToken = default) =>
-        _owner.Begin(permit => new SqliteSyncStore(_factory, permit, _clock), cancellationToken);
+        _owner.Begin(permit => new StorageClassifyingStore(new SqliteSyncStore(_factory, permit, _clock)), cancellationToken);
 
     public async Task RunAsync(Func<ISyncStore, CancellationToken, Task> work, CancellationToken cancellationToken)
     {

@@ -63,34 +63,11 @@ public sealed class SqliteConnectionLeaseTests
     }
 
     [Fact]
-    public async Task OwnerBoundFactoryCannotUseTransitionalLegacyOpenRoutes()
+    public void SqliteConstructionAndRawConnectionEscapeAreNotPublic()
     {
-        var (root, lifecycle) = await CreateInitializedRoot();
-        var owner = new OperationOwner(() => { lifecycle.Dispose(); return ValueTask.CompletedTask; });
-        var database = Path.Combine(root, "ojnexus.db");
-        var missingDatabase = Path.Combine(root, "must-not-be-created.db");
-        var factory = new SqliteConnectionFactory(database, owner);
-        var missingFactory = new SqliteConnectionFactory(missingDatabase, owner);
-        var context = owner.Begin(permit => new SqliteSyncStore(factory, permit), CancellationToken.None);
-        var legacyStore = new SqliteSyncStore(factory);
-
-        AssertSessionClosed(() => factory.OpenConnection());
-        AssertSessionClosed(() => factory.OpenLegacyLease());
-        AssertSessionClosed(() => missingFactory.OpenConnection());
-        AssertSessionClosed(() => missingFactory.OpenLegacyLease());
-        await Assert.ThrowsAsync<StorageException>(() => legacyStore.GetAccountsAsync(CancellationToken.None));
-        Assert.Empty(await context.Store.GetAccountsAsync(CancellationToken.None));
-        Assert.False(File.Exists(missingDatabase));
-
-        await context.DisposeAsync();
-        await owner.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
-
-        AssertSessionClosed(() => factory.OpenConnection());
-        AssertSessionClosed(() => factory.OpenLegacyLease());
-        AssertSessionClosed(() => missingFactory.OpenConnection());
-        AssertSessionClosed(() => missingFactory.OpenLegacyLease());
-        await Assert.ThrowsAsync<StorageException>(() => legacyStore.GetAccountsAsync(CancellationToken.None));
-        Assert.False(File.Exists(missingDatabase));
+        Assert.Empty(typeof(SqliteConnectionFactory).GetConstructors(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance));
+        Assert.Empty(typeof(SqliteSyncStore).GetConstructors(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance));
+        Assert.Null(typeof(SqliteConnectionFactory).GetMethod("OpenConnection", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance));
     }
 
     [Fact]
@@ -172,9 +149,4 @@ public sealed class SqliteConnectionLeaseTests
         Assert.Equal("STORAGE_BUSY", error.Failure.WireCode);
     }
 
-    private static void AssertSessionClosed(Action action)
-    {
-        var failure = Assert.Throws<StorageException>(action);
-        Assert.Equal("SESSION_CLOSED", failure.Failure.WireCode);
-    }
 }

@@ -151,20 +151,21 @@ public sealed class CodeforcesPayloadPersistenceTests
     private sealed class TemporaryDatabase : IDisposable
     {
         private readonly string _directoryPath = Path.Combine(Path.GetTempPath(), "oj-nexus-payload-tests", Guid.NewGuid().ToString("N"));
+        private readonly StorageTestScope _scope;
 
         public TemporaryDatabase()
         {
-            Directory.CreateDirectory(_directoryPath);
-            Store = new SqliteSyncStore(new SqliteConnectionFactory(_directoryPath));
+            _scope = new StorageTestScope(_directoryPath);
+            Store = _scope.Store;
         }
 
         public string DatabasePath => Path.Combine(_directoryPath, "ojnexus.db");
 
-        public SqliteSyncStore Store { get; }
+        public ISyncStore Store { get; }
 
         public void Dispose()
         {
-            SqliteConnection.ClearAllPools();
+            _scope.Dispose();
             Directory.Delete(_directoryPath, recursive: true);
         }
     }
