@@ -58,7 +58,7 @@ class DatabaseRestoreRecoveryFaultTest {
     }
 
     @Test
-    fun `generation replacement failure keeps APPLIED sources and later converges forward`() = runBlocking {
+    fun `generation temporary-write failure keeps APPLIED sources and later converges forward`() = runBlocking {
         setupAppliedPair()
         val failing = DatabaseRestoreCoordinator(context, context.contentResolver, FailingFiles(failWriteName = "oj-nexus-data-generation.tmp"))
 
