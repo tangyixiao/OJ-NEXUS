@@ -6,6 +6,8 @@ import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.ojnexus.OjNexusApplication
+import com.ojnexus.app.NexusStartupState
 import java.util.concurrent.TimeUnit
 
 /** Opt-in schedule for the local snapshot backup. Local only — never any cloud upload. */
@@ -33,6 +35,7 @@ object ScheduledBackupScheduler {
     const val UNIQUE_NAME = "oj-nexus-scheduled-backup"
 
     fun update(context: Context, cadence: BackupCadence) {
+        if ((context.applicationContext as? OjNexusApplication)?.startupState !is NexusStartupState.Ready) return
         val manager = WorkManager.getInstance(context)
         if (cadence == BackupCadence.OFF) {
             manager.cancelUniqueWork(UNIQUE_NAME)

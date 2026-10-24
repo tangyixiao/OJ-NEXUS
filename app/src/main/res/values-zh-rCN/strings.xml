@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="recovery_blocked_title">LOCAL RECOVERY BLOCKED</string>
+    <string name="recovery_blocked_preserved">LOCAL FILES PRESERVED</string>
+    <string name="recovery_blocked_body">AUTOMATIC RECOVERY STOPPED. CLOSE THE APP AND KEEP THE LOCAL FILES FOR INSPECTION.</string>
+    <string name="recovery_starting">INITIALIZING LOCAL STORAGE</string>
     <string name="app_name">OJ NEXUS</string>
     <string name="nav_dashboard">首页</string>
     <string name="nav_problems">题库</string>

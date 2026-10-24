@@ -75,6 +75,7 @@ internal fun restoreStatusFor(outcome: RestoreOutcome?): RestoreStatus? = when (
     is RestoreOutcome.Applied -> RestoreStatus.APPLIED
     is RestoreOutcome.RolledBack -> RestoreStatus.ROLLED_BACK
     is RestoreOutcome.Rejected -> RestoreStatus.REJECTED
+    is RestoreOutcome.Blocked -> null
     else -> null
 }
 

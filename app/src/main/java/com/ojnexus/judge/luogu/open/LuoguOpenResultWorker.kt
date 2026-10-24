@@ -13,6 +13,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.ojnexus.OjNexusApplication
+import com.ojnexus.app.NexusStartupState
 import com.ojnexus.core.data.restore.RestoreWorkDecision
 import com.ojnexus.core.data.restore.decideRestoreWorkGeneration
 import java.util.concurrent.TimeUnit
@@ -109,21 +110,25 @@ interface LuoguResultWorkScheduler {
 
 class WorkManagerLuoguResultScheduler(context: Context) : LuoguResultWorkScheduler {
     private val appContext = context.applicationContext
-    private val workManager = WorkManager.getInstance(appContext)
+    private val workManager by lazy(LazyThreadSafetyMode.SYNCHRONIZED) { WorkManager.getInstance(appContext) }
 
     override fun enqueue(requestId: String) {
-        enqueue(requestId, currentDataGeneration())
+        val ready = (appContext as? OjNexusApplication)?.startupState as? NexusStartupState.Ready ?: return
+        enqueue(requestId, ready.container.currentDataGeneration())
     }
 
     override fun enqueue(requestId: String, dataGeneration: String) {
+        if ((appContext as? OjNexusApplication)?.startupState !is NexusStartupState.Ready) return
         enqueue(LuoguResultWorkRequestFactory.spec(requestId, dataGeneration))
     }
 
     override fun enqueueNow(requestId: String) {
-        enqueueNow(requestId, currentDataGeneration())
+        val ready = (appContext as? OjNexusApplication)?.startupState as? NexusStartupState.Ready ?: return
+        enqueueNow(requestId, ready.container.currentDataGeneration())
     }
 
     override fun enqueueNow(requestId: String, dataGeneration: String) {
+        if ((appContext as? OjNexusApplication)?.startupState !is NexusStartupState.Ready) return
         enqueue(LuoguResultWorkRequestFactory.immediateSpec(requestId, dataGeneration))
     }
 
@@ -136,9 +141,6 @@ class WorkManagerLuoguResultScheduler(context: Context) : LuoguResultWorkSchedul
         )
     }
 
-    private fun currentDataGeneration(): String =
-        com.ojnexus.core.data.restore.DatabaseRestoreCoordinator(appContext)
-            .currentDataGeneration()
 }
 
 class LuoguOpenResultWorker(
@@ -152,9 +154,14 @@ class LuoguOpenResultWorker(
             ?: return ListenableWorker.Result.failure()
         val application = applicationContext as? OjNexusApplication
             ?: return ListenableWorker.Result.failure()
+        val container = when (val state = application.startupState) {
+            NexusStartupState.Starting -> return ListenableWorker.Result.retry()
+            is NexusStartupState.Blocked -> return ListenableWorker.Result.failure(workDataOf("result" to "RECOVERY_BLOCKED"))
+            is NexusStartupState.Ready -> state.container
+        }
         when (decideRestoreWorkGeneration(
             inputData.getString(LuoguResultWorkRequestFactory.DATA_GENERATION_KEY),
-            application.container.currentDataGeneration(),
+            container.currentDataGeneration(),
         )) {
             RestoreWorkDecision.STALE ->
                 return ListenableWorker.Result.success(
@@ -167,7 +174,7 @@ class LuoguOpenResultWorker(
 
         return try {
             LuoguResultWorkPolicy.decide(
-                application.container.luoguSubmissionRepository.refreshResult(requestId),
+                container.luoguSubmissionRepository.refreshResult(requestId),
                 runAttemptCount,
             ).toWorkerResult()
         } catch (error: LuoguOpenApiError) {
