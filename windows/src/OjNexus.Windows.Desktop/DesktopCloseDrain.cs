@@ -24,3 +24,42 @@ internal static class DesktopCloseDrain
         }
     }
 }
+
+internal sealed class DesktopCloseCoordinator
+{
+    private readonly object _gate = new();
+    private Task<DesktopCloseDrainResult>? _attempt;
+
+    public Task<DesktopCloseDrainResult> StartOrJoinAttempt(Func<Task> drain)
+    {
+        ArgumentNullException.ThrowIfNull(drain);
+        lock (_gate)
+        {
+            if (_attempt is not null) return _attempt;
+
+            var completion = new TaskCompletionSource<DesktopCloseDrainResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _attempt = completion.Task;
+            _ = CompleteAttemptAsync(drain, completion);
+            return completion.Task;
+        }
+    }
+
+    public void ReleaseFailedAttempt(Task<DesktopCloseDrainResult> attempt)
+    {
+        ArgumentNullException.ThrowIfNull(attempt);
+        if (!attempt.IsCompleted) return;
+        if (attempt.IsCompletedSuccessfully && attempt.Result.Succeeded) return;
+
+        lock (_gate)
+        {
+            if (ReferenceEquals(_attempt, attempt)) _attempt = null;
+        }
+    }
+
+    private static async Task CompleteAttemptAsync(
+        Func<Task> drain,
+        TaskCompletionSource<DesktopCloseDrainResult> completion)
+    {
+        completion.TrySetResult(await DesktopCloseDrain.TryRunAsync(drain));
+    }
+}

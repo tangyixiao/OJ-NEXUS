@@ -679,7 +679,8 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
                 }
             }
 
-            storageFailureCode ??= await RefreshCoreAsync(store, CancellationToken.None);
+            var refreshStorageFailureCode = await RefreshCoreAsync(store, CancellationToken.None);
+            storageFailureCode ??= refreshStorageFailureCode;
             if (storageFailureCode is not null)
             {
                 row.Status = "ERROR";

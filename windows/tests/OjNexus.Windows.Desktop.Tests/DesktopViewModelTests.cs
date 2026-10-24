@@ -57,6 +57,43 @@ public sealed class DesktopViewModelTests
         await vm.DisposeAsync();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AppendStorageFailure_StillDrainsDelayedFinalRefresh(bool useBatch)
+    {
+        var inner = new InMemorySyncStore();
+        var refreshStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowRefresh = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var store = new FaultingSyncStore(inner,
+            method => method == nameof(ISyncStore.AppendModuleAsync) ? PersistenceFailure("append") : null,
+            async method =>
+            {
+                if (method == nameof(ISyncStore.GetAccountsAsync))
+                {
+                    refreshStarted.TrySetResult();
+                    await allowRefresh.Task;
+                }
+            });
+        var vm = CreateViewModelWithStore(store, new SuccessfulAdapter(JudgeId.Codeforces));
+        var connector = vm.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        connector.Handle = "tourist";
+        if (useBatch) connector.IsConfigured = true;
+
+        var action = useBatch
+            ? vm.SyncAllAsync(CancellationToken.None)
+            : vm.SyncConnectorAsync(connector, CancellationToken.None);
+        await refreshStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var shutdown = vm.DisposeAsync().AsTask();
+        Assert.False(action.IsCompleted);
+        Assert.False(shutdown.IsCompleted);
+
+        allowRefresh.TrySetResult();
+        Assert.False(await action.WaitAsync(TimeSpan.FromSeconds(5)));
+        await shutdown.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("STORAGE_IO_FAILURE", vm.LastError);
+    }
+
     [Fact]
     public async Task SyncAll_OneAccountStorageFailureSurvivesSuccessfulFinalRefresh()
     {
@@ -78,6 +115,8 @@ public sealed class DesktopViewModelTests
     public async Task SyncAll_EarlierStorageFailureSurvivesLaterSuccessfulAccount()
     {
         var inner = new InMemorySyncStore();
+        await inner.UpsertAccountAsync(JudgeAccount.Create(JudgeId.Codeforces, "tourist"), CancellationToken.None);
+        await inner.UpsertAccountAsync(JudgeAccount.Create(JudgeId.AtCoder, "tourist"), CancellationToken.None);
         var appendCount = 0;
         var store = new FaultingSyncStore(inner, method =>
             method == nameof(ISyncStore.AppendModuleAsync) && Interlocked.Increment(ref appendCount) == 1

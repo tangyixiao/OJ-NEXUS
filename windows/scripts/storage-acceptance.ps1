@@ -8,6 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Drawing
+. (Join-Path $PSScriptRoot 'storage-owned-process.ps1')
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
@@ -130,10 +131,22 @@ function Wait-AutomationId($root, [string] $id, [int] $seconds = 15, [Diagnostic
     if ($null -ne $process) {
         try {
             $probeScript = Join-Path $PSScriptRoot 'storage-uia-probe.ps1'
-            $probeOutput = & (Join-Path $PSHOME 'pwsh.exe') -NoProfile -ExecutionPolicy Bypass -File $probeScript -ProcessId $process.Id -AutomationId $id -TimeoutSeconds 3 2>&1
+            $probeProcess = Start-OwnedProcess (Join-Path $PSHOME 'pwsh.exe') @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $probeScript, '-ProcessId', "$($process.Id)", '-AutomationId', $id, '-TimeoutSeconds', '3') $EvidenceDirectory $true
+            $probeCapture = Wait-OwnedProcessWithCapture -Process $probeProcess -OwnedProcesses $ownedProcesses -TimeoutSeconds 5 -StdoutPath (Join-Path $EvidenceDirectory 'ui-automation-child-probe.stdout.txt') -StderrPath (Join-Path $EvidenceDirectory 'ui-automation-child-probe.stderr.txt')
             $probePath = Join-Path $EvidenceDirectory 'ui-automation-child-probe.json'
-            [IO.File]::WriteAllLines($probePath, [string[]]$probeOutput)
-            $manifest.uiAutomationChildProbe = $probePath
+            $probeRecord = @{
+                outcome = if ($probeCapture.TimedOut) { 'timed-out' } elseif ($probeCapture.ExitCode -eq 0) { 'completed' } else { 'failed' }
+                pid = $probeCapture.ProcessId
+                exitCode = $probeCapture.ExitCode
+                exited = $probeCapture.Exited
+                exitedAfterKill = $probeCapture.ExitedAfterKill
+                stdout = $probeCapture.Stdout
+                stderr = $probeCapture.Stderr
+                stdoutPath = $probeCapture.StdoutPath
+                stderrPath = $probeCapture.StderrPath
+            }
+            [IO.File]::WriteAllText($probePath, ($probeRecord | ConvertTo-Json -Depth 4))
+            $manifest.uiAutomationChildProbe = $probeRecord
         }
         catch { $manifest.uiAutomationChildProbeError = $_.Exception.Message }
         try {

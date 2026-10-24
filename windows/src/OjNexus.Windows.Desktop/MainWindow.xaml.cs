@@ -14,7 +14,7 @@ public partial class MainWindow : Window
     private readonly CancellationTokenSource _lifetime = new();
     private DesktopViewModel? _viewModel;
     private Task? _startupTask;
-    private Task? _closeDrainTask;
+    private readonly DesktopCloseCoordinator _closeCoordinator = new();
     private readonly DesktopStorageStartupController _startupController = new();
     private bool _closing;
     private bool _allowClose;
@@ -96,26 +96,23 @@ public partial class MainWindow : Window
     {
         if (_allowClose) return;
         e.Cancel = true;
-        if (_closeDrainTask is not null) return;
         _closing = true;
         NormalShell.IsEnabled = false;
-        _closeDrainTask = DrainCloseBoundaryAsync();
-        try { await _closeDrainTask; }
+        var attempt = _closeCoordinator.StartOrJoinAttempt(DrainAndCloseAsync);
+        try
+        {
+            var result = await attempt;
+            if (!result.Succeeded)
+            {
+                _closeCoordinator.ReleaseFailedAttempt(attempt);
+                ShowCloseDrainFailure(result.FailureCode ?? "STORAGE_IO_FAILURE");
+            }
+        }
         catch (Exception)
         {
             // The event boundary must never publish async cleanup failures to WPF's dispatcher.
-            _closeDrainTask = null;
+            _closeCoordinator.ReleaseFailedAttempt(attempt);
             ShowCloseDrainFailure("STORAGE_IO_FAILURE");
-        }
-    }
-
-    private async Task DrainCloseBoundaryAsync()
-    {
-        var result = await DesktopCloseDrain.TryRunAsync(DrainAndCloseAsync);
-        if (!result.Succeeded)
-        {
-            _closeDrainTask = null;
-            ShowCloseDrainFailure(result.FailureCode ?? "STORAGE_IO_FAILURE");
         }
     }
 
