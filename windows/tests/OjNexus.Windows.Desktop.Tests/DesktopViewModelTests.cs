@@ -1,5 +1,6 @@
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
+using OjNexus.Windows.Core.Storage;
 using OjNexus.Windows.Core.Sync;
 using OjNexus.Windows.Desktop.ViewModels;
 
@@ -7,6 +8,154 @@ namespace OjNexus.Windows.Desktop.Tests;
 
 public sealed class DesktopViewModelTests
 {
+    [Fact]
+    public async Task DisposeAsync_WaitsUntilSyncFinalRefreshAndCleanupDrainComplete()
+    {
+        var inner = new InMemorySyncStore();
+        var refreshStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowRefresh = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var store = new FaultingSyncStore(inner, _ => null, async method =>
+        {
+            if (method == nameof(ISyncStore.GetAccountsAsync))
+            {
+                refreshStarted.TrySetResult();
+                await allowRefresh.Task;
+            }
+        });
+        var source = new StorageOperationScope(store);
+        var adapter = new SuccessfulAdapter(JudgeId.Codeforces);
+        var vm = new DesktopViewModel(source,
+            new SyncService(new Dictionary<JudgeId, IJudgeAdapter> { [JudgeId.Codeforces] = adapter }, new FixedClock(), () => "desktop-drain"),
+            "TEST-DATA");
+        var connector = vm.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        connector.Handle = "tourist";
+
+        var action = vm.SyncConnectorAsync(connector, CancellationToken.None);
+        await refreshStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var shutdown = vm.DisposeAsync().AsTask();
+        Assert.False(shutdown.IsCompleted);
+        allowRefresh.TrySetResult();
+        await action.WaitAsync(TimeSpan.FromSeconds(5));
+        await shutdown.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task SyncConnectorAsync_StorageFailureSurvivesSuccessfulFinalRefresh()
+    {
+        var inner = new InMemorySyncStore();
+        var store = new FaultingSyncStore(inner, method =>
+            method == nameof(ISyncStore.AppendModuleAsync) ? new IOException("private path") : null);
+        var vm = CreateViewModelWithStore(store, new SuccessfulAdapter(JudgeId.Codeforces));
+        var connector = vm.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        connector.Handle = "tourist";
+
+        var success = await vm.SyncConnectorAsync(connector, CancellationToken.None);
+
+        Assert.False(success);
+        Assert.Equal("ERROR", vm.StatusText);
+        Assert.Equal("STORAGE_IO_FAILURE", vm.LastError);
+        await vm.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AppendStorageFailure_StillDrainsDelayedFinalRefresh(bool useBatch)
+    {
+        var inner = new InMemorySyncStore();
+        var refreshStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowRefresh = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var store = new FaultingSyncStore(inner,
+            method => method == nameof(ISyncStore.AppendModuleAsync) ? PersistenceFailure("append") : null,
+            async method =>
+            {
+                if (method == nameof(ISyncStore.GetAccountsAsync))
+                {
+                    refreshStarted.TrySetResult();
+                    await allowRefresh.Task;
+                }
+            });
+        var vm = CreateViewModelWithStore(store, new SuccessfulAdapter(JudgeId.Codeforces));
+        var connector = vm.Connectors.Single(row => row.Judge == JudgeId.Codeforces);
+        connector.Handle = "tourist";
+        if (useBatch) connector.IsConfigured = true;
+
+        var action = useBatch
+            ? vm.SyncAllAsync(CancellationToken.None)
+            : vm.SyncConnectorAsync(connector, CancellationToken.None);
+        await refreshStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var shutdown = vm.DisposeAsync().AsTask();
+        Assert.False(action.IsCompleted);
+        Assert.False(shutdown.IsCompleted);
+
+        allowRefresh.TrySetResult();
+        Assert.False(await action.WaitAsync(TimeSpan.FromSeconds(5)));
+        await shutdown.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("STORAGE_IO_FAILURE", vm.LastError);
+    }
+
+    [Fact]
+    public async Task SyncAll_OneAccountStorageFailureSurvivesSuccessfulFinalRefresh()
+    {
+        var inner = new InMemorySyncStore();
+        var store = new FaultingSyncStore(inner, method =>
+            method == nameof(ISyncStore.AppendModuleAsync) ? PersistenceFailure("append") : null);
+        var vm = CreateViewModelWithStore(store, new SuccessfulAdapter(JudgeId.Codeforces));
+        Configure(vm, JudgeId.Codeforces, "tourist");
+
+        var succeeded = await vm.SyncAllAsync(CancellationToken.None);
+
+        Assert.False(succeeded);
+        Assert.Equal("ERROR", vm.StatusText);
+        Assert.Equal("STORAGE_IO_FAILURE", vm.LastError);
+        await vm.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SyncAll_EarlierStorageFailureSurvivesLaterSuccessfulAccount()
+    {
+        var inner = new InMemorySyncStore();
+        await inner.UpsertAccountAsync(JudgeAccount.Create(JudgeId.Codeforces, "tourist"), CancellationToken.None);
+        await inner.UpsertAccountAsync(JudgeAccount.Create(JudgeId.AtCoder, "tourist"), CancellationToken.None);
+        var appendCount = 0;
+        var store = new FaultingSyncStore(inner, method =>
+            method == nameof(ISyncStore.AppendModuleAsync) && Interlocked.Increment(ref appendCount) == 1
+                ? PersistenceFailure("append")
+                : null);
+        var codeforces = new SuccessfulAdapter(JudgeId.Codeforces);
+        var atcoder = new SuccessfulAdapter(JudgeId.AtCoder);
+        var vm = CreateViewModelWithStore(store, codeforces, atcoder);
+        Configure(vm, JudgeId.Codeforces, "tourist");
+        Configure(vm, JudgeId.AtCoder, "tourist");
+
+        var succeeded = await vm.SyncAllAsync(CancellationToken.None);
+
+        Assert.False(succeeded);
+        Assert.Equal(1, codeforces.CallCount);
+        Assert.Equal(1, atcoder.CallCount);
+        Assert.Equal("ERROR", vm.StatusText);
+        Assert.Equal("STORAGE_IO_FAILURE", vm.LastError);
+        await vm.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SyncAll_FinalRefreshStorageFailureIsReturnedAndProjected()
+    {
+        var inner = new InMemorySyncStore();
+        var store = new FaultingSyncStore(inner, method =>
+            method == nameof(ISyncStore.GetAccountsAsync) ? PersistenceFailure("refresh") : null);
+        var vm = CreateViewModelWithStore(store, new SuccessfulAdapter(JudgeId.Codeforces));
+        Configure(vm, JudgeId.Codeforces, "tourist");
+
+        var succeeded = await vm.SyncAllAsync(CancellationToken.None);
+
+        Assert.False(succeeded);
+        Assert.Equal("ERROR", vm.StatusText);
+        Assert.Equal("STORAGE_IO_FAILURE", vm.LastError);
+        Assert.Equal("ERROR", Assert.Single(vm.Connectors.Where(row => row.Judge == JudgeId.Codeforces)).Status);
+        await vm.DisposeAsync();
+    }
+
     [Fact]
     public async Task Refresh_ProjectsAllJudgesAndLatestLocalOperation()
     {
@@ -457,9 +606,26 @@ public sealed class DesktopViewModelTests
     private static DesktopViewModel CreateViewModel(InMemorySyncStore store, params IJudgeAdapter[] adapters)
     {
         var adapterMap = adapters.ToDictionary(adapter => adapter.Judge);
-        var service = new SyncService(adapterMap, store, new FixedClock(), static () => "desktop-test");
-        return new DesktopViewModel(store, service, "TEST-DATA");
+        var service = new SyncService(adapterMap, new FixedClock(), static () => "desktop-test");
+        return new DesktopViewModel(new StorageOperationScope(store), service, "TEST-DATA");
     }
+
+    private static DesktopViewModel CreateViewModelWithStore(ISyncStore store, params IJudgeAdapter[] adapters)
+    {
+        var adapterMap = adapters.ToDictionary(adapter => adapter.Judge);
+        var service = new SyncService(adapterMap, new FixedClock(), static () => "desktop-test");
+        return new DesktopViewModel(new StorageOperationScope(store), service, "TEST-DATA");
+    }
+
+    private static void Configure(DesktopViewModel viewModel, JudgeId judge, string handle)
+    {
+        var row = viewModel.Connectors.Single(candidate => candidate.Judge == judge);
+        row.Handle = handle;
+        row.IsConfigured = true;
+    }
+
+    private static Exception PersistenceFailure(string stage) =>
+        StorageException.ForPersistence(new IOException("private storage path"), stage);
 
     private sealed class FixedClock : IClock
     {

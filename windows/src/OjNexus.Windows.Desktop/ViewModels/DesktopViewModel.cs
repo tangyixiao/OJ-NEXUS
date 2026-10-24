@@ -136,8 +136,10 @@ public sealed record ProblemRow(
     public bool HasUrl => !string.IsNullOrWhiteSpace(Url);
     public string StatusLabel => Status;
 }
-public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
+public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
 {
+    private readonly record struct SyncActionResult(bool Succeeded, string? StorageFailureCode = null);
+
     private static readonly (JudgeId Judge, string Capability)[] SupportedJudges =
     [
         (JudgeId.Codeforces, "PUBLIC API / PROFILE / RATING / SUBMISSIONS"),
@@ -145,7 +147,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         (JudgeId.Luogu, "PUBLIC SITE / PROFILE / CONTESTS / PROBLEMSET"),
     ];
 
-    private readonly ISyncStore _store;
+    private readonly IStorageOperationSource _storage;
     private readonly SyncService _syncService;
     private readonly object _syncCancellationLock = new();
     private readonly Dictionary<ConnectorRow, CancellationTokenSource> _syncCancellations = [];
@@ -163,12 +165,12 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     private string _selectedProblemJudge = "ALL";
     private string _selectedProblemStatus = "ALL";
 
-    public DesktopViewModel(ISyncStore store, SyncService syncService, string dataDirectory)
+    public DesktopViewModel(IStorageOperationSource storage, SyncService syncService, string dataDirectory)
     {
-        ArgumentNullException.ThrowIfNull(store);
+        ArgumentNullException.ThrowIfNull(storage);
         ArgumentNullException.ThrowIfNull(syncService);
         ArgumentException.ThrowIfNullOrWhiteSpace(dataDirectory);
-        _store = store;
+        _storage = storage;
         _syncService = syncService;
         DataDirectory = dataDirectory;
         foreach (var (judge, capability) in SupportedJudges)
@@ -340,18 +342,23 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task RefreshAsync(CancellationToken cancellationToken)
     {
+        await _storage.RunAsync((store, token) => RefreshCoreAsync(store, token), cancellationToken);
+    }
+
+    private async Task<string?> RefreshCoreAsync(ISyncStore store, CancellationToken cancellationToken)
+    {
         IsBusy = true;
         StatusText = "LOADING";
         LastError = string.Empty;
         try
         {
-            var accounts = await _store.GetAccountsAsync(cancellationToken);
-            var operations = await _store.GetRecentOperationsAsync(null, 20, cancellationToken);
+            var accounts = await store.GetAccountsAsync(cancellationToken);
+            var operations = await store.GetRecentOperationsAsync(null, 20, cancellationToken);
             ProjectAccounts(accounts, operations);
             var historyOperations = SelectedHistoryJudge == "ALL"
                 ? operations
                 : JudgeIdParser.TryParse(SelectedHistoryJudge, out var historyJudge)
-                    ? await _store.GetRecentOperationsAsync(historyJudge, 5, cancellationToken)
+                    ? await store.GetRecentOperationsAsync(historyJudge, 5, cancellationToken)
                     : Array.Empty<SyncOperation>();
             ProjectHistory(historyOperations);
             JudgeId? problemJudge = SelectedProblemJudge != "ALL" && JudgeIdParser.TryParse(SelectedProblemJudge, out var problemJudgeId)
@@ -360,19 +367,27 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             ProblemStatus? problemStatus = ProblemStatusParser.TryParse(SelectedProblemStatus, out var parsedStatus)
                 ? parsedStatus
                 : null;
-            var problems = await _store.GetProblemsAsync(problemJudge, problemStatus, 100, cancellationToken);
+            var problems = await store.GetProblemsAsync(problemJudge, problemStatus, 100, cancellationToken);
             ProjectProblems(problems);
             StatusText = "READY";
+            return null;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             StatusText = "CANCELLED";
             throw;
         }
+        catch (StorageException exception)
+        {
+            StatusText = "ERROR";
+            LastError = exception.Failure.WireCode;
+            return exception.Failure.WireCode;
+        }
         catch (Exception)
         {
             StatusText = "ERROR";
             LastError = "LOCAL STATE UNAVAILABLE";
+            return null;
         }
         finally
         {
@@ -381,6 +396,11 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public async Task<bool> SaveConnectorAsync(ConnectorRow row, CancellationToken cancellationToken)
+    {
+        return await _storage.RunAsync((store, token) => SaveConnectorCoreAsync(row, store, token), cancellationToken);
+    }
+
+    private async Task<bool> SaveConnectorCoreAsync(ConnectorRow row, ISyncStore store, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(row);
         var handle = row.Handle.Trim();
@@ -398,7 +418,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             {
                 Enabled = row.IsConfigured && !row.IsEnabled ? false : true,
             };
-            await _store.UpsertAccountAsync(account, cancellationToken);
+            await store.UpsertAccountAsync(account, cancellationToken);
             row.Handle = account.Handle;
             row.IsConfigured = true;
             row.IsEnabled = account.Enabled;
@@ -414,6 +434,13 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             StatusText = "CANCELLED";
             return false;
         }
+        catch (StorageException exception)
+        {
+            row.Status = "ERROR";
+            StatusText = "ERROR";
+            LastError = exception.Failure.WireCode;
+            return false;
+        }
         catch (Exception)
         {
             row.Status = "ERROR";
@@ -424,6 +451,11 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public async Task<bool> SyncAllAsync(CancellationToken cancellationToken)
+    {
+        return await _storage.RunAsync((store, token) => SyncAllCoreAsync(store, token), cancellationToken);
+    }
+
+    private async Task<bool> SyncAllCoreAsync(ISyncStore store, CancellationToken cancellationToken)
     {
         if (_isBusy || _isBatchSyncing || HasActiveSyncs())
         {
@@ -448,6 +480,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         StatusText = "SYNCING";
         LastError = string.Empty;
         var allSucceeded = true;
+        string? batchStorageFailureCode = null;
         try
         {
             foreach (var row in candidates)
@@ -455,31 +488,37 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
                 if (cancellationToken.IsCancellationRequested || BatchCancelRequested())
                 {
                     StatusText = "CANCELLED";
-                    LastError = "CANCELLED";
+                    LastError = batchStorageFailureCode ?? "CANCELLED";
                     return false;
                 }
 
-                if (!await SyncConnectorAsync(row, cancellationToken))
+                var result = await SyncConnectorCoreAsync(row, store, cancellationToken);
+                if (!result.Succeeded)
                 {
                     allSucceeded = false;
                 }
+                batchStorageFailureCode ??= result.StorageFailureCode;
             }
 
             if (cancellationToken.IsCancellationRequested || BatchCancelRequested())
             {
                 StatusText = "CANCELLED";
-                LastError = "CANCELLED";
+                LastError = batchStorageFailureCode ?? "CANCELLED";
                 return false;
             }
 
             StatusText = allSucceeded ? "READY" : "ERROR";
-            LastError = allSucceeded ? string.Empty : "SYNC PARTIAL";
+            LastError = batchStorageFailureCode ?? (allSucceeded ? string.Empty : "SYNC PARTIAL");
+            if (batchStorageFailureCode is not null)
+            {
+                StatusText = "ERROR";
+            }
             return allSucceeded;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             StatusText = "CANCELLED";
-            LastError = "CANCELLED";
+            LastError = batchStorageFailureCode ?? "CANCELLED";
             return false;
         }
         finally
@@ -495,6 +534,15 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         bool enabled,
         CancellationToken cancellationToken)
     {
+        return await _storage.RunAsync((store, token) => SetConnectorEnabledCoreAsync(row, enabled, store, token), cancellationToken);
+    }
+
+    private async Task<bool> SetConnectorEnabledCoreAsync(
+        ConnectorRow row,
+        bool enabled,
+        ISyncStore store,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(row);
         if (row.IsSyncing)
         {
@@ -505,7 +553,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
-            var accounts = await _store.GetAccountsAsync(cancellationToken);
+            var accounts = await store.GetAccountsAsync(cancellationToken);
             var account = accounts.FirstOrDefault(candidate =>
                 candidate.Judge == row.Judge
                 && JudgeIdentity.HandlesMatch(row.Judge, candidate.Handle, row.Handle));
@@ -516,7 +564,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
                 return false;
             }
 
-            await _store.UpsertAccountAsync(account with { Enabled = enabled }, cancellationToken);
+            await store.UpsertAccountAsync(account with { Enabled = enabled }, cancellationToken);
             row.IsConfigured = true;
             row.IsEnabled = enabled;
             StatusText = "READY";
@@ -529,6 +577,12 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
             StatusText = "CANCELLED";
             return false;
         }
+        catch (StorageException exception)
+        {
+            StatusText = "ERROR";
+            LastError = exception.Failure.WireCode;
+            return false;
+        }
         catch (Exception)
         {
             StatusText = "ERROR";
@@ -539,25 +593,31 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task<bool> SyncConnectorAsync(ConnectorRow row, CancellationToken cancellationToken)
     {
+        var result = await _storage.RunAsync((store, token) => SyncConnectorCoreAsync(row, store, token), cancellationToken);
+        return result.Succeeded;
+    }
+
+    private async Task<SyncActionResult> SyncConnectorCoreAsync(ConnectorRow row, ISyncStore store, CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(row);
         if (row.IsConfigured && !row.IsEnabled)
         {
             StatusText = "ERROR";
             LastError = "ACCOUNT DISABLED";
-            return false;
+            return new(false);
         }
 
         lock (_syncCancellationLock)
         {
             if (_syncCancellations.ContainsKey(row))
             {
-                return false;
+                return new(false);
             }
         }
 
-        if (!await SaveConnectorAsync(row, cancellationToken))
+        if (!await SaveConnectorCoreAsync(row, store, cancellationToken))
         {
-            return false;
+            return new(false, GetStorageWireCode(LastError));
         }
 
         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -565,7 +625,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         {
             if (_syncCancellations.ContainsKey(row))
             {
-                return false;
+                return new(false);
             }
 
             _syncCancellations[row] = linkedCancellation;
@@ -575,28 +635,37 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         row.Status = "SYNCING";
         StatusText = "SYNCING";
         LastError = string.Empty;
+        string? storageFailureCode = null;
+        var succeeded = false;
         try
         {
-            var report = await _syncService.RunAsync(JudgeAccount.Create(row.Judge, row.Handle), false, linkedCancellation.Token);
+            var report = await _syncService.RunAsync(JudgeAccount.Create(row.Judge, row.Handle), false, store, linkedCancellation.Token);
             row.Status = report.Status.ToString().ToUpperInvariant();
             if (report.Error is not null)
             {
                 LastError = report.Error.Value.ToString().ToUpperInvariant();
             }
 
-            return report.Status == SyncOperationStatus.Success;
+            succeeded = report.Status == SyncOperationStatus.Success;
         }
         catch (OperationCanceledException) when (linkedCancellation.IsCancellationRequested)
         {
             row.Status = "CANCELLED";
             LastError = "CANCELLED";
-            return false;
+            succeeded = false;
+        }
+        catch (StorageException exception)
+        {
+            storageFailureCode = exception.Failure.WireCode;
+            row.Status = "ERROR";
+            LastError = storageFailureCode;
+            succeeded = false;
         }
         catch (Exception)
         {
             row.Status = "ERROR";
             LastError = "SYNC FAILED";
-            return false;
+            succeeded = false;
         }
         finally
         {
@@ -610,11 +679,37 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
                 }
             }
 
-            await RefreshAsync(CancellationToken.None);
+            var refreshStorageFailureCode = await RefreshCoreAsync(store, CancellationToken.None);
+            storageFailureCode ??= refreshStorageFailureCode;
+            if (storageFailureCode is not null)
+            {
+                row.Status = "ERROR";
+                succeeded = false;
+                StatusText = "ERROR";
+                LastError = storageFailureCode;
+            }
         }
+
+        return new(succeeded, storageFailureCode);
+    }
+
+    private static string? GetStorageWireCode(string value)
+    {
+        foreach (var code in Enum.GetValues<StorageFailureCode>())
+        {
+            var wireCode = new StorageFailure(code, "desktop").WireCode;
+            if (string.Equals(value, wireCode, StringComparison.Ordinal)) return wireCode;
+        }
+
+        return null;
     }
 
     public async Task<bool> RetryHistoryAsync(HistoryRow row, CancellationToken cancellationToken)
+    {
+        return await _storage.RunAsync((store, token) => RetryHistoryCoreAsync(row, store, token), cancellationToken);
+    }
+
+    private async Task<bool> RetryHistoryCoreAsync(HistoryRow row, ISyncStore store, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(row);
         if (!row.CanRetry || !JudgeIdParser.TryParse(row.Judge, out var judge))
@@ -638,7 +733,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         }
 
         connector.IsConfigured = true;
-        return await SyncConnectorAsync(connector, cancellationToken);
+        return (await SyncConnectorCoreAsync(connector, store, cancellationToken)).Succeeded;
     }
 
     public void CancelSync(ConnectorRow row)
@@ -648,13 +743,12 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         {
             _batchCancelRequested = true;
         }
+        CancellationTokenSource? cancellation;
         lock (_syncCancellationLock)
         {
-            if (_syncCancellations.TryGetValue(row, out var cancellation))
-            {
-                cancellation.Cancel();
-            }
+            _syncCancellations.TryGetValue(row, out cancellation);
         }
+        cancellation?.Cancel();
     }
 
     public void CancelSync()
@@ -688,9 +782,16 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         CancelSync();
+        await _storage.DisposeAsync();
+    }
+
+    public void ReportStorageFailure(string wireCode)
+    {
+        StatusText = "ERROR";
+        LastError = wireCode;
     }
 
     private void ProjectAccounts(IReadOnlyList<JudgeAccount> accounts, IReadOnlyList<SyncOperation> operations)
@@ -799,20 +900,18 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IDisposable
 
 public static class DesktopRuntime
 {
-    public static DesktopViewModel Create()
+    public static DesktopViewModel Create(IStorageOperationSource storage, string dataDirectory)
     {
-        var dataDirectory = WindowsPaths.GetDataDirectory();
-        var connectionFactory = new SqliteConnectionFactory(dataDirectory);
+        ArgumentNullException.ThrowIfNull(storage);
         var clock = new SystemClock();
-        var store = new SqliteSyncStore(connectionFactory, clock);
         var adapters = new Dictionary<JudgeId, IJudgeAdapter>
         {
             [JudgeId.Codeforces] = new CodeforcesAdapter(PublicHttpClientFactory.Create),
             [JudgeId.AtCoder] = new AtCoderAdapter(PublicHttpClientFactory.Create),
             [JudgeId.Luogu] = new LuoguAdapter(PublicHttpClientFactory.Create),
         };
-        var syncService = new SyncService(adapters, store, clock, static () => "windows-desktop-v1");
-        return new DesktopViewModel(store, syncService, dataDirectory);
+        var syncService = new SyncService(adapters, clock, static () => "windows-desktop-v1");
+        return new DesktopViewModel(storage, syncService, dataDirectory);
     }
 
     private sealed class SystemClock : IClock

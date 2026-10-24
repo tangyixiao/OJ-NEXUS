@@ -111,11 +111,10 @@ public sealed class CodeforcesPayloadPersistenceTests
                 new CodeforcesProfilePayload("tourist", 3800, "legend", 4000, "legend")));
         var service = new SyncService(
             new Dictionary<JudgeId, IJudgeAdapter> { [JudgeId.Codeforces] = adapter },
-            database.Store,
             new FixedClock(DateTimeOffset.Parse("2026-09-12T01:02:03+00:00")),
             () => "generation-1");
 
-        var report = await service.RunAsync(account, force: false, CancellationToken.None);
+        var report = await service.RunAsync(account, force: false, database.Store, CancellationToken.None);
         var snapshot = await database.Store.GetCodeforcesPayloadAsync("tourist", CancellationToken.None);
 
         Assert.Equal(SyncOperationStatus.Success, report.Status);
@@ -152,20 +151,21 @@ public sealed class CodeforcesPayloadPersistenceTests
     private sealed class TemporaryDatabase : IDisposable
     {
         private readonly string _directoryPath = Path.Combine(Path.GetTempPath(), "oj-nexus-payload-tests", Guid.NewGuid().ToString("N"));
+        private readonly StorageTestScope _scope;
 
         public TemporaryDatabase()
         {
-            Directory.CreateDirectory(_directoryPath);
-            Store = new SqliteSyncStore(new SqliteConnectionFactory(_directoryPath));
+            _scope = new StorageTestScope(_directoryPath);
+            Store = _scope.Store;
         }
 
         public string DatabasePath => Path.Combine(_directoryPath, "ojnexus.db");
 
-        public SqliteSyncStore Store { get; }
+        public ISyncStore Store { get; }
 
         public void Dispose()
         {
-            SqliteConnection.ClearAllPools();
+            _scope.Dispose();
             Directory.Delete(_directoryPath, recursive: true);
         }
     }

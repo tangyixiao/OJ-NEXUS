@@ -2,12 +2,14 @@ using System.Text.Json;
 using OjNexus.Windows.Cli;
 using OjNexus.Windows.Core.Domain;
 using OjNexus.Windows.Core.Storage;
+using OjNexus.Windows.Core.Contracts;
 
 namespace OjNexus.Windows.Cli.Tests;
 
 public sealed class ProgramTests : IDisposable
 {
     private readonly string _dataDirectory;
+    private readonly List<(WindowsStorageSession Session, StorageOperationContext Operation)> _ownedStorage = [];
 
     public ProgramTests()
     {
@@ -17,6 +19,11 @@ public sealed class ProgramTests : IDisposable
 
     public void Dispose()
     {
+        foreach (var (session, operation) in _ownedStorage)
+        {
+            operation.Dispose();
+            session.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
         try
         {
             Directory.Delete(_dataDirectory, recursive: true);
@@ -40,6 +47,43 @@ public sealed class ProgramTests : IDisposable
         Assert.True(File.Exists(System.IO.Path.Combine(_dataDirectory, "ojnexus.db")));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RunAsync_ExistingZeroByteDatabase_IsBlockedWithoutMutation(bool json)
+    {
+        File.WriteAllBytes(Path.Combine(_dataDirectory, "ojnexus.db"), []);
+        var before = File.ReadAllBytes(Path.Combine(_dataDirectory, "ojnexus.db"));
+        var (exitCode, output, error) = await RunAsync(json ? ["status", "--json"] : ["status"]);
+
+        Assert.Equal(6, exitCode);
+        Assert.Equal(before, File.ReadAllBytes(Path.Combine(_dataDirectory, "ojnexus.db")));
+        if (json)
+        {
+            using var document = JsonDocument.Parse(output.ToString());
+            Assert.Equal("blocked", document.RootElement.GetProperty("status").GetString());
+            Assert.Equal("INTEGRITY_FAILURE", document.RootElement.GetProperty("error").GetString());
+        }
+        else
+        {
+            Assert.Contains("INTEGRITY_FAILURE", output.ToString(), StringComparison.Ordinal);
+        }
+        Assert.DoesNotContain(_dataDirectory, output.ToString() + error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_MissingEstablishedDatabase_IsBlockedWithWireJson()
+    {
+        File.WriteAllText(Path.Combine(_dataDirectory, "ojnexus.initialized"), "v1\n");
+        var (exitCode, output, error) = await RunAsync(["status", "--json"]);
+
+        Assert.Equal(6, exitCode);
+        using var document = JsonDocument.Parse(output.ToString());
+        Assert.Equal("blocked", document.RootElement.GetProperty("status").GetString());
+        Assert.Equal("RECOVERY_SOURCE_MISSING", document.RootElement.GetProperty("error").GetString());
+        Assert.DoesNotContain(_dataDirectory, output.ToString() + error, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task RunAsync_HistoryJson_ReportsEmptyOperationsAndSuccessExit()
     {
@@ -54,7 +98,7 @@ public sealed class ProgramTests : IDisposable
     [Fact]
     public async Task RunAsync_DataJson_ReadsPersistedAtCoderPayload()
     {
-        var store = new SqliteSyncStore(new SqliteConnectionFactory(_dataDirectory));
+        var store = CreateStore();
         var account = JudgeAccount.Create(JudgeId.AtCoder, "tourist");
         var timestamp = DateTimeOffset.Parse("2026-09-12T01:02:03+00:00");
         var operationId = await store.OpenOperationAsync(account, "generation-1", timestamp, CancellationToken.None);
@@ -83,7 +127,7 @@ public sealed class ProgramTests : IDisposable
     [Fact]
     public async Task RunAsync_DataJson_ReadsPersistedLuoguPayloadSummary()
     {
-        var store = new SqliteSyncStore(new SqliteConnectionFactory(_dataDirectory));
+        var store = CreateStore();
         var account = JudgeAccount.Create(JudgeId.Luogu, "uid:2");
         var timestamp = DateTimeOffset.Parse("2026-09-13T01:02:03+00:00");
         var operationId = await store.OpenOperationAsync(account, "generation-1", timestamp, CancellationToken.None);
@@ -164,11 +208,12 @@ public sealed class ProgramTests : IDisposable
 
         var (exitCode, output, error) = await RunAsync(["status", "--json"]);
 
-        Assert.Equal((int)CliExitCode.GeneralError, exitCode);
-        Assert.Equal(string.Empty, output.ToString());
-        Assert.StartsWith("CLI ERROR:", error.ToString(), StringComparison.Ordinal);
-        Assert.DoesNotContain("at OjNexus", error.ToString(), StringComparison.Ordinal);
-        Assert.DoesNotContain("Exception", error.ToString(), StringComparison.Ordinal);
+        Assert.Equal((int)CliExitCode.Storage, exitCode);
+        using var document = JsonDocument.Parse(output.ToString());
+        Assert.Equal("blocked", document.RootElement.GetProperty("status").GetString());
+        Assert.Equal("INTEGRITY_FAILURE", document.RootElement.GetProperty("error").GetString());
+        Assert.DoesNotContain("at OjNexus", output.ToString() + error);
+        Assert.DoesNotContain("Exception", output.ToString() + error);
     }
 
     [Fact]
@@ -187,7 +232,7 @@ public sealed class ProgramTests : IDisposable
     [Fact]
     public async Task RunAsync_ProblemsListJson_ReadsDerivedProblemLedger()
     {
-        var store = new SqliteSyncStore(new SqliteConnectionFactory(_dataDirectory));
+        var store = CreateStore();
         var timestamp = DateTimeOffset.Parse("2026-09-12T01:02:03+00:00");
         var cfAccount = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
         var cfOperation = await store.OpenOperationAsync(cfAccount, "generation-1", timestamp, CancellationToken.None);
@@ -254,7 +299,7 @@ public sealed class ProgramTests : IDisposable
     [Fact]
     public async Task RunAsync_ProblemsListFilteredByJudgeAndStatus()
     {
-        var store = new SqliteSyncStore(new SqliteConnectionFactory(_dataDirectory));
+        var store = CreateStore();
         var timestamp = DateTimeOffset.Parse("2026-09-12T01:02:03+00:00");
         var cfAccount = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
         var cfOperation = await store.OpenOperationAsync(cfAccount, "generation-1", timestamp, CancellationToken.None);
@@ -323,7 +368,7 @@ public sealed class ProgramTests : IDisposable
             Assert.Equal("FAIL", markDocument.RootElement.GetProperty("result").GetString());
         }
 
-        var store = new SqliteSyncStore(new SqliteConnectionFactory(_dataDirectory));
+        var store = CreateStore();
         // A second mark stamped in the past moves the due date into the past on purpose.
         await store.MarkReviewAsync(JudgeId.Codeforces, "2134/C", ReviewResult.Pass, markedAt, CancellationToken.None);
 
@@ -366,5 +411,14 @@ public sealed class ProgramTests : IDisposable
         var error = new StringWriter();
         var exitCode = await Program.RunAsync(args, output, error, CancellationToken.None, _dataDirectory);
         return (exitCode, output, error);
+    }
+
+    private ISyncStore CreateStore()
+    {
+        var opened = WindowsStorage.OpenAsync(_dataDirectory, null, CancellationToken.None).GetAwaiter().GetResult();
+        var session = opened.Session ?? throw new InvalidOperationException(opened.Failure?.WireCode);
+        var operation = session.BeginOperation();
+        _ownedStorage.Add((session, operation));
+        return operation.Store;
     }
 }

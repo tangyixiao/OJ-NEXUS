@@ -215,6 +215,7 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **验收：** G-A；故障注入后重启得到完整旧库或完整新库；旧 worker 不回写；取消预览不动库；OpenApp 凭据保持独立。
 
 #### [ ] PHASE 128 — W · SQLite 写入和恢复的原子性
+- **状态：** ACTIVE（2026-10-24）；[128A 设计](superpowers/specs/2026-10-24-phase-128a-windows-storage-safety.md)与[实施计划](superpowers/plans/2026-10-24-phase-128a-windows-storage-safety.md)已通过限定范围审查及产物验收：[PR #21](https://github.com/tangyixiao/OJ-NEXUS/pull/21) 待合并，[Windows v0.1.2-rc.1](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/windows-v0.1.2-rc.1) 已发布并完成回下载哈希核对；细节见 [128A 验收记录](verification/phase-128a-windows-storage-safety.md)。128B–D 的一致性备份、恢复安装/回滚与原生故障验收仍待实施，本期不勾选完成。
 - **依赖 / 范围：** 123、126；W 的 SqliteSyncStore、SchemaMigrator、WindowsPaths。
 - **交付：** 建立本端一致性备份/恢复入口，保护事务与活动连接；迁移失败、权限不足和损坏库显示稳定错误与用户可选恢复路径。
 - **验收：** G-W；中断后旧文件可打开，失败不生成空库覆盖原文件；重启后的 CLI/WPF 展示一致；测试只操作隔离目录。

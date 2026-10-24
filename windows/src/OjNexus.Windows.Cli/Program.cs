@@ -1,5 +1,6 @@
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
+using OjNexus.Windows.Core.Storage;
 
 namespace OjNexus.Windows.Cli;
 
@@ -25,11 +26,21 @@ public static class Program
         string? dataDirectoryOverride = null,
         IReadOnlyDictionary<JudgeId, IJudgeAdapter>? adapters = null)
     {
+        var wantsJson = args.Contains("--json", StringComparer.Ordinal);
         try
         {
             var command = CliParser.Parse(args);
-            var bootstrap = Bootstrap.Create(dataDirectoryOverride, adapters);
-            return await ExecuteAsync(command, bootstrap, output, error, cancellationToken);
+            var stagedOutput = new StringWriter();
+            var stagedError = new StringWriter();
+            int exitCode;
+            await using (var bootstrap = await Bootstrap.OpenAsync(dataDirectoryOverride, adapters, cancellationToken))
+            {
+                await using var operation = bootstrap.Session.BeginOperation(cancellationToken);
+                exitCode = await ExecuteAsync(command, bootstrap, operation.Store, stagedOutput, stagedError, operation.CancellationToken);
+            }
+            await output.WriteAsync(stagedOutput.ToString());
+            await error.WriteAsync(stagedError.ToString());
+            return exitCode;
         }
         catch (CliParseException exception)
         {
@@ -41,6 +52,15 @@ public static class Program
             await error.WriteLineAsync("SYNC: CANCELLED");
             return (int)CliExitCode.Cancelled;
         }
+        catch (StorageException exception)
+        {
+            var code = exception.Failure.WireCode;
+            if (wantsJson)
+                await output.WriteLineAsync($"{{\"status\":\"blocked\",\"error\":\"{code}\"}}");
+            else
+                await output.WriteLineAsync($"LOCAL STORAGE UNAVAILABLE: {code}");
+            return (int)CliExitCode.Storage;
+        }
         catch (Exception)
         {
             await error.WriteLineAsync("CLI ERROR: UNEXPECTED FAILURE. INSPECT THE OPERATION WITHOUT EXPOSING INTERNAL DETAILS.");
@@ -48,52 +68,52 @@ public static class Program
         }
     }
 
-    private static async Task<int> ExecuteAsync(CliCommand command, Bootstrap bootstrap, TextWriter output, TextWriter error, CancellationToken cancellationToken)
+    private static async Task<int> ExecuteAsync(CliCommand command, Bootstrap bootstrap, ISyncStore store, TextWriter output, TextWriter error, CancellationToken cancellationToken)
     {
         switch (command)
         {
             case StatusCommand status:
             {
-                var accounts = await bootstrap.Store.GetAccountsAsync(cancellationToken);
-                var operations = await bootstrap.Store.GetRecentOperationsAsync(null, 1, cancellationToken);
+                var accounts = await store.GetAccountsAsync(cancellationToken);
+                var operations = await store.GetRecentOperationsAsync(null, 1, cancellationToken);
                 var result = new CliStatus(accounts.Count, operations.FirstOrDefault());
                 await output.WriteLineAsync(status.Json ? ConsoleRenderer.RenderJson(result) : ConsoleRenderer.RenderHuman(result));
                 return (int)CliExitCode.Success;
             }
             case HistoryCommand history:
             {
-                var operations = await bootstrap.Store.GetRecentOperationsAsync(history.Judge, history.Limit, cancellationToken);
+                var operations = await store.GetRecentOperationsAsync(history.Judge, history.Limit, cancellationToken);
                 await output.WriteLineAsync(history.Json ? ConsoleRenderer.RenderJson(operations) : ConsoleRenderer.RenderHuman(operations));
                 return (int)CliExitCode.Success;
             }
             case ProblemsListCommand problems:
             {
-                var entries = await bootstrap.Store.GetProblemsAsync(problems.Judge, problems.Status, problems.Limit, cancellationToken);
+                var entries = await store.GetProblemsAsync(problems.Judge, problems.Status, problems.Limit, cancellationToken);
                 await output.WriteLineAsync(problems.Json ? ConsoleRenderer.RenderJson(entries) : ConsoleRenderer.RenderHuman(entries));
                 return (int)CliExitCode.Success;
             }
             case ReviewDueCommand reviewDue:
             {
-                var entries = await bootstrap.Store.GetDueReviewsAsync(reviewDue.Judge, reviewDue.Limit, cancellationToken);
+                var entries = await store.GetDueReviewsAsync(reviewDue.Judge, reviewDue.Limit, cancellationToken);
                 await output.WriteLineAsync(reviewDue.Json ? ConsoleRenderer.RenderJson(entries) : ConsoleRenderer.RenderHuman(entries));
                 return (int)CliExitCode.Success;
             }
             case ReviewMarkCommand reviewMark:
             {
-                var entry = await bootstrap.Store.MarkReviewAsync(reviewMark.Judge, reviewMark.Problem, reviewMark.Result, DateTimeOffset.Now, cancellationToken);
+                var entry = await store.MarkReviewAsync(reviewMark.Judge, reviewMark.Problem, reviewMark.Result, DateTimeOffset.Now, cancellationToken);
                 await output.WriteLineAsync(reviewMark.Json ? ConsoleRenderer.RenderJson(entry) : ConsoleRenderer.RenderHuman(entry));
                 return (int)CliExitCode.Success;
             }
             case ConfigShowCommand configShow:
             {
-                var accounts = await bootstrap.Store.GetAccountsAsync(cancellationToken);
-                var result = new CliConfig(bootstrap.DataDirectory, bootstrap.ConnectionFactory.DatabasePath, accounts);
+                var accounts = await store.GetAccountsAsync(cancellationToken);
+                var result = new CliConfig(bootstrap.Session.DataDirectory, bootstrap.Session.DatabasePath, accounts);
                 await output.WriteLineAsync(configShow.Json ? ConsoleRenderer.RenderJson(result) : ConsoleRenderer.RenderHuman(result));
                 return (int)CliExitCode.Success;
             }
             case DataCommand data:
             {
-                var handle = await ResolveHandleAsync(data.Judge, data.Handle, bootstrap, cancellationToken);
+                var handle = await ResolveHandleAsync(data.Judge, data.Handle, store, cancellationToken);
                 if (handle is null)
                 {
                     await error.WriteLineAsync($"ARGUMENT ERROR: NO HANDLE CONFIGURED FOR {data.Judge.ToString().ToUpperInvariant()}. SUPPLY --handle <handle>.");
@@ -104,19 +124,19 @@ public static class Program
                 {
                     case JudgeId.Codeforces:
                     {
-                        var payload = await bootstrap.Store.GetCodeforcesPayloadAsync(handle, cancellationToken);
+                        var payload = await store.GetCodeforcesPayloadAsync(handle, cancellationToken);
                         await output.WriteLineAsync(data.Json ? ConsoleRenderer.RenderJson(payload) : ConsoleRenderer.RenderHuman(payload));
                         return (int)CliExitCode.Success;
                     }
                     case JudgeId.AtCoder:
                     {
-                        var payload = await bootstrap.Store.GetAtCoderPayloadAsync(handle, cancellationToken);
+                        var payload = await store.GetAtCoderPayloadAsync(handle, cancellationToken);
                         await output.WriteLineAsync(data.Json ? ConsoleRenderer.RenderJson(payload) : ConsoleRenderer.RenderHuman(payload));
                         return (int)CliExitCode.Success;
                     }
                     case JudgeId.Luogu:
                     {
-                        var payload = await bootstrap.Store.GetLuoguPayloadAsync(handle, cancellationToken);
+                        var payload = await store.GetLuoguPayloadAsync(handle, cancellationToken);
                         await output.WriteLineAsync(data.Json ? ConsoleRenderer.RenderJson(payload) : ConsoleRenderer.RenderHuman(payload));
                         return (int)CliExitCode.Success;
                     }
@@ -139,7 +159,7 @@ public static class Program
             }
             case SyncCommand sync:
             {
-                var handle = await ResolveHandleAsync(sync.Judge, sync.Handle, bootstrap, cancellationToken);
+                var handle = await ResolveHandleAsync(sync.Judge, sync.Handle, store, cancellationToken);
                 if (handle is null)
                 {
                     await error.WriteLineAsync($"ARGUMENT ERROR: NO HANDLE CONFIGURED FOR {sync.Judge.ToString().ToUpperInvariant()}. SUPPLY --handle <handle>.");
@@ -147,7 +167,7 @@ public static class Program
                 }
 
                 var account = JudgeAccount.Create(sync.Judge, handle);
-                var report = await bootstrap.SyncService.RunAsync(account, sync.Force, cancellationToken);
+                var report = await bootstrap.SyncService.RunAsync(account, sync.Force, store, cancellationToken);
                 await output.WriteLineAsync(sync.Json ? ConsoleRenderer.RenderJson(report) : ConsoleRenderer.RenderHuman(report));
                 return (int)CliExitCodeMapper.FromReport(report);
             }
@@ -156,10 +176,10 @@ public static class Program
         }
     }
 
-    private static async Task<string?> ResolveHandleAsync(JudgeId judge, string? handle, Bootstrap bootstrap, CancellationToken cancellationToken)
+    private static async Task<string?> ResolveHandleAsync(JudgeId judge, string? handle, ISyncStore store, CancellationToken cancellationToken)
     {
         if (handle is not null) return handle;
-        var accounts = await bootstrap.Store.GetAccountsAsync(cancellationToken);
+        var accounts = await store.GetAccountsAsync(cancellationToken);
         return accounts.SingleOrDefault(account => account.Judge == judge)?.Handle;
     }
 }

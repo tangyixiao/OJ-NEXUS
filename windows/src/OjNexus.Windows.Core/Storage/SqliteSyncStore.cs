@@ -6,13 +6,29 @@ using OjNexus.Windows.Core.Sync;
 
 namespace OjNexus.Windows.Core.Storage;
 
-public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, IClock? clock = null) : ISyncStore
+public sealed class SqliteSyncStore : ISyncStore
 {
+    private readonly SqliteConnectionFactory connectionFactory;
+    private readonly IClock? clock;
+    private readonly OperationPermit _permit;
+
+    internal SqliteSyncStore(SqliteConnectionFactory connectionFactory, OperationPermit permit, IClock? clock = null)
+    {
+        this.connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
+        _permit = permit ?? throw new ArgumentNullException(nameof(permit));
+        this.clock = clock;
+    }
+
+    private IDisposable EnterStoreCall() => connectionFactory.EnterStoreCall(_permit);
+    private SqliteConnectionLease OpenLease() => connectionFactory.OpenLease(_permit);
+
     private const int CompletedOperationRetention = 20;
 
     public async Task<IReadOnlyList<JudgeAccount>> GetAccountsAsync(CancellationToken cancellationToken)
     {
-        using var connection = connectionFactory.OpenConnection();
+        using var storeCall = EnterStoreCall();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT judge, handle, enabled FROM accounts ORDER BY judge ASC";
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -36,8 +52,10 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, I
 
     public async Task UpsertAccountAsync(JudgeAccount account, CancellationToken cancellationToken)
     {
+        using var storeCall = EnterStoreCall();
         account = JudgeAccount.Create(account.Judge, account.Handle) with { Enabled = account.Enabled };
-        using var connection = connectionFactory.OpenConnection();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
         using var transaction = connection.BeginTransaction();
         await UpsertAccountAsync(connection, transaction, account, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -48,12 +66,14 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, I
         int limit,
         CancellationToken cancellationToken)
     {
+        using var storeCall = EnterStoreCall();
         if (limit <= 0)
         {
             return Array.Empty<SyncOperation>();
         }
 
-        using var connection = connectionFactory.OpenConnection();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT operation.id, operation.judge, operation.handle, account.enabled, operation.data_generation,
@@ -129,10 +149,12 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, I
         string handle,
         CancellationToken cancellationToken)
     {
+        using var storeCall = EnterStoreCall();
         ArgumentException.ThrowIfNullOrWhiteSpace(handle);
         handle = handle.Trim();
 
-        using var connection = connectionFactory.OpenConnection();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
         CodeforcesProfilePayload? profile = null;
         using (var profileCommand = connection.CreateCommand())
         {
@@ -208,9 +230,11 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, I
         string handle,
         CancellationToken cancellationToken)
     {
+        using var storeCall = EnterStoreCall();
         ArgumentException.ThrowIfNullOrWhiteSpace(handle);
         handle = handle.Trim();
-        using var connection = connectionFactory.OpenConnection();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT id, epoch_second, problem_id, contest_id, language, point, source_length, result, execution_time_millis
@@ -242,9 +266,11 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, I
         string handle,
         CancellationToken cancellationToken)
     {
+        using var storeCall = EnterStoreCall();
         ArgumentException.ThrowIfNullOrWhiteSpace(handle);
         handle = handle.Trim();
-        using var connection = connectionFactory.OpenConnection();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT user_id, display_name, rating, submissions_count, contests_count, problems_count
@@ -275,8 +301,10 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, I
         DateTimeOffset startedAt,
         CancellationToken cancellationToken)
     {
+        using var storeCall = EnterStoreCall();
         account = JudgeAccount.Create(account.Judge, account.Handle) with { Enabled = account.Enabled };
-        using var connection = connectionFactory.OpenConnection();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
         using var transaction = connection.BeginTransaction();
         await UpsertAccountAsync(connection, transaction, account, cancellationToken);
         using var command = connection.CreateCommand();
@@ -302,8 +330,10 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, I
         DateTimeOffset completedAt,
         CancellationToken cancellationToken)
     {
+        using var storeCall = EnterStoreCall();
         var normalizedOutcome = ModuleFailureType.Normalize(outcome);
-        using var connection = connectionFactory.OpenConnection();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -710,12 +740,14 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, I
         int limit,
         CancellationToken cancellationToken)
     {
+        using var storeCall = EnterStoreCall();
         if (limit <= 0)
         {
             return Array.Empty<ProblemEntry>();
         }
 
-        using var connection = connectionFactory.OpenConnection();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
         using var command = connection.CreateCommand();
         var statusValue = status switch
         {
@@ -761,13 +793,15 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, I
         int limit,
         CancellationToken cancellationToken)
     {
+        using var storeCall = EnterStoreCall();
         if (limit <= 0)
         {
             return Array.Empty<ReviewEntry>();
         }
 
         var today = ReviewIntervalLadder.DayIndexFor(clock?.UtcNow ?? DateTimeOffset.UtcNow);
-        using var connection = connectionFactory.OpenConnection();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT reviews.judge, reviews.external_id, problems.title, problems.url,
@@ -820,13 +854,15 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, I
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
+        using var storeCall = EnterStoreCall();
         if (string.IsNullOrWhiteSpace(externalId))
         {
             throw new ArgumentException("External id must be a non-blank value.", nameof(externalId));
         }
 
         var trimmedId = externalId.Trim();
-        using var connection = connectionFactory.OpenConnection();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
         using var transaction = connection.BeginTransaction();
 
         int stage;
@@ -919,7 +955,9 @@ public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, I
         DateTimeOffset finishedAt,
         CancellationToken cancellationToken)
     {
-        using var connection = connectionFactory.OpenConnection();
+        using var storeCall = EnterStoreCall();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
         using var transaction = connection.BeginTransaction();
         using var closeCommand = connection.CreateCommand();
         closeCommand.Transaction = transaction;
