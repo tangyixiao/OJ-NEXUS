@@ -6,6 +6,7 @@ using OjNexus.Windows.Core.Sync;
 
 namespace OjNexus.Windows.Core.Storage;
 
+// TRANSITIONAL LEGACY SEAM: Task 2 removes public unguarded construction and migrates existing callers.
 public sealed class SqliteSyncStore(SqliteConnectionFactory connectionFactory, IClock? clock = null) : ISyncStore
 {
     private const int CompletedOperationRetention = 20;

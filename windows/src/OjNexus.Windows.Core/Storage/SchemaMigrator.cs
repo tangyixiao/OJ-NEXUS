@@ -6,6 +6,40 @@ public static class SchemaMigrator
 {
     private const int CurrentSchemaVersion = 7;
 
+    internal static int InspectExisting(SqliteConnection connection)
+    {
+        using var transaction = connection.BeginTransaction(deferred: true);
+        var version = ReadSchemaVersion(connection, transaction) ?? throw new InvalidDataException("Missing schema metadata.");
+        if (version > CurrentSchemaVersion) throw new NotSupportedException("Unsupported database schema.");
+        switch (version)
+        {
+            case 0: ValidateVersionOneSchema(connection, transaction); break;
+            case 1: ValidateVersionOneSchema(connection, transaction); break;
+            case 2: ValidateVersionTwoSchema(connection, transaction); break;
+            case 3: ValidateVersionThreeSchema(connection, transaction); break;
+            case 4: ValidateVersionFourSchema(connection, transaction); break;
+            case 5: ValidateVersionFiveSchema(connection, transaction); break;
+            case 6: ValidateVersionSixSchema(connection, transaction); break;
+            case 7: ValidateVersionSevenSchema(connection, transaction); break;
+        }
+        using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = "PRAGMA integrity_check";
+            if (!string.Equals(Convert.ToString(command.ExecuteScalar()), "ok", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Integrity check failed.");
+        }
+        using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = "PRAGMA foreign_key_check";
+            using var reader = command.ExecuteReader();
+            if (reader.Read()) throw new InvalidDataException("Foreign key check failed.");
+        }
+        transaction.Commit();
+        return version;
+    }
+
     public static void Migrate(string connectionString)
     {
         using var connection = new SqliteConnection(connectionString);

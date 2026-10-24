@@ -7,6 +7,7 @@ public sealed class SqliteConnectionFactory
     private const string DatabaseFileName = "ojnexus.db";
     private readonly string _connectionString;
 
+    // TRANSITIONAL LEGACY SEAM: Task 2 removes this public side-effecting factory constructor.
     public SqliteConnectionFactory(string? rootOverride = null)
     {
         var dataDirectory = WindowsPaths.GetDataDirectory(rootOverride);
@@ -20,8 +21,23 @@ public sealed class SqliteConnectionFactory
         SchemaMigrator.Migrate(_connectionString);
     }
 
+    // Transitional legacy path: removed when CLI/Desktop callers migrate in Task 2.
+    internal SqliteConnectionFactory(string databasePath, bool guardedSession)
+    {
+        DatabasePath = databasePath;
+        _connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath,
+            Mode = SqliteOpenMode.ReadWrite,
+            ForeignKeys = true,
+            Pooling = false,
+            DefaultTimeout = 2,
+        }.ToString();
+    }
+
     public string DatabasePath { get; }
 
+    // TRANSITIONAL LEGACY SEAM: guarded sessions do not expose this method or its raw connection.
     public SqliteConnection OpenConnection()
     {
         var connection = new SqliteConnection(_connectionString);
