@@ -33,13 +33,22 @@ class RecoveryWorkerGateTest {
     @Test fun blockedWorkersReturnRecoveryBlockedBeforeBusinessIo() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val app = ApplicationProvider.getApplicationContext<StartupProbeApplication>()
+        val database = context.getDatabasePath(OjNexusDatabase.DATABASE_NAME)
         assertTrue(app.startupState is NexusStartupState.Blocked)
+        assertWorkManagerUnresolved(context)
+        app.resetBusinessIoCalls()
         val sync = JudgeSyncWorker(context, workerParameters(workDataOf("account_id" to 9L, "judge_id" to JudgeId.CODEFORCES.id)))
         val luogu = LuoguOpenResultWorker(context, workerParameters(workDataOf("request_id" to "persisted-request")))
         val backup = ScheduledBackupWorker(context, workerParameters(Data.EMPTY))
-        assertEquals("RECOVERY_BLOCKED", sync.doWork().outputData.getString("result"))
-        assertEquals("RECOVERY_BLOCKED", luogu.doWork().outputData.getString("result"))
-        assertEquals("RECOVERY_BLOCKED", backup.doWork().outputData.getString("result"))
+        val syncResult = sync.doWork()
+        val luoguResult = luogu.doWork()
+        val backupResult = backup.doWork()
+        assertTrue(syncResult is ListenableWorker.Result.Failure)
+        assertTrue(luoguResult is ListenableWorker.Result.Failure)
+        assertTrue(backupResult is ListenableWorker.Result.Failure)
+        assertEquals("RECOVERY_BLOCKED", syncResult.outputData.getString("result"))
+        assertEquals("RECOVERY_BLOCKED", luoguResult.outputData.getString("result"))
+        assertEquals("RECOVERY_BLOCKED", backupResult.outputData.getString("result"))
         JudgeSyncWorker.enqueueManual(context, JudgeId.CODEFORCES, 9L)
         JudgeSyncWorker.enqueuePeriodic(context, JudgeId.CODEFORCES, 9L)
         WorkManagerLuoguResultScheduler(context).enqueue("persisted-request")
@@ -47,7 +56,9 @@ class RecoveryWorkerGateTest {
         WorkManagerLuoguResultScheduler(context).enqueueNow("persisted-request")
         WorkManagerLuoguResultScheduler(context).enqueueNow("persisted-request", "explicit-generation")
         ScheduledBackupScheduler.update(context, BackupCadence.WEEKLY)
-        assertFalse(context.getDatabasePath(OjNexusDatabase.DATABASE_NAME).exists())
+        assertFalse(database.exists())
+        assertEquals("no prefs/files/cache/database/resolver access while blocked", 0, app.businessIoCalls)
+        assertWorkManagerUnresolved(context)
     }
 }
 
@@ -57,18 +68,41 @@ class RecoveryStartingWorkerGateTest {
     @Test fun startingWorkersRetryBeforeBusinessIo() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val app = ApplicationProvider.getApplicationContext<StartingProbeApplication>()
+        val database = context.getDatabasePath(OjNexusDatabase.DATABASE_NAME)
         assertSame(NexusStartupState.Starting, app.startupState)
+        assertWorkManagerUnresolved(context)
+        app.resetBusinessIoCalls()
         val sync = JudgeSyncWorker(context, workerParameters(workDataOf("account_id" to 9L, "judge_id" to JudgeId.CODEFORCES.id)))
         val luogu = LuoguOpenResultWorker(context, workerParameters(workDataOf("request_id" to "persisted-request")))
         val backup = ScheduledBackupWorker(context, workerParameters(Data.EMPTY))
         assertTrue(sync.doWork() is ListenableWorker.Result.Retry)
         assertTrue(luogu.doWork() is ListenableWorker.Result.Retry)
         assertTrue(backup.doWork() is ListenableWorker.Result.Retry)
-        assertFalse(context.getDatabasePath(OjNexusDatabase.DATABASE_NAME).exists())
+        JudgeSyncWorker.enqueueManual(context, JudgeId.CODEFORCES, 9L)
+        JudgeSyncWorker.enqueuePeriodic(context, JudgeId.CODEFORCES, 9L)
+        val luoguScheduler = WorkManagerLuoguResultScheduler(context)
+        luoguScheduler.enqueue("persisted-request")
+        luoguScheduler.enqueue("persisted-request", "explicit-generation")
+        luoguScheduler.enqueueNow("persisted-request")
+        luoguScheduler.enqueueNow("persisted-request", "explicit-generation")
+        ScheduledBackupScheduler.update(context, BackupCadence.OFF)
+        ScheduledBackupScheduler.update(context, BackupCadence.WEEKLY)
+        assertFalse(database.exists())
+        assertEquals("no prefs/files/cache/database/resolver access while starting", 0, app.businessIoCalls)
+        assertWorkManagerUnresolved(context)
     }
 }
 
-class StartingProbeApplication : OjNexusApplication() {
+private fun assertWorkManagerUnresolved(context: Context) {
+    try {
+        WorkManager.getInstance(context)
+        fail("refused scheduling must not resolve WorkManager")
+    } catch (_: IllegalStateException) {
+        // manifest=NONE keeps WorkManager uninitialized unless the gated call resolves it.
+    }
+}
+
+class StartingProbeApplication : StartupProbeApplication() {
     override fun onCreate() = Unit
 }
 
