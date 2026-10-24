@@ -24,6 +24,7 @@ private slots:
     void rejectsMalformedExistingStores();
     void acceptedIntegerRowidKeysSupportOperationLifecycle();
     void acceptsNonNullLiteralDefaultsForExtraRequiredColumns();
+    void acceptsOwnerColumnsWithoutDefaultsAndSupportsOperationLifecycle();
     void repeatedFailureClearsSchemaVersion();
     void rollsBackPartialInitialSchema();
     void firstUseDoesNotOverwriteCompetitor();
@@ -100,7 +101,7 @@ void SqliteStoreTest::rejectsMalformedExistingStores_data() {
                              "missing-column", "missing-primary-key", "wrong-affinity",
                              "large-positive-version-1", "large-positive-version-2", "large-negative-version-1", "large-negative-version-2",
                              "operation-bigint-key", "operation-desc-key", "operation-without-rowid", "finished-not-null",
-                             "error-default-missing", "owner-default-missing", "owner-nullable", "extra-null-default",
+                             "error-default-missing", "owner-nullable", "extra-null-default",
                              "extra-parenthesized-null-default", "handle-charint"})
         QTest::newRow(kind) << QString::fromLatin1(kind);
 }
@@ -149,11 +150,10 @@ void SqliteStoreTest::rejectsMalformedExistingStores() {
                     .arg(idDefinition, suffix);
                 statements << replacement << "DROP TABLE sync_operations" << "ALTER TABLE operations_bad RENAME TO sync_operations";
             }
-            else if (kind == "finished-not-null" || kind == "error-default-missing" || kind == "owner-default-missing" || kind == "owner-nullable") {
+            else if (kind == "finished-not-null" || kind == "error-default-missing" || kind == "owner-nullable") {
                 const QString finished = kind == "finished-not-null" ? QStringLiteral("finished_at INTEGER NOT NULL") : QStringLiteral("finished_at INTEGER");
                 const QString error = kind == "error-default-missing" ? QStringLiteral("error_type TEXT NOT NULL") : QStringLiteral("error_type TEXT NOT NULL DEFAULT ''");
-                const QString ownerPid = kind == "owner-default-missing" ? QStringLiteral("owner_pid INTEGER NOT NULL") :
-                    kind == "owner-nullable" ? QStringLiteral("owner_pid INTEGER DEFAULT 0") : QStringLiteral("owner_pid INTEGER NOT NULL DEFAULT 0");
+                const QString ownerPid = kind == "owner-nullable" ? QStringLiteral("owner_pid INTEGER DEFAULT 0") : QStringLiteral("owner_pid INTEGER NOT NULL");
                 const auto replacement = QStringLiteral("CREATE TABLE operations_bad(id INTEGER PRIMARY KEY AUTOINCREMENT, judge TEXT NOT NULL, handle TEXT NOT NULL, data_generation TEXT NOT NULL, status TEXT NOT NULL, started_at INTEGER NOT NULL, %1, %2, %3, owner_boot_id TEXT NOT NULL DEFAULT '', owner_start_ticks INTEGER NOT NULL DEFAULT 0)")
                     .arg(finished, error, ownerPid);
                 statements << replacement << "DROP TABLE sync_operations" << "ALTER TABLE operations_bad RENAME TO sync_operations";
@@ -248,6 +248,56 @@ void SqliteStoreTest::acceptsNonNullLiteralDefaultsForExtraRequiredColumns() {
         QVERIFY(store.upsertAccount(account).has_value());
         QCOMPARE(store.accounts().first().handle, QStringLiteral("leading-zero-001"));
     }
+}
+
+void SqliteStoreTest::acceptsOwnerColumnsWithoutDefaultsAndSupportsOperationLifecycle() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto path = dir.filePath(QStringLiteral("owner-defaults-optional.db"));
+    { OjNexus::SqliteStore initial(path); QVERIFY(initial.initialize().has_value()); }
+    const auto name = QStringLiteral("owner-defaults-optional-fixture");
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+        db.setDatabaseName(path);
+        QVERIFY(db.open());
+        QSqlQuery q(db);
+        QVERIFY(q.exec(QStringLiteral("CREATE TABLE operations_new(id INTEGER PRIMARY KEY AUTOINCREMENT, judge TEXT NOT NULL, handle TEXT NOT NULL, data_generation TEXT NOT NULL, status TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER, error_type TEXT NOT NULL DEFAULT '', owner_pid INTEGER NOT NULL, owner_boot_id TEXT NOT NULL, owner_start_ticks INTEGER NOT NULL)")));
+        QVERIFY(q.exec(QStringLiteral("DROP TABLE sync_operations")));
+        QVERIFY(q.exec(QStringLiteral("ALTER TABLE operations_new RENAME TO sync_operations")));
+        db.close();
+        db = {};
+    }
+    QSqlDatabase::removeDatabase(name);
+
+    OjNexus::SqliteStore store(path);
+    QVERIFY(store.initialize().has_value());
+    QCOMPARE(store.schemaVersion(), 2);
+    const auto account = OjNexus::JudgeAccount::create(OjNexus::JudgeId::Codeforces, QStringLiteral("owner-default-optional")).value();
+    QVERIFY(store.upsertAccount(account).has_value());
+    const auto operation = store.openOperation(account, QStringLiteral("owner-default-optional-test"));
+    QVERIFY(operation.has_value());
+    const auto rows = store.recentOperations(OjNexus::JudgeId::Codeforces, 1);
+    QCOMPARE(rows.size(), 1);
+    QCOMPARE(rows.first().id, operation.value());
+    const auto verifyName = QStringLiteral("owner-defaults-optional-verify");
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), verifyName);
+        db.setDatabaseName(path);
+        QVERIFY(db.open());
+        QSqlQuery q(db);
+        q.prepare(QStringLiteral("SELECT owner_pid, owner_boot_id, owner_start_ticks FROM sync_operations WHERE id=?"));
+        q.addBindValue(operation.value());
+        QVERIFY(q.exec());
+        QVERIFY(q.next());
+        QVERIFY(q.value(0).toLongLong() > 0);
+        QVERIFY(!q.value(1).toString().isEmpty());
+        QVERIFY(q.value(2).toLongLong() > 0);
+        db.close();
+        db = {};
+    }
+    QSqlDatabase::removeDatabase(verifyName);
+    QVERIFY(store.closeOperation(operation.value(), OjNexus::SyncOperationStatus::Success, std::nullopt).has_value());
+    QCOMPARE(store.recentOperations(OjNexus::JudgeId::Codeforces, 1).first().status, OjNexus::SyncOperationStatus::Success);
 }
 
 void SqliteStoreTest::rollsBackPartialInitialSchema() {
