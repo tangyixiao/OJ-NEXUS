@@ -72,6 +72,10 @@ ledger writes, export, network or result-status persistence. Starting returns re
 I/O. Blocked returns failure with output `result=RECOVERY_BLOCKED`, never retry or stale-ledger
 recording. Ready uses the immutable state snapshot's container. WorkManager's own scheduler DB is
 outside the application Room guarantee; previously persisted worker business paths remain gated.
+Public Judge/Luogu/backup enqueue entry points also refuse Starting/Blocked before resolving
+generation or WorkManager. Luogu WorkManager resolution becomes lazy inside admitted enqueue;
+explicit-generation overloads do not bypass readiness. Existing Unit signatures may remain no-op
+on refusal; strict stamp and queue replacement semantics remain Phase127B.
 
 ## Filesystem ownership and ordering
 

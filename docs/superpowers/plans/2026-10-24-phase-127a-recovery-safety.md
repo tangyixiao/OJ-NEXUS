@@ -73,7 +73,7 @@ The Settings mapping handles Blocked as no Settings banner because pregraph scre
 
 **Files:** modify `OjNexusApplication.kt`, `MainActivity.kt`, three Worker files
 `judge/sync/JudgeSyncWorker.kt`, `judge/luogu/open/LuoguOpenResultWorker.kt`,
-`core/data/backup/ScheduledBackupWorker.kt`; create `app/RecoveryStartup.kt` and
+`core/data/backup/ScheduledBackupWorker.kt`, `core/data/backup/BackupCadence.kt`; create `app/RecoveryStartup.kt` and
 `app/RecoveryBlockedScreen.kt`; add resource strings in `res/values/strings.xml`.
 Create `app/src/test/java/com/ojnexus/RecoveryStartupTest.kt`,
 `app/src/test/java/com/ojnexus/RecoveryWorkerGateTest.kt`, a shared test WorkerParameters helper,
@@ -101,6 +101,10 @@ no global test flags. Default initial state Starting, all business initializatio
 - [ ] Gate all actual Worker doWork methods before any preferences, data generation, ledger, export
   or network calls. Starting returns retry; Blocked failure output result=RECOVERY_BLOCKED. Use
   ready snapshot container for subsequent work. Strict stale/missing generation policy remains127B.
+- [ ] Guard every public Judge/Luogu/backup enqueue overload before generation or WorkManager
+  resolution. Use Ready process generation instead of a new coordinator; lazy Luogu WorkManager
+  lookup must not occur in its constructor on refusal. Starting/Blocked calls are no-op with no
+  app-data access or work enqueue; test actual entry overloads, not only the guard predicate.
 - [ ] Test actual Workers with valid persisted input, poisoned business dependencies and Starting/
   Blocked test Applications; assert outcomes and zero prefs/files/repository calls. Cached WorkManager
   2.11.2 WorkerParameters public constructor supports this with existing deps; do not add test lib.
