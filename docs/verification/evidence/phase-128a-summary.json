@@ -189,5 +189,8 @@
   },
   "nativePassIsOneRecordedRun": true,
   "uiaIntermittencyResolved": false,
-  "fullPhase128Complete": false
+  "fullPhase128Complete": false,
+  "reviewedBranchSource": "660ca3ca5ae7c179ce8bc7ceef62777f07ec86d5",
+  "finalReview": "P2/P3 addressed; scoped source publication approved, exact package verification pending",
+  "laterNativeBatch": "057d8e43e3bd4a228c44b3d9c4651e21: damaged CLI/WPF PASS then overall FAIL at Busy Retry UIA"
 }

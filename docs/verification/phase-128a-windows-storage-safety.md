@@ -1,6 +1,6 @@
 # Phase 128A — Windows guarded storage startup and lifetime
 
-Status: **CODE AND NATIVE GATES PASSED; FINAL BRANCH REVIEW PENDING** (2026-10-24).
+Status: **SCOPED SOURCE REVIEW PASSED; NATIVE AUTOMATION QUALIFIED; RELEASE PENDING** (2026-10-24).
 This prerequisite slice does not complete Phase 128. No PR, package or release has been
 published for this slice at this checkpoint. [Machine-readable evidence summary](evidence/phase-128a-summary.json).
 
@@ -103,7 +103,16 @@ acquisition across runs or a cache/COM fix. Final branch review must assess this
 Independent Core review cleared two fix rounds. Independent consumer review cleared two fix
 rounds, including batch wire-code preservation, unconditional delayed final-refresh drain,
 synchronous close-failure retry and bounded diagnostic children. No scoped P1/P2 remains.
-Broad final branch review and publication are still pending at this checkpoint.
+The broad final review found one P2 readiness race and one P3 cleanup-diagnostic loss.
+The single final wave `660ca3ca5ae7c179ce8bc7ceef62777f07ec86d5` repaired both; its
+independent scoped rereview cleared both with no new findings. Production runtime code was
+unchanged by that wave. Root reran all 345 Release tests, build (zero warnings/errors), and
+the readiness regression at that source. Complete logs are in
+`%TEMP%/ojnexus-phase128a-publication-07458a162fbc46c18a286a1e37d1b450`.
+The fix agent also passed the affected real damaged-store CLI/WPF scenario, but that latest
+batch subsequently failed on Busy Retry UIA lookup (`057d8e43e3bd4a228c44b3d9c4651e21`).
+That overall FAIL remains retained; it is not relabelled as a full native pass. Source review
+permits a scoped PR, while an exact candidate artifact still needs independent verification.
 
 Valid current workspaces are inspected without migration writes. Recognized legacy versions
 0–6 migrate exclusively and must validate as version 7 before Ready. First use requires a

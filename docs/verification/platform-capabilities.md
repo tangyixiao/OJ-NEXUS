@@ -74,7 +74,8 @@ Test roots: `windows/tests/OjNexus.Windows.{Core,Cli,Desktop}.Tests/`.
 visits all four. There is no WPF Review page. The 2026-10-24 Windows-only continuation adds
 `WindowsStorage.OpenAsync`, explicit operation drain, CLI storage exit 6 and a WPF blocked
 Retry/Exit shell. [Phase 128A evidence](phase-128a-windows-storage-safety.md) currently remains
-code/native gates passed, final branch review pending. UIAutomation acquisition and in-process
+scoped source review passed; recorded native gates are qualified and release is pending.
+UIAutomation acquisition and in-process
 screenshot reliability remain qualified in that record.
 This source inventory is not native acceptance or a new release claim.
 
