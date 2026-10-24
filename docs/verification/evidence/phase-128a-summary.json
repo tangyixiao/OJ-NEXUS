@@ -1,0 +1,193 @@
+{
+  "source": "85827f276f8ff2f2116c96a75d2fb2e31c461216",
+  "integrationBase": "20e3fa99d316eaa181b9b3dab24a1d16cefe2f02",
+  "platform": "Windows native, net8.0 targets",
+  "sourceModificationsDuringRun": "Documentation only; pre-existing untracked TestResults retained",
+  "windowsTests": [
+    {
+      "project": "Cli",
+      "total": 68,
+      "passed": 68,
+      "failed": 0,
+      "notExecuted": 0
+    },
+    {
+      "project": "Core",
+      "total": 242,
+      "passed": 242,
+      "failed": 0,
+      "notExecuted": 0
+    },
+    {
+      "project": "Desktop",
+      "total": 35,
+      "passed": 35,
+      "failed": 0,
+      "notExecuted": 0
+    }
+  ],
+  "build": {
+    "warnings": 0,
+    "errors": 0,
+    "exitCode": 0
+  },
+  "managedAssemblies": {
+    "desktop": "EA8ECC2787A03405FFCD4B319B509D7CE58A5F4E4F821072ED48B37593EC94C2",
+    "cli": "719A81784837438E4E53121F6E683258ABB3A46DEB073B04AC0D6C0DB8E0CEB4",
+    "core": "AB536C752D2158DE4BB25B07F0FF1672A2ADEB6B89A035E053D0E6ED3D0D4F71"
+  },
+  "cliFaults": [
+    {
+      "name": "existing-zero",
+      "expectedCode": "INTEGRITY_FAILURE",
+      "exitCode": 6,
+      "stdout": "{\"status\":\"blocked\",\"error\":\"INTEGRITY_FAILURE\"}",
+      "preserved": true,
+      "before": {
+        "Exists": true,
+        "Bytes": 0,
+        "Sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      "after": {
+        "Exists": true,
+        "Bytes": 0,
+        "Sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      "passed": true
+    },
+    {
+      "name": "existing-corrupt",
+      "expectedCode": "INTEGRITY_FAILURE",
+      "exitCode": 6,
+      "stdout": "{\"status\":\"blocked\",\"error\":\"INTEGRITY_FAILURE\"}",
+      "preserved": true,
+      "before": {
+        "Exists": true,
+        "Bytes": 60,
+        "Sha256": "BD28E84A7715B664A3A0F2E2D9B452B30F9B13C2636C08CF31B650B13F450C0C"
+      },
+      "after": {
+        "Exists": true,
+        "Bytes": 60,
+        "Sha256": "BD28E84A7715B664A3A0F2E2D9B452B30F9B13C2636C08CF31B650B13F450C0C"
+      },
+      "passed": true
+    },
+    {
+      "name": "future-schema",
+      "expectedCode": "UNSUPPORTED_SCHEMA",
+      "exitCode": 6,
+      "stdout": "{\"status\":\"blocked\",\"error\":\"UNSUPPORTED_SCHEMA\"}",
+      "preserved": true,
+      "before": {
+        "Exists": true,
+        "Bytes": 12288,
+        "Sha256": "E058A2BAF12193F1EF00A38CB9E0FD99480D51D89A2994641A7A76693F14D3D4"
+      },
+      "after": {
+        "Exists": true,
+        "Bytes": 12288,
+        "Sha256": "E058A2BAF12193F1EF00A38CB9E0FD99480D51D89A2994641A7A76693F14D3D4"
+      },
+      "passed": true
+    },
+    {
+      "name": "missing-established",
+      "expectedCode": "RECOVERY_SOURCE_MISSING",
+      "exitCode": 6,
+      "stdout": "{\"status\":\"blocked\",\"error\":\"RECOVERY_SOURCE_MISSING\"}",
+      "preserved": true,
+      "before": {
+        "Exists": false,
+        "Bytes": null,
+        "Sha256": null
+      },
+      "after": {
+        "Exists": false,
+        "Bytes": null,
+        "Sha256": null
+      },
+      "passed": true
+    }
+  ],
+  "nativeScenarios": [
+    {
+      "name": "cli-zero",
+      "result": "PASS",
+      "failureCode": null,
+      "blockedCode": null,
+      "screenshotCount": null
+    },
+    {
+      "name": "wpf-blocked-exit",
+      "result": "PASS",
+      "failureCode": "INTEGRITY_FAILURE",
+      "blockedCode": null,
+      "screenshotCount": null
+    },
+    {
+      "name": "wpf-busy-retry",
+      "result": "PASS",
+      "failureCode": null,
+      "blockedCode": "STORAGE_BUSY",
+      "screenshotCount": null
+    },
+    {
+      "name": "shared-coexistence",
+      "result": "PASS",
+      "failureCode": null,
+      "blockedCode": null,
+      "screenshotCount": null
+    },
+    {
+      "name": "healthy-four-pages",
+      "result": "PASS",
+      "failureCode": null,
+      "blockedCode": null,
+      "screenshotCount": 4
+    }
+  ],
+  "osScreens": [
+    {
+      "sha256": "AEB5AFFE44C71D6E82B58F027E977058182DD8C3FDC478C6D6654E462D61CC20",
+      "capture": "screen",
+      "name": "connectors.png",
+      "bytes": 75387
+    },
+    {
+      "sha256": "492FEE41BAA3CF6B34C60EA654BED231204BC9699CC4AFBF35E6E99318A41556",
+      "capture": "screen",
+      "name": "dashboard.png",
+      "bytes": 83887
+    },
+    {
+      "sha256": "B63DDB7C25D1CCE96D64500D49F4E2A84242292D58C91D916C58D5FBA0E3115C",
+      "capture": "screen",
+      "name": "history.png",
+      "bytes": 48595
+    },
+    {
+      "sha256": "3DB5755F1E72BF3B9610A67E8B1E5486070D249D2816A19D309B2B6C26F079AD",
+      "capture": "screen",
+      "name": "problems.png",
+      "bytes": 47925
+    }
+  ],
+  "android": {
+    "skipped": 0,
+    "errors": 0,
+    "suites": 173,
+    "build": "BUILD SUCCESSFUL, rerun-tasks",
+    "tests": 794,
+    "failures": 0,
+    "apkSha256": "8291BF201E4C181C8853B961CB585F85DC0565D9C3C540B2B2D30BD9C3A5FD40"
+  },
+  "ownedProbeTimeout": {
+    "timedOut": true,
+    "exitedAfterKill": true,
+    "outputRetained": true
+  },
+  "nativePassIsOneRecordedRun": true,
+  "uiaIntermittencyResolved": false,
+  "fullPhase128Complete": false
+}

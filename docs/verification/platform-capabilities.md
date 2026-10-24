@@ -63,16 +63,20 @@ Test roots: `windows/tests/OjNexus.Windows.{Core,Cli,Desktop}.Tests/`.
 | Notes | No note model, editor or notes command in inspected source | Planned; do not infer support from a problem title or SQLite persistence |
 | Review | `Core/Domain/ReviewModels.cs`, `Core/Storage/SqliteSyncStore.cs`; `Cli/Program.cs` implements `review due` / `review mark` | `SqliteSyncStoreTests`, `ProgramTests`; **CLI/store only**, no WPF review navigation or controls |
 | Sessions | No session lifecycle/store/command in inspected source | Planned |
-| Library | `Core/Domain/ProblemModels.cs`, `GetProblemsAsync`; WPF `MainWindow.xaml` PROBLEMS and `DesktopViewModel`; CLI `problems list` | Core/CLI/ViewModel tests; derived from local submission payload, not a full remote catalog/editor; existing UI smoke does not name this view |
+| Library | `Core/Domain/ProblemModels.cs`, `GetProblemsAsync`; WPF `MainWindow.xaml` PROBLEMS and `DesktopViewModel`; CLI `problems list` | Core/CLI/ViewModel tests; derived from local submission payload, not a full remote catalog/editor; four-page UI smoke now names this view |
 | Contests | Rating records contain contest metadata | No standalone calendar, contest detail or Arena UI/CLI; rating metadata is not that feature |
 | Submissions | `Core/Network/*Adapter.cs`, `SyncPayloadModels.cs`, SQLite payload persistence; CLI `data`, connector summaries | `CodeforcesPayloadPersistenceTests`, `AtCoderPayloadPersistenceTests`, `LuoguPayloadPersistenceTests`; no dedicated WPF timeline/detail navigation |
-| Backup/restore | No user-facing backup/import/restore operation in inspected source | SQLite durability is not backup support |
+| Backup/restore | No user-facing backup/import/restore operation in inspected source | SQLite durability is not backup support; Phase 128A startup/lifetime protection does not implement 128B–D backup/restore |
 | Connectors | `Core/Sync/SyncService.cs`, public adapters; WPF dashboard/connectors/history; CLI config/sync/history | Adapter/service/transport/identity/CLI contract tests; per-handle configuration, cancellation and typed failures present |
 | Analytics | Dashboard/profile/rating/count summaries | No training/mastery analytics workflow; summary projection tests do not establish one |
 
-`MainWindow.xaml` currently has Dashboard, Connectors, Sync History and Problems. The existing
-`ui-smoke.ps1` visits only the first three; Phase 123 must add or execute actual Problems
-coverage. A nonexistent Review page must not be marked as visited.
+`MainWindow.xaml` has Dashboard, Connectors, Sync History and Problems; `ui-smoke.ps1`
+visits all four. There is no WPF Review page. The 2026-10-24 Windows-only continuation adds
+`WindowsStorage.OpenAsync`, explicit operation drain, CLI storage exit 6 and a WPF blocked
+Retry/Exit shell. [Phase 128A evidence](phase-128a-windows-storage-safety.md) currently remains
+code/native gates passed, final branch review pending. UIAutomation acquisition and in-process
+screenshot reliability remain qualified in that record.
+This source inventory is not native acceptance or a new release claim.
 
 Distribution source exists: `scripts/package.ps1`, `verify-package.ps1`,
 `build-installer.ps1`, `sign-binaries.ps1` and installer metadata. The Windows CI installs

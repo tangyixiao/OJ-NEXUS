@@ -1,10 +1,10 @@
 # OJ NEXUS Windows Client
 
 The Windows vertical slice contains a native WPF desktop client, a scriptable CLI, and one
-local-first synchronization core. The desktop and CLI share the Core project in-process; the
+local-first synchronization core. Both programs reference the Core project directly; the
 desktop client does not launch the CLI as a child process.
 
-Current source inventory (2026-10-23): WPF has `DASHBOARD`, `CONNECTORS`, `SYNC HISTORY`, and
+Current source inventory (2026-10-24): WPF has `DASHBOARD`, `CONNECTORS`, `SYNC HISTORY`, and
 `PROBLEMS`. Problem listing is also available through the CLI. Review scheduling and result
 recording are currently **CLI + SQLite only** (`review due`, `review mark`); there is no WPF
 review page yet. Notes, training sessions, portable backup exchange and learning analytics are
@@ -35,15 +35,17 @@ history remains available as an audit trail, while the new handle starts without
 rating, or submission data.
 
 The UI smoke check starts the real WPF executable with an isolated temporary data directory,
-resizes it to the supported minimum `900x560`, uses Windows UI Automation to visit all three
-views, and checks the three semantically named public-handle editors (`CODEFORCES PUBLIC HANDLE`,
-`ATCODER PUBLIC HANDLE`, and `LUOGU PUBLIC HANDLE`) plus the history judge filter. It reports screenshot
-capture separately; sessions without a usable interactive desktop may pass the UI checks while
-reporting `SCREENSHOTS: 0/3`. Any generated screenshots are written below
-`windows/artifacts/ui-smoke/`, which is ignored by Git.
+resizes it to the supported minimum `900x560`, and uses Windows UI Automation to visit
+`DASHBOARD`, `CONNECTORS`, `SYNC HISTORY`, and `PROBLEMS`. It checks the public-handle editors,
+history judge filter, and both problem filters. Screenshot capture is reported separately as
+`SCREENSHOTS: 4/4`; a UI-only pass without screenshots does not establish visual acceptance.
+Pass a fresh `-OutputDirectory` to preserve each run's four images separately. The smoke does
+not exercise CLI review commands or contact an OJ service.
 
-This smoke currently visits the three original views. It does not verify the newer `PROBLEMS`
-view or exercise the CLI review workflow; Phase 123 tracks those coverage gaps separately.
+The additional `windows/scripts/storage-acceptance.ps1` harness checks actual blocked startup,
+Retry/Exit, and CLI/WPF coexistence using retained isolated data directories. Its manifest and
+screenshots are evidence from a particular execution, not a guarantee inferred from having the
+script in the repository.
 
 The Dashboard `SYNC ALL` action runs the configured and enabled connectors in order. Disabled or
 unconfigured rows are skipped; a cancellation or failed connector leaves its typed operation in
@@ -77,7 +79,7 @@ number means the same thing on both clients. Windows emits the categories it can
 | 3 | unavailable — offline, network failure, or a resource this client cannot obtain |
 | 4 | authentication — public access was refused (anonymous authentication limit) |
 | 5 | cancelled — the user cancelled the run |
-| 6 | storage — part of the shared numbering only; this client never emits it |
+| 6 | storage — guarded startup or a typed local persistence failure |
 | 7 | general error — unexpected internal failure |
 
 A run-level error decides the category first; when a run is only partial, the first module that did
@@ -119,6 +121,35 @@ Each sync operation also retains the public handle that started it. After an acc
 changed, an older operation remains visible in history under its original identity but is not
 projected onto the new connector row and cannot be retried against the changed account. Existing
 databases migrate this field transactionally as schema v5.
+
+## Local storage startup and shutdown
+
+CLI and WPF open local storage through the same guarded authority. Existing empty, corrupt,
+unrelated, or unsupported-schema databases block startup and remain preserved. An established
+workspace whose database is missing also blocks; it is not silently replaced with a fresh one.
+A genuinely new workspace is initialized through a validated staging database.
+
+With `--json`, a storage failure returns exit code 6 and exactly one response such as
+`{"status":"blocked","error":"INTEGRITY_FAILURE"}`. Human output uses a short uppercase
+code without private paths or SQL. The WPF blocked shell displays `LOCAL STORAGE UNAVAILABLE`,
+`LOCAL FILES PRESERVED`, the same code, `RETRY OPEN`, and `EXIT`. Retry makes a fresh opening
+attempt; it does not repair or delete the original files. Once ready, runtime storage failures
+appear in the existing error state.
+
+Ordinary local fixed/removable paths are supported. Network, device, URI, alternate-stream,
+reparse-point and hard-linked controlled-file locations are rejected. The permanent
+`ojnexus.lifecycle.lock` coordinates cooperating new CLI/WPF processes: normal sessions share
+ownership, initialization/migration requires exclusive ownership, and shutdown waits for full
+admitted operations including non-cancellable ledger cleanup before releasing ownership.
+The lock file's age or existence does not establish that a process is alive. Older binaries
+that do not use this protocol cannot be made cooperative by this update.
+
+Phase 128A is startup protection and lifetime management. Consistent backup creation, restore
+selection/installation, rollback recovery and persistent generation fencing remain later
+128B–D work. An interrupted first initialization may leave `.initialized.tmp` / `ojnexus.init.db`
+evidence and produce `RECOVERY_BLOCKED`; automatic recovery of that state is not yet available.
+Keep all files intact. Native permission, full-disk and power-loss recovery are separate
+acceptance requirements and are not implied by classifier tests.
 
 ## Release artifacts
 
