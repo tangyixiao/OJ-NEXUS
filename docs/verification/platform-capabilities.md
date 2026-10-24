@@ -73,11 +73,12 @@ Test roots: `windows/tests/OjNexus.Windows.{Core,Cli,Desktop}.Tests/`.
 `MainWindow.xaml` has Dashboard, Connectors, Sync History and Problems; `ui-smoke.ps1`
 visits all four. There is no WPF Review page. The 2026-10-24 Windows-only continuation adds
 `WindowsStorage.OpenAsync`, explicit operation drain, CLI storage exit 6 and a WPF blocked
-Retry/Exit shell. [Phase 128A evidence](phase-128a-windows-storage-safety.md) currently remains
-scoped source review passed; recorded native gates are qualified and release is pending.
+Retry/Exit shell. [Phase 128A evidence](phase-128a-windows-storage-safety.md) is
+verified in scope with [PR #21](https://github.com/tangyixiao/OJ-NEXUS/pull/21) open/unmerged
+and [unsigned Windows v0.1.2-rc.1](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/windows-v0.1.2-rc.1) published/round-trip verified.
 UIAutomation acquisition and in-process
 screenshot reliability remain qualified in that record.
-This source inventory is not native acceptance or a new release claim.
+Native acceptance and release claims are limited to that linked verification record.
 
 Distribution source exists: `scripts/package.ps1`, `verify-package.ps1`,
 `build-installer.ps1`, `sign-binaries.ps1` and installer metadata. The Windows CI installs

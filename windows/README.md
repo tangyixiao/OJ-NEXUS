@@ -153,6 +153,12 @@ acceptance requirements and are not implied by classifier tests.
 
 ## Release artifacts
 
+The [Windows v0.1.2-rc.1 prerelease](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/windows-v0.1.2-rc.1)
+contains the Phase 128A startup/lifetime changes from `805ce8f`. It is an unsigned portable
+candidate; [its verification record](../docs/verification/phase-128a-windows-storage-safety.md)
+separates source, actual native checks, packaged assets and remote round trips. Extract into a
+short local folder: a deeply nested staging path failed WPF native-library loading during QA.
+
 The package command produces a self-contained `win-x64` directory and ZIP under
 `windows/artifacts/self-contained/`:
 

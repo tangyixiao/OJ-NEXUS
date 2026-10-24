@@ -192,5 +192,25 @@
   "fullPhase128Complete": false,
   "reviewedBranchSource": "660ca3ca5ae7c179ce8bc7ceef62777f07ec86d5",
   "finalReview": "P2/P3 addressed; scoped source publication approved, exact package verification pending",
-  "laterNativeBatch": "057d8e43e3bd4a228c44b3d9c4651e21: damaged CLI/WPF PASS then overall FAIL at Busy Retry UIA"
+  "laterNativeBatch": "057d8e43e3bd4a228c44b3d9c4651e21: damaged CLI/WPF PASS then overall FAIL at Busy Retry UIA",
+  "release": {
+    "url": "https://github.com/tangyixiao/OJ-NEXUS/releases/tag/windows-v0.1.2-rc.1",
+    "tag": "windows-v0.1.2-rc.1",
+    "source": "805ce8f36a1226c9d35ca0842a5163dc787da296",
+    "publishedAt": "2026-10-24T14:32:18Z",
+    "prerelease": true,
+    "draft": false,
+    "latest": "v1.0.3",
+    "zipBytes": 108846486,
+    "zipSha256": "692797B0E825F440AE6963378337BD2F7653C467AB57F39D941BE15AB648B627",
+    "postPublicationDownloadMatched": true,
+    "contentEntriesVerified": 662,
+    "signatures": "NotSigned",
+    "independentPackagedNativeDriver": "PASS with initial WPF provider barrier; stock failures retained",
+    "packagedManagedAssemblies": {
+      "desktop": "F85F829E42E2AE35CEDCD495FDE47583B04380E4284CD07F7211C86101E1374B",
+      "cli": "5EB1C96405866E61A43ADE5D3FF780581F1500047A3BF917CB827265241BA57A",
+      "core": "F90BC93EA36B8B94F43332D2EB41D6139D2F70619E72AAFD6D063A7043E99241"
+    }
+  }
 }

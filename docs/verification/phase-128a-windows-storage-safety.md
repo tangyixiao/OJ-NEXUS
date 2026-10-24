@@ -1,8 +1,9 @@
 # Phase 128A — Windows guarded storage startup and lifetime
 
-Status: **SCOPED SOURCE REVIEW PASSED; NATIVE AUTOMATION QUALIFIED; RELEASE PENDING** (2026-10-24).
-This prerequisite slice does not complete Phase 128. No PR, package or release has been
-published for this slice at this checkpoint. [Machine-readable evidence summary](evidence/phase-128a-summary.json).
+Status: **128A VERIFIED IN SCOPE; UNSIGNED PRERELEASE PUBLISHED; TOOLING LIMITS RETAINED** (2026-10-24).
+This prerequisite slice does not complete Phase 128. [PR #21](https://github.com/tangyixiao/OJ-NEXUS/pull/21)
+is open and unmerged; [Windows v0.1.2-rc.1](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/windows-v0.1.2-rc.1)
+is published as an unsigned portable prerelease. [Machine-readable evidence summary](evidence/phase-128a-summary.json).
 
 ## Scope and source
 
@@ -128,6 +129,44 @@ Ordinary local fixed/removable paths are supported. Network/device/URI paths, al
 streams, reparse points, controlled-file hard links and distinct case shadows are rejected.
 Ordinary case-insensitive aliases are supported. Native case-sensitive mode enablement was
 denied with Windows error 5, so that OS mode is not claimed as tested.
+
+## Exact candidate and remote round trip
+
+Published tag `windows-v0.1.2-rc.1` points to
+`805ce8f36a1226c9d35ca0842a5163dc787da296`. It is a prerelease, not a draft; Latest remains
+`v1.0.3`. Subsequent evidence-only PR commits do not change the frozen release source.
+
+- ZIP: `OJ-NEXUS-Windows-v0.1.2-win-x64.zip`, 108846486 bytes.
+- ZIP SHA-256: `692797B0E825F440AE6963378337BD2F7653C467AB57F39D941BE15AB648B627`.
+- External asset: `SHA256SUMS-windows-v0.1.2-rc.1.txt`; the ZIP also contains its per-file manifest.
+- All 662 content entries passed staging, extracted-archive and final-bundle checks; the bundle
+  has 663 files including its manifest. Both application executables have Authenticode status
+  `NotSigned`. No database, local.properties or credential-container file was present.
+- Exact packaged CLI four-fault preservation gate passed; manifest
+  `%TEMP%/ojnexus-phase128a-native-cli-13d9edad35b54aafba07dceff64a1966/manifest.json`.
+- Exact packaged WPF damaged Exit, exclusive Busy/Retry, shared coexistence/natural close and
+  all four healthy pages passed with an independent driver; manifest
+  `%TEMP%/ojnexus-storage-acceptance-e7dca73b7f0e4944a333fca98abe7a87/manifest.json`.
+  It records actual packaged managed DLL paths/hashes. The driver adds a finite initial wait
+  for `FrameworkId=WPF` before retaining the window root. A preceding controlled observation
+  recorded the same Busy-window PID/HWND changing from Win32 to WPF. This establishes one
+  early-root race in the stock driver; it does not explain every historical UIA failure.
+  Stock-driver FAIL `788464bd50be43cea2bb9b4de675776f` and intermediate adapter-setup FAIL
+  `b3bcb9e40a39439aa5207e150c4c91c7` remain intact.
+
+The first deeply nested staging path caused WPF to exit before opening with a Windows .NET
+Runtime 1026 FileLoadException for `DirectWriteForwarder.dll` (filename/extension too long).
+A fresh shorter output path passed startup and packaging without a source change. Extract
+the download into a short local directory, for example `D:\OJ-NEXUS-0.1.2`.
+
+Assets were uploaded as a draft, downloaded again, SHA-256 matched, extracted content verified,
+and the downloaded CLI/WPF actually launched. Only then was the release published. A second
+remote download after publication matched the same ZIP and checksum asset. The real remote tag
+commit and flags were read back. Complete logs and both remote verification JSON records are
+under `%TEMP%/ojnexus-phase128a-publication-07458a162fbc46c18a286a1e37d1b450`; downloaded
+copies are under `%TEMP%/ojnexus-rt-128d6bbc`. These are developer-host observations, not a
+clean-VM installer test. Workflows target main and returned no hosted runs for the release
+source; no local gate is relabelled as hosted CI.
 
 ## Full Phase 128 boundaries
 
