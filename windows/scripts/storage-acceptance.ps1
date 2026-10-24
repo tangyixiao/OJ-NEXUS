@@ -9,6 +9,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Drawing
 . (Join-Path $PSScriptRoot 'storage-owned-process.ps1')
+. (Join-Path $PSScriptRoot 'storage-acceptance-readiness.ps1')
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
@@ -168,14 +169,6 @@ function Wait-ElementByName($root, [string] $name, [int] $seconds = 15) {
     } while ([DateTime]::UtcNow -lt $deadline)
     throw "UI element did not appear: $name"
 }
-function Wait-CurrentName($element, [string] $name, [int] $seconds = 15) {
-    $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
-    do {
-        if ($element.Current.Name -eq $name) { return $element.Current.Name }
-        Start-Sleep -Milliseconds 100
-    } while ([DateTime]::UtcNow -lt $deadline)
-    throw "UI element did not reach expected name '$name'; actual: $($element.Current.Name)"
-}
 function Invoke-AutomationButton($root, [string] $id) {
     $button = Wait-AutomationId $root $id
     if (-not $button.Current.IsEnabled -or $button.Current.IsOffscreen) { throw "Button is disabled or offscreen: $id" }
@@ -245,11 +238,12 @@ try {
     $exitWindow = Get-Window $exitApp
     $heading = Wait-AutomationId $exitWindow 'StorageStartupHeading' 15 $exitApp
     $code = Wait-AutomationId $exitWindow 'StorageFailureCode' 15 $exitApp
-    if ($heading.Current.Name -ne 'LOCAL STORAGE UNAVAILABLE' -or $code.Current.Name -ne 'INTEGRITY_FAILURE') { throw 'WPF corrupt-store blocked text did not match.' }
+    $headingText = Wait-StorageState { $heading.Current.Name } 'LOCAL STORAGE UNAVAILABLE'
+    $failureText = Wait-StorageState { $code.Current.Name } 'INTEGRITY_FAILURE'
     if ($null -eq (Wait-ElementByName $exitWindow 'LOCAL FILES PRESERVED')) { throw 'WPF preservation text was missing.' }
     $blockedRetry = Wait-AutomationId $exitWindow 'RetryStorageOpen' 15 $exitApp
     if ($blockedRetry.Current.IsOffscreen -or -not $blockedRetry.Current.IsEnabled) { throw 'Blocked Retry Open control was not visible and enabled.' }
-    $failureCode = $code.Current.Name
+    $failureCode = $failureText
     $navCondition = [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'DASHBOARD')
     if ($null -ne $exitWindow.FindFirst([Windows.Automation.TreeScope]::Descendants, $navCondition)) { throw 'Normal page navigation was exposed before Ready.' }
     $exitShot = Join-Path $EvidenceDirectory 'wpf-integrity-blocked.png'; Save-BlockedScreenshot $exitApp $exitShot
@@ -257,7 +251,7 @@ try {
     $exitCode = Wait-ProcessBounded $exitApp 20
     $afterExit = Get-FileDigest $exitDb
     if ($exitCode -ne 0 -or $beforeExit.sha256 -ne $afterExit.sha256) { throw 'WPF Exit did not preserve the original database.' }
-    $manifest.scenarios.Add(@{ name = 'wpf-blocked-exit'; pid = $exitApp.Id; exitCode = $exitCode; failureCode = $failureCode; screenshot = $exitShot; screenshotSha256 = (Get-FileHash $exitShot -Algorithm SHA256).Hash; databaseBefore = $beforeExit; databaseAfter = $afterExit; root = $exitRoot; result = 'PASS' })
+    $manifest.scenarios.Add(@{ name = 'wpf-blocked-exit'; pid = $exitApp.Id; exitCode = $exitCode; blockedHeading = $headingText; failureCode = $failureCode; screenshot = $exitShot; screenshotSha256 = (Get-FileHash $exitShot -Algorithm SHA256).Hash; databaseBefore = $beforeExit; databaseAfter = $afterExit; root = $exitRoot; result = 'PASS' })
 
     # A real second-process exclusive lease must produce STORAGE_BUSY; Retry succeeds after release.
     $busyRoot = New-OwnedRoot 'wpf-retry'
@@ -271,8 +265,8 @@ try {
     $retryWindow = Get-Window $retryApp
     $busyCode = Wait-AutomationId $retryWindow 'StorageFailureCode' 15 $retryApp
     $busyHeading = Wait-AutomationId $retryWindow 'StorageStartupHeading' 15 $retryApp
-    $busyHeadingText = Wait-CurrentName $busyHeading 'LOCAL STORAGE UNAVAILABLE'
-    $busyCodeText = Wait-CurrentName $busyCode 'STORAGE_BUSY'
+    $busyHeadingText = Wait-StorageState { $busyHeading.Current.Name } 'LOCAL STORAGE UNAVAILABLE'
+    $busyCodeText = Wait-StorageState { $busyCode.Current.Name } 'STORAGE_BUSY'
     $busyShot = Join-Path $EvidenceDirectory 'wpf-storage-busy.png'; Save-BlockedScreenshot $retryApp $busyShot
     $hostProcess.StandardInput.WriteLine('release'); $hostProcess.StandardInput.Flush()
     if ((Wait-ProcessBounded $hostProcess 10) -ne 0) { throw 'Exclusive lease host did not exit cleanly.' }

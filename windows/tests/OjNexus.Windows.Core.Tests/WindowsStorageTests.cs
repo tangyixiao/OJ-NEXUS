@@ -5,11 +5,17 @@ using OjNexus.Windows.Core.Sync;
 using Microsoft.Data.Sqlite;
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
+using Xunit.Abstractions;
 
 namespace OjNexus.Windows.Core.Tests;
 
 public sealed class WindowsStorageTests
 {
+    private const int DiagnosticCharacterLimit = 4096;
+    private readonly ITestOutputHelper _output;
+
+    public WindowsStorageTests(ITestOutputHelper output) => _output = output;
+
     [Fact]
     public async Task FirstOpenCreatesInitializedStoreAndSecondOpenCoexists()
     {
@@ -426,33 +432,81 @@ public sealed class WindowsStorageTests
         return child;
     }
 
-    private static async Task CleanupChildrenAsync(IEnumerable<Process> children)
+    private async Task CleanupChildrenAsync(IEnumerable<Process> children)
     {
         foreach (var child in children)
         {
+            var pid = SafePid(child);
+            var stopConfirmed = false;
+            var cleanup = new List<string>();
+            Task<string>? stdoutTask = null;
+            Task<string>? stderrTask = null;
             try
             {
-                if (!child.HasExited)
+                stdoutTask = child.StandardOutput.ReadToEndAsync();
+                stderrTask = child.StandardError.ReadToEndAsync();
+            }
+            catch (Exception error) { cleanup.Add($"stream-read-start={Describe(error)}"); }
+
+            try
+            {
+                if (child.HasExited) stopConfirmed = true;
+                else
                 {
                     child.StandardInput.WriteLine("release");
                     await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(3));
+                    stopConfirmed = child.HasExited;
                 }
             }
-            catch
+            catch (Exception error)
             {
+                cleanup.Add($"graceful-stop={Describe(error)}");
                 try
                 {
                     if (!child.HasExited) child.Kill(entireProcessTree: true);
                     await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                    stopConfirmed = child.HasExited;
                 }
-                catch { }
+                catch (Exception killError) { cleanup.Add($"kill-stop={Describe(killError)}"); }
             }
 
-            try { _ = await child.StandardOutput.ReadToEndAsync().WaitAsync(TimeSpan.FromSeconds(3)); } catch { }
-            try { _ = await child.StandardError.ReadToEndAsync().WaitAsync(TimeSpan.FromSeconds(3)); } catch { }
+            var stdout = await ReadDiagnosticAsync(stdoutTask, "stdout", cleanup);
+            var stderr = await ReadDiagnosticAsync(stderrTask, "stderr", cleanup);
+            var exitStatus = TryExitCode(child);
+            _output.WriteLine($"Native helper cleanup: pid={pid}; exit={exitStatus}; stopConfirmed={stopConfirmed}; stdout={stdout}; stderr={stderr}; diagnostics={string.Join(" | ", cleanup)}");
             child.Dispose();
         }
     }
+
+    private static int SafePid(Process child)
+    {
+        try { return child.Id; }
+        catch { return -1; }
+    }
+
+    private static string TryExitCode(Process child)
+    {
+        try { return child.HasExited ? child.ExitCode.ToString() : "running"; }
+        catch (Exception error) { return $"unknown ({Describe(error)})"; }
+    }
+
+    private static async Task<string> ReadDiagnosticAsync(Task<string>? stream, string name, List<string> diagnostics)
+    {
+        if (stream is null) return "unavailable";
+        try
+        {
+            var value = await stream.WaitAsync(TimeSpan.FromSeconds(3));
+            if (value.Length <= DiagnosticCharacterLimit) return value.Replace("\r", "\\r").Replace("\n", "\\n");
+            return value[..DiagnosticCharacterLimit].Replace("\r", "\\r").Replace("\n", "\\n") + $"...[truncated {value.Length - DiagnosticCharacterLimit} chars]";
+        }
+        catch (Exception error)
+        {
+            diagnostics.Add($"{name}-read={Describe(error)}");
+            return "unavailable";
+        }
+    }
+
+    private static string Describe(Exception error) => $"{error.GetType().Name}: {error.Message}".Replace("\r", " ").Replace("\n", " ");
 
     private static string FindHost()
     {
