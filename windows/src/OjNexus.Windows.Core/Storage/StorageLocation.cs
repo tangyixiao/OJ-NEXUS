@@ -7,15 +7,27 @@ namespace OjNexus.Windows.Core.Storage;
 internal sealed record StorageLocation(string DataDirectory, string DatabasePath, string LockPath, string MarkerPath,
     string MarkerTempPath, string InitPath)
 {
+    private static readonly string[] ExactArtifactNames =
+    [
+        "ojnexus.db", "ojnexus.lifecycle.lock", "ojnexus.initialized", "ojnexus.initialized.tmp",
+        "ojnexus.init.db", "ojnexus.db-wal", "ojnexus.db-shm", "ojnexus.db-journal",
+        "ojnexus.init.db-wal", "ojnexus.init.db-shm", "ojnexus.init.db-journal"
+    ];
+
     public static StorageLocation Resolve(string? root)
     {
         var raw = WindowsPaths.GetDataDirectory(root);
         if (string.IsNullOrWhiteSpace(raw) || raw.Any(char.IsControl) || raw.StartsWith("\\\\", StringComparison.Ordinal)
-            || raw.StartsWith("\\?", StringComparison.Ordinal) || raw.StartsWith("\\.", StringComparison.Ordinal)
-            || raw.Contains("file:", StringComparison.OrdinalIgnoreCase))
+            || raw.StartsWith("//", StringComparison.Ordinal) || raw.StartsWith("\\?", StringComparison.Ordinal)
+            || raw.StartsWith("\\.", StringComparison.Ordinal) || raw.StartsWith("\\??\\", StringComparison.Ordinal)
+            || raw.Contains("file:", StringComparison.OrdinalIgnoreCase) || IsDriveRelative(raw) || HasAmbiguousColon(raw))
             throw new StorageException(new(StorageFailureCode.UnsupportedLocation, "location"));
         foreach (var part in raw.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
-            if (part.EndsWith(' ') || part.EndsWith('.')) throw new StorageException(new(StorageFailureCode.UnsupportedLocation, "location"));
+        {
+            if (part is "." or ".." or "") continue;
+            if (part.EndsWith(' ') || part.EndsWith('.'))
+                throw new StorageException(new(StorageFailureCode.UnsupportedLocation, "location"));
+        }
         var full = Path.GetFullPath(raw);
         var drive = new DriveInfo(Path.GetPathRoot(full)!);
         if (drive.DriveType is not (DriveType.Fixed or DriveType.Removable))
@@ -25,22 +37,58 @@ internal sealed record StorageLocation(string DataDirectory, string DatabasePath
             Path.Combine(full, "ojnexus.initialized"), Path.Combine(full, "ojnexus.initialized.tmp"), Path.Combine(full, "ojnexus.init.db"));
     }
 
-    public void ValidateControlledPaths(FileStream? heldLock = null)
+    public StorageInventory Inventory(FileStream? heldLock = null)
     {
         ValidateAncestors(DataDirectory);
-        foreach (var path in new[] { DatabasePath, LockPath, MarkerPath, MarkerTempPath, InitPath })
+        var entries = Directory.EnumerateFileSystemEntries(DataDirectory)
+            .Select(path => (Path: path, Name: Path.GetFileName(path)))
+            .ToArray();
+        var controlled = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in ExactArtifactNames)
         {
-            if (Directory.Exists(path)) throw new StorageException(new(StorageFailureCode.RecoveryBlocked, "inventory"));
-            if (!File.Exists(path)) continue;
-            var attrs = File.GetAttributes(path);
-            if ((attrs & FileAttributes.ReparsePoint) != 0) throw new StorageException(new(StorageFailureCode.UnsupportedLocation, "location"));
-            if (path == DatabasePath || path == LockPath)
+            controlled.Add(name, Path.Combine(DataDirectory, name));
+        }
+
+        var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var restoreEntries = new List<string>();
+        foreach (var (path, name) in entries)
+        {
+            var isRestore = name.StartsWith("ojnexus.restore.", StringComparison.OrdinalIgnoreCase);
+            if (!isRestore && !controlled.TryGetValue(name, out _)) continue;
+            if (isRestore) restoreEntries.Add(path);
+            else found.Add(name);
+
+            var attributes = File.GetAttributes(path);
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+                throw new StorageException(new(StorageFailureCode.UnsupportedLocation, "location"));
+            if ((attributes & FileAttributes.Directory) != 0)
             {
-                var links = path == LockPath && heldLock is not null ? NativeFile.LinkCount(heldLock.SafeFileHandle) : NativeFile.LinkCount(path);
+                throw new StorageException(new(StorageFailureCode.RecoveryBlocked, "inventory"));
+            }
+            var canonical = isRestore ? name : ExactArtifactNames.First(c => string.Equals(c, name, StringComparison.OrdinalIgnoreCase));
+            if (!isRestore && !string.Equals(name, canonical, StringComparison.Ordinal))
+                throw new StorageException(new(StorageFailureCode.UnsupportedLocation, "location"));
+            if (canonical is "ojnexus.db" or "ojnexus.lifecycle.lock" && !isRestore)
+            {
+                var links = canonical == "ojnexus.lifecycle.lock" && heldLock is not null
+                    ? NativeFile.LinkCount(heldLock.SafeFileHandle)
+                    : NativeFile.LinkCount(path);
                 if (links > 1) throw new StorageException(new(StorageFailureCode.UnsupportedLocation, "location"));
             }
         }
+
+        bool Has(string name) => found.Contains(name);
+        return new StorageInventory(
+            Has("ojnexus.db"), Has("ojnexus.lifecycle.lock"), Has("ojnexus.initialized"), Has("ojnexus.initialized.tmp"),
+            Has("ojnexus.init.db"), Has("ojnexus.db-wal"), Has("ojnexus.db-shm"), Has("ojnexus.db-journal"),
+            Has("ojnexus.init.db-wal"), Has("ojnexus.init.db-shm"), Has("ojnexus.init.db-journal"), restoreEntries);
     }
+
+    private static bool IsDriveRelative(string value) => value.Length >= 2 && char.IsLetter(value[0]) && value[1] == ':'
+        && (value.Length < 3 || value[2] is not ('\\' or '/'));
+
+    private static bool HasAmbiguousColon(string value) =>
+        value.Where((c, index) => c == ':' && !(index == 1 && char.IsLetter(value[0]))).Any();
 
     private static void ValidateAncestors(string path)
     {
@@ -54,10 +102,28 @@ internal sealed record StorageLocation(string DataDirectory, string DatabasePath
     }
 }
 
+internal sealed record StorageInventory(
+    bool HasDatabase,
+    bool HasLock,
+    bool HasMarker,
+    bool HasMarkerTemp,
+    bool HasInitDatabase,
+    bool HasMainWal,
+    bool HasMainShm,
+    bool HasMainJournal,
+    bool HasInitWal,
+    bool HasInitShm,
+    bool HasInitJournal,
+    IReadOnlyList<string> RestoreEntries)
+{
+    public bool HasAnyMainCompanion => HasMainWal || HasMainShm || HasMainJournal;
+    public bool HasAnyInitCompanion => HasInitWal || HasInitShm || HasInitJournal;
+    public bool HasIncompleteEvidence => HasMarkerTemp || HasInitDatabase || HasAnyInitCompanion || RestoreEntries.Count != 0;
+}
+
 internal static class NativeFile
 {
-    private const uint GenericRead = 0x80000000;
-    private const uint ShareRead = 1, ShareWrite = 2, OpenAlways = 4, FileAttributeNormal = 0x80;
+    private const uint ShareRead = 1, ShareWrite = 2, FileAttributeNormal = 0x80;
     [StructLayout(LayoutKind.Sequential)] private struct ByHandleFileInformation
     {
         public uint FileAttributes; public System.Runtime.InteropServices.ComTypes.FILETIME CreationTime, LastAccessTime, LastWriteTime;
@@ -66,6 +132,8 @@ internal static class NativeFile
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern SafeFileHandle CreateFile(string name, uint access, uint share, IntPtr security, uint creation, uint flags, IntPtr template);
     [DllImport("kernel32.dll", SetLastError = true)] private static extern bool GetFileInformationByHandle(SafeFileHandle handle, out ByHandleFileInformation info);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, EntryPoint = "CreateHardLinkW")]
+    private static extern bool CreateHardLinkNative(string linkPath, string existingPath, IntPtr securityAttributes);
 
     public static uint LinkCount(string path)
     {
@@ -76,6 +144,14 @@ internal static class NativeFile
 
     public static uint LinkCount(SafeFileHandle handle)
     { if (!GetFileInformationByHandle(handle, out var info)) throw new Win32Exception(Marshal.GetLastWin32Error()); return info.NumberOfLinks; }
+
+    public static void CreateHardLink(string linkPath, string existingPath)
+    {
+        if (!CreateHardLinkNative(linkPath, existingPath, IntPtr.Zero))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+    }
 
     public static FileStream Acquire(string path, bool exclusive)
     {

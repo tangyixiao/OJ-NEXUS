@@ -1,5 +1,7 @@
 namespace OjNexus.Windows.Core.Storage;
 
+using System.ComponentModel;
+
 public enum StorageFailureCode
 {
     Busy, IntegrityFailure, UnsupportedSchema, RecoveryBlocked, RecoverySourceMissing,
@@ -33,25 +35,71 @@ internal static class StorageExceptionClassifier
 {
     public static StorageException Classify(Exception error, string stage)
     {
-        if (error is StorageException storage) return storage;
+        if (TryClassifyProviderFailure(error, stage, out var classified))
+        {
+            return classified;
+        }
+        if (error is InvalidDataException)
+        {
+            return new(new(StorageFailureCode.IntegrityFailure, stage), error);
+        }
+        return new(new(StorageFailureCode.IoFailure, stage), error);
+    }
+
+    public static bool TryClassifyProviderFailure(Exception error, string stage, out StorageException classified)
+    {
+        if (error is StorageException storage)
+        {
+            classified = storage;
+            return true;
+        }
         if (error is Microsoft.Data.Sqlite.SqliteException sqlite)
         {
-            var code = sqlite.SqliteErrorCode switch
+            var code = sqlite.SqliteExtendedErrorCode switch
             {
-                5 or 6 => StorageFailureCode.Busy,
-                13 => StorageFailureCode.StorageFull,
-                11 or 26 => StorageFailureCode.IntegrityFailure,
-                _ => StorageFailureCode.IoFailure
+                264 or 776 => StorageFailureCode.RecoveryBlocked,
+                520 => StorageFailureCode.Busy,
+                _ => sqlite.SqliteErrorCode switch
+                {
+                    5 or 6 => StorageFailureCode.Busy,
+                    13 => StorageFailureCode.StorageFull,
+                    11 or 26 => StorageFailureCode.IntegrityFailure,
+                    3 or 8 => StorageFailureCode.PermissionDenied,
+                    _ => StorageFailureCode.IoFailure
+                }
             };
-            return new(new StorageFailure(code, stage), error);
+            classified = new(new(code, stage), error);
+            return sqlite.SqliteErrorCode is 3 or 5 or 6 or 8 or 11 or 13 or 26
+                || sqlite.SqliteExtendedErrorCode is 264 or 520 or 776;
         }
-        if (error is UnauthorizedAccessException) return new(new(StorageFailureCode.PermissionDenied, stage), error);
+        if (error is UnauthorizedAccessException)
+        {
+            classified = new(new(StorageFailureCode.PermissionDenied, stage), error);
+            return true;
+        }
+        if (error is Win32Exception win32)
+        {
+            classified = FromWindowsCode(win32.NativeErrorCode, stage, error);
+            return true;
+        }
         if (error is IOException io)
         {
-            var native = io.HResult & 0xffff;
-            return new(new(native is 32 or 33 ? StorageFailureCode.Busy : native is 112 or 39 ? StorageFailureCode.StorageFull : StorageFailureCode.IoFailure, stage), error);
+            classified = FromWindowsCode(io.HResult & 0xffff, stage, error);
+            return true;
         }
-        if (error is InvalidDataException) return new(new(StorageFailureCode.IntegrityFailure, stage), error);
-        return new(new(StorageFailureCode.IoFailure, stage), error);
+        classified = null!;
+        return false;
+    }
+
+    private static StorageException FromWindowsCode(int code, string stage, Exception error)
+    {
+        var failureCode = code switch
+        {
+            32 or 33 => StorageFailureCode.Busy,
+            5 => StorageFailureCode.PermissionDenied,
+            112 or 39 => StorageFailureCode.StorageFull,
+            _ => StorageFailureCode.IoFailure
+        };
+        return new(new(failureCode, stage), error);
     }
 }

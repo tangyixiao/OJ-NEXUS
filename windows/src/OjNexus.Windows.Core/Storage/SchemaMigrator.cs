@@ -2,6 +2,8 @@ using Microsoft.Data.Sqlite;
 
 namespace OjNexus.Windows.Core.Storage;
 
+internal sealed class SchemaValidationException(string message, Exception? inner = null) : Exception(message, inner);
+
 public static class SchemaMigrator
 {
     private const int CurrentSchemaVersion = 7;
@@ -9,18 +11,33 @@ public static class SchemaMigrator
     internal static int InspectExisting(SqliteConnection connection)
     {
         using var transaction = connection.BeginTransaction(deferred: true);
-        var version = ReadSchemaVersion(connection, transaction) ?? throw new InvalidDataException("Missing schema metadata.");
-        if (version > CurrentSchemaVersion) throw new NotSupportedException("Unsupported database schema.");
-        switch (version)
+        int version;
+        try
         {
-            case 0: ValidateVersionOneSchema(connection, transaction); break;
-            case 1: ValidateVersionOneSchema(connection, transaction); break;
-            case 2: ValidateVersionTwoSchema(connection, transaction); break;
-            case 3: ValidateVersionThreeSchema(connection, transaction); break;
-            case 4: ValidateVersionFourSchema(connection, transaction); break;
-            case 5: ValidateVersionFiveSchema(connection, transaction); break;
-            case 6: ValidateVersionSixSchema(connection, transaction); break;
-            case 7: ValidateVersionSevenSchema(connection, transaction); break;
+            version = ReadSchemaVersion(connection, transaction) ?? throw new InvalidOperationException("Missing schema metadata.");
+            if (version > CurrentSchemaVersion)
+            {
+                throw new NotSupportedException("Unsupported database schema.");
+            }
+            switch (version)
+            {
+                case 0: ValidateVersionOneSchema(connection, transaction); break;
+                case 1: ValidateVersionOneSchema(connection, transaction); break;
+                case 2: ValidateVersionTwoSchema(connection, transaction); break;
+                case 3: ValidateVersionThreeSchema(connection, transaction); break;
+                case 4: ValidateVersionFourSchema(connection, transaction); break;
+                case 5: ValidateVersionFiveSchema(connection, transaction); break;
+                case 6: ValidateVersionSixSchema(connection, transaction); break;
+                case 7: ValidateVersionSevenSchema(connection, transaction); break;
+            }
+        }
+        catch (NotSupportedException)
+        {
+            throw;
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new SchemaValidationException("Database schema validation failed.", exception);
         }
         using (var command = connection.CreateCommand())
         {

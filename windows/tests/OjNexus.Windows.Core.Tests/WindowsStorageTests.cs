@@ -1,6 +1,10 @@
 using OjNexus.Windows.Core.Storage;
 using System.Diagnostics;
+using System.Security.Cryptography;
 using OjNexus.Windows.Core.Sync;
+using Microsoft.Data.Sqlite;
+using OjNexus.Windows.Core.Contracts;
+using OjNexus.Windows.Core.Domain;
 
 namespace OjNexus.Windows.Core.Tests;
 
@@ -54,25 +58,46 @@ public sealed class WindowsStorageTests
         var root = NewRoot();
         Directory.CreateDirectory(root);
         var host = FindHost();
-        using var holder = Start(host, root, "shared");
-        Assert.Equal("READY", await holder.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
-        using var secondHolder = Start(host, root, "shared");
-        Assert.Equal("READY", await secondHolder.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
-        using var contender = Start(host, root, "exclusive");
-        Assert.Equal("BUSY", await contender.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
-        Assert.Equal(10, await contender.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10)).ContinueWith(_ => contender.ExitCode));
-        holder.Kill(entireProcessTree: true);
-        secondHolder.Kill(entireProcessTree: true);
-        await holder.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
-        await secondHolder.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
-        Assert.True(File.Exists(Path.Combine(root, "ojnexus.lifecycle.lock")));
-        using var afterKill = Start(host, root, "exclusive");
-        Assert.Equal("READY", await afterKill.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
-        using var blockedShared = Start(host, root, "shared");
-        Assert.Equal("BUSY", await blockedShared.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
-        Assert.Equal(10, await blockedShared.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10)).ContinueWith(_ => blockedShared.ExitCode));
-        afterKill.StandardInput.WriteLine("release");
-        Assert.Equal(0, await afterKill.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10)).ContinueWith(_ => afterKill.ExitCode));
+        var children = new List<Process>();
+        try
+        {
+            var holder = AddChild(children, Start(host, root, "shared"));
+            Assert.Equal("READY", await holder.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
+            var lockPath = Path.Combine(root, "ojnexus.lifecycle.lock");
+            Assert.Throws<IOException>(() => File.Move(lockPath, Path.Combine(root, "renamed.lock")));
+            Assert.Throws<IOException>(() => File.Delete(lockPath));
+            Assert.True(File.Exists(lockPath));
+
+            var secondHolder = AddChild(children, Start(host, root, "shared"));
+            Assert.Equal("READY", await secondHolder.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
+            var contender = AddChild(children, Start(host, root, "exclusive"));
+            Assert.Equal("BUSY", await contender.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
+            await contender.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(10, contender.ExitCode);
+
+            holder.Kill(entireProcessTree: true);
+            secondHolder.Kill(entireProcessTree: true);
+            await holder.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            await secondHolder.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(File.Exists(lockPath));
+
+            var afterKill = AddChild(children, Start(host, root, "exclusive"));
+            Assert.Equal("READY", await afterKill.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
+            var blockedSession = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+            Assert.False(blockedSession.IsReady);
+            Assert.Equal("STORAGE_BUSY", blockedSession.Failure?.WireCode);
+            var blockedShared = AddChild(children, Start(host, root, "shared"));
+            Assert.Equal("BUSY", await blockedShared.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
+            await blockedShared.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(10, blockedShared.ExitCode);
+            afterKill.StandardInput.WriteLine("release");
+            await afterKill.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(0, afterKill.ExitCode);
+        }
+        finally
+        {
+            await CleanupChildrenAsync(children);
+        }
     }
 
     [Fact]
@@ -82,7 +107,7 @@ public sealed class WindowsStorageTests
         var context = scope.BeginOperation();
         var retained = context.Store;
         await context.DisposeAsync();
-        var error = Assert.Throws<StorageException>(() => { _ = retained.GetAccountsAsync(CancellationToken.None); });
+        var error = await Assert.ThrowsAsync<StorageException>(() => retained.GetAccountsAsync(CancellationToken.None));
         Assert.Equal("SESSION_CLOSED", error.Failure.WireCode);
         await scope.DisposeAsync();
     }
@@ -91,25 +116,225 @@ public sealed class WindowsStorageTests
     public async Task ConcurrentFirstRunProcessesReturnOnlyReadyOrBusyWithoutDamagingStore()
     {
         var root = NewRoot();
-        using var first = Start(FindHost(), root, "open");
-        using var second = Start(FindHost(), root, "open");
-        Assert.Equal("PREPARED", await first.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
-        Assert.Equal("PREPARED", await second.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
-        first.StandardInput.WriteLine("go"); second.StandardInput.WriteLine("go");
-        var firstResult = await first.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(20));
-        var secondResult = await second.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(20));
-        Assert.Contains(firstResult, new[] { "READY", "BUSY" });
-        Assert.Contains(secondResult, new[] { "READY", "BUSY" });
-        Assert.Contains("READY", new[] { firstResult, secondResult });
-        foreach (var child in new[] { first, second })
+        var children = new List<Process>();
+        try
         {
-            if (!child.HasExited) { child.StandardInput.WriteLine("release"); await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10)); }
+            var first = AddChild(children, Start(FindHost(), root, "open"));
+            var second = AddChild(children, Start(FindHost(), root, "open"));
+            Assert.Equal("PREPARED", await first.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
+            Assert.Equal("PREPARED", await second.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
+            first.StandardInput.WriteLine("go");
+            second.StandardInput.WriteLine("go");
+            var firstResult = await first.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(20));
+            var secondResult = await second.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(20));
+            Assert.Contains(firstResult, new[] { "READY", "BUSY" });
+            Assert.Contains(secondResult, new[] { "READY", "BUSY" });
+            Assert.Contains("READY", new[] { firstResult, secondResult });
+            foreach (var child in new[] { first, second })
+            {
+                if (!child.HasExited)
+                {
+                    child.StandardInput.WriteLine("release");
+                    await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+                }
+            }
+            Assert.True(new FileInfo(Path.Combine(root, "ojnexus.db")).Length > 16);
+            Assert.Equal("v1\n", File.ReadAllText(Path.Combine(root, "ojnexus.initialized")));
+            var verify = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+            Assert.True(verify.IsReady, verify.Failure?.WireCode);
+            await verify.Session!.DisposeAsync();
         }
-        Assert.True(new FileInfo(Path.Combine(root, "ojnexus.db")).Length > 16);
-        Assert.Equal("v1\n", File.ReadAllText(Path.Combine(root, "ojnexus.initialized")));
-        var verify = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
-        Assert.True(verify.IsReady, verify.Failure?.WireCode);
-        await verify.Session!.DisposeAsync();
+        finally { await CleanupChildrenAsync(children); }
+    }
+
+    [Fact]
+    public async Task RealHotRollbackJournalIsRecoveryBlockedAndPreserved()
+    {
+        var root = NewRoot();
+        var baseline = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+        Assert.True(baseline.IsReady, baseline.Failure?.WireCode);
+        await baseline.Session!.DisposeAsync();
+        var database = Path.Combine(root, "ojnexus.db");
+        var host = FindHost();
+        var child = Start(host, root, "hot-journal");
+        try
+        {
+            var ready = await child.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            if (ready != "READY")
+            {
+                await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+                var diagnostics = await child.StandardError.ReadToEndAsync().WaitAsync(TimeSpan.FromSeconds(3));
+                Assert.Fail($"Hot-journal helper exited {child.ExitCode}: {diagnostics}");
+            }
+            var journal = database + "-journal";
+            Assert.True(File.Exists(journal));
+            child.Kill(entireProcessTree: true);
+            await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            var databaseHash = SHA256.HashData(await File.ReadAllBytesAsync(database));
+            var journalBytes = await File.ReadAllBytesAsync(journal);
+            Assert.True(journalBytes.Length > 512);
+            Assert.Equal(new byte[] { 0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7 }, journalBytes[..8]);
+            var journalHash = SHA256.HashData(journalBytes);
+
+            var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+            Assert.Equal("RECOVERY_BLOCKED", opened.Failure?.WireCode ?? "READY");
+            Assert.Equal(databaseHash, SHA256.HashData(await File.ReadAllBytesAsync(database)));
+            Assert.Equal(journalHash, SHA256.HashData(await File.ReadAllBytesAsync(journal)));
+        }
+        finally
+        {
+            await CleanupChildrenAsync([child]);
+        }
+    }
+
+    [Fact]
+    public async Task ValidMarkerDoesNotAuthorizeAnOldSchemaWithoutMigration()
+    {
+        var root = NewRoot();
+        var legacy = new SqliteConnectionFactory(root);
+        using (var connection = legacy.OpenConnection())
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "UPDATE schema_metadata SET value='6' WHERE key='schema_version'; DROP TABLE review_log; DROP TABLE reviews;";
+            cmd.ExecuteNonQuery();
+        }
+        await File.WriteAllTextAsync(Path.Combine(root, "ojnexus.initialized"), "v1\n");
+        var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+        Assert.True(opened.IsReady, opened.Failure?.WireCode);
+        await opened.Session!.DisposeAsync();
+        using var verify = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = legacy.DatabasePath, Mode = SqliteOpenMode.ReadOnly }.ToString());
+        verify.Open();
+        using var version = verify.CreateCommand(); version.CommandText = "SELECT value FROM schema_metadata WHERE key='schema_version'";
+        Assert.Equal("7", Convert.ToString(version.ExecuteScalar()));
+    }
+
+    [Fact]
+    public async Task MarkerTempBlocksEvenWithValidMarkerAndCurrentDatabase()
+    {
+        var root = NewRoot();
+        var legacy = new SqliteConnectionFactory(root);
+        await File.WriteAllTextAsync(Path.Combine(root, "ojnexus.initialized"), "v1\n");
+        var evidence = Path.Combine(root, "ojnexus.initialized.tmp");
+        await File.WriteAllTextAsync(evidence, "keep");
+        var before = await File.ReadAllBytesAsync(evidence);
+        var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+        Assert.False(opened.IsReady);
+        Assert.Equal("RECOVERY_BLOCKED", opened.Failure?.WireCode);
+        Assert.Equal(before, await File.ReadAllBytesAsync(evidence));
+        Assert.True(File.Exists(legacy.DatabasePath));
+    }
+
+    [Fact]
+    public async Task RelativeDotSegmentAliasIsAcceptedAndSharesLocation()
+    {
+        var root = NewRoot();
+        Directory.CreateDirectory(root);
+        var alias = Path.Combine(Directory.GetParent(root)!.FullName, ".", "child", "..", Path.GetFileName(root));
+        var opened = await WindowsStorage.OpenAsync(alias, null, CancellationToken.None);
+        Assert.True(opened.IsReady, opened.Failure?.WireCode);
+        await opened.Session!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task CaseAndDotSegmentAliasesShareTheHeldPhysicalLock()
+    {
+        var root = NewRoot();
+        var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+        Assert.True(opened.IsReady, opened.Failure?.WireCode);
+        var alias = Path.Combine(Directory.GetParent(root)!.FullName.ToUpperInvariant(), ".", "child", "..", Path.GetFileName(root).ToUpperInvariant());
+        var attempt = await WindowsStorage.OpenAsync(alias, null, CancellationToken.None);
+        Assert.True(attempt.IsReady, attempt.Failure?.WireCode);
+        await attempt.Session!.DisposeAsync();
+        var error = Assert.Throws<StorageException>(() => NativeFile.Acquire(Path.Combine(alias, "ojnexus.lifecycle.lock"), exclusive: true));
+        Assert.Equal("STORAGE_BUSY", error.Failure.WireCode);
+        await opened.Session!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SessionUsesInjectedClockForDueReviewDayBoundary()
+    {
+        var root = NewRoot();
+        var clock = new FixedClock(DateTimeOffset.Parse("2010-01-01T00:00:00Z"));
+        var opened = await WindowsStorage.OpenAsync(root, clock, CancellationToken.None);
+        Assert.True(opened.IsReady, opened.Failure?.WireCode);
+        await using var session = opened.Session!;
+        await session.RunAsync(async (store, _) =>
+        {
+            var account = JudgeAccount.Create(JudgeId.Codeforces, "clock-user");
+            await store.UpsertAccountAsync(account, CancellationToken.None);
+            await store.MarkReviewAsync(JudgeId.Codeforces, "clock-problem", ReviewResult.Fail,
+                DateTimeOffset.Parse("2026-10-19T00:00:00Z"), CancellationToken.None);
+        }, CancellationToken.None);
+        var due = await session.RunAsync((store, _) => store.GetDueReviewsAsync(null, 10, CancellationToken.None), CancellationToken.None);
+        Assert.Empty(due);
+    }
+
+    [Theory]
+    [InlineData("InitialProbeCompleted")]
+    [InlineData("FinalProbeCompleted")]
+    [InlineData("ExclusiveProbeCompleted")]
+    [InlineData("MaintenanceCompleted")]
+    public async Task CancellationAtCompletedStartupStageClosesHandles(string stageName)
+    {
+        var stage = Enum.Parse<StartupStage>(stageName);
+        var root = NewRoot();
+        if (stage is StartupStage.InitialProbeCompleted or StartupStage.FinalProbeCompleted)
+        {
+            var baseline = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+            if (baseline.IsReady) await baseline.Session!.DisposeAsync();
+            if (stage == StartupStage.FinalProbeCompleted)
+            {
+                File.Delete(Path.Combine(root, "ojnexus.initialized"));
+            }
+        }
+        using var cancellation = new CancellationTokenSource();
+        var canceledAtStage = false;
+        var hooks = new StartupTestHooks(OnStage: current =>
+        {
+            if (current == stage)
+            {
+                canceledAtStage = true;
+                cancellation.Cancel();
+            }
+        });
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => WindowsStorage.OpenAsyncForTests(root, null, cancellation.Token, hooks));
+        Assert.True(canceledAtStage);
+        using var nextOwner = NativeFile.Acquire(Path.Combine(root, "ojnexus.lifecycle.lock"), exclusive: true);
+    }
+
+    [Theory]
+    [InlineData("MarkerCreated")]
+    [InlineData("InitializationStageCreated")]
+    [InlineData("InitializationStageValidated")]
+    [InlineData("DatabasePromoted")]
+    public async Task InterruptedFirstCreationPreservesStageEvidence(string stageName)
+    {
+        var stage = Enum.Parse<StartupStage>(stageName);
+        var root = NewRoot();
+        var opened = await WindowsStorage.OpenAsyncForTests(root, null, CancellationToken.None,
+            new StartupTestHooks(OnStage: current =>
+            {
+                if (current == stage) throw new IOException("injected interruption");
+            }));
+        Assert.False(opened.IsReady);
+        if (stage == StartupStage.DatabasePromoted)
+        {
+            var completed = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+            Assert.True(completed.IsReady, completed.Failure?.WireCode);
+            await completed.Session!.DisposeAsync();
+        }
+        else
+        {
+            var second = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+            Assert.False(second.IsReady);
+            Assert.Contains(second.Failure?.WireCode, new[] { "RECOVERY_BLOCKED", "RECOVERY_SOURCE_MISSING" });
+            Assert.True(File.Exists(Path.Combine(root, "ojnexus.initialized")));
+        }
+    }
+
+    private sealed class FixedClock(DateTimeOffset utcNow) : IClock
+    {
+        public DateTimeOffset UtcNow { get; } = utcNow;
     }
 
     private static Process Start(string host, string root, string mode) => Process.Start(new ProcessStartInfo("dotnet")
@@ -118,12 +343,48 @@ public sealed class WindowsStorageTests
         RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true
     })!;
 
+    private static Process AddChild(List<Process> children, Process child)
+    {
+        child.StandardInput.AutoFlush = true;
+        children.Add(child);
+        return child;
+    }
+
+    private static async Task CleanupChildrenAsync(IEnumerable<Process> children)
+    {
+        foreach (var child in children)
+        {
+            try
+            {
+                if (!child.HasExited)
+                {
+                    child.StandardInput.WriteLine("release");
+                    await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(3));
+                }
+            }
+            catch
+            {
+                try
+                {
+                    if (!child.HasExited) child.Kill(entireProcessTree: true);
+                    await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                }
+                catch { }
+            }
+
+            try { _ = await child.StandardOutput.ReadToEndAsync().WaitAsync(TimeSpan.FromSeconds(3)); } catch { }
+            try { _ = await child.StandardError.ReadToEndAsync().WaitAsync(TimeSpan.FromSeconds(3)); } catch { }
+            child.Dispose();
+        }
+    }
+
     private static string FindHost()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "windows"))) directory = directory.Parent;
         if (directory is null) throw new DirectoryNotFoundException("Repository root not found for native host.");
-        return Path.Combine(directory.FullName, "windows", "tests", "OjNexus.Windows.StorageTestHost", "bin", "Release", "net8.0", "OjNexus.Windows.StorageTestHost.dll");
+        var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name ?? "Release";
+        return Path.Combine(directory.FullName, "windows", "tests", "OjNexus.Windows.StorageTestHost", "bin", configuration, "net8.0", "OjNexus.Windows.StorageTestHost.dll");
     }
 
     private static string NewRoot() => Path.Combine(Path.GetTempPath(), "ojnexus-storage-test-" + Guid.NewGuid().ToString("N"));
