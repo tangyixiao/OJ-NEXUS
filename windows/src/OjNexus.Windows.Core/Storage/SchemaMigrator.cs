@@ -147,6 +147,8 @@ public static class SchemaMigrator
             return null;
         }
 
+        ValidateMetadataLayout(connection, transaction);
+
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = "SELECT value FROM schema_metadata WHERE key = 'schema_version'";
@@ -162,6 +164,33 @@ public static class SchemaMigrator
         }
 
         return version;
+    }
+
+    private static void ValidateMetadataLayout(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "PRAGMA table_info('schema_metadata')";
+        using var reader = command.ExecuteReader();
+        var columns = new Dictionary<string, (string Type, bool NotNull, int PrimaryKey)>(StringComparer.OrdinalIgnoreCase);
+        while (reader.Read())
+        {
+            columns.Add(reader.GetString(1),
+                (reader.GetString(2), reader.GetInt32(3) != 0, reader.GetInt32(5)));
+        }
+
+        if (columns.Count != 2
+            || !columns.TryGetValue("key", out var key)
+            || !columns.TryGetValue("value", out var value)
+            || !string.Equals(key.Type, "TEXT", StringComparison.OrdinalIgnoreCase)
+            || !key.NotNull
+            || key.PrimaryKey != 1
+            || !string.Equals(value.Type, "TEXT", StringComparison.OrdinalIgnoreCase)
+            || !value.NotNull
+            || value.PrimaryKey != 0)
+        {
+            throw new InvalidOperationException("Database schema metadata layout is invalid.");
+        }
     }
 
     private static bool HasUserTables(SqliteConnection connection, SqliteTransaction transaction)

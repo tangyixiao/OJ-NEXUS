@@ -18,6 +18,25 @@ public sealed class StorageLocationTests
         Assert.Equal("UNSUPPORTED_LOCATION", opened.Failure?.WireCode);
     }
 
+    [Fact]
+    public async Task ControlCharacterPathIsRejectedBeforeCreation()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "ojnexus-control-\u0001-" + Guid.NewGuid().ToString("N"));
+        var opened = await WindowsStorage.OpenAsync(path, null, CancellationToken.None);
+        Assert.Equal("UNSUPPORTED_LOCATION", opened.Failure?.WireCode);
+    }
+
+    [Fact]
+    public async Task ActuallyRelativePathResolvesToTheSameOrdinaryDirectory()
+    {
+        var absolute = NewRoot();
+        var relative = Path.GetRelativePath(Environment.CurrentDirectory, absolute);
+        var opened = await WindowsStorage.OpenAsync(relative, null, CancellationToken.None);
+        Assert.True(opened.IsReady, opened.Failure?.WireCode);
+        Assert.Equal(Path.GetFullPath(absolute).ToUpperInvariant(), opened.Session!.DataDirectory.ToUpperInvariant());
+        await opened.Session.DisposeAsync();
+    }
+
     [Theory]
     [InlineData(" trailing ")]
     [InlineData("trailing.")]
@@ -100,6 +119,38 @@ public sealed class StorageLocationTests
             Assert.False(directoryResult.IsReady);
             Assert.Equal("UNSUPPORTED_LOCATION", directoryResult.Failure?.WireCode);
         }
+    }
+
+    [Theory]
+    [InlineData("ojnexus.db")]
+    [InlineData("ojnexus.lifecycle.lock")]
+    [InlineData("ojnexus.initialized")]
+    [InlineData("ojnexus.db-wal")]
+    public async Task DirectoryAtControlledFilePathIsRejected(string name)
+    {
+        var root = NewRoot();
+        Directory.CreateDirectory(root);
+        Directory.CreateDirectory(Path.Combine(root, name));
+
+        var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+
+        Assert.False(opened.IsReady);
+        Assert.Equal("RECOVERY_BLOCKED", opened.Failure?.WireCode);
+    }
+
+    [Fact]
+    public async Task AncestorReparsePointIsRejectedBeforeChildCreation()
+    {
+        var target = NewRoot();
+        Directory.CreateDirectory(target);
+        var linkParent = Path.Combine(Path.GetTempPath(), "ojnexus-ancestor-link-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateSymbolicLink(linkParent, target);
+        var throughLink = Path.Combine(linkParent, "workspace");
+
+        var opened = await WindowsStorage.OpenAsync(throughLink, null, CancellationToken.None);
+
+        Assert.Equal("UNSUPPORTED_LOCATION", opened.Failure?.WireCode);
+        Assert.False(Directory.Exists(Path.Combine(target, "workspace")));
     }
 
     private static string NewRoot() => Path.Combine(Path.GetTempPath(), "ojnexus-location-" + Guid.NewGuid().ToString("N"));

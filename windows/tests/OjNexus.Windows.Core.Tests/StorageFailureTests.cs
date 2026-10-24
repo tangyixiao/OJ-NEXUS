@@ -45,20 +45,28 @@ public sealed class StorageFailureTests
     [InlineData("metadata-only-v0", "INTEGRITY_FAILURE")]
     [InlineData("future99", "UNSUPPORTED_SCHEMA")]
     [InlineData("corrupt-header", "INTEGRITY_FAILURE")]
+    [InlineData("damaged-page", "INTEGRITY_FAILURE")]
     [InlineData("foreign-key", "INTEGRITY_FAILURE")]
+    [InlineData("metadata-missing-key", "INTEGRITY_FAILURE")]
+    [InlineData("metadata-missing-value", "INTEGRITY_FAILURE")]
+    [InlineData("metadata-key-not-primary", "INTEGRITY_FAILURE")]
+    [InlineData("metadata-value-nullable", "INTEGRITY_FAILURE")]
     public async Task DamagedOrUnknownDatabaseIsPreservedWithoutMarkerEnrollment(string fixture, string expectedCode)
     {
         var root = NewRoot();
         Directory.CreateDirectory(root);
         var database = Path.Combine(root, "ojnexus.db");
         await CreateDatabaseFixture(fixture, root, database);
-        var before = await SHA256.HashDataAsync(File.OpenRead(database));
+        byte[] before;
+        using (var stream = File.OpenRead(database)) before = SHA256.HashData(stream);
 
         var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
 
         Assert.False(opened.IsReady);
         Assert.Equal(expectedCode, opened.Failure?.WireCode);
-        Assert.Equal(before, await SHA256.HashDataAsync(File.OpenRead(database)));
+        byte[] after;
+        using (var stream = File.OpenRead(database)) after = SHA256.HashData(stream);
+        Assert.Equal(before, after);
         Assert.False(File.Exists(Path.Combine(root, "ojnexus.initialized")));
     }
 
@@ -87,9 +95,13 @@ public sealed class StorageFailureTests
             command.CommandText = fixture switch
             {
                 "unrelated" or "absent-metadata" => "CREATE TABLE random_data (value TEXT); INSERT INTO random_data VALUES ('keep');",
-                "invalid-metadata" => "CREATE TABLE schema_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL); INSERT INTO schema_metadata VALUES ('schema_version','unknown');",
-                "metadata-only-v0" => "CREATE TABLE schema_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL); INSERT INTO schema_metadata VALUES ('schema_version','0');",
-                "future99" => "CREATE TABLE schema_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL); INSERT INTO schema_metadata VALUES ('schema_version','99');",
+                "invalid-metadata" => "CREATE TABLE schema_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL); INSERT INTO schema_metadata VALUES ('schema_version','unknown');",
+                "metadata-missing-key" => "CREATE TABLE schema_metadata (value TEXT NOT NULL); INSERT INTO schema_metadata VALUES ('0');",
+                "metadata-missing-value" => "CREATE TABLE schema_metadata (key TEXT NOT NULL PRIMARY KEY); INSERT INTO schema_metadata VALUES ('schema_version');",
+                "metadata-key-not-primary" => "CREATE TABLE schema_metadata (key TEXT NOT NULL, value TEXT NOT NULL); INSERT INTO schema_metadata VALUES ('schema_version','7');",
+                "metadata-value-nullable" => "CREATE TABLE schema_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT); INSERT INTO schema_metadata VALUES ('schema_version','7');",
+                "metadata-only-v0" => "CREATE TABLE schema_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL); INSERT INTO schema_metadata VALUES ('schema_version','0');",
+                "future99" => "CREATE TABLE schema_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL); INSERT INTO schema_metadata VALUES ('schema_version','99');",
                 _ => string.Empty
             };
             command.ExecuteNonQuery();
@@ -101,6 +113,32 @@ public sealed class StorageFailureTests
             stream.Position = 0;
             await stream.WriteAsync(new byte[] { 0x58 });
             await stream.FlushAsync();
+        }
+        else if (fixture == "damaged-page")
+        {
+            SchemaMigrator.Migrate(new SqliteConnectionStringBuilder
+            {
+                DataSource = database,
+                Mode = SqliteOpenMode.ReadWriteCreate,
+                Pooling = false,
+                ForeignKeys = true
+            }.ToString());
+            long rootPage;
+            long pageSize;
+            using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = database, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString()))
+            {
+                connection.Open();
+                using var page = connection.CreateCommand();
+                page.CommandText = "SELECT rootpage FROM sqlite_master WHERE type='table' AND name='accounts'";
+                rootPage = Convert.ToInt64(page.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+                using var size = connection.CreateCommand();
+                size.CommandText = "PRAGMA page_size";
+                pageSize = Convert.ToInt64(size.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+            }
+            using var stream = new FileStream(database, FileMode.Open, FileAccess.Write, FileShare.Read);
+            stream.Position = (rootPage - 1) * pageSize;
+            stream.WriteByte(0xff);
+            stream.Flush(true);
         }
         else if (fixture == "foreign-key")
         {

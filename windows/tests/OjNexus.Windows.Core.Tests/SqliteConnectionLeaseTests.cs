@@ -1,5 +1,6 @@
 using OjNexus.Windows.Core.Storage;
 using OjNexus.Windows.Core.Sync;
+using Microsoft.Data.Sqlite;
 
 namespace OjNexus.Windows.Core.Tests;
 
@@ -51,13 +52,84 @@ public sealed class SqliteConnectionLeaseTests
         var owner = new OperationOwner(() => { lifecycle.Dispose(); return ValueTask.CompletedTask; });
         var factory = new SqliteConnectionFactory(Path.Combine(root, "absent.db"), owner);
         var context = owner.Begin(_ => new InMemorySyncStore(), CancellationToken.None);
-        Assert.ThrowsAny<Exception>(() => factory.OpenLease(context.Permit));
+        Assert.Throws<SqliteException>(() => factory.OpenLease(context.Permit));
+        Assert.False(File.Exists(Path.Combine(root, "absent.db")));
         var secondOwner = new OperationOwner();
         var foreign = secondOwner.Begin(_ => new InMemorySyncStore(), CancellationToken.None);
         Assert.Throws<StorageException>(() => factory.OpenLease(foreign.Permit));
         await foreign.DisposeAsync();
         await context.DisposeAsync();
         await owner.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task OwnerBoundFactoryCannotUseTransitionalLegacyOpenRoutes()
+    {
+        var (root, lifecycle) = await CreateInitializedRoot();
+        var owner = new OperationOwner(() => { lifecycle.Dispose(); return ValueTask.CompletedTask; });
+        var database = Path.Combine(root, "ojnexus.db");
+        var missingDatabase = Path.Combine(root, "must-not-be-created.db");
+        var factory = new SqliteConnectionFactory(database, owner);
+        var missingFactory = new SqliteConnectionFactory(missingDatabase, owner);
+        var context = owner.Begin(permit => new SqliteSyncStore(factory, permit), CancellationToken.None);
+        var legacyStore = new SqliteSyncStore(factory);
+
+        AssertSessionClosed(() => factory.OpenConnection());
+        AssertSessionClosed(() => factory.OpenLegacyLease());
+        AssertSessionClosed(() => missingFactory.OpenConnection());
+        AssertSessionClosed(() => missingFactory.OpenLegacyLease());
+        await Assert.ThrowsAsync<StorageException>(() => legacyStore.GetAccountsAsync(CancellationToken.None));
+        Assert.Empty(await context.Store.GetAccountsAsync(CancellationToken.None));
+        Assert.False(File.Exists(missingDatabase));
+
+        await context.DisposeAsync();
+        await owner.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+
+        AssertSessionClosed(() => factory.OpenConnection());
+        AssertSessionClosed(() => factory.OpenLegacyLease());
+        AssertSessionClosed(() => missingFactory.OpenConnection());
+        AssertSessionClosed(() => missingFactory.OpenLegacyLease());
+        await Assert.ThrowsAsync<StorageException>(() => legacyStore.GetAccountsAsync(CancellationToken.None));
+        Assert.False(File.Exists(missingDatabase));
+    }
+
+    [Fact]
+    public async Task TwoHeldNativeLeasesMustBothCloseBeforeDrainUnlocks()
+    {
+        var (root, lifecycle) = await CreateInitializedRoot();
+        var owner = new OperationOwner(() => { lifecycle.Dispose(); return ValueTask.CompletedTask; });
+        var factory = new SqliteConnectionFactory(Path.Combine(root, "ojnexus.db"), owner);
+        var firstContext = owner.Begin(permit => new SqliteSyncStore(factory, permit), CancellationToken.None);
+        var secondContext = owner.Begin(permit => new SqliteSyncStore(factory, permit), CancellationToken.None);
+        SqliteConnectionLease? firstLease = null;
+        SqliteConnectionLease? secondLease = null;
+        try
+        {
+            firstLease = factory.OpenLease(firstContext.Permit);
+            secondLease = factory.OpenLease(secondContext.Permit);
+            await firstContext.DisposeAsync();
+            await secondContext.DisposeAsync();
+            var shutdown = owner.DisposeAsync().AsTask();
+            Assert.False(shutdown.IsCompleted);
+            AssertBusy(Path.Combine(root, "ojnexus.lifecycle.lock"));
+
+            firstLease.Dispose();
+            firstLease = null;
+            Assert.False(shutdown.IsCompleted);
+            AssertBusy(Path.Combine(root, "ojnexus.lifecycle.lock"));
+
+            secondLease.Dispose();
+            secondLease = null;
+            await shutdown.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            firstLease?.Dispose();
+            secondLease?.Dispose();
+            await firstContext.DisposeAsync();
+            await secondContext.DisposeAsync();
+            await owner.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        }
     }
 
     [Fact]
@@ -98,5 +170,11 @@ public sealed class SqliteConnectionLeaseTests
     {
         var error = Assert.Throws<StorageException>(() => NativeFile.Acquire(path, exclusive: true));
         Assert.Equal("STORAGE_BUSY", error.Failure.WireCode);
+    }
+
+    private static void AssertSessionClosed(Action action)
+    {
+        var failure = Assert.Throws<StorageException>(action);
+        Assert.Equal("SESSION_CLOSED", failure.Failure.WireCode);
     }
 }

@@ -44,6 +44,11 @@ public sealed class SqliteConnectionFactory
     // TRANSITIONAL LEGACY SEAM: guarded sessions do not expose this method or its raw connection.
     public SqliteConnection OpenConnection()
     {
+        if (_owner is not null)
+        {
+            throw new StorageException(new(StorageFailureCode.SessionClosed, "connection"));
+        }
+
         var connection = new SqliteConnection(_connectionString);
         connection.Open();
         return connection;
@@ -91,5 +96,13 @@ public sealed class SqliteConnectionFactory
         }
     }
 
-    internal SqliteConnectionLease OpenLegacyLease() => new(OpenConnection(), null, null);
+    internal SqliteConnectionLease OpenLegacyLease()
+    {
+        if (_owner is not null)
+        {
+            throw new StorageException(new(StorageFailureCode.SessionClosed, "connection"));
+        }
+
+        return new SqliteConnectionLease(OpenConnection(), null, null);
+    }
 }

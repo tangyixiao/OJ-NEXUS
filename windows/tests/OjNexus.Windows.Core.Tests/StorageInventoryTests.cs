@@ -193,15 +193,58 @@ public sealed class StorageInventoryTests
     }
 
     [Fact]
-    public async Task MixedCaseControlledNameFailsClosedWithoutCreatingShadowDatabase()
+    public async Task MixedCaseArtifactsOnOrdinaryWindowsDirectoryResolveToSameDatabase()
     {
-        var root = NewRoot(); Directory.CreateDirectory(root);
-        var shadow = Path.Combine(root, "OJNEXUS.DB");
-        await File.WriteAllBytesAsync(shadow, []);
+        var root = NewRoot();
+        Directory.CreateDirectory(root);
+        SchemaMigrator.Migrate(new SqliteConnectionStringBuilder
+        {
+            DataSource = Path.Combine(root, "OJNEXUS.DB"),
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Pooling = false,
+            ForeignKeys = true
+        }.ToString());
+        var originalHash = HashEvidence(root, "OJNEXUS.DB");
+        await File.WriteAllTextAsync(Path.Combine(root, "OJNEXUS.INITIALIZED"), "v1\n");
+        await File.WriteAllBytesAsync(Path.Combine(root, "OJNEXUS.LIFECYCLE.LOCK"), []);
+
         var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
-        Assert.Equal("UNSUPPORTED_LOCATION", opened.Failure?.WireCode);
-        Assert.Equal(0, new FileInfo(shadow).Length);
-        Assert.False(File.Exists(Path.Combine(root, "ojnexus.initialized")));
+        Assert.True(opened.IsReady, opened.Failure?.WireCode);
+        await opened.Session!.DisposeAsync();
+        Assert.Equal(originalHash, HashEvidence(root, "OJNEXUS.DB"));
+        Assert.Equal("v1\n", await File.ReadAllTextAsync(Path.Combine(root, "ojnexus.initialized")));
+    }
+
+    [Fact]
+    public async Task MixedCaseMainCompanionUsesMissingSourceMapping()
+    {
+        var root = NewRoot();
+        Directory.CreateDirectory(root);
+        var path = Path.Combine(root, "OJNEXUS.DB-WAL");
+        await File.WriteAllBytesAsync(path, [1, 2, 3]);
+        var before = HashEvidence(root, "OJNEXUS.DB-WAL");
+
+        var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+
+        Assert.Equal("RECOVERY_SOURCE_MISSING", opened.Failure?.WireCode);
+        Assert.Equal(before, HashEvidence(root, "OJNEXUS.DB-WAL"));
+        Assert.False(File.Exists(Path.Combine(root, "ojnexus.db")));
+    }
+
+    [Fact]
+    public async Task MixedCaseIncompleteEvidenceUsesRecoveryBlockedMapping()
+    {
+        var root = NewRoot();
+        Directory.CreateDirectory(root);
+        var path = Path.Combine(root, "OJNEXUS.INIT.DB");
+        await File.WriteAllBytesAsync(path, [4, 5, 6]);
+        var before = HashEvidence(root, "OJNEXUS.INIT.DB");
+
+        var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+
+        Assert.Equal("RECOVERY_BLOCKED", opened.Failure?.WireCode);
+        Assert.Equal(before, HashEvidence(root, "OJNEXUS.INIT.DB"));
+        Assert.False(File.Exists(Path.Combine(root, "ojnexus.db")));
     }
 
     private static void CreateCurrentDatabase(string root)

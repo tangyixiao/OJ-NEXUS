@@ -30,6 +30,7 @@ public sealed class StorageMigrationTests
         Assert.Equal(7, operation.Id);
         Assert.Equal("legacy-handle", operation.Account.Handle);
         Assert.Equal(SyncOperationStatus.Success, operation.Status);
+        Assert.Equal("PROFILE", Assert.Single(operation.Modules).Stage);
         Assert.Equal(7, ReadSchemaVersion(Path.Combine(root, "ojnexus.db")));
     }
 
@@ -62,6 +63,28 @@ public sealed class StorageMigrationTests
         Assert.False(File.Exists(Path.Combine(root, "ojnexus.initialized")));
     }
 
+    [Fact]
+    public async Task ProviderBusyDuringRealMigrationRetainsBusyCodeAndOriginalRows()
+    {
+        var root = NewRoot();
+        BuildLegacySchema(root, 6);
+        using var blocker = Open(root);
+        using var blockerTransaction = blocker.BeginTransaction(deferred: false);
+
+        var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+
+        Assert.False(opened.IsReady);
+        Assert.Equal("STORAGE_BUSY", opened.Failure?.WireCode);
+        Assert.Equal(6, ReadSchemaVersion(Path.Combine(root, "ojnexus.db")));
+        Assert.False(TableExists(Path.Combine(root, "ojnexus.db"), "review_log"));
+        using var verify = Open(root);
+        using var rows = verify.CreateCommand();
+        rows.Transaction = null;
+        rows.CommandText = "SELECT COUNT(*) FROM sync_modules WHERE operation_id=7 AND stage='PROFILE'";
+        Assert.Equal(1L, Convert.ToInt64(rows.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture));
+        Assert.False(File.Exists(Path.Combine(root, "ojnexus.initialized")));
+    }
+
     private static void BuildLegacySchema(string root, int version)
     {
         Directory.CreateDirectory(root);
@@ -86,8 +109,8 @@ public sealed class StorageMigrationTests
         {
             var statements = new List<string>();
             if (version <= 6) statements.Add("DROP TABLE reviews; DROP TABLE review_log;");
-            if (version <= 4) statements.Add("DROP TABLE problems;");
-            if (version <= 3) statements.Add("ALTER TABLE sync_operations DROP COLUMN handle;");
+            if (version <= 5) statements.Add("DROP TABLE problems;");
+            if (version <= 4) statements.Add("ALTER TABLE sync_operations DROP COLUMN handle;");
             if (version <= 3) statements.Add("DROP TABLE luogu_payloads;");
             if (version <= 2) statements.Add("DROP TABLE atcoder_submissions;");
             if (version <= 1)

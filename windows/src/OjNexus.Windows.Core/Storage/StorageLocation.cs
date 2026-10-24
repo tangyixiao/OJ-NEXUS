@@ -43,20 +43,29 @@ internal sealed record StorageLocation(string DataDirectory, string DatabasePath
         var entries = Directory.EnumerateFileSystemEntries(DataDirectory)
             .Select(path => (Path: path, Name: Path.GetFileName(path)))
             .ToArray();
-        var controlled = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var name in ExactArtifactNames)
-        {
-            controlled.Add(name, Path.Combine(DataDirectory, name));
-        }
-
         var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var restoreEntries = new List<string>();
         foreach (var (path, name) in entries)
         {
             var isRestore = name.StartsWith("ojnexus.restore.", StringComparison.OrdinalIgnoreCase);
-            if (!isRestore && !controlled.TryGetValue(name, out _)) continue;
+            var canonical = isRestore ? null : ExactArtifactNames.FirstOrDefault(artifact =>
+                string.Equals(artifact, name, StringComparison.OrdinalIgnoreCase));
+            if (!isRestore && canonical is null) continue;
+
+            if (!isRestore)
+            {
+                var matches = entries.Count(entry => string.Equals(entry.Name, canonical, StringComparison.OrdinalIgnoreCase));
+                if (matches > 1)
+                    throw new StorageException(new(StorageFailureCode.UnsupportedLocation, "location"));
+
+                if (!string.Equals(name, canonical, StringComparison.Ordinal)
+                    && !File.Exists(Path.Combine(DataDirectory, canonical!))
+                    && !Directory.Exists(Path.Combine(DataDirectory, canonical!)))
+                    throw new StorageException(new(StorageFailureCode.UnsupportedLocation, "location"));
+            }
+
             if (isRestore) restoreEntries.Add(path);
-            else found.Add(name);
+            else found.Add(canonical!);
 
             var attributes = File.GetAttributes(path);
             if ((attributes & FileAttributes.ReparsePoint) != 0)
@@ -65,10 +74,7 @@ internal sealed record StorageLocation(string DataDirectory, string DatabasePath
             {
                 throw new StorageException(new(StorageFailureCode.RecoveryBlocked, "inventory"));
             }
-            var canonical = isRestore ? name : ExactArtifactNames.First(c => string.Equals(c, name, StringComparison.OrdinalIgnoreCase));
-            if (!isRestore && !string.Equals(name, canonical, StringComparison.Ordinal))
-                throw new StorageException(new(StorageFailureCode.UnsupportedLocation, "location"));
-            if (canonical is "ojnexus.db" or "ojnexus.lifecycle.lock" && !isRestore)
+            if (!isRestore && (canonical is "ojnexus.db" or "ojnexus.lifecycle.lock"))
             {
                 var links = canonical == "ojnexus.lifecycle.lock" && heldLock is not null
                     ? NativeFile.LinkCount(heldLock.SafeFileHandle)

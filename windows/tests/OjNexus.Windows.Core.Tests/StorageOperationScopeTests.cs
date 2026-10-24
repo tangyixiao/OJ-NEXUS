@@ -59,35 +59,47 @@ public sealed class StorageOperationScopeTests
         var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
         Assert.True(opened.IsReady, opened.Failure?.WireCode);
         var session = opened.Session!;
-        var context = session.BeginOperation();
+        using var callerCancellation = new CancellationTokenSource();
         var account = JudgeAccount.Create(JudgeId.Codeforces, "drain-user");
-        await context.Store.UpsertAccountAsync(account, CancellationToken.None);
         var now = DateTimeOffset.Parse("2026-10-24T00:00:00Z");
-        var id = await context.Store.OpenOperationAsync(account, "generation", now, CancellationToken.None);
-        await context.Store.AppendModuleAsync(id, new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 1, 1, 0, null), now, CancellationToken.None);
-
+        var operationAdmitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var cleanupStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var releaseCleanup = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var cleanup = Task.Run(async () =>
+        var action = Task.Run(async () =>
         {
-            cleanupStarted.TrySetResult();
-            await releaseCleanup.Task;
-            await context.Store.CloseOperationAsync(id, SyncOperationStatus.Cancelled, SyncError.Cancelled, now, CancellationToken.None);
+            await using var context = session.BeginOperation(callerCancellation.Token);
+            await context.Store.UpsertAccountAsync(account, CancellationToken.None);
+            var id = await context.Store.OpenOperationAsync(account, "generation", now, CancellationToken.None);
+            await context.Store.AppendModuleAsync(id, new SyncModuleOutcome("PROFILE", SyncOperationStatus.Success, 1, 1, 0, null), now, CancellationToken.None);
+            operationAdmitted.TrySetResult();
+            var finalStatus = SyncOperationStatus.Success;
+            SyncError? finalError = null;
+            try
+            {
+                await Task.Delay(Timeout.Infinite, context.CancellationToken);
+            }
+            catch (OperationCanceledException exception) when (callerCancellation.IsCancellationRequested)
+            {
+                Assert.Equal(context.CancellationToken, exception.CancellationToken);
+                finalStatus = SyncOperationStatus.Cancelled;
+                finalError = SyncError.Cancelled;
+                cleanupStarted.TrySetResult();
+                await releaseCleanup.Task;
+            }
+            finally
+            {
+                await context.Store.CloseOperationAsync(id, finalStatus, finalError, now, CancellationToken.None);
+            }
         });
-        await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        using var callerCancellation = new CancellationTokenSource();
-        var cancelledContext = session.BeginOperation(callerCancellation.Token);
+        await operationAdmitted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         callerCancellation.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cancelledContext.Store.GetAccountsAsync(cancelledContext.CancellationToken));
-        await cancelledContext.DisposeAsync();
-
+        await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var shutdown = session.DisposeAsync().AsTask();
         Assert.Throws<StorageException>(() => session.BeginOperation());
         Assert.False(shutdown.IsCompleted);
         AssertBusy(Path.Combine(root, "ojnexus.lifecycle.lock"));
         releaseCleanup.TrySetResult();
-        await cleanup.WaitAsync(TimeSpan.FromSeconds(5));
-        await context.DisposeAsync();
+        await action.WaitAsync(TimeSpan.FromSeconds(5));
         await shutdown.WaitAsync(TimeSpan.FromSeconds(5));
 
         var reopened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
@@ -104,8 +116,10 @@ public sealed class StorageOperationScopeTests
         var scope = new StorageOperationScope(new InMemorySyncStore());
         var context = scope.BeginOperation();
         var callbackSawClosed = false;
+        Task? callbackShutdown = null;
         using var registration = context.CancellationToken.Register(() =>
         {
+            callbackShutdown = scope.DisposeAsync().AsTask();
             try
             {
                 _ = scope.BeginOperation();
@@ -117,16 +131,52 @@ public sealed class StorageOperationScopeTests
             throw new InvalidOperationException("synthetic callback fault");
         });
 
-        var first = scope.DisposeAsync().AsTask();
-        var second = scope.DisposeAsync().AsTask();
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var firstRequest = Task.Run(async () =>
+        {
+            await start.Task;
+            return scope.DisposeAsync().AsTask();
+        });
+        var secondRequest = Task.Run(async () =>
+        {
+            await start.Task;
+            return scope.DisposeAsync().AsTask();
+        });
+        start.TrySetResult();
+        var first = await firstRequest.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = await secondRequest.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Same(first, second);
         Assert.False(first.IsCompleted);
         var cleanup = await context.Store.GetRecentOperationsAsync(null, 0, CancellationToken.None);
         Assert.Empty(cleanup);
         await context.DisposeAsync();
-        await Assert.ThrowsAnyAsync<Exception>(() => first.WaitAsync(TimeSpan.FromSeconds(5)));
+        var callbackFailure = await Assert.ThrowsAsync<AggregateException>(() => first.WaitAsync(TimeSpan.FromSeconds(5)));
+        var cancellationFailure = Assert.IsType<AggregateException>(Assert.Single(callbackFailure.InnerExceptions));
+        Assert.Equal("synthetic callback fault", Assert.IsType<InvalidOperationException>(Assert.Single(cancellationFailure.InnerExceptions)).Message);
         Assert.True(callbackSawClosed);
-        await Assert.ThrowsAnyAsync<Exception>(() => scope.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Same(first, callbackShutdown);
+    }
+
+    [Fact]
+    public async Task ConcurrentShutdownWithoutActiveWorkSharesCompletedTask()
+    {
+        var scope = new StorageOperationScope(new InMemorySyncStore());
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var firstRequest = Task.Run(async () =>
+        {
+            await start.Task;
+            return scope.DisposeAsync().AsTask();
+        });
+        var secondRequest = Task.Run(async () =>
+        {
+            await start.Task;
+            return scope.DisposeAsync().AsTask();
+        });
+        start.TrySetResult();
+        var first = await firstRequest.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = await secondRequest.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Same(first, second);
+        await first.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -150,6 +200,57 @@ public sealed class StorageOperationScopeTests
         var shutdown = scope.DisposeAsync().AsTask();
         await Task.WhenAll(attempts).WaitAsync(TimeSpan.FromSeconds(5));
         await shutdown.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task EveryClosedStoreEntryFailsBeforeArgumentsOrNoSqlReturnsAndNeverRevives()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ojnexus-closed-matrix-" + Guid.NewGuid().ToString("N"));
+        var opened = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+        Assert.True(opened.IsReady, opened.Failure?.WireCode);
+        var oldSession = opened.Session!;
+        var context = oldSession.BeginOperation();
+        var retained = context.Store;
+        await context.DisposeAsync();
+        await oldSession.DisposeAsync();
+
+        var oldSessionClosed = Assert.Throws<StorageException>(() => oldSession.BeginOperation());
+        Assert.Equal("SESSION_CLOSED", oldSessionClosed.Failure.WireCode);
+        await AssertAllEntriesClosed(retained);
+
+        var nextOpen = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+        Assert.True(nextOpen.IsReady, nextOpen.Failure?.WireCode);
+        await using var nextSession = nextOpen.Session!;
+        oldSessionClosed = Assert.Throws<StorageException>(() => oldSession.BeginOperation());
+        Assert.Equal("SESSION_CLOSED", oldSessionClosed.Failure.WireCode);
+        await AssertAllEntriesClosed(retained);
+        await AssertAllEntriesClosed(context.Store);
+        Assert.Empty(await nextSession.RunAsync((store, _) => store.GetAccountsAsync(CancellationToken.None), CancellationToken.None));
+    }
+
+    private static async Task AssertAllEntriesClosed(ISyncStore store)
+    {
+        Func<Task>[] entries =
+        [
+            () => store.GetAccountsAsync(CancellationToken.None),
+            () => store.UpsertAccountAsync(null!, CancellationToken.None),
+            () => store.GetRecentOperationsAsync(null, 0, CancellationToken.None),
+            () => store.GetProblemsAsync(null, null, 0, CancellationToken.None),
+            () => store.GetDueReviewsAsync(null, 0, CancellationToken.None),
+            () => store.MarkReviewAsync(JudgeId.Codeforces, "", default, DateTimeOffset.MinValue, CancellationToken.None),
+            () => store.GetCodeforcesPayloadAsync("", CancellationToken.None),
+            () => store.GetAtCoderPayloadAsync("", CancellationToken.None),
+            () => store.GetLuoguPayloadAsync("", CancellationToken.None),
+            () => store.OpenOperationAsync(null!, null!, DateTimeOffset.MinValue, CancellationToken.None),
+            () => store.AppendModuleAsync(0, null!, DateTimeOffset.MinValue, CancellationToken.None),
+            () => store.CloseOperationAsync(0, default, null, DateTimeOffset.MinValue, CancellationToken.None)
+        ];
+
+        foreach (var entry in entries)
+        {
+            var failure = await Assert.ThrowsAsync<StorageException>(async () => await entry());
+            Assert.Equal("SESSION_CLOSED", failure.Failure.WireCode);
+        }
     }
 
     private static void AssertBusy(string path)

@@ -269,6 +269,39 @@ public sealed class WindowsStorageTests
         Assert.Empty(due);
     }
 
+    [Fact]
+    public async Task FinalSharedRecheckRejectsSchemaChangedDuringExclusiveMaintenance()
+    {
+        var root = NewRoot();
+        var initialized = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
+        Assert.True(initialized.IsReady, initialized.Failure?.WireCode);
+        await initialized.Session!.DisposeAsync();
+        File.Delete(Path.Combine(root, "ojnexus.initialized"));
+
+        var changedDuringMaintenance = false;
+        var opened = await WindowsStorage.OpenAsyncForTests(root, null, CancellationToken.None,
+            new StartupTestHooks(OnStage: stage =>
+            {
+                if (stage != StartupStage.MaintenanceCompleted || changedDuringMaintenance) return;
+                using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+                {
+                    DataSource = Path.Combine(root, "ojnexus.db"),
+                    Mode = SqliteOpenMode.ReadWrite,
+                    Pooling = false
+                }.ToString());
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = "UPDATE schema_metadata SET value='6' WHERE key='schema_version'";
+                command.ExecuteNonQuery();
+                changedDuringMaintenance = true;
+            }));
+
+        Assert.True(changedDuringMaintenance);
+        Assert.False(opened.IsReady);
+        Assert.Equal("RECOVERY_BLOCKED", opened.Failure?.WireCode);
+        Assert.Equal(6, ReadSchemaVersion(Path.Combine(root, "ojnexus.db")));
+    }
+
     [Theory]
     [InlineData("InitialProbeCompleted")]
     [InlineData("FinalProbeCompleted")]
@@ -297,9 +330,44 @@ public sealed class WindowsStorageTests
                 cancellation.Cancel();
             }
         });
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => WindowsStorage.OpenAsyncForTests(root, null, cancellation.Token, hooks));
+        var canceled = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => WindowsStorage.OpenAsyncForTests(root, null, cancellation.Token, hooks));
+        Assert.Equal(cancellation.Token, canceled.CancellationToken);
         Assert.True(canceledAtStage);
         using var nextOwner = NativeFile.Acquire(Path.Combine(root, "ojnexus.lifecycle.lock"), exclusive: true);
+    }
+
+    [Fact]
+    public async Task CancellationDuringHeldStartupStageWaitsForOwnershipToClose()
+    {
+        var root = NewRoot();
+        using var cancellation = new CancellationTokenSource();
+        using var enteredStage = new ManualResetEventSlim();
+        using var releaseStage = new ManualResetEventSlim();
+        var opening = WindowsStorage.OpenAsyncForTests(root, null, cancellation.Token,
+            new StartupTestHooks(OnStage: stage =>
+            {
+                if (stage != StartupStage.InitialProbeCompleted) return;
+                enteredStage.Set();
+                if (!releaseStage.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException("Test stage release timed out.");
+            }));
+
+        try
+        {
+            Assert.True(await Task.Run(() => enteredStage.Wait(TimeSpan.FromSeconds(5))));
+            cancellation.Cancel();
+            Assert.False(opening.IsCompleted);
+            AssertBusy(Path.Combine(root, "ojnexus.lifecycle.lock"));
+            releaseStage.Set();
+            var canceled = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => opening.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.Equal(cancellation.Token, canceled.CancellationToken);
+            using var nextOwner = NativeFile.Acquire(Path.Combine(root, "ojnexus.lifecycle.lock"), exclusive: true);
+        }
+        finally
+        {
+            releaseStage.Set();
+            if (!opening.IsCompleted)
+                await opening.WaitAsync(TimeSpan.FromSeconds(5));
+        }
     }
 
     [Theory]
@@ -317,6 +385,7 @@ public sealed class WindowsStorageTests
                 if (current == stage) throw new IOException("injected interruption");
             }));
         Assert.False(opened.IsReady);
+        var evidenceBefore = HashControlledFiles(root);
         if (stage == StartupStage.DatabasePromoted)
         {
             var completed = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
@@ -327,9 +396,10 @@ public sealed class WindowsStorageTests
         {
             var second = await WindowsStorage.OpenAsync(root, null, CancellationToken.None);
             Assert.False(second.IsReady);
-            Assert.Contains(second.Failure?.WireCode, new[] { "RECOVERY_BLOCKED", "RECOVERY_SOURCE_MISSING" });
-            Assert.True(File.Exists(Path.Combine(root, "ojnexus.initialized")));
+            var expected = stage == StartupStage.MarkerCreated ? "RECOVERY_SOURCE_MISSING" : "RECOVERY_BLOCKED";
+            Assert.Equal(expected, second.Failure?.WireCode);
         }
+        Assert.Equal(evidenceBefore, HashControlledFiles(root));
     }
 
     private sealed class FixedClock(DateTimeOffset utcNow) : IClock
@@ -388,4 +458,33 @@ public sealed class WindowsStorageTests
     }
 
     private static string NewRoot() => Path.Combine(Path.GetTempPath(), "ojnexus-storage-test-" + Guid.NewGuid().ToString("N"));
+
+    private static IReadOnlyDictionary<string, string> HashControlledFiles(string root)
+    {
+        var names = new[]
+        {
+            "ojnexus.db", "ojnexus.lifecycle.lock", "ojnexus.initialized", "ojnexus.initialized.tmp",
+            "ojnexus.init.db", "ojnexus.db-wal", "ojnexus.db-shm", "ojnexus.db-journal",
+            "ojnexus.init.db-wal", "ojnexus.init.db-shm", "ojnexus.init.db-journal"
+        };
+        return names
+            .Where(name => File.Exists(Path.Combine(root, name)))
+            .ToDictionary(name => name, name => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root, name)))));
+    }
+
+    private static int ReadSchemaVersion(string databasePath)
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        { DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT value FROM schema_metadata WHERE key='schema_version'";
+        return int.Parse(Convert.ToString(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture)!);
+    }
+
+    private static void AssertBusy(string path)
+    {
+        var failure = Assert.Throws<StorageException>(() => NativeFile.Acquire(path, exclusive: true));
+        Assert.Equal("STORAGE_BUSY", failure.Failure.WireCode);
+    }
 }
