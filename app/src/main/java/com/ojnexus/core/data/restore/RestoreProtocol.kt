@@ -4,14 +4,20 @@ package com.ojnexus.core.data.restore
 enum class RestoreStage {
     STAGED,
     SWAPPING,
+    SAVING_ROLLBACK,
+    INSTALLING,
+    ROLLING_BACK,
     APPLIED,
     ROLLED_BACK,
     REJECTED,
     ;
 
     fun canTransitionTo(next: RestoreStage): Boolean = when (this) {
-        STAGED -> next == SWAPPING || next == REJECTED
-        SWAPPING -> next == APPLIED || next == ROLLED_BACK
+        STAGED -> next == SWAPPING || next == SAVING_ROLLBACK || next == REJECTED
+        SWAPPING -> next == APPLIED || next == ROLLED_BACK || next == SAVING_ROLLBACK || next == INSTALLING
+        SAVING_ROLLBACK -> next == INSTALLING || next == ROLLED_BACK
+        INSTALLING -> next == APPLIED || next == ROLLING_BACK
+        ROLLING_BACK -> next == ROLLED_BACK
         APPLIED, ROLLED_BACK, REJECTED -> false
     }
 }
@@ -32,6 +38,14 @@ sealed interface RestoreOutcome {
     data class RolledBack(val generation: String, val failure: RestoreFailure) : RestoreOutcome
     data class Rejected(val failure: RestoreFailure) : RestoreOutcome
     data object NothingToRestore : RestoreOutcome
+    data class Blocked(val failure: RestoreFailure, val recovery: RecoveryDisposition) : RestoreOutcome
+}
+
+enum class RecoveryDisposition { RECONCILE_FORWARD_ON_NEXT_START, INSPECTION_REQUIRED }
+
+sealed interface RestoreReadiness {
+    data class Ready(val outcome: RestoreOutcome, val generation: String) : RestoreReadiness
+    data class Blocked(val failure: RestoreFailure, val recovery: RecoveryDisposition) : RestoreReadiness
 }
 
 data class RestoreJournal(
@@ -54,6 +68,7 @@ enum class RestoreRecoveryAction {
     REJECT_STAGING,
     CLEAR_COMPLETED_ARTIFACTS,
     NO_ACTION,
+    BLOCK_RECOVERY,
 }
 
 enum class RestoreWorkDecision {
@@ -91,7 +106,7 @@ fun decideRestoreRecovery(
             RestoreRecoveryAction.REJECT_STAGING
         }
 
-        RestoreStage.SWAPPING -> when {
+        RestoreStage.SWAPPING, RestoreStage.INSTALLING -> when {
             files.target && files.rollback -> RestoreRecoveryAction.VALIDATE_TARGET
             !files.target && files.rollback -> RestoreRecoveryAction.RESTORE_ROLLBACK
             files.candidate -> RestoreRecoveryAction.APPLY_CANDIDATE
@@ -102,5 +117,7 @@ fun decideRestoreRecovery(
         RestoreStage.ROLLED_BACK,
         RestoreStage.REJECTED,
         -> RestoreRecoveryAction.CLEAR_COMPLETED_ARTIFACTS
+
+        RestoreStage.SAVING_ROLLBACK, RestoreStage.ROLLING_BACK -> RestoreRecoveryAction.BLOCK_RECOVERY
     }
 }
