@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Debug', 'Release')][string] $Configuration = 'Release',
+    [ValidateSet('Child', 'InProcess')][string] $HealthyUiMode = 'Child',
     [string] $EvidenceDirectory
 )
 
@@ -22,9 +23,12 @@ if (Test-Path -LiteralPath $EvidenceDirectory) { throw "EvidenceDirectory alread
 [void][IO.Directory]::CreateDirectory($EvidenceDirectory)
 
 $cli = Join-Path $repoRoot "windows\src\OjNexus.Windows.Cli\bin\$Configuration\net8.0\ojnexus.exe"
+$cliAssembly = Join-Path $repoRoot "windows\src\OjNexus.Windows.Cli\bin\$Configuration\net8.0\ojnexus.dll"
+$coreAssembly = Join-Path $repoRoot "windows\src\OjNexus.Windows.Core\bin\$Configuration\net8.0\OjNexus.Windows.Core.dll"
 $desktop = Join-Path $repoRoot "windows\src\OjNexus.Windows.Desktop\bin\$Configuration\net8.0-windows\OjNexus.Windows.Desktop.exe"
+$desktopAssembly = Join-Path $repoRoot "windows\src\OjNexus.Windows.Desktop\bin\$Configuration\net8.0-windows\OjNexus.Windows.Desktop.dll"
 $hostDll = Join-Path $repoRoot "windows\tests\OjNexus.Windows.StorageTestHost\bin\$Configuration\net8.0\OjNexus.Windows.StorageTestHost.dll"
-foreach ($path in @($cli, $desktop, $hostDll)) { if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Required built binary is missing: $path" } }
+foreach ($path in @($cli, $cliAssembly, $coreAssembly, $desktop, $desktopAssembly, $hostDll)) { if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Required built binary is missing: $path" } }
 
 function New-OwnedRoot([string] $name) {
     $root = Join-Path $EvidenceDirectory ($name + '-' + [Guid]::NewGuid().ToString('N'))
@@ -73,9 +77,16 @@ function Find-AutomationId($root, [string] $id) {
     $condition = [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::AutomationIdProperty, $id)
     return $root.FindFirst([Windows.Automation.TreeScope]::Descendants, $condition)
 }
-function Wait-AutomationId($root, [string] $id, [int] $seconds = 15) {
+function Wait-AutomationId($root, [string] $id, [int] $seconds = 15, [Diagnostics.Process] $process) {
     $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
     do {
+        if ($null -ne $process) {
+            $process.Refresh()
+            if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
+                $freshRoot = [Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+                if ($null -ne $freshRoot) { $root = $freshRoot }
+            }
+        }
         $element = Find-AutomationId $root $id
         if ($null -ne $element) { return $element }
         Start-Sleep -Milliseconds 100
@@ -93,7 +104,38 @@ function Wait-AutomationId($root, [string] $id, [int] $seconds = 15) {
         $sibling = $walker.GetNextSibling($current)
         if ($null -ne $sibling) { $pending.Push($sibling) }
     }
-    throw "AutomationId did not appear: $id; UIA: $($seen -join ' | ')"
+    $details = [Collections.Generic.List[string]]::new()
+    $details.Add("utc=$([DateTime]::UtcNow.ToString('O'))")
+    $details.Add("powershellPid=$PID")
+    try {
+        $info = $root.Current
+        $details.Add("rootName=$($info.Name)")
+        $details.Add("rootAutomationId=$($info.AutomationId)")
+        $details.Add("rootClassName=$($info.ClassName)")
+        $details.Add("rootControlType=$($info.ControlType.ProgrammaticName)")
+        $details.Add("rootFrameworkId=$($info.FrameworkId)")
+        $details.Add("rootRuntimeId=$($root.GetRuntimeId() -join '.')")
+        $details.Add("rootNativeWindowHandle=0x$($info.NativeWindowHandle.ToString('x'))")
+        $details.Add("rootProviderProcessId=$($info.ProcessId)")
+        $targetProcess = Get-Process -Id $info.ProcessId -ErrorAction Stop
+        $details.Add("targetProcessName=$($targetProcess.ProcessName)")
+        $details.Add("targetMainWindowHandle=0x$($targetProcess.MainWindowHandle.ToInt64().ToString('x'))")
+    }
+    catch { $details.Add("rootReadFailure=$($_.Exception.GetType().FullName):$($_.Exception.Message)") }
+    $details.Add("controlTree=$($seen -join ' | ')")
+    $details.Add("requestedAutomationId=$id")
+    $diagnosticPath = Join-Path $EvidenceDirectory 'ui-automation-diagnostics.txt'
+    [IO.File]::WriteAllLines($diagnosticPath, $details)
+    $manifest.uiAutomationDiagnostic = $diagnosticPath
+    if ($null -ne $process) {
+        try {
+            $screenshotPath = Join-Path $EvidenceDirectory "ui-automation-failure-$id.png"
+            Save-BlockedScreenshot $process $screenshotPath
+            $manifest.uiAutomationFailureScreenshot = $screenshotPath
+        }
+        catch { $manifest.uiAutomationFailureScreenshotError = $_.Exception.Message }
+    }
+    throw "AutomationId did not appear: $id; diagnostic: $diagnosticPath; UIA: $($seen -join ' | ')"
 }
 function Wait-ElementByName($root, [string] $name, [int] $seconds = 15) {
     $condition = [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, $name)
@@ -146,8 +188,13 @@ public static class OjnexusCapture {
 $manifest = [ordered]@{
     startedUtc = [DateTime]::UtcNow.ToString('O'); repoRoot = $repoRoot; configuration = $Configuration
     cliPath = (Resolve-Path $cli).Path; cliSha256 = (Get-FileHash $cli -Algorithm SHA256).Hash
+    cliAssemblyPath = (Resolve-Path $cliAssembly).Path; cliAssemblySha256 = (Get-FileHash $cliAssembly -Algorithm SHA256).Hash
+    coreAssemblyPath = (Resolve-Path $coreAssembly).Path; coreAssemblySha256 = (Get-FileHash $coreAssembly -Algorithm SHA256).Hash
     desktopPath = (Resolve-Path $desktop).Path; desktopSha256 = (Get-FileHash $desktop -Algorithm SHA256).Hash
+    desktopAssemblyPath = (Resolve-Path $desktopAssembly).Path; desktopAssemblySha256 = (Get-FileHash $desktopAssembly -Algorithm SHA256).Hash
     hostPath = (Resolve-Path $hostDll).Path; hostSha256 = (Get-FileHash $hostDll -Algorithm SHA256).Hash
+    sourceHead = (& git -C $repoRoot rev-parse HEAD).Trim()
+    sourceDirty = @(& git -C $repoRoot status --porcelain)
     evidenceDirectory = $EvidenceDirectory; scenarios = [Collections.Generic.List[object]]::new()
 }
 $ownedProcesses = [Collections.Generic.List[Diagnostics.Process]]::new()
@@ -175,11 +222,11 @@ try {
     $beforeExit = Get-FileDigest $exitDb
     $exitApp = Start-OwnedProcess $desktop @() $exitRoot $false; $ownedProcesses.Add($exitApp)
     $exitWindow = Get-Window $exitApp
-    $heading = Wait-AutomationId $exitWindow 'StorageStartupHeading'
-    $code = Wait-AutomationId $exitWindow 'StorageFailureCode'
+    $heading = Wait-AutomationId $exitWindow 'StorageStartupHeading' 15 $exitApp
+    $code = Wait-AutomationId $exitWindow 'StorageFailureCode' 15 $exitApp
     if ($heading.Current.Name -ne 'LOCAL STORAGE UNAVAILABLE' -or $code.Current.Name -ne 'INTEGRITY_FAILURE') { throw 'WPF corrupt-store blocked text did not match.' }
     if ($null -eq (Wait-ElementByName $exitWindow 'LOCAL FILES PRESERVED')) { throw 'WPF preservation text was missing.' }
-    $blockedRetry = Wait-AutomationId $exitWindow 'RetryStorageOpen'
+    $blockedRetry = Wait-AutomationId $exitWindow 'RetryStorageOpen' 15 $exitApp
     if ($blockedRetry.Current.IsOffscreen -or -not $blockedRetry.Current.IsEnabled) { throw 'Blocked Retry Open control was not visible and enabled.' }
     $failureCode = $code.Current.Name
     $navCondition = [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'DASHBOARD')
@@ -201,8 +248,8 @@ try {
     if ($hostReady -ne 'READY') { throw "Exclusive host failed its acquisition barrier: $hostReady" }
     $retryApp = Start-OwnedProcess $desktop @() $busyRoot $false; $ownedProcesses.Add($retryApp)
     $retryWindow = Get-Window $retryApp
-    $busyCode = Wait-AutomationId $retryWindow 'StorageFailureCode'
-    $busyHeading = Wait-AutomationId $retryWindow 'StorageStartupHeading'
+    $busyCode = Wait-AutomationId $retryWindow 'StorageFailureCode' 15 $retryApp
+    $busyHeading = Wait-AutomationId $retryWindow 'StorageStartupHeading' 15 $retryApp
     $busyHeadingText = Wait-CurrentName $busyHeading 'LOCAL STORAGE UNAVAILABLE'
     $busyCodeText = Wait-CurrentName $busyCode 'STORAGE_BUSY'
     $busyShot = Join-Path $EvidenceDirectory 'wpf-storage-busy.png'; Save-BlockedScreenshot $retryApp $busyShot
@@ -226,13 +273,32 @@ try {
     # Existing four-page smoke writes only to a fresh evidence subdirectory.
     $uiEvidence = Join-Path $EvidenceDirectory 'healthy-ui'
     $uiScript = Join-Path $PSScriptRoot 'ui-smoke.ps1'
-    & $uiScript -Configuration $Configuration -OutputDirectory $uiEvidence
+    $smokeLog = Join-Path $EvidenceDirectory 'healthy-ui-smoke.log'
+    $smokeProcess = $null
+    if ($HealthyUiMode -eq 'InProcess') {
+        try { & $uiScript -Configuration $Configuration -OutputDirectory $uiEvidence *>&1 | Tee-Object -FilePath $smokeLog | Out-Null }
+        catch { $manifest.healthyUiFailure = $_.Exception.Message; throw }
+        $smokeExit = 0
+        $smokeOutput = Get-Content -LiteralPath $smokeLog -Raw
+    }
+    else {
+        $smokeArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $uiScript, '-Configuration', $Configuration, '-OutputDirectory', $uiEvidence)
+        $smokeProcess = Start-OwnedProcess (Join-Path $PSHOME 'pwsh.exe') $smokeArgs $uiEvidence $true
+        $ownedProcesses.Add($smokeProcess)
+        $smokeStdout = $smokeProcess.StandardOutput.ReadToEndAsync()
+        $smokeStderr = $smokeProcess.StandardError.ReadToEndAsync()
+        $smokeExit = Wait-ProcessBounded $smokeProcess 90
+        $smokeOutput = $smokeStdout.GetAwaiter().GetResult()
+        $smokeErrors = $smokeStderr.GetAwaiter().GetResult()
+        @("exitCode=$smokeExit", '--- stdout ---', $smokeOutput, '--- stderr ---', $smokeErrors) | Set-Content -LiteralPath $smokeLog -Encoding utf8
+        if ($smokeExit -ne 0 -or -not $smokeOutput.Contains('UI SMOKE: PASS')) { throw "Healthy four-page UI smoke failed with child pwsh exit $smokeExit; see $smokeLog" }
+    }
     $screenshots = @('dashboard.png', 'connectors.png', 'history.png', 'problems.png') | ForEach-Object {
         $path = Join-Path $uiEvidence $_
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing healthy UI screenshot: $_" }
         @{ name = $_; sha256 = (Get-FileHash $path -Algorithm SHA256).Hash; length = (Get-Item -LiteralPath $path).Length }
     }
-    $manifest.scenarios.Add(@{ name = 'healthy-four-pages'; screenshotCount = $screenshots.Count; screenshots = $screenshots; evidence = $uiEvidence; result = 'PASS' })
+    $manifest.scenarios.Add(@{ name = 'healthy-four-pages'; mode = $HealthyUiMode; uiPowerShellPid = if ($null -ne $smokeProcess) { $smokeProcess.Id } else { $PID }; exitCode = $smokeExit; log = $smokeLog; screenshotCount = $screenshots.Count; screenshots = $screenshots; evidence = $uiEvidence; result = 'PASS' })
     $manifest.result = 'PASS'
 }
 catch {

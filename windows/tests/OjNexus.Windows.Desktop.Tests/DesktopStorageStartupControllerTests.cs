@@ -79,5 +79,25 @@ public sealed class DesktopStorageStartupControllerTests
         await sameRootCanBeOpenedAgain.Session!.DisposeAsync();
     }
 
+    [Fact]
+    public async Task CloseCallbackFailureKeepsControllerClosingAndRetainsSession()
+    {
+        var root = NewRoot();
+        var controller = new DesktopStorageStartupController(root);
+        var opened = await controller.OpenOrRetryAsync();
+        Assert.NotNull(opened.Session);
+        var operation = opened.Session.BeginOperation();
+        using var callback = operation.CancellationToken.Register(
+            static () => throw new InvalidOperationException("private callback failure"));
+
+        var close = controller.CloseAsync();
+        Assert.False(close.IsCompleted);
+        operation.Dispose();
+
+        await Assert.ThrowsAnyAsync<Exception>(async () => await close.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(DesktopStorageStartupState.Closing, controller.State);
+        Assert.True(controller.HasOwnedSession);
+    }
+
     private static string NewRoot() => Path.Combine(Path.GetTempPath(), "ojnexus-desktop-startup-" + Guid.NewGuid().ToString("N"));
 }

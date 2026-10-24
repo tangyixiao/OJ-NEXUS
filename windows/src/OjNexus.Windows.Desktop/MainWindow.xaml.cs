@@ -98,8 +98,35 @@ public partial class MainWindow : Window
         e.Cancel = true;
         if (_closeDrainTask is not null) return;
         _closing = true;
-        _closeDrainTask = DrainAndCloseAsync();
-        await _closeDrainTask;
+        NormalShell.IsEnabled = false;
+        _closeDrainTask = DrainCloseBoundaryAsync();
+        try { await _closeDrainTask; }
+        catch (Exception)
+        {
+            // The event boundary must never publish async cleanup failures to WPF's dispatcher.
+            _closeDrainTask = null;
+            ShowCloseDrainFailure("STORAGE_IO_FAILURE");
+        }
+    }
+
+    private async Task DrainCloseBoundaryAsync()
+    {
+        var result = await DesktopCloseDrain.TryRunAsync(DrainAndCloseAsync);
+        if (!result.Succeeded)
+        {
+            _closeDrainTask = null;
+            ShowCloseDrainFailure(result.FailureCode ?? "STORAGE_IO_FAILURE");
+        }
+    }
+
+    private void ShowCloseDrainFailure(string code)
+    {
+        NormalShell.IsEnabled = false;
+        StorageStartupPanel.Visibility = Visibility.Visible;
+        StorageStartupHeading.Text = "LOCAL STORAGE UNAVAILABLE";
+        StorageFailureCode.Text = code;
+        RetryStorageOpen.IsEnabled = false;
+        ExitStorage.IsEnabled = true;
     }
 
     private async Task DrainAndCloseAsync()

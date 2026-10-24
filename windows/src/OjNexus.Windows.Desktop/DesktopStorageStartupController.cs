@@ -29,6 +29,7 @@ public sealed class DesktopStorageStartupController
     }
 
     public DesktopStorageStartupState State { get { lock (_gate) return _state; } }
+    internal bool HasOwnedSession { get { lock (_gate) return _session is not null; } }
 
     public async Task<DesktopStorageStartupResult> OpenOrRetryAsync()
     {
@@ -118,10 +119,13 @@ public sealed class DesktopStorageStartupController
             lock (_gate)
             {
                 session = _session;
-                _session = null;
             }
             if (session is not null) await session.DisposeAsync();
-            lock (_gate) _state = DesktopStorageStartupState.Closed;
+            lock (_gate)
+            {
+                if (ReferenceEquals(_session, session)) _session = null;
+                _state = DesktopStorageStartupState.Closed;
+            }
         }
         finally
         {

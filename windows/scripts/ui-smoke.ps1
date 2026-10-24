@@ -183,6 +183,60 @@ function Wait-ForElement {
         Start-Sleep -Milliseconds 100
     } while ([DateTime]::UtcNow -lt $deadline)
 
+    if ($Name -eq 'DASHBOARD' -and $null -ne $root -and $null -ne $process) {
+        $diagnosticPath = Join-Path $OutputDirectory 'ui-automation-diagnostics.txt'
+        $lines = [Collections.Generic.List[string]]::new()
+        $lines.Add("utc=$([DateTime]::UtcNow.ToString('O'))")
+        $lines.Add("powershellPid=$PID")
+        $lines.Add("targetProcessId=$($process.Id)")
+        $lines.Add("targetProcessName=$($process.ProcessName)")
+        $lines.Add("targetMainWindowHandle=0x$($process.MainWindowHandle.ToInt64().ToString('x'))")
+        try {
+            $info = $root.Current
+            $lines.Add("rootName=$($info.Name)")
+            $lines.Add("rootAutomationId=$($info.AutomationId)")
+            $lines.Add("rootClassName=$($info.ClassName)")
+            $lines.Add("rootControlType=$($info.ControlType.ProgrammaticName)")
+            $lines.Add("rootNativeWindowHandle=0x$($info.NativeWindowHandle.ToString('x'))")
+            $lines.Add("rootProviderProcessId=$($info.ProcessId)")
+            $lines.Add("rootOffscreen=$($info.IsOffscreen)")
+        }
+        catch { $lines.Add("rootReadFailure=$($_.Exception.GetType().FullName):$($_.Exception.Message)") }
+
+        foreach ($view in @('ControlViewWalker', 'RawViewWalker')) {
+            $walker = if ($view -eq 'ControlViewWalker') {
+                [Windows.Automation.TreeWalker]::ControlViewWalker
+            }
+            else {
+                [Windows.Automation.TreeWalker]::RawViewWalker
+            }
+            $queue = [Collections.Generic.Queue[object]]::new()
+            $child = $walker.GetFirstChild($root)
+            if ($null -ne $child) { $queue.Enqueue(@{ element = $child; depth = 0 }) }
+            $visited = 0
+            while ($queue.Count -gt 0 -and $visited -lt 400) {
+                $entry = $queue.Dequeue()
+                $element = $entry.element
+                $depth = $entry.depth
+                try {
+                    $current = $element.Current
+                    $bounds = $current.BoundingRectangle
+                    $lines.Add("${view}[$depth] type=$($current.ControlType.ProgrammaticName) name=[$($current.Name)] id=[$($current.AutomationId)] class=[$($current.ClassName)] offscreen=$($current.IsOffscreen) rect=$($bounds.X),$($bounds.Y),$($bounds.Width),$($bounds.Height) pid=$($current.ProcessId) hwnd=0x$($current.NativeWindowHandle.ToString('x'))")
+                    $visited++
+                    $next = $walker.GetFirstChild($element)
+                    if ($null -ne $next) { $queue.Enqueue(@{ element = $next; depth = $depth + 1 }) }
+                    $next = $walker.GetNextSibling($element)
+                    if ($null -ne $next) { $queue.Enqueue(@{ element = $next; depth = $depth }) }
+                }
+                catch { $lines.Add("${view}[$depth] elementReadFailure=$($_.Exception.GetType().FullName):$($_.Exception.Message)") }
+            }
+            $lines.Add("${view}Visited=$visited")
+        }
+
+        [IO.File]::WriteAllLines($diagnosticPath, $lines)
+        Write-Warning "UI Automation diagnostic retained: $diagnosticPath"
+    }
+
     throw "UI element did not appear within ${TimeoutMilliseconds}ms: $Name"
 }
 
