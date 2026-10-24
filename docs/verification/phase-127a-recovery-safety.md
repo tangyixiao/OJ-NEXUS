@@ -1,7 +1,8 @@
 # Phase 127A — Recovery preservation and startup gate
 
-Status: runtime task reviews, full local build and dedicated-emulator gates passed at
-`690b5f5`; whole-branch review and scoped PR are pending. The full Phase127 remains ACTIVE.
+Status: VERIFIED for the Phase127A boundary: runtime task reviews, full local build and
+dedicated-emulator gates passed at `690b5f5`; independent whole-branch review passed and
+[PR #20](https://github.com/tangyixiao/OJ-NEXUS/pull/20) is open and unmerged. The full Phase127 remains ACTIVE.
 No new application release or exhaustive recovery claim is made here.
 
 ## Source and scope
@@ -31,17 +32,24 @@ The integration base, before Phase127 runtime edits, passed:
 The local baseline log is retained with the plan workspace. Existing Conscrypt native-access
 and DataStore/protobuf Unsafe deprecation warnings were observed; neither caused a failing test.
 
-## Final integration work still required
+## Delivery and remaining phase scope
 
-- Independent whole-branch review and scoped fix PR with explicit integration dependencies.
+- Independent whole-branch review of `b096045..30b87b6` passed with no P0/P1/P2 findings.
+  Its sole wording nit was fixed in `67724b1`; the 23-case fault suite and debug build passed
+  afterward, and exactly one scoped final re-review passed with zero open findings. Only a
+  test method name changed after the full runtime/device gates; assertions and production code
+  remained identical. Retained full-run XML is separate from the later focused 23-test XML.
+- PR #20 targets `codex/phase-127-android-base`, with the four upstream dependencies stated.
+  No PR was merged. Main-target-only workflows do not automatically run for this stacked base;
+  local acceptance is not represented as hosted CI.
 - Keep strict generation admission, typed import-storage errors and functional old-engine export
   compatibility open. No full Phase127 VERIFIED or new release until those gates independently pass.
 
 ## Coordinator task checkpoint
 
 Task1 implementation `6fd0c86` and review fixes `d191af4` passed the independent task review
-and scoped re-review. This is the coordinator boundary only; application startup wiring and
-integrated acceptance remain required before shipping the runtime change.
+and scoped re-review. This checkpoint alone was not shipped; application startup wiring and
+integrated acceptance were subsequently completed below.
 
 | Check on `d191af4` | Observed result |
 | --- | --- |
@@ -80,6 +88,11 @@ The first full attempt at `0a220be` failed exactly one of 829 tests: the new rec
 missing from the existing Chinese resource catalog. That failure and all 181 XML suites were
 retained before the four-key repair and successful full rerun. Existing translations are unchanged;
 the new recovery keys retain the specified uppercase English text in both catalogs.
+
+Process deviation: an actual-startup RED run before wiring was requested in the original plan
+but not recorded. The actual Worker guard-removal test did fail and then pass when the guard was
+restored. Real coordinator startup fixtures, zero-I/O assertions and clean-install controls were
+executed; these prove the final behavior without claiming the missing test-first chronology.
 
 Existing Conscrypt native-access and DataStore/protobuf Unsafe warnings remain. Release compilation
 also reports pre-existing nullable/always-true warnings in ContestFocusScreen, ProblemDetailScreen

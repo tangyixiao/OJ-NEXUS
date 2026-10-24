@@ -210,7 +210,7 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 
 #### [ ] PHASE 127 — A · 备份恢复与后台任务隔离
 - **状态：** ACTIVE；先实施 127A 的恢复源保留与启动拦截，[设计](superpowers/specs/2026-10-24-phase-127a-recovery-safety-design.md)、[计划](superpowers/plans/2026-10-24-phase-127a-recovery-safety.md)、[证据](verification/phase-127a-recovery-safety.md)。整合基线 `b096045` 的 800 项单测与 debug 构建通过，仅证明基线；严格 worker 代际策略、导入存储错误分类和旧引擎兼容仍是本期未完成要求。
-- **127A 进展：** `690b5f5` 的恢复协议与启动接线任务审查通过；fresh 829 项单测、debug/release 构建、35 项 connected 测试及专用 API37 Activity 阻断/恢复前台/重复冷启动/200% 字体验收通过。整分支审查与 PR 待完成；整期仍 ACTIVE，无新 Android release。
+- **127A 进展：** `690b5f5` 的恢复协议与启动接线任务审查通过；fresh 829 项单测、debug/release 构建、35 项 connected 测试及专用 API37 Activity 阻断/恢复前台/重复冷启动/200% 字体验收通过。整分支审查及最后一次测试名称修正的定向复审通过；[PR #20](https://github.com/tangyixiao/OJ-NEXUS/pull/20) 已创建、未合并。仅 127A 验收完成，整期仍 ACTIVE，无新 Android release。
 - **新增接续项（来自 122）：** 当前 WAL 修复使用 `VACUUM INTO`，API 37 的 SQLite 3.50.6 已实测；低于 SQLite 3.27 的设备会明确导出失败。为 minSdk 26 确定兼容策略并做真实旧引擎验证，不能恢复复制过时主库的回退。
 - **依赖 / 范围：** 122、126；A-CORE 的 BackupRepository、DatabaseRestoreCoordinator、backup worker，A-TEST。
 - **交付：** 对现有快照导入、定时备份增加中断恢复与旧任务写回回归；修复被证实的暂存、generation 或文件替换缺口。
