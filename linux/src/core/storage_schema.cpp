@@ -4,9 +4,9 @@
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QMap>
+#include <QRegularExpression>
 #include <QStringList>
 #include <QVariant>
-#include <QVariantList>
 
 namespace OjNexus::StorageSchema {
 namespace {
@@ -16,12 +16,19 @@ bool run(QSqlDatabase& db, const QString& sql) {
     return query.exec(sql);
 }
 
-struct Column { const char* name; const char* affinity; bool required; int primaryKeyOrder; };
+enum class DefaultRule { Any, NullOrAbsent, NonNullLiteral };
+struct Column {
+    const char* name;
+    const char* affinity;
+    bool required;
+    int primaryKeyOrder;
+    DefaultRule defaultRule = DefaultRule::Any;
+};
 struct Table { const char* name; const Column* columns; int count; };
 
 constexpr Column metadata[]{{"version", "INTEGER", true, 0}};
 constexpr Column accounts[]{{"judge", "TEXT", true, 1}, {"handle", "TEXT", true, 0}, {"enabled", "INTEGER", true, 0}, {"updated_at", "INTEGER", true, 0}};
-constexpr Column operations[]{{"id", "INTEGER", true, 1}, {"judge", "TEXT", true, 0}, {"handle", "TEXT", true, 0}, {"data_generation", "TEXT", true, 0}, {"status", "TEXT", true, 0}, {"started_at", "INTEGER", true, 0}, {"finished_at", "INTEGER", false, 0}, {"error_type", "TEXT", true, 0}, {"owner_pid", "INTEGER", false, 0}, {"owner_boot_id", "TEXT", false, 0}, {"owner_start_ticks", "INTEGER", false, 0}};
+constexpr Column operations[]{{"id", "INTEGER", true, 1}, {"judge", "TEXT", true, 0}, {"handle", "TEXT", true, 0}, {"data_generation", "TEXT", true, 0}, {"status", "TEXT", true, 0}, {"started_at", "INTEGER", true, 0}, {"finished_at", "INTEGER", false, 0, DefaultRule::NullOrAbsent}, {"error_type", "TEXT", true, 0, DefaultRule::NonNullLiteral}, {"owner_pid", "INTEGER", true, 0, DefaultRule::NonNullLiteral}, {"owner_boot_id", "TEXT", true, 0, DefaultRule::NonNullLiteral}, {"owner_start_ticks", "INTEGER", true, 0, DefaultRule::NonNullLiteral}};
 constexpr Column modules[]{{"operation_id", "INTEGER", true, 1}, {"stage", "TEXT", true, 2}, {"status", "TEXT", true, 0}, {"attempted_count", "INTEGER", true, 0}, {"imported_count", "INTEGER", true, 0}, {"updated_count", "INTEGER", true, 0}, {"failure_type", "TEXT", true, 0}};
 constexpr Column profilesV1[]{{"judge", "TEXT", true, 1}, {"handle", "TEXT", true, 0}, {"payload", "TEXT", true, 0}, {"updated_at", "INTEGER", true, 0}};
 constexpr Column payloadV1[]{{"judge", "TEXT", true, 1}, {"external_id", "TEXT", true, 2}, {"payload", "TEXT", true, 0}, {"updated_at", "INTEGER", true, 0}};
@@ -35,6 +42,71 @@ bool hasTable(QSqlDatabase& db, const char* name) {
     return q.exec() && q.next() && q.value(0).toString() == QStringLiteral("table") && !q.next();
 }
 
+QString sqliteAffinity(const QString& declaredType) {
+    const auto type = declaredType.toUpper();
+    if (type.contains(QStringLiteral("INT"))) return QStringLiteral("INTEGER");
+    if (type.contains(QStringLiteral("CHAR")) || type.contains(QStringLiteral("CLOB")) ||
+        type.contains(QStringLiteral("TEXT"))) return QStringLiteral("TEXT");
+    if (type.isEmpty() || type.contains(QStringLiteral("BLOB"))) return QStringLiteral("BLOB");
+    if (type.contains(QStringLiteral("REAL")) || type.contains(QStringLiteral("FLOA")) ||
+        type.contains(QStringLiteral("DOUB"))) return QStringLiteral("REAL");
+    return QStringLiteral("NUMERIC");
+}
+
+QString unwrappedDefault(const QString& input) {
+    auto value = input.trimmed();
+    while (value.startsWith(QLatin1Char('(')) && value.endsWith(QLatin1Char(')'))) {
+        int depth = 0;
+        bool wrapsAll = true;
+        for (qsizetype i = 0; i < value.size(); ++i) {
+            if (value.at(i) == QLatin1Char('(')) ++depth;
+            else if (value.at(i) == QLatin1Char(')') && --depth == 0 && i != value.size() - 1) {
+                wrapsAll = false;
+                break;
+            }
+        }
+        if (!wrapsAll || depth != 0) break;
+        value = value.mid(1, value.size() - 2).trimmed();
+    }
+    return value;
+}
+
+bool isNullDefault(const QVariant& value) {
+    return value.isNull() || unwrappedDefault(value.toString()).compare(QStringLiteral("NULL"), Qt::CaseInsensitive) == 0;
+}
+
+bool isNonNullLiteralDefault(const QVariant& value) {
+    if (value.isNull()) return false;
+    const auto literal = unwrappedDefault(value.toString());
+    if (literal.isEmpty() || literal.compare(QStringLiteral("NULL"), Qt::CaseInsensitive) == 0) return false;
+    if (literal.size() >= 2 && literal.startsWith(QLatin1Char('\'')) && literal.endsWith(QLatin1Char('\''))) {
+        for (qsizetype i = 1; i < literal.size() - 1; ++i) {
+            if (literal.at(i) == QLatin1Char('\'')) {
+                if (i + 1 < literal.size() - 1 && literal.at(i + 1) == QLatin1Char('\'')) ++i;
+                else return false;
+            }
+        }
+        return true;
+    }
+    static const QRegularExpression numeric(QStringLiteral("^[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?$"));
+    static const QRegularExpression hexadecimal(QStringLiteral("^0[xX][0-9A-Fa-f]+$"));
+    static const QRegularExpression blob(QStringLiteral("^[xX]'(?:[0-9A-Fa-f]{2})*'$"));
+    return numeric.match(literal).hasMatch() || hexadecimal.match(literal).hasMatch() ||
+        blob.match(literal).hasMatch() || literal.compare(QStringLiteral("TRUE"), Qt::CaseInsensitive) == 0 ||
+        literal.compare(QStringLiteral("FALSE"), Qt::CaseInsensitive) == 0;
+}
+
+bool hasGeneratedIntegerPrimaryKey(QSqlDatabase& db, const QMap<QString, QString>& declaredTypes) {
+    if (declaredTypes.value(QStringLiteral("id")).trimmed().compare(QStringLiteral("INTEGER"), Qt::CaseInsensitive) != 0)
+        return false;
+    QSqlQuery indexes(db);
+    if (!indexes.exec(QStringLiteral("PRAGMA index_list(\"sync_operations\")"))) return false;
+    while (indexes.next()) {
+        if (indexes.value(3).toString().compare(QStringLiteral("pk"), Qt::CaseInsensitive) == 0) return false;
+    }
+    return indexes.lastError().type() == QSqlError::NoError;
+}
+
 bool validateTable(QSqlDatabase& db, const Table& table) {
     if (!hasTable(db, table.name)) return false;
     QSqlQuery q(db);
@@ -42,15 +114,17 @@ bool validateTable(QSqlDatabase& db, const Table& table) {
     struct Actual { QString type; bool notNull; int pk; QVariant defaultValue; };
     QMap<QString, Actual> actual;
     while (q.next()) actual.insert(q.value(1).toString(), {q.value(2).toString().toUpper(), q.value(3).toInt() != 0, q.value(5).toInt(), q.value(4)});
+    if (q.lastError().type() != QSqlError::NoError) return false;
+    QMap<QString, QString> declaredTypes;
+    for (auto it = actual.cbegin(); it != actual.cend(); ++it) declaredTypes.insert(it.key(), it->type);
     for (int i = 0; i < table.count; ++i) {
         const auto& expected = table.columns[i];
         const auto found = actual.constFind(QString::fromLatin1(expected.name));
         if (found == actual.cend()) return false;
-        const auto type = found->type;
-        const bool affinityMatches = QString::fromLatin1(expected.affinity) == QStringLiteral("TEXT")
-            ? type.contains(QStringLiteral("CHAR")) || type.contains(QStringLiteral("CLOB")) || type.contains(QStringLiteral("TEXT"))
-            : type.contains(QStringLiteral("INT"));
-        if (!affinityMatches || (expected.required && !found->notNull && found->pk == 0) || found->pk != expected.primaryKeyOrder) return false;
+        if (sqliteAffinity(found->type) != QString::fromLatin1(expected.affinity) ||
+            (expected.required && !found->notNull && found->pk == 0) || found->pk != expected.primaryKeyOrder) return false;
+        if (expected.defaultRule == DefaultRule::NullOrAbsent && (found->notNull || !isNullDefault(found->defaultValue))) return false;
+        if (expected.defaultRule == DefaultRule::NonNullLiteral && (!found->notNull || !isNonNullLiteralDefault(found->defaultValue))) return false;
     }
     int expectedPrimaryKeySize = 0;
     for (int i = 0; i < table.count; ++i) expectedPrimaryKeySize = qMax(expectedPrimaryKeySize, table.columns[i].primaryKeyOrder);
@@ -58,8 +132,9 @@ bool validateTable(QSqlDatabase& db, const Table& table) {
         if (it->pk > expectedPrimaryKeySize) return false;
         bool known = false;
         for (int i = 0; i < table.count; ++i) known = known || it.key() == QString::fromLatin1(table.columns[i].name);
-        if (!known && it->notNull && it->defaultValue.isNull() && it->pk == 0) return false;
+        if (!known && it->notNull && !isNonNullLiteralDefault(it->defaultValue) && it->pk == 0) return false;
     }
+    if (QString::fromLatin1(table.name) == QStringLiteral("sync_operations") && !hasGeneratedIntegerPrimaryKey(db, declaredTypes)) return false;
     return true;
 }
 
@@ -78,9 +153,11 @@ Result<int> validateExistingSchema(QSqlDatabase& db) {
     QSqlQuery version(db);
     if (!version.exec(QStringLiteral("SELECT version, typeof(version) FROM schema_metadata"))) return SyncError::Storage;
     if (!version.next() || version.value(1).toString() != QStringLiteral("integer")) return SyncError::Storage;
-    const auto value = version.value(0).toInt();
-    if (value != 1 && value != 2) return SyncError::Storage;
+    bool versionOk = false;
+    const auto wideVersion = version.value(0).toLongLong(&versionOk);
+    if (!versionOk || (wideVersion != 1 && wideVersion != 2)) return SyncError::Storage;
     if (version.next() || version.lastError().type() != QSqlError::NoError) return SyncError::Storage;
+    const auto value = static_cast<int>(wideVersion);
     const Table common[]{{"accounts", accounts, 4}, {"sync_operations", operations, value == 1 ? 8 : 11}, {"sync_modules", modules, 7}};
     for (const auto& table : common) if (!validateTable(db, table)) return SyncError::Storage;
     const Table payloadTables[]{{"profiles", value == 1 ? profilesV1 : profilesV2, value == 1 ? 4 : 5},
