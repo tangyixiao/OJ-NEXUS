@@ -62,5 +62,26 @@
     "exclusive-create competitor fixture does not deterministically hit the reservation interval",
     "typed read/JSON final outcome and full backup/restore remain pending",
     "no Linux release; hosted CI belongs to the exact remote PR head"
-  ]
+  ],
+  "publication": {
+    "pr": "https://github.com/tangyixiao/OJ-NEXUS/pull/22",
+    "recordedRemoteHead": "0e1a52f6b6aca364328831b159e1fa4eb5b40db8",
+    "state": "open",
+    "merged": false,
+    "mergeable": true,
+    "hostedCiAtRecordedHead": [
+      {
+        "run": 40107849812,
+        "event": "pull_request",
+        "conclusion": "success"
+      },
+      {
+        "run": 40107794860,
+        "event": "push",
+        "conclusion": "success"
+      }
+    ],
+    "linuxReleasePublished": false,
+    "latestChecks": "See exact PR head metadata"
+  }
 }

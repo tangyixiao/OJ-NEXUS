@@ -61,8 +61,11 @@
 - [x] **Step 1:** Root reviews task report/commit range with a fresh task reviewer, then resolves findings under the SDD fix-loop rules.
 - [x] **Step 2:** Root independently exercises the actual compiled CLI on isolated absent/zero/corrupt/incomplete/future cases; record exit and unchanged bytes. Treat offscreen GUI tests separately from visible GUI evidence. Run Android test/assembleDebug if integration or final scope requires it; never reuse historical evidence as a fresh build.
 - [x] **Step 3:** Root records tested source, fresh results, platform/host limits and pending 129B/recovery gates in docs. Mark 129A only, leaving full129 unchecked. Self-review docs/schema JSON; no mirrored tests for prose.
-- [ ] **Step 4:** Whole-branch independent review, at most one final fix wave and one scoped rereview. Check/push base and feature using HTTPS credential helper, create and attach scoped PR. Verify actual remote head, open/unmerged state and hosted checks. No merge, force push or retag of earlier release.
+- [x] **Step 4:** Whole-branch independent review, at most one final fix wave and one scoped rereview. Check/push base and feature using HTTPS credential helper, create and attach scoped PR. Verify actual remote head, open/unmerged state and hosted checks. No merge, force push or retag of earlier release.
 
 ## Self-review and continuation
 
 Startup requirements map to Task 1; honest publication and full129 boundaries map to Task 2. Public signatures are unchanged; private schema helper is a testable production unit, not a parallel storage authority. Source-column order is not incorrectly required, and supported legacy FK differences are explicit. This plan reuses the active isolated Linux worktree with its pre-existing TEMP/ preserved; no new checkout is needed. The prior baseline is reference evidence only; Task 1 runs new code gates.
+
+
+Publication checkpoint: [PR #22](https://github.com/tangyixiao/OJ-NEXUS/pull/22), open/unmerged; Linux hosted PR/push CI passed at `0e1a52f`. See [verification](../../verification/phase-129a-linux-storage-startup.md) for exact source, run links and remaining full129 gates.

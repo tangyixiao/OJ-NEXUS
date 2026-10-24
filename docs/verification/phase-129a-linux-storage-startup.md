@@ -2,6 +2,7 @@
 
 Status: **129A VERIFIED IN SCOPE; FULL PHASE 129 OPEN** (2026-10-24).
 This is a startup prerequisite of Phase 129. Full Phase 129 remains open.
+[PR #22](https://github.com/tangyixiao/OJ-NEXUS/pull/22) is open and unmerged at this recorded checkpoint.
 [Machine-readable summary](evidence/phase-129a-summary.json).
 
 ## Source and scope
@@ -95,7 +96,14 @@ Linux's existing workflow has Linux-path filters for push and pull_request, with
 a main-only branch filter. Hosted results must be read from the exact pushed head;
 local results are not hosted CI. PR metadata provides the live remote head and
 publication/check state separately from this local acceptance record.
-The integration dependencies remain unmerged. CMake reported missing optional XKB while configuration and build succeeded. Android has known nonfatal compiler,
+The integration dependencies remain unmerged.
+Hosted Linux CI passed at `0e1a52f6b6aca364328831b159e1fa4eb5b40db8`:
+[PR run](https://github.com/tangyixiao/OJ-NEXUS/actions/runs/40107849812) and
+[push run](https://github.com/tangyixiao/OJ-NEXUS/actions/runs/40107794860). Build,
+offscreen tests, offline CLI smoke and DEB construction all succeeded. This is a
+recorded source/checkpoint result; later evidence-only commits do not change the
+tested Linux tree. Latest check state belongs to PR metadata. A built DEB is not
+a published release or installation acceptance. CMake reported missing optional XKB while configuration and build succeeded. Android has known nonfatal compiler,
 native-strip and JDK/dependency warnings; BUILD SUCCESSFUL does not mean warning-free.
 
 ## Remaining Phase 129
