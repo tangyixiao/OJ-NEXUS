@@ -360,15 +360,15 @@ HTTP body、源码或自定义输入。包内运行数据仍默认写入 `%LOCAL
 
 分支与远端布局（本轮结束时）：
 
-- 本地 `codex/phase-127-recovery-safety` 的 HEAD 是包含本交接文档的最终提交（其前一个提交
-  `ce582ef` 完成验收文档；127A 交付提交为 `5c6a6e7`）；远端 `origin/codex/phase-127-recovery-safety`
-  仍停在 `5c6a6e7`（PR #20 的 head 不变，范围保持 127A）。**不要把本地该分支再推到远端**，
+- 独立定向审查（针对 `c44c200..62ce918`）：SPEC PASS / QUALITY APPROVED，0 个 P0/P1、3 个
+  P2；三个 P2（companion 常量缩进回归、调度器不安全 `as` 转换、unstamped worker 未在
+  worker 层钉住空代次台账行）已在 `51145ab` 修复并复跑 admission 套件 6/6。PR #24 最终含
+  6 个提交（spec/plan/实现/验收文档/交接文档/审查修复）。
+- 本地 `codex/phase-127-recovery-safety` 与远端 `origin/codex/phase-127b-generation-admission`
+  的提交链（自 `5c6a6e7` 起）：`c44c200` → `bedcbd8` → `e468fee` → `ce582ef` → 交接文档提交 →
+  `51145ab`（审查修复）。远端 `origin/codex/phase-127-recovery-safety` 仍停在 `5c6a6e7`
+  （PR #20 的 head 不变，范围保持 127A）。**不要把本地 recovery-safety 分支再推到远端**，
   否则 PR #20 范围会混入 127B 与交接内容。
-- 新分支 `codex/phase-127b-generation-admission` 已推送并开
-  [PR #24](https://github.com/tangyixiao/OJ-NEXUS/pull/24)：base 为 127A 分支
-  `codex/phase-127-recovery-safety`，包含 4 个 127B 提交（`c44c200`/`bedcbd8`/`e468fee`/
-  `ce582ef`）加本交接文档提交；OPEN、MERGEABLE，未合并。合并顺序应为 #20 → #24 或按届时
-  基线重整。
 - 本轮 shell 为 cmd（不是 PowerShell/Git Bash）：`;` 不会分隔命令（用 `&&`）；
   `timeout /t` 在无控制台输入时报"输入重定向"错误（改用 `ping -n N 127.0.0.1 >nul`）。
 - 本机全局 `ANDROID_SDK_ROOT` 指向失效路径 `D:\rea\tools\android-sdk`：直接启动 emulator
