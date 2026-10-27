@@ -72,9 +72,9 @@ class JudgeSyncWorker(
         private const val KEY_JUDGE_ID = "judge_id"
         private const val KEY_FORCE = "force"
         const val DATA_GENERATION = "data_generation"
-    const val RESULT_KEY = "result"
-    const val STALE_RESULT = "STALE_DATA_GENERATION"
-    const val UNSTAMPED_RESULT = "UNSTAMPED_DATA_GENERATION"
+        const val RESULT_KEY = "result"
+        const val STALE_RESULT = "STALE_DATA_GENERATION"
+        const val UNSTAMPED_RESULT = "UNSTAMPED_DATA_GENERATION"
         const val RECOVERY_BLOCKED = "RECOVERY_BLOCKED"
         const val MAX_ATTEMPTS = 3
 

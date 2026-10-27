@@ -60,6 +60,18 @@ pixel_7 profile) and booted as the only connected device on serial `emulator-558
 - The emulator was shut down cleanly afterwards (`adb devices` empty); the AVD and its
   synthetic state remain for inspection. No physical device and no user data were touched.
 
+## Independent scoped review
+
+An independent reviewer pass over `c44c200..62ce918` checked the frozen classifier diff,
+admission ordering in all three workers, readiness-gate precedence, the dispatcher guards,
+the scheduler stamping and test quality against the spec, and ran the admission suite itself.
+Verdict: SPEC PASS, QUALITY APPROVED, zero P0/P1. Its three P2 nits were fixed in a scoped
+review-fix commit: restored companion-constant indentation, replaced the scheduler's unsafe
+`as` casts with the codebase's safe-cast idiom, and strengthened the unstamped worker test to
+seed a real account and pin the empty-generation ledger row at the worker level (the test gap
+had allowed deleting the worker's `recordStaleGeneration` call to go unpinned). After the
+fixes the admission suite passes 6/6 again.
+
 ## Honest limits
 
 - `ExistingPeriodicWorkPolicy.KEEP → UPDATE` queue replacement is enforced in code and its

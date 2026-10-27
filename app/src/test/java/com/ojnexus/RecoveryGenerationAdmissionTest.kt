@@ -66,14 +66,18 @@ class RecoveryGenerationAdmissionTest {
 
     @Test
     fun `unstamped sync work refuses without any coordinator operation`() = runBlocking {
+        seedAccount()
         val context = ApplicationProvider.getApplicationContext<Context>()
         val result = JudgeSyncWorker(
             context,
-            workerParameters(workDataOf("account_id" to 9L, "judge_id" to JudgeId.CODEFORCES.id)),
+            workerParameters(workDataOf("account_id" to 1L, "judge_id" to JudgeId.CODEFORCES.id)),
         ).doWork()
         assertTrue(result is androidx.work.ListenableWorker.Result.Success)
         assertEquals("UNSTAMPED_DATA_GENERATION", result.outputData.getString(JudgeSyncWorker.RESULT_KEY))
-        assertTrue("unstamped refusal must not open a sync operation", operationRows().isEmpty())
+        val row = operationRows().single()
+        assertEquals(SyncOperationStatus.STALE_GENERATION.name, row.operation.status)
+        assertEquals("", row.operation.dataGeneration)
+        assertEquals("STALE_DATA_GENERATION", row.operation.lastErrorType)
     }
 
     @Test

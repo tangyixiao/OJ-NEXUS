@@ -35,8 +35,8 @@ object ScheduledBackupScheduler {
     const val UNIQUE_NAME = "oj-nexus-scheduled-backup"
 
     fun update(context: Context, cadence: BackupCadence) {
-        if ((context.applicationContext as? OjNexusApplication)?.startupState !is NexusStartupState.Ready) return
-        val ready = (context.applicationContext as OjNexusApplication).startupState as NexusStartupState.Ready
+        val ready = (context.applicationContext as? OjNexusApplication)?.startupState
+            as? NexusStartupState.Ready ?: return
         val manager = WorkManager.getInstance(context)
         if (cadence == BackupCadence.OFF) {
             manager.cancelUniqueWork(UNIQUE_NAME)
