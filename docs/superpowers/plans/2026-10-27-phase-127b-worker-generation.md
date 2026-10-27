@@ -11,6 +11,17 @@ the backup scheduler consume it strictly, and one dispatcher entry records refus
 
 **Spec:** [binding design](../specs/2026-10-27-phase-127b-worker-generation-design.md).
 
+**Execution:** completed for the Phase127B boundary at `e468fee` (implementation),
+spec [c44c200](../specs/2026-10-27-phase-127b-worker-generation-design.md) and this plan
+committed as scoped docs; [evidence](../../verification/phase-127b-worker-generation.md).
+Execution deviations, recorded rather than hidden: Tasks 1 and 2 shipped as one
+implementation commit because each commit must build green and the admission policy is one
+shipping boundary; the scheduler stamp is pinned by the pure `scheduledBackupInput` test
+rather than a WorkManager integration run (`androidx.work:work-testing` was not added); the
+KEEP→UPDATE replacement itself has no WorkManager integration test — the strict refusal of
+stale/unstamped runs is the tested safety net. The first connected run died with the
+emulator process and was re-run clean (35/35) on the recreated dedicated AVD.
+
 ## Global Constraints
 
 - Base `5c6a6e7` on `codex/phase-127-recovery-safety`; deliver as a stacked scoped slice,
@@ -40,11 +51,11 @@ map STALE → recorded skip with `STALE_DATA_GENERATION`, LEGACY → recorded sk
 `UNSTAMPED_DATA_GENERATION`; only PROCEED reaches the dispatcher/result poll. Luogu refusals
 write no Room state. Existing public signatures remain source-compatible.
 
-- [ ] RED: focused admission tests prove the present defect — unstamped judge sync reaches
+- [x] RED: focused admission tests prove the present defect — unstamped judge sync reaches
       the dispatcher (no refusal marker, no empty-generation ledger row) and an unstamped
       Luogu poll proceeds into the result path.
-- [ ] Implement worker normalization, refusal markers and dispatcher recording.
-- [ ] GREEN: admission tests pass with exactly one auditable ledger row per refused sync and
+- [x] Implement worker normalization, refusal markers and dispatcher recording.
+- [x] GREEN: admission tests pass with exactly one auditable ledger row per refused sync and
       zero coordinator operations; classifier tests still pass unchanged; backup worker in
       Task 2 keeps its current behavior until its own slice lands.
 
@@ -61,10 +72,10 @@ refuses STALE/LEGACY before preferences or export with the same two markers; suc
 stamps the Ready container's current generation into the request input and keeps UPDATE.
 `JudgeSyncWorker.enqueuePeriodic` switches `ExistingPeriodicWorkPolicy.KEEP` → `UPDATE`.
 
-- [ ] RED: backup worker with stale/unstamped input must return the marker before any
+- [x] RED: backup worker with stale/unstamped input must return the marker before any
       preferences read (DataStore file stays absent); scheduler request must carry the stamp.
-- [ ] Implement stamping, backup admission and the judge periodic UPDATE replacement.
-- [ ] GREEN: admission tests cover all three workers' stale/unstamped refusals; the plain
+- [x] Implement stamping, backup admission and the judge periodic UPDATE replacement.
+- [x] GREEN: admission tests cover all three workers' stale/unstamped refusals; the plain
       "schedule cancelled" success shape is unchanged.
 
 ## Task 3 — Full gates, evidence and scoped delivery
@@ -73,9 +84,9 @@ stamps the Ready container's current generation into the request input and keeps
 update; DATA_SAFETY open-items paragraph refresh; PR branch `codex/phase-127b-generation-admission`
 stacked on the 127A head, PR against `codex/phase-127-android-base`.
 
-- [ ] Fresh `testDebugUnitTest --rerun test assembleDebug assembleRelease`; collect XML
+- [x] Fresh `testDebugUnitTest --rerun test assembleDebug assembleRelease`; collect XML
       totals and note real warnings, not pristine claims.
-- [ ] Connected suite on the dedicated Phase127 test AVD when the host allows emulator
+- [x] Connected suite on the dedicated Phase127 test AVD when the host allows emulator
       startup; record the exact serial and totals, or the blocker honestly.
-- [ ] Diff/secrets check, scoped commits, push stacked branch, open the PR; update evidence
+- [x] Diff/secrets check, scoped commits, push stacked branch, open the PR; update evidence
       and roadmap without claiming the whole phase.

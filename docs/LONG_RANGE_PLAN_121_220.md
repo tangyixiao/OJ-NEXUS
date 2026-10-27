@@ -209,8 +209,9 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **验收：** G-S；每个向量给出旧/新数据应保留哪份、可重试点和恢复结果；不要求桌面复制 Android 数据库结构。
 
 #### [ ] PHASE 127 — A · 备份恢复与后台任务隔离
-- **状态：** ACTIVE；先实施 127A 的恢复源保留与启动拦截，[设计](superpowers/specs/2026-10-24-phase-127a-recovery-safety-design.md)、[计划](superpowers/plans/2026-10-24-phase-127a-recovery-safety.md)、[证据](verification/phase-127a-recovery-safety.md)。整合基线 `b096045` 的 800 项单测与 debug 构建通过，仅证明基线；严格 worker 代际策略、导入存储错误分类和旧引擎兼容仍是本期未完成要求。
+- **状态：** ACTIVE；127A 恢复源保留与启动拦截、127B 严格后台任务代际准入均已完成验收。127A 见 [设计](superpowers/specs/2026-10-24-phase-127a-recovery-safety-design.md)、[计划](superpowers/plans/2026-10-24-phase-127a-recovery-safety.md)、[证据](verification/phase-127a-recovery-safety.md)；127B 见 [设计](superpowers/specs/2026-10-27-phase-127b-worker-generation-design.md)、[计划](superpowers/plans/2026-10-27-phase-127b-worker-generation.md)、[证据](verification/phase-127b-worker-generation.md)。导入存储错误分类（127C）和 minSdk 26 旧引擎导出兼容仍是本期未完成要求。
 - **127A 进展：** `690b5f5` 的恢复协议与启动接线任务审查通过；fresh 829 项单测、debug/release 构建、35 项 connected 测试及专用 API37 Activity 阻断/恢复前台/重复冷启动/200% 字体验收通过。整分支审查及最后一次测试名称修正的定向复审通过；[PR #20](https://github.com/tangyixiao/OJ-NEXUS/pull/20) 已创建、未合并。仅 127A 验收完成，整期仍 ACTIVE，无新 Android release。
+- **127B 进展：** `e468fee` 落地严格代际准入：三个 worker（Judge sync、Luogu 结果轮询、定时备份）只放行与进程代次精确一致的戳记，stale/unstamped 一律拒绝；sync 拒绝写入 `STALE_GENERATION` 台账（unstamped 记空代次），备份请求由调度器携带当前代次，periodic 队列改为 UPDATE 替换以便每次就绪启动重新戳记。RED（4 个现状缺陷用例）→ GREEN；fresh 835 项单测/182 套件 0 失败，debug/release 构建通过；重建专用 AVD 后 connected 35/35 通过（首次运行因模拟器进程死亡中断，已如实记录为基础设施失败）。Phase126 分类器与 RV020–022 投影未改。无新 release，整期仍 ACTIVE。
 - **新增接续项（来自 122）：** 当前 WAL 修复使用 `VACUUM INTO`，API 37 的 SQLite 3.50.6 已实测；低于 SQLite 3.27 的设备会明确导出失败。为 minSdk 26 确定兼容策略并做真实旧引擎验证，不能恢复复制过时主库的回退。
 - **依赖 / 范围：** 122、126；A-CORE 的 BackupRepository、DatabaseRestoreCoordinator、backup worker，A-TEST。
 - **交付：** 对现有快照导入、定时备份增加中断恢复与旧任务写回回归；修复被证实的暂存、generation 或文件替换缺口。
