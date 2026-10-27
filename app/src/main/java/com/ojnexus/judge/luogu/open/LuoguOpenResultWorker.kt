@@ -159,17 +159,19 @@ class LuoguOpenResultWorker(
             is NexusStartupState.Blocked -> return ListenableWorker.Result.failure(workDataOf("result" to "RECOVERY_BLOCKED"))
             is NexusStartupState.Ready -> state.container
         }
-        when (decideRestoreWorkGeneration(
-            inputData.getString(LuoguResultWorkRequestFactory.DATA_GENERATION_KEY),
-            container.currentDataGeneration(),
-        )) {
+        val stamp = inputData.getString(LuoguResultWorkRequestFactory.DATA_GENERATION_KEY)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+        when (decideRestoreWorkGeneration(stamp, container.currentDataGeneration())) {
             RestoreWorkDecision.STALE ->
                 return ListenableWorker.Result.success(
                     workDataOf("result" to "STALE_DATA_GENERATION"),
                 )
-            RestoreWorkDecision.PROCEED,
-            RestoreWorkDecision.LEGACY,
-            -> Unit
+            RestoreWorkDecision.LEGACY ->
+                return ListenableWorker.Result.success(
+                    workDataOf("result" to "UNSTAMPED_DATA_GENERATION"),
+                )
+            RestoreWorkDecision.PROCEED -> Unit
         }
 
         return try {

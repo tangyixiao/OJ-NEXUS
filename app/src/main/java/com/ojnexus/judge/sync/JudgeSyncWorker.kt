@@ -38,20 +38,22 @@ class JudgeSyncWorker(
             is NexusStartupState.Blocked -> return Result.failure(workDataOf(RESULT_KEY to RECOVERY_BLOCKED))
             is NexusStartupState.Ready -> state.container
         }
-        val dataGeneration = inputData.getString(DATA_GENERATION)
-        when (decideRestoreWorkGeneration(dataGeneration, container.currentDataGeneration())) {
+        val stamp = inputData.getString(DATA_GENERATION)?.trim()?.takeIf { it.isNotEmpty() }
+        when (decideRestoreWorkGeneration(stamp, container.currentDataGeneration())) {
+            RestoreWorkDecision.PROCEED -> Unit
             RestoreWorkDecision.STALE -> {
-                container.syncDispatcher.recordStaleGeneration(judge, accountId, dataGeneration)
+                container.syncDispatcher.recordStaleGeneration(judge, accountId, stamp)
                 return Result.success(workDataOf(RESULT_KEY to STALE_RESULT))
             }
-            RestoreWorkDecision.PROCEED,
-            RestoreWorkDecision.LEGACY,
-            -> Unit
+            RestoreWorkDecision.LEGACY -> {
+                container.syncDispatcher.recordStaleGeneration(judge, accountId, null)
+                return Result.success(workDataOf(RESULT_KEY to UNSTAMPED_RESULT))
+            }
         }
         val force = inputData.getBoolean(KEY_FORCE, false)
         return try {
             val report = container.syncDispatcher
-                .sync(judge, accountId, force, dataGeneration)
+                .sync(judge, accountId, force, stamp)
                 ?: return Result.failure()
             when {
                 report.allOk -> Result.success()
@@ -72,6 +74,7 @@ class JudgeSyncWorker(
         const val DATA_GENERATION = "data_generation"
         const val RESULT_KEY = "result"
         const val STALE_RESULT = "STALE_DATA_GENERATION"
+        const val UNSTAMPED_RESULT = "UNSTAMPED_DATA_GENERATION"
         const val RECOVERY_BLOCKED = "RECOVERY_BLOCKED"
         const val MAX_ATTEMPTS = 3
 
@@ -118,9 +121,11 @@ class JudgeSyncWorker(
                 )
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
                 .build()
+            // UPDATE replaces the queued spec so every ready start re-stamps the periodic
+            // entry with the current generation (Phase 127B queue replacement).
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 JudgeWorkNames.periodic(judge, accountId),
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 request,
             )
         }

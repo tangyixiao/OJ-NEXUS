@@ -40,8 +40,15 @@ retries; blocked work fails before business I/O. The [Phase127A evidence](verifi
 records real SQLite/WAL fault tests, 829 passing unit tests, 35 connected tests and actual blocked
 Activity launches with unchanged evidence hashes. These changes are not in published `v1.0.3`.
 
-Strict stale/missing-generation work admission (RV020–RV022), including scheduled-backup stamps and
-stale-ledger writes, remains open Phase127 work. Staging-temp creation can still fail outside the
+The same branch now also enforces strict stale/missing-generation work admission (RV020–RV022,
+[Phase127B evidence](verification/phase-127b-worker-generation.md)): all three Workers proceed only
+on an exactly matching captured generation; sync refusals are recorded in the operations ledger
+(unstamped refusals with an empty generation), scheduled backups carry the resolved generation stamp
+and refuse before any preference read, and the periodic queues are replaced with freshly stamped
+entries on every ready start. The Phase126 classifier and its projections are unchanged; these
+changes are also not in a published release.
+
+Staging-temp creation can still fail outside the
 import error handler (RV004); typed storage-full import handling and functional minSdk26 backup
 compatibility also remain open. Startup readiness is not a claim that all old work is write-isolated.
 The [Phase126 evidence](verification/phase-126-recovery-vectors.md) retains the narrower pure-decision
