@@ -36,6 +36,7 @@ object ScheduledBackupScheduler {
 
     fun update(context: Context, cadence: BackupCadence) {
         if ((context.applicationContext as? OjNexusApplication)?.startupState !is NexusStartupState.Ready) return
+        val ready = (context.applicationContext as OjNexusApplication).startupState as NexusStartupState.Ready
         val manager = WorkManager.getInstance(context)
         if (cadence == BackupCadence.OFF) {
             manager.cancelUniqueWork(UNIQUE_NAME)
@@ -48,8 +49,16 @@ object ScheduledBackupScheduler {
                     .setRequiresStorageNotLow(true)
                     .build(),
             )
+            .setInputData(scheduledBackupInput(ready.container.currentDataGeneration()))
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
             .build()
         manager.enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 }
+
+/**
+ * The periodic backup request carries the resolved generation so the worker can refuse a
+ * run captured under an older or unknown store (Phase 127B strict admission).
+ */
+internal fun scheduledBackupInput(generation: String) =
+    androidx.work.workDataOf(ScheduledBackupWorker.DATA_GENERATION to generation)
