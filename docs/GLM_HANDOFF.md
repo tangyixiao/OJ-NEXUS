@@ -461,3 +461,37 @@ HTTP body、源码或自定义输入。包内运行数据仍默认写入 `%LOCAL
 Phase 127 至此仅剩**整期 release 门禁**（版本号决定、release note、签名构建、设备验收——
 需用户决定版本与发布节奏）。功能验收项 127A–127D 全部完成；无新 release，整期保持 ACTIVE
 直至 release 门禁通过。
+
+## 26. Phase 127 整期 release 门禁（v1.0.4，2026-10-30，本次执行，GitHub 发布留待用户）
+
+127D 交付后按用户指示启动 Phase 127 整期 release 门禁，全部本地门禁通过：
+
+- **版本递增**：沿用每交付批次 +0.0.1/versionCode+1 的规则（1.0.0 code102 → 1.0.3 code105），
+  本次 cut **v1.0.4 / versionCode 106**。发布分支 `codex/release-v1.0.4`（自 127D head
+  `756d8f4` 切出），版本 bump 提交 `5909b2e`。
+- **完整门禁（全部本次新跑）**：
+  - `tools\gradlew-local.bat testDebugUnitTest --rerun test assembleDebug assembleRelease`：
+    BUILD SUCCESSFUL 2m18s，**848 项单测/185 套件 0 失败/错误/跳过**；仅两条既有 JVM 警告。
+  - 本地化：`tools/check-localization.ps1` → **KEY PARITY EN=1026 ZH=1026、0 硬编码文案**。
+  - 可复现构建：`tools/check-reproducible-build.ps1` 两次干净 release pass 同哈希
+    **`67BDB719DF760C979C2A619566601F5EF944AA6EB0FF725CEB2723369D5A26F6`**。
+  - connected：专用 API37.1 AVD（emulator-5582）全套 **36 测试/12 套件 0 失败**
+    （35 既有 + 新引擎导出用例）；API27 旧引擎 36/36 见第 25 节。
+- **签名与核对**：`assembleRelease` 无签名产物在**仓库外**用本机标准 debug keystore 经
+  apksigner 签名（**v2+v3 校验通过**），安装回专用 AVD：系统读回
+  `versionCode=106 / versionName=1.0.4`，冷启动 `com.ojnexus/.MainActivity` PID 存活、
+  logcat **0 条 FATAL EXCEPTION/AndroidRuntime**。签名 APK SHA-256
+  `C916081B0F9FF89B1F282E227D643A21D1A511A6012CEA57FF7ECD350729601F` 记入
+  `docs/releases/SHA256SUMS-v1.0.4.txt`（格式同历史文件；密钥与 APK 均未入库，APK 留在
+  `%TEMP%` 供用户上传 release）。
+- **发布记录**：`docs/releases/v1.0.4.md`（127A–127D 变更清单 + 质量姿态 + 台账）；
+  README Status 更新（release gate passed、GitHub 发布待用户决定）；roadmap Phase 127 标记
+  **VERIFIED** 并新增 Release 门禁行。
+- **交接与 PR**：发布分支已推送并建
+  [PR #27](https://github.com/tangyixiao/OJ-NEXUS/pull/27)（base main，包含 127A–127D 与
+  release 收口全部提交——注意它同时携带未合并的 #20/#24/#25/#26 内容，合并即整链入 main）。
+  **GitHub release 发布、tag 推送与 PR 合并决定留待用户确认**，本轮未执行。
+
+用户决策点：合并 PR #27（整链入 main）→ 打 tag `v1.0.4` → 上传 `%TEMP%\OJ-NEXUS-v1.0.4.apk`
+与 SHA256SUMS 作为 GitHub release 资产。签名材料从未离开本机 keystore；如需正式签名
+（非 debug keystore），需用户提供发布密钥或沿用 CI secrets 流程。

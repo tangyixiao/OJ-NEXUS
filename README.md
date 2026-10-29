@@ -25,9 +25,12 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Current development baseline (2026-10-23): Android `1.0.3 / versionCode 105`, Room v15;
-[PR #10](https://github.com/tangyixiao/OJ-NEXUS/pull/10) and
-[v1.0.3](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v1.0.3) are published history.
+Release gate passed (2026-10-30): Android `1.0.4 / versionCode 106` on
+[codex/release-v1.0.4](https://github.com/tangyixiao/OJ-NEXUS/tree/codex/release-v1.0.4) —
+[release notes](docs/releases/v1.0.4.md),
+[SHA256SUMS](docs/releases/SHA256SUMS-v1.0.4.txt); the GitHub release and the PR merge are
+pending user decision. Published history: [v1.0.3](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v1.0.3)
+([PR #10](https://github.com/tangyixiao/OJ-NEXUS/pull/10)). Room v15.
 The next cycle is [Phase 121–220](docs/LONG_RANGE_PLAN_121_220.md): 100 phases balanced across
 shared contracts, Android, Windows, Linux and Apple. Execution has started with the
 [Phase 121 capability audit](docs/verification/platform-capabilities.md). Implementation, build,
