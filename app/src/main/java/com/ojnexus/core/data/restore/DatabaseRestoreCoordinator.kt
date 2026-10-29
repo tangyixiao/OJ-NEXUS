@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteException
 import android.net.Uri
 import com.ojnexus.core.database.OjNexusDatabase
 import java.io.File
-import java.io.FileOutputStream
+import java.io.IOException
 import java.util.Properties
 import java.util.UUID
 
@@ -26,24 +26,46 @@ class DatabaseRestoreCoordinator(
     }
     fun prepareImport(source: Uri): RestoreOutcome {
         val generation = UUID.randomUUID().toString()
-        val input = File.createTempFile("oj-nexus-import-", ".db", context.cacheDir)
+        // A journal from a previous staged import is never destroyed by this attempt.
+        val hadJournal = journalFile().isFile
         return try {
-            resolver.openInputStream(source)?.use { stream ->
-                FileOutputStream(input).use { output -> stream.copyTo(output) }
-            } ?: return RestoreOutcome.Rejected(RestoreFailure.INVALID_SQLITE)
-            validate(input)
-            atomicReplace(input, pendingTempFile(), RestoreFailure.FILE_REPLACEMENT_FAILURE)
-            atomicReplace(pendingTempFile(), pendingFile(), RestoreFailure.FILE_REPLACEMENT_FAILURE)
-            writeJournal(RestoreJournal(RestoreStage.STAGED, generation, null))
-            RestoreOutcome.Staged(generation)
+            val input = files.createStagingTemp(context.cacheDir)
+            try {
+                resolver.openInputStream(source)?.use { stream ->
+                    files.copyStreamAndSync(stream, input)
+                } ?: return RestoreOutcome.Rejected(RestoreFailure.INVALID_SQLITE)
+                validate(input)
+                atomicReplace(input, pendingTempFile(), RestoreFailure.FILE_REPLACEMENT_FAILURE)
+                atomicReplace(pendingTempFile(), pendingFile(), RestoreFailure.FILE_REPLACEMENT_FAILURE)
+                writeJournal(RestoreJournal(RestoreStage.STAGED, generation, null))
+                RestoreOutcome.Staged(generation)
+            } finally {
+                input.delete()
+            }
         } catch (failure: RestoreValidationException) {
             RestoreOutcome.Rejected(failure.category)
         } catch (_: SQLiteException) {
+            cleanupOwnedStaging(hadJournal)
             RestoreOutcome.Rejected(RestoreFailure.INVALID_SQLITE)
+        } catch (io: IOException) {
+            cleanupOwnedStaging(hadJournal)
+            RestoreOutcome.Rejected(classifyImportIoFailure(io) ?: RestoreFailure.FILE_REPLACEMENT_FAILURE)
         } catch (_: Throwable) {
+            cleanupOwnedStaging(hadJournal)
             RestoreOutcome.Rejected(RestoreFailure.FILE_REPLACEMENT_FAILURE)
-        } finally {
-            input.delete()
+        }
+    }
+
+    /**
+     * Best-effort cleanup of what a failed staging attempt owns (RV004–RV006: artifacts are
+     * not preserved, a retry after freeing space must not be blocked by orphan evidence).
+     * The staged pending file is removed only when this run started without a journal.
+     */
+    private fun cleanupOwnedStaging(hadJournal: Boolean) {
+        runCatching {
+            pendingTempFile().delete()
+            File(journalFile().path + ".tmp").delete()
+            if (!hadJournal) pendingFile().delete()
         }
     }
 
