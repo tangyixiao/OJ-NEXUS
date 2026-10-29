@@ -11,6 +11,7 @@ import com.ojnexus.core.data.backup.ScheduledBackupScheduler
 import com.ojnexus.core.data.backup.SnapshotConflictReport
 import com.ojnexus.core.data.preferences.UserPreferences
 import com.ojnexus.core.data.preferences.UserPreferencesRepository
+import com.ojnexus.core.data.restore.RestoreFailure
 import com.ojnexus.core.data.restore.RestoreOutcome
 import com.ojnexus.core.designsystem.NexusThemeSlot
 import com.ojnexus.core.data.repository.BackupRepository
@@ -67,7 +68,11 @@ data class SettingsUiState(val connections: List<JudgeConnectionUi>)
 
 enum class BackupOperation { EXPORT, IMPORT }
 
-data class BackupResult(val operation: BackupOperation, val success: Boolean)
+data class BackupResult(
+    val operation: BackupOperation,
+    val success: Boolean,
+    val failure: RestoreFailure? = null,
+)
 
 enum class RestoreStatus { APPLIED, ROLLED_BACK, REJECTED }
 
@@ -385,9 +390,11 @@ class SettingsViewModel(
 
     fun importBackup(resolver: ContentResolver, source: Uri) {
         viewModelScope.launch {
+            val outcome = backupRepository.importFrom(resolver, source)
             backupResult.value = BackupResult(
                 operation = BackupOperation.IMPORT,
-                success = backupRepository.importFrom(resolver, source),
+                success = outcome is RestoreOutcome.Staged,
+                failure = (outcome as? RestoreOutcome.Rejected)?.failure,
             )
         }
     }

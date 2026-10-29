@@ -1,5 +1,7 @@
 package com.ojnexus.core.data.restore
 
+import java.io.IOException
+
 /** Durable phases written to the small restore journal. */
 enum class RestoreStage {
     STAGED,
@@ -30,6 +32,8 @@ enum class RestoreFailure {
     INTEGRITY_FAILURE,
     FILE_REPLACEMENT_FAILURE,
     ROLLBACK_FAILURE,
+    STORAGE_FULL,
+    STORAGE_IO,
 }
 
 sealed interface RestoreOutcome {
@@ -81,6 +85,29 @@ fun decideRestoreWorkGeneration(expected: String?, current: String): RestoreWork
     expected == null -> RestoreWorkDecision.LEGACY
     expected == current -> RestoreWorkDecision.PROCEED
     else -> RestoreWorkDecision.STALE
+}
+
+private val ENOSPC_MARKERS = listOf("no space left on device", "enospc", "not enough space", "disk full")
+
+/**
+ * Classifies an import I/O failure (RV004–RV006): ENOSPC-flavoured failures are
+ * [RestoreFailure.STORAGE_FULL], any other I/O failure is [RestoreFailure.STORAGE_IO].
+ * Non-I/O throwables return null so callers keep their own fallback category.
+ */
+fun classifyImportIoFailure(failure: Throwable): RestoreFailure? {
+    var cause: Throwable? = failure
+    while (cause != null) {
+        if (cause is IOException) {
+            val message = cause.message?.lowercase().orEmpty()
+            return if (ENOSPC_MARKERS.any { message.contains(it) }) {
+                RestoreFailure.STORAGE_FULL
+            } else {
+                RestoreFailure.STORAGE_IO
+            }
+        }
+        cause = cause.cause
+    }
+    return null
 }
 
 /**

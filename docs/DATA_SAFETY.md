@@ -48,9 +48,17 @@ and refuse before any preference read, and the periodic queues are replaced with
 entries on every ready start. The Phase126 classifier and its projections are unchanged; these
 changes are also not in a published release.
 
-Staging-temp creation can still fail outside the
-import error handler (RV004); typed storage-full import handling and functional minSdk26 backup
-compatibility also remain open. Startup readiness is not a claim that all old work is write-isolated.
+Import storage faults are typed and retryable ([Phase127C evidence](verification/phase-127c-import-storage-errors.md)):
+staging-temp creation, the staged copy and the restore-journal write now return `STORAGE_FULL`
+(ENOSPC-flavoured) or `STORAGE_IO` instead of a raw crash or a generic replacement failure; a
+failed staging run cleans only its own artifacts (a pre-existing staged import survives), so a
+retry after freeing space is not blocked by orphan evidence; and the settings import result shows
+stable uppercase retry guidance while export failures keep their own copy. RV001–RV003 precheck
+validation and the Phase126 projections are unchanged; these changes are also not in a published
+release.
+
+Functional minSdk26 backup
+compatibility also remains open. Startup readiness is not a claim that all old work is write-isolated.
 The [Phase126 evidence](verification/phase-126-recovery-vectors.md) retains the narrower pure-decision
 boundary. Full Room schema validation, physical-device behavior and directory-entry power-loss
 durability are not established by the Phase127A slice.

@@ -2,6 +2,7 @@ package com.ojnexus.core.data.restore
 
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStream
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
@@ -13,6 +14,19 @@ internal interface RestoreFileOperations {
     fun writeAndSync(target: File, bytes: ByteArray)
     fun atomicReplace(source: File, target: File)
     fun deleteChecked(file: File)
+
+    /** Creates the import staging temp file; injectable for staging allocation faults. */
+    fun createStagingTemp(directory: File): File =
+        File.createTempFile("oj-nexus-import-", ".db", directory)
+
+    /** Copies an input stream to [target] and syncs it; injectable for staged-write faults. */
+    fun copyStreamAndSync(source: InputStream, target: File) {
+        target.parentFile?.mkdirs()
+        FileOutputStream(target, false).use { output ->
+            source.use { it.copyTo(output) }
+            output.fd.sync()
+        }
+    }
 }
 
 internal object SystemRestoreFileOperations : RestoreFileOperations {

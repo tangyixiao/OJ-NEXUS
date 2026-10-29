@@ -5,6 +5,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.ojnexus.core.data.restore.RestoreOutcome
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.database.entity.ProblemEntity
 import java.io.File
@@ -92,7 +93,7 @@ class BackupRepositoryTest {
                 Uri.fromFile(output),
             ),
         )
-        assertTrue(repository.importFrom(context.contentResolver, Uri.fromFile(output)))
+        assertTrue(repository.importFrom(context.contentResolver, Uri.fromFile(output)) is RestoreOutcome.Staged)
 
         database.close()
         assertTrue("restore outcome was not applied", BackupRepository.restorePending(context))
@@ -117,7 +118,7 @@ class BackupRepositoryTest {
             Uri.fromFile(output),
         )
 
-        assertFalse(imported)
+        assertTrue(imported is RestoreOutcome.Rejected)
         assertFalse(File(context.filesDir, "oj-nexus-pending-restore.db").exists())
     }
 }
