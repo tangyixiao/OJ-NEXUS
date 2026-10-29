@@ -690,6 +690,9 @@
     <string name="settings_backup_success">备份已导出</string>
     <string name="settings_backup_import_success">备份已验证——重启应用后恢复</string>
     <string name="settings_backup_failed">备份导出失败</string>
+    <string name="settings_import_rejected">导入已拒绝——点击关闭</string>
+    <string name="settings_import_storage_full">导入失败——请释放存储空间后重试</string>
+    <string name="settings_import_storage_io">导入失败——存储读写错误</string>
     <string name="settings_restore_applied">已恢复备份——点击关闭</string>
     <string name="settings_restore_rolled_back">恢复已回滚——点击关闭</string>
     <string name="settings_restore_rejected">恢复已拒绝——点击关闭</string>

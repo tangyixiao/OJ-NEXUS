@@ -73,19 +73,23 @@ class BackupRepository(
             }.isSuccess
         }
 
-    suspend fun importFrom(resolver: ContentResolver, source: Uri): Boolean =
+    /**
+     * Stages a snapshot or legacy database import through the restore coordinator and returns
+     * the full typed outcome (Phase 127C), so storage failures reach the UI as categories.
+     */
+    suspend fun importFrom(resolver: ContentResolver, source: Uri): RestoreOutcome =
         withContext(Dispatchers.IO) {
             val extracted = extractSnapshotDatabase(resolver, source)
             if (extracted != null) {
                 val extractedUri = Uri.fromFile(extracted)
                 try {
                     return@withContext DatabaseRestoreCoordinator(context, resolver)
-                        .prepareImport(extractedUri) is RestoreOutcome.Staged
+                        .prepareImport(extractedUri)
                 } finally {
                     extracted.delete()
                 }
             }
-            DatabaseRestoreCoordinator(context, resolver).prepareImport(source) is RestoreOutcome.Staged
+            DatabaseRestoreCoordinator(context, resolver).prepareImport(source)
         }
 
     /**
