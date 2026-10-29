@@ -74,8 +74,10 @@ import com.ojnexus.judge.luogu.LuoguUrls
 internal fun backupResultLabel(result: BackupResult): Int = when {
     result.success && result.operation == BackupOperation.EXPORT -> R.string.settings_backup_success
     result.success -> R.string.settings_backup_import_success
-    result.failure == RestoreFailure.STORAGE_FULL -> R.string.settings_import_storage_full
-    result.failure == RestoreFailure.STORAGE_IO -> R.string.settings_import_storage_io
+    result.operation == BackupOperation.IMPORT && result.failure == RestoreFailure.STORAGE_FULL ->
+        R.string.settings_import_storage_full
+    result.operation == BackupOperation.IMPORT && result.failure == RestoreFailure.STORAGE_IO ->
+        R.string.settings_import_storage_io
     result.operation == BackupOperation.IMPORT -> R.string.settings_import_rejected
     else -> R.string.settings_backup_failed
 }

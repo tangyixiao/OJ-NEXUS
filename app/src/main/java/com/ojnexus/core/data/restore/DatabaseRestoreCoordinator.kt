@@ -43,6 +43,7 @@ class DatabaseRestoreCoordinator(
                 input.delete()
             }
         } catch (failure: RestoreValidationException) {
+            cleanupOwnedStaging(hadJournal)
             RestoreOutcome.Rejected(failure.category)
         } catch (_: SQLiteException) {
             cleanupOwnedStaging(hadJournal)

@@ -120,6 +120,19 @@ class ImportStorageFaultTest {
     }
 
     @Test
+    fun `pending install failure leaves no temp evidence and stays retryable`() = runBlocking {
+        val source = importableSource()
+        val outcome = coordinator(IoFailingFiles(failPendingInstall = true))
+            .prepareImport(Uri.fromFile(source))
+        assertTrue("outcome=$outcome", outcome is RestoreOutcome.Rejected)
+        assertEquals(RestoreFailure.FILE_REPLACEMENT_FAILURE, (outcome as RestoreOutcome.Rejected).failure)
+        assertFalse("pending temp must be cleaned so the next start is not blocked", pendingTemp.exists())
+        assertFalse(pending.exists()); assertFalse(journal.exists())
+        val retry = coordinator().prepareImport(Uri.fromFile(source))
+        assertTrue("retry=$retry", retry is RestoreOutcome.Staged)
+    }
+
+    @Test
     fun `invalid input still rejects as invalid sqlite`() {
         val garbage = File(context.filesDir, "import-source.db")
         garbage.writeBytes(byteArrayOf(1, 2, 3, 4, 5))
@@ -137,6 +150,10 @@ class ImportStorageFaultTest {
         assertEquals(
             RestoreFailure.STORAGE_FULL,
             classifyImportIoFailure(IOException("write failed: ENOSPC")),
+        )
+        assertEquals(
+            RestoreFailure.STORAGE_FULL,
+            classifyImportIoFailure(IOException("disk full while writing staging temp")),
         )
         assertEquals(
             RestoreFailure.STORAGE_FULL,
@@ -159,6 +176,7 @@ private class IoFailingFiles(
     private val failTempAllocation: Boolean = false,
     private val failCopyStream: Boolean = false,
     private val failJournalWrite: Boolean = false,
+    private val failPendingInstall: Boolean = false,
     private val copyStreamMessage: String = "No space left on device",
 ) : RestoreFileOperations by SystemRestoreFileOperations {
     override fun createStagingTemp(directory: File): File {
@@ -176,5 +194,12 @@ private class IoFailingFiles(
             throw IOException("No space left on device")
         }
         SystemRestoreFileOperations.writeAndSync(target, bytes)
+    }
+
+    override fun atomicReplace(source: File, target: File) {
+        if (failPendingInstall && target.name == "oj-nexus-pending-restore.db") {
+            throw IllegalStateException("injected pending install failure")
+        }
+        SystemRestoreFileOperations.atomicReplace(source, target)
     }
 }
