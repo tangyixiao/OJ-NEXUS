@@ -12,6 +12,18 @@ tests on two dedicated AVDs (API 37.1 and API 27).
 
 **Spec:** [binding design](../specs/2026-10-30-phase-127d-old-engine-export-design.md).
 
+**Execution:** completed for the Phase127D boundary at `b226160`; spec `803b6cc`,
+plan `b97c4b7`, connected test `9088ee1`, implementation `de8914e`, review fixes `b226160`;
+[evidence](../../verification/phase-127d-old-engine-export.md). Execution notes, recorded
+rather than hidden: the spec's original BEGIN-EXCLUSIVE-then-checkpoint sequence is
+unusable (SQLite forbids a checkpoint inside a transaction on its own connection —
+reproduced) and was replaced by checkpoint-first + read-transaction copy under a shared
+mutex; the first fallback implementation failed on Robolectric exactly that way (diagnosed
+with a throwaway test, since deleted). The real old-engine RED was captured on the API 27
+emulator (`export failed on engine 3.19.4`) before the implementation. Two intermediate
+full-suite connected runs died with the emulator process (known Gradle-daemon memory
+pressure) and were re-run clean at the final head on both engines.
+
 ## Global Constraints
 
 - Base: Phase127C tip on the `codex/phase-127-recovery-safety` line; deliver as a stacked
@@ -32,10 +44,10 @@ tests `app/src/test/java/com/ojnexus/core/data/repository/BackupEngineExportTest
 **Interfaces:** public API unchanged (`exportTo`/`exportSnapshot` stay Boolean). Internal:
 `engineSupportsVacuumInto` seam; the fallback helper returns only after a validated copy.
 
-- [ ] RED: with the seam forced below 3.27, the present code fails the export; the new test
+- [x] RED: with the seam forced below 3.27, the present code fails the export; the new test
       requires a complete snapshot whose WAL-only row is present (stale-main prohibition).
-- [ ] Implement the gate + exclusive-checkpoint fallback + staging validation on both paths.
-- [ ] GREEN: WAL-only row captured under the forced-old seam; modern seam keeps VACUUM INTO;
+- [x] Implement the gate + exclusive-checkpoint fallback + staging validation on both paths.
+- [x] GREEN: WAL-only row captured under the forced-old seam; modern seam keeps VACUUM INTO;
       the two existing snapshot repository suites pass on the default engine.
 
 ## Task 2 — Connected export test and real old-engine run
@@ -45,18 +57,18 @@ tests `app/src/test/java/com/ojnexus/core/data/repository/BackupEngineExportTest
 BackupRepository, read the row back from the archive — self-selects the engine path);
 dedicated AVD runs.
 
-- [ ] Connected test passes on the API 37.1 AVD (modern path).
-- [ ] API 27 image + dedicated AVD (`OJNexus_Phase127_OldEngine`): run the connected suite;
+- [x] Connected test passes on the API 37.1 AVD (modern path).
+- [x] API 27 image + dedicated AVD (`OJNexus_Phase127_OldEngine`): run the connected suite;
       record the engine version (`SELECT sqlite_version()`) and totals per engine, or the
       download blocker honestly.
-- [ ] Emulators shut down afterwards; no user device or data touched.
+- [x] Emulators shut down afterwards; no user device or data touched.
 
 ## Task 3 — Gates, review, evidence and scoped PR
 
 **Files:** `docs/verification/phase-127d-old-engine-export.md`; roadmap + DATA_SAFETY
 updates; handoff addendum; stacked branch + PR.
 
-- [ ] Fresh `testDebugUnitTest --rerun test assembleDebug assembleRelease` at the final head.
-- [ ] Independent scoped review; fix real findings and reverify changed paths.
-- [ ] Diff/secrets check, scoped commits, push, PR; roadmap/phase status updated without
+- [x] Fresh `testDebugUnitTest --rerun test assembleDebug assembleRelease` at the final head.
+- [x] Independent scoped review; fix real findings and reverify changed paths.
+- [x] Diff/secrets check, scoped commits, push, PR; roadmap/phase status updated without
       claiming the full Phase127 release gate.
