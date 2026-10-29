@@ -392,3 +392,37 @@ HTTP body、源码或自定义输入。包内运行数据仍默认写入 `%LOCAL
   不变（`D:\AndroidAppCoding\.worktrees\linux-client`，分支 `codex/linux-client`）。
 
 交接文档状态：本文件已更新至 2026-10-27；第 21–23 节为当前权威，其余章节为历史记录。
+
+## 24. Phase 127C 类型化导入存储错误（2026-10-29，同一会话第二增量，全部为本次验证）
+
+127B 交付后继续推进 Phase 127 剩余范围，本轮完成 127C（RV004–RV006）：
+
+- **缺陷现状（RED 证实）**：`prepareImport` 把暂存临时创建失败（RV004）的原始 `IOException`
+  直接抛出（设置页导入的未捕获崩溃路径）；staged 拷贝（RV005）与 journal 写入（RV006）失败
+  均折叠为 `FILE_REPLACEMENT_FAILURE`，且 journal 写入失败会留下 staged pending 文件，下次
+  启动被孤儿证据阻断而非允许合同要求的重试；`importFrom` 只返回 Boolean，设置页把导入失败
+  显示为导出失败文案。
+- **修复**：`RestoreFailure` 追加 `STORAGE_FULL`/`STORAGE_IO`；纯函数
+  `classifyImportIoFailure` 沿 cause chain 分类（ENOSPC 特征消息 → STORAGE_FULL）；暂存临时
+  创建与输入拷贝接入 `RestoreFileOperations` 注入边界；失败只清理本 run 拥有的产物（无既有
+  journal 才删 pending），重试不再被阻断，预先存在的 staged 导入不被失败尝试破坏；独立审查
+  的 P1（validation 分支漏清理导致 pending-temp 阻断下次启动）已在 `ed7e873` 修复并带回归。
+  `importFrom` 返回完整 `RestoreOutcome`，`BackupResult` 携带类型化 failure，设置页把导入
+  失败映射为稳定重试文案（中英目录各加三个键、真实中文翻译），导出失败文案不再被导入复用。
+  Phase126 分类器与投影未改。
+- **证据**：RED 6 用例 4 失败（含 RV004 崩溃路径）→ 故障套件 8/8、127A 既有 23 例回归无损；
+  独立审查 SPEC PASS / CHANGES_REQUESTED，P1+P2 已修复；最终 HEAD `9253f0d` fresh **845 项
+  单测 / 184 套件 0 失败**、debug/release 构建通过；专用 AVD connected **35/35** 通过。
+  前两次 connected 因模拟器进程死亡中断——根因是两个空闲 Gradle daemon 占用 ~5.3GB 造成宿主
+  内存压力；`gradlew --stop`+taskkill 后清洁重跑通过。已如实记为基础设施失败。
+- **提交与 PR**：`3b66151`（spec）、`ff0c6a3`（plan）、`6d65852`、`545aa77`、`ed7e873`、
+  `9253f0d`（验收文档）。[PR #25](https://github.com/tangyixiao/OJ-NEXUS/pull/25) 已创建：
+  base 为 127B 分支 `codex/phase-127b-generation-admission`（堆叠），head
+  `codex/phase-127c-import-errors`，OPEN、MERGEABLE，未合并。合并链 #20 → #24 → #25。
+- **本轮新增机器本地辅助**：`tools/wait-boot-127b.bat` 已改为 ping 睡眠（timeout /t 在无控制台
+  环境静默失效导致轮询过短误报 BOOT_TIMEOUT）；新增 `tools/summarize-test-xml.py`、
+  `tools/show-failures.py`、`tools/patch-import-tests*.py`（均不入库）。
+
+127C 后 Phase 127 剩余：minSdk 26 旧引擎（SQLite < 3.27）导出兼容策略与真实旧引擎验证、
+整期 release 门禁。未触碰物理设备与真实 ENOSPC 硬件故障（边界注入的 I/O 异常代表 OS 级失败，
+已如实记录）。
