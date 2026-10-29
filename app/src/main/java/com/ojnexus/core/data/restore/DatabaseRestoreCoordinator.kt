@@ -7,12 +7,7 @@ import android.database.sqlite.SQLiteException
 import android.net.Uri
 import com.ojnexus.core.database.OjNexusDatabase
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.nio.file.AtomicMoveNotSupportedException
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption.ATOMIC_MOVE
-import java.nio.file.StandardCopyOption.REPLACE_EXISTING
+import java.io.IOException
 import java.util.Properties
 import java.util.UUID
 
@@ -24,43 +19,103 @@ class DatabaseRestoreCoordinator(
     private val context: Context,
     private val resolver: ContentResolver = context.contentResolver,
 ) {
+    private var files: RestoreFileOperations = SystemRestoreFileOperations
+
+    internal constructor(context: Context, resolver: ContentResolver, files: RestoreFileOperations) : this(context, resolver) {
+        this.files = files
+    }
     fun prepareImport(source: Uri): RestoreOutcome {
         val generation = UUID.randomUUID().toString()
-        val input = File.createTempFile("oj-nexus-import-", ".db", context.cacheDir)
+        // A journal from a previous staged import is never destroyed by this attempt.
+        val hadJournal = journalFile().isFile
         return try {
-            resolver.openInputStream(source)?.use { stream ->
-                FileOutputStream(input).use { output -> stream.copyTo(output) }
-            } ?: return RestoreOutcome.Rejected(RestoreFailure.INVALID_SQLITE)
-            validate(input)
-            atomicReplace(input, pendingTempFile(), RestoreFailure.FILE_REPLACEMENT_FAILURE)
-            atomicReplace(pendingTempFile(), pendingFile(), RestoreFailure.FILE_REPLACEMENT_FAILURE)
-            writeJournal(RestoreJournal(RestoreStage.STAGED, generation, null))
-            RestoreOutcome.Staged(generation)
+            val input = files.createStagingTemp(context.cacheDir)
+            try {
+                resolver.openInputStream(source)?.use { stream ->
+                    files.copyStreamAndSync(stream, input)
+                } ?: return RestoreOutcome.Rejected(RestoreFailure.INVALID_SQLITE)
+                validate(input)
+                atomicReplace(input, pendingTempFile(), RestoreFailure.FILE_REPLACEMENT_FAILURE)
+                atomicReplace(pendingTempFile(), pendingFile(), RestoreFailure.FILE_REPLACEMENT_FAILURE)
+                writeJournal(RestoreJournal(RestoreStage.STAGED, generation, null))
+                RestoreOutcome.Staged(generation)
+            } finally {
+                input.delete()
+            }
         } catch (failure: RestoreValidationException) {
+            cleanupOwnedStaging(hadJournal)
             RestoreOutcome.Rejected(failure.category)
         } catch (_: SQLiteException) {
+            cleanupOwnedStaging(hadJournal)
             RestoreOutcome.Rejected(RestoreFailure.INVALID_SQLITE)
+        } catch (io: IOException) {
+            cleanupOwnedStaging(hadJournal)
+            RestoreOutcome.Rejected(classifyImportIoFailure(io) ?: RestoreFailure.FILE_REPLACEMENT_FAILURE)
         } catch (_: Throwable) {
+            cleanupOwnedStaging(hadJournal)
             RestoreOutcome.Rejected(RestoreFailure.FILE_REPLACEMENT_FAILURE)
-        } finally {
-            input.delete()
         }
     }
 
-    fun restoreBeforeRoomOpen(): RestoreOutcome {
+    /**
+     * Best-effort cleanup of what a failed staging attempt owns (RV004–RV006: artifacts are
+     * not preserved, a retry after freeing space must not be blocked by orphan evidence).
+     * The staged pending file is removed only when this run started without a journal.
+     */
+    private fun cleanupOwnedStaging(hadJournal: Boolean) {
+        runCatching {
+            pendingTempFile().delete()
+            File(journalFile().path + ".tmp").delete()
+            if (!hadJournal) pendingFile().delete()
+        }
+    }
+
+    fun restoreBeforeRoomOpen(): RestoreOutcome = restorePass()
+
+    fun resolveBeforeRoomOpen(): RestoreReadiness = try {
+        val outcome = restorePass()
+        if (outcome is RestoreOutcome.Blocked) {
+            RestoreReadiness.Blocked(outcome.failure, outcome.recovery)
+        } else {
+            val generation = when (outcome) {
+                is RestoreOutcome.Applied -> outcome.generation
+                is RestoreOutcome.RolledBack -> readGeneration() ?: return RestoreReadiness.Blocked(
+                    RestoreFailure.ROLLBACK_FAILURE, RecoveryDisposition.INSPECTION_REQUIRED,
+                )
+                else -> currentDataGeneration()
+            }
+            RestoreReadiness.Ready(outcome, generation)
+        }
+    } catch (_: Throwable) {
+        RestoreReadiness.Blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE, RecoveryDisposition.INSPECTION_REQUIRED)
+    }
+
+    private fun restorePass(): RestoreOutcome {
         val journalFileExists = journalFile().isFile
         val journal = readJournal()
         val pending = pendingFile()
-        if (!journalFileExists && !pending.isFile) return RestoreOutcome.NothingToRestore
+        if (!journalFileExists) {
+            if (pending.isFile) return blocked(RestoreFailure.INTEGRITY_FAILURE)
+            if (recoveryEvidence().any { it.exists() }) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            return RestoreOutcome.NothingToRestore
+        }
         if (journalFileExists && journal == null) {
-            return RestoreOutcome.Rejected(RestoreFailure.INTEGRITY_FAILURE)
+            return blocked(RestoreFailure.INTEGRITY_FAILURE)
         }
 
-        val effectiveJournal = journal ?: RestoreJournal(
-            stage = RestoreStage.STAGED,
-            generation = UUID.randomUUID().toString(),
-            detail = null,
-        )
+        val effectiveJournal = journal ?: return blocked(RestoreFailure.INTEGRITY_FAILURE)
+        when (effectiveJournal.stage) {
+            RestoreStage.SAVING_ROLLBACK -> return abortSaving(effectiveJournal, RestoreFailure.FILE_REPLACEMENT_FAILURE)
+            RestoreStage.ROLLING_BACK -> return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            RestoreStage.INSTALLING -> {
+                if (!hasCompleteRollbackSources()) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+                return restoreRollback(effectiveJournal, RestoreFailure.FILE_REPLACEMENT_FAILURE)
+            }
+            RestoreStage.ROLLED_BACK -> return completeInterruptedJournal(effectiveJournal)
+            else -> Unit
+        }
+        if (effectiveJournal.stage == RestoreStage.SWAPPING &&
+            (splitLegacySources() || !rollbackFile().isFile)) return blocked(RestoreFailure.ROLLBACK_FAILURE)
         val action = decideRestoreRecovery(effectiveJournal, fileState())
         return when (action) {
             RestoreRecoveryAction.APPLY_CANDIDATE -> applyCandidate(effectiveJournal)
@@ -72,6 +127,10 @@ class DatabaseRestoreCoordinator(
             RestoreRecoveryAction.REJECT_STAGING -> rejectStaging(effectiveJournal.detail ?: RestoreFailure.INTEGRITY_FAILURE)
             RestoreRecoveryAction.CLEAR_COMPLETED_ARTIFACTS -> completeInterruptedJournal(effectiveJournal)
             RestoreRecoveryAction.NO_ACTION -> RestoreOutcome.NothingToRestore
+            RestoreRecoveryAction.BLOCK_RECOVERY -> RestoreOutcome.Blocked(
+                RestoreFailure.ROLLBACK_FAILURE,
+                RecoveryDisposition.INSPECTION_REQUIRED,
+            )
         }
     }
 
@@ -86,44 +145,54 @@ class DatabaseRestoreCoordinator(
     }
 
     private fun applyCandidate(journal: RestoreJournal): RestoreOutcome {
-        val pending = pendingFile()
         val originalTargetExisted = targetFile().isFile
+        var savingRollback = false
+        if (journal.stage == RestoreStage.STAGED || journal.stage == RestoreStage.SWAPPING) {
+            if (!stagedOwnershipIsKnown()) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+        }
         return try {
-            validate(pending)
-            writeJournal(journal.copy(stage = RestoreStage.SWAPPING, detail = null))
-            moveLiveFilesToRollback()
-            pending.copyTo(candidateFile(), overwrite = true)
-            sync(candidateFile())
-            atomicMove(candidateFile(), targetFile())
+            validate(pendingFile())
+            if (journal.stage == RestoreStage.STAGED || journal.stage == RestoreStage.SWAPPING) {
+                writeJournal(journal.copy(stage = RestoreStage.SAVING_ROLLBACK, detail = null))
+                savingRollback = true
+                saveLiveFilesToRollback()
+                writeJournal(journal.copy(stage = RestoreStage.INSTALLING, detail = null))
+                savingRollback = false
+            }
+            pendingFile().let { files.copyAndSync(it, candidateFile()) }
+            if (journal.stage == RestoreStage.STAGED || journal.stage == RestoreStage.SWAPPING) {
+                files.deleteChecked(targetWalFile())
+                files.deleteChecked(targetShmFile())
+            }
+            files.atomicReplace(candidateFile(), targetFile())
             validate(targetFile())
-            writeJournal(journal.copy(stage = RestoreStage.APPLIED, detail = null))
-            writeTextAtomically(generationFile(), journal.generation)
-            cleanupRecoveryFiles()
-            journalFile().delete()
-            RestoreOutcome.Applied(journal.generation)
+            finalizeForward(journal)
         } catch (failure: RestoreValidationException) {
-            recoverAfterSwapFailure(journal, failure.category, originalTargetExisted)
+            if (savingRollback) abortSaving(journal, failure.category)
+            else recoverAfterSwapFailure(journal, failure.category, originalTargetExisted)
         } catch (_: SQLiteException) {
-            recoverAfterSwapFailure(journal, RestoreFailure.INVALID_SQLITE, originalTargetExisted)
+            if (savingRollback) abortSaving(journal, RestoreFailure.INVALID_SQLITE)
+            else recoverAfterSwapFailure(journal, RestoreFailure.INVALID_SQLITE, originalTargetExisted)
         } catch (_: Throwable) {
-            recoverAfterSwapFailure(journal, RestoreFailure.FILE_REPLACEMENT_FAILURE, originalTargetExisted)
+            if (savingRollback) abortSaving(journal, RestoreFailure.FILE_REPLACEMENT_FAILURE)
+            else if (hasCompleteRollbackSources()) restoreRollback(journal, RestoreFailure.FILE_REPLACEMENT_FAILURE)
+            else blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE, RecoveryDisposition.RECONCILE_FORWARD_ON_NEXT_START)
         }
     }
 
     private fun validateSwappedTarget(journal: RestoreJournal): RestoreOutcome {
         return try {
             validate(targetFile())
-            writeJournal(journal.copy(stage = RestoreStage.APPLIED, detail = null))
-            writeTextAtomically(generationFile(), journal.generation)
-            cleanupRecoveryFiles()
-            journalFile().delete()
-            RestoreOutcome.Applied(journal.generation)
+            finalizeForward(journal)
         } catch (failure: RestoreValidationException) {
-            restoreRollback(journal, failure.category)
+            if (journal.stage == RestoreStage.SWAPPING) restoreRollback(journal, failure.category)
+            else blocked(failure.category)
         } catch (_: SQLiteException) {
-            restoreRollback(journal, RestoreFailure.INVALID_SQLITE)
+            if (journal.stage == RestoreStage.SWAPPING) restoreRollback(journal, RestoreFailure.INVALID_SQLITE)
+            else blocked(RestoreFailure.INVALID_SQLITE)
         } catch (_: Throwable) {
-            restoreRollback(journal, RestoreFailure.FILE_REPLACEMENT_FAILURE)
+            if (journal.stage == RestoreStage.SWAPPING) restoreRollback(journal, RestoreFailure.FILE_REPLACEMENT_FAILURE)
+            else blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE, RecoveryDisposition.RECONCILE_FORWARD_ON_NEXT_START)
         }
     }
 
@@ -133,49 +202,87 @@ class DatabaseRestoreCoordinator(
         originalTargetExisted: Boolean,
     ): RestoreOutcome {
         if (rollbackFile().isFile) return restoreRollback(journal, failure)
+        if (rollbackWalFile().exists() || rollbackShmFile().exists()) return blocked(RestoreFailure.ROLLBACK_FAILURE)
         // A fresh install has no rollback copy. Never leave a failed candidate at the live path,
         // otherwise the subsequent Room open could crash instead of starting empty.
-        if (!originalTargetExisted) removeLiveFiles()
+        if (!originalTargetExisted) {
+            try {
+                removeLiveFiles()
+            } catch (_: Throwable) {
+                return blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE)
+            }
+        }
         return rejectStaging(failure)
     }
 
     private fun restoreRollback(journal: RestoreJournal, failure: RestoreFailure): RestoreOutcome {
         return try {
-            removeLiveFiles()
-            restoreFile(rollbackFile(), targetFile())
-            restoreFile(rollbackWalFile(), targetWalFile())
-            restoreFile(rollbackShmFile(), targetShmFile())
+            if (!rollbackFile().isFile) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            val oldGeneration = readGeneration() ?: return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            if (oldGeneration == journal.generation) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            writeJournal(journal.copy(stage = RestoreStage.ROLLING_BACK, detail = failure))
+            val pair = listOf(rollbackFile() to targetFile(), rollbackWalFile() to targetWalFile(), rollbackShmFile() to targetShmFile())
+            pair.forEach { (source, destination) ->
+                if (source.isFile) files.copyAndSync(source, rollbackInstallTemp(destination))
+            }
+            pair.forEach { (source, destination) ->
+                if (source.isFile) files.atomicReplace(rollbackInstallTemp(destination), destination)
+                else files.deleteChecked(destination)
+            }
+            validate(targetFile())
             writeJournal(journal.copy(stage = RestoreStage.ROLLED_BACK, detail = failure))
             cleanupRecoveryFiles()
-            journalFile().delete()
-            RestoreOutcome.RolledBack(journal.generation, failure)
+            files.deleteChecked(journalFile())
+            RestoreOutcome.RolledBack(oldGeneration, failure)
         } catch (_: Throwable) {
-            writeJournal(journal.copy(stage = RestoreStage.ROLLED_BACK, detail = RestoreFailure.ROLLBACK_FAILURE))
-            RestoreOutcome.Rejected(RestoreFailure.ROLLBACK_FAILURE)
+            blocked(RestoreFailure.ROLLBACK_FAILURE)
         }
     }
 
     private fun rejectStaging(failure: RestoreFailure): RestoreOutcome {
-        val generation = readJournal()?.generation ?: currentDataGeneration()
-        writeJournal(RestoreJournal(RestoreStage.REJECTED, generation, failure))
-        pendingFile().delete()
-        candidateFile().delete()
-        journalFile().delete()
-        return RestoreOutcome.Rejected(failure)
+        return try {
+            if (rollbackFile().exists() || rollbackWalFile().exists() || rollbackShmFile().exists() ||
+                candidateFile().exists() || recoveryMetadataTemps().any(File::exists)) {
+                return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            }
+            val journal = readJournal() ?: return blocked(RestoreFailure.INTEGRITY_FAILURE)
+            val generation = readGeneration()
+            if (targetFile().isFile) {
+                validate(targetFile())
+                if (generation == null || generation == journal.generation) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            } else if (generation != null || targetWalFile().exists() || targetShmFile().exists()) {
+                return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            }
+            writeJournal(journal.copy(stage = RestoreStage.REJECTED, detail = failure))
+            files.deleteChecked(pendingFile())
+            files.deleteChecked(journalFile())
+            RestoreOutcome.Rejected(failure)
+        } catch (validation: RestoreValidationException) {
+            blocked(validation.category)
+        } catch (_: Throwable) {
+            blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE)
+        }
     }
 
     private fun completeInterruptedJournal(journal: RestoreJournal): RestoreOutcome {
-        cleanupRecoveryFiles()
-        journalFile().delete()
         return when (journal.stage) {
-            RestoreStage.APPLIED -> RestoreOutcome.Applied(journal.generation)
-            RestoreStage.ROLLED_BACK -> RestoreOutcome.RolledBack(
-                journal.generation,
-                journal.detail ?: RestoreFailure.FILE_REPLACEMENT_FAILURE,
-            )
-            RestoreStage.REJECTED -> RestoreOutcome.Rejected(
-                journal.detail ?: RestoreFailure.INTEGRITY_FAILURE,
-            )
+            RestoreStage.APPLIED -> finalizeForward(journal)
+            RestoreStage.ROLLED_BACK -> completeRolledBack(journal)
+            RestoreStage.REJECTED -> try {
+                if (!targetFile().isFile || !readGeneration().let { it != null && it != journal.generation }) {
+                    return blocked(RestoreFailure.ROLLBACK_FAILURE)
+                }
+                validate(targetFile())
+                if (rollbackFile().exists() || rollbackWalFile().exists() || rollbackShmFile().exists() ||
+                    candidateFile().exists() || recoveryMetadataTemps().any(File::exists)) {
+                    return blocked(RestoreFailure.ROLLBACK_FAILURE)
+                }
+                files.deleteChecked(pendingFile())
+                files.deleteChecked(pendingTempFile())
+                files.deleteChecked(journalFile())
+                RestoreOutcome.Rejected(journal.detail ?: RestoreFailure.INTEGRITY_FAILURE)
+            } catch (validation: RestoreValidationException) { blocked(validation.category) }
+              catch (_: Throwable) { blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE) }
             else -> RestoreOutcome.NothingToRestore
         }
     }
@@ -187,30 +294,100 @@ class DatabaseRestoreCoordinator(
         staged = pendingFile().isFile,
     )
 
-    private fun moveLiveFilesToRollback() {
-        moveIfExists(targetFile(), rollbackFile())
-        moveIfExists(targetWalFile(), rollbackWalFile())
-        moveIfExists(targetShmFile(), rollbackShmFile())
+    private fun finalizeForward(journal: RestoreJournal): RestoreOutcome {
+        try { validate(targetFile()) } catch (failure: RestoreValidationException) {
+            return blocked(failure.category, RecoveryDisposition.INSPECTION_REQUIRED)
+        }
+        return try {
+            writeJournal(journal.copy(stage = RestoreStage.APPLIED, detail = null))
+            writeTextAtomically(generationFile(), journal.generation)
+            if (readGeneration() != journal.generation) throw IllegalStateException("Generation readback failed")
+            cleanupRecoveryFiles()
+            files.deleteChecked(journalFile())
+            RestoreOutcome.Applied(journal.generation)
+        } catch (_: Throwable) {
+            blocked(RestoreFailure.FILE_REPLACEMENT_FAILURE, RecoveryDisposition.RECONCILE_FORWARD_ON_NEXT_START)
+        }
+    }
+
+    private fun abortSaving(journal: RestoreJournal, failure: RestoreFailure): RestoreOutcome = try {
+        validate(targetFile())
+        val existingGeneration = readGeneration()
+        if (existingGeneration == null || existingGeneration == journal.generation) {
+            return blocked(RestoreFailure.ROLLBACK_FAILURE)
+        }
+        listOf(rollbackFile(), rollbackWalFile(), rollbackShmFile(), backupTemp(rollbackFile()), backupTemp(rollbackWalFile()), backupTemp(rollbackShmFile()))
+            .forEach(files::deleteChecked)
+        writeJournal(journal.copy(stage = RestoreStage.REJECTED, detail = failure))
+        files.deleteChecked(pendingFile())
+        files.deleteChecked(journalFile())
+        RestoreOutcome.Rejected(failure)
+    } catch (_: Throwable) {
+        blocked(RestoreFailure.ROLLBACK_FAILURE)
+    }
+
+    private fun blocked(
+        failure: RestoreFailure,
+        recovery: RecoveryDisposition = RecoveryDisposition.INSPECTION_REQUIRED,
+    ) = RestoreOutcome.Blocked(failure, recovery)
+
+    private fun readGeneration(): String? = generationFile().takeIf { it.isFile }
+        ?.let { runCatching { it.readText().trim().takeIf(String::isNotEmpty) }.getOrNull() }
+
+    private fun recoveryEvidence(): List<File> = listOf(
+        pendingFile(), pendingTempFile(), candidateFile(), rollbackFile(), rollbackWalFile(), rollbackShmFile(),
+        File(rollbackFile().path + ".tmp"), File(rollbackWalFile().path + ".tmp"), File(rollbackShmFile().path + ".tmp"),
+        rollbackInstallTemp(targetFile()), rollbackInstallTemp(targetWalFile()), rollbackInstallTemp(targetShmFile()),
+        File(journalFile().path + ".tmp"), File(generationFile().path + ".tmp"),
+    )
+
+    private fun stagedOwnershipIsKnown(): Boolean =
+        !candidateFile().exists() && !rollbackFile().exists() && !rollbackWalFile().exists() && !rollbackShmFile().exists() &&
+            recoveryMetadataTemps().none(File::exists) &&
+            (targetFile().isFile || (!targetWalFile().exists() && !targetShmFile().exists()))
+
+    private fun recoveryMetadataTemps(): List<File> = listOf(
+        backupTemp(rollbackFile()), backupTemp(rollbackWalFile()), backupTemp(rollbackShmFile()),
+        rollbackInstallTemp(targetFile()), rollbackInstallTemp(targetWalFile()), rollbackInstallTemp(targetShmFile()),
+        File(journalFile().path + ".tmp"), File(generationFile().path + ".tmp"), pendingTempFile(),
+    )
+
+    private fun hasCompleteRollbackSources(): Boolean = rollbackFile().isFile &&
+        (!targetWalFile().exists() || rollbackWalFile().isFile) &&
+        (!targetShmFile().exists() || rollbackShmFile().isFile)
+
+    private fun completeRolledBack(journal: RestoreJournal): RestoreOutcome {
+        if (journal.detail == RestoreFailure.ROLLBACK_FAILURE) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+        return try {
+            validate(targetFile())
+            val oldGeneration = readGeneration() ?: return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            if (oldGeneration == journal.generation) return blocked(RestoreFailure.ROLLBACK_FAILURE)
+            cleanupRecoveryFiles()
+            files.deleteChecked(journalFile())
+            RestoreOutcome.RolledBack(oldGeneration, journal.detail ?: RestoreFailure.FILE_REPLACEMENT_FAILURE)
+        } catch (_: Throwable) { blocked(RestoreFailure.ROLLBACK_FAILURE) }
+    }
+
+    private fun backupTemp(file: File) = File(file.path + ".tmp")
+    private fun rollbackInstallTemp(file: File) = File(file.path + ".restore-rollback-install")
+
+    private fun splitLegacySources(): Boolean =
+        (targetFile().isFile && !rollbackFile().isFile && (rollbackWalFile().isFile || rollbackShmFile().isFile)) ||
+            (!targetFile().isFile && rollbackFile().isFile && (targetWalFile().isFile || targetShmFile().isFile))
+
+    private fun saveLiveFilesToRollback() {
+        listOf(targetFile() to rollbackFile(), targetWalFile() to rollbackWalFile(), targetShmFile() to rollbackShmFile())
+            .forEach { (source, destination) -> if (source.isFile) files.copyAndSync(source, backupTemp(destination)).also { files.atomicReplace(backupTemp(destination), destination) } }
     }
 
     private fun removeLiveFiles() {
-        targetFile().delete()
-        targetWalFile().delete()
-        targetShmFile().delete()
-    }
-
-    private fun restoreFile(source: File, target: File) {
-        if (!source.isFile) return
-        atomicMove(source, target)
+        files.deleteChecked(targetFile())
+        files.deleteChecked(targetWalFile())
+        files.deleteChecked(targetShmFile())
     }
 
     private fun cleanupRecoveryFiles() {
-        pendingFile().delete()
-        pendingTempFile().delete()
-        candidateFile().delete()
-        rollbackFile().delete()
-        rollbackWalFile().delete()
-        rollbackShmFile().delete()
+        recoveryEvidence().forEach(files::deleteChecked)
     }
 
     private fun validate(file: File) {
@@ -275,41 +452,23 @@ class DatabaseRestoreCoordinator(
             setProperty("generation", journal.generation)
             journal.detail?.let { setProperty("detail", it.name) }
         }
-        temp.outputStream().use { properties.store(it, null) }
-        sync(temp)
-        atomicMove(temp, journalFile())
+        val out = java.io.ByteArrayOutputStream().apply { properties.store(this, null) }.toByteArray()
+        files.writeAndSync(temp, out)
+        files.atomicReplace(temp, journalFile())
     }
 
     private fun writeTextAtomically(file: File, text: String) {
         val temp = File(file.path + ".tmp")
-        temp.writeText(text)
-        sync(temp)
-        atomicMove(temp, file)
+        files.writeAndSync(temp, text.toByteArray(Charsets.UTF_8))
+        files.atomicReplace(temp, file)
     }
 
     private fun atomicReplace(source: File, target: File, failure: RestoreFailure) {
         try {
-            atomicMove(source, target)
+            files.atomicReplace(source, target)
         } catch (_: Throwable) {
             throw RestoreValidationException(failure)
         }
-    }
-
-    private fun atomicMove(source: File, target: File) {
-        target.parentFile?.mkdirs()
-        try {
-            Files.move(source.toPath(), target.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
-        } catch (_: AtomicMoveNotSupportedException) {
-            throw RestoreValidationException(RestoreFailure.FILE_REPLACEMENT_FAILURE)
-        }
-    }
-
-    private fun moveIfExists(source: File, target: File) {
-        if (source.isFile) atomicMove(source, target)
-    }
-
-    private fun sync(file: File) {
-        FileOutputStream(file, true).use { it.fd.sync() }
     }
 
     private fun targetFile(): File = context.getDatabasePath(OjNexusDatabase.DATABASE_NAME)

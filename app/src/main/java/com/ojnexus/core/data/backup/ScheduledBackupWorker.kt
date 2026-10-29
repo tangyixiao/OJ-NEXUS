@@ -6,7 +6,10 @@ import android.provider.DocumentsContract
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.ojnexus.OjNexusApplication
+import com.ojnexus.app.NexusStartupState
 import com.ojnexus.core.data.repository.BackupRepository
+import com.ojnexus.core.data.restore.RestoreWorkDecision
+import com.ojnexus.core.data.restore.decideRestoreWorkGeneration
 import com.ojnexus.core.data.preferences.UserPreferencesRepository
 import java.time.Instant
 import java.time.LocalDateTime
@@ -24,6 +27,22 @@ class ScheduledBackupWorker(
 ) : CoroutineWorker(context, parameters) {
 
     override suspend fun doWork(): Result {
+        val application = applicationContext as? OjNexusApplication ?: return Result.failure()
+        val container = when (val state = application.startupState) {
+            NexusStartupState.Starting -> return Result.retry()
+            is NexusStartupState.Blocked -> return Result.failure(androidx.work.workDataOf("result" to "RECOVERY_BLOCKED"))
+            is NexusStartupState.Ready -> state.container
+        }
+        // Phase 127B: refuse queued backups captured under another (or no) generation before
+        // any preference read or export; the next ready start re-stamps the periodic entry.
+        val stamp = inputData.getString(DATA_GENERATION)?.trim()?.takeIf { it.isNotEmpty() }
+        when (decideRestoreWorkGeneration(stamp, container.currentDataGeneration())) {
+            RestoreWorkDecision.STALE ->
+                return Result.success(androidx.work.workDataOf(RESULT_KEY to STALE_RESULT))
+            RestoreWorkDecision.LEGACY ->
+                return Result.success(androidx.work.workDataOf(RESULT_KEY to UNSTAMPED_RESULT))
+            RestoreWorkDecision.PROCEED -> Unit
+        }
         val repository = UserPreferencesRepository(applicationContext)
         val preferences = repository.preferences.first()
         val treeUri = preferences.backupTreeUri
@@ -33,8 +52,6 @@ class ScheduledBackupWorker(
         }
         val startedAt = System.currentTimeMillis()
         val exported = runCatching {
-            val container = (applicationContext as? OjNexusApplication)?.container
-                ?: return@runCatching false
             exportToTree(
                 context = applicationContext,
                 treeUri = treeUri,
@@ -50,6 +67,10 @@ class ScheduledBackupWorker(
         private val NAME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
         const val NAME_PREFIX = "oj-nexus-auto-"
         const val NAME_SUFFIX = ".zip"
+        const val DATA_GENERATION = "data_generation"
+        const val RESULT_KEY = "result"
+        const val STALE_RESULT = "STALE_DATA_GENERATION"
+        const val UNSTAMPED_RESULT = "UNSTAMPED_DATA_GENERATION"
 
         /** Dated archive name; the timestamp sorts lexically for pruning. */
         fun autoBackupName(atEpochMs: Long, zone: ZoneId = ZoneId.systemDefault()): String =

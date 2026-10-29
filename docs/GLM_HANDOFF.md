@@ -1,7 +1,14 @@
 # OJ NEXUS 交接文档（给 GLM）
 
-更新时间：2026-09-13（第六轮：Windows 自包含包交付验收）  
+更新时间：2026-10-27（第七轮：Phase 127B 严格后台任务代际准入交付并完成交接）
+
 工作区：`D:\AndroidAppCoding`
+
+> **当前状态速览（2026-10-27，以本节和第 21–23 节为准）：** 主 checkout 分支
+> `codex/phase-127-recovery-safety`，本地 HEAD 为包含本交接文档的交付提交（127B 验收文档
+> 提交为 `ce582ef`）。Phase 121/122/126 已 VERIFIED，127A（PR #20）与 127B（PR #24）已
+> 验收、均未合并，Phase 127 整期仍 ACTIVE。第 2–20 节是历史记录，checkout/分支描述已过时，
+> 不要当作当前事实。
 
 ## 1. 先读这段
 
@@ -285,3 +292,206 @@ HTTP body、源码或自定义输入。包内运行数据仍默认写入 `%LOCAL
 
 当前仍未执行 GitHub runner、Windows installer/签名/商店发布，也未对 Linux 未提交 worktree 做任何
 提交或合并操作。
+
+## 21. Phase 121–127A 台账（2026-09-13 之后至本轮之前的历史证据）
+
+第 20 节之后的开发已迁移到 `docs/LONG_RANGE_PLAN_121_220.md` 的 100 期规划与
+`docs/verification/*` 验收记录体系；以下仅是索引，全部为**历史证据**，细节以各 verification
+文档为准，不要在本轮复述为本次验证：
+
+- Phase 121（四端能力台账）与 Phase 126（恢复故障向量，PR #19）：VERIFIED，见
+  `docs/verification/phase-121-baseline.md`、`phase-126-recovery-vectors.md`。
+- Phase 122（Android 回归基线，PR #14/#15/#18）：VERIFIED（API 37 模拟器范围），见
+  `docs/verification/phase-122-android.md`。
+- Phase 123（Windows）/124（Linux 集成，PR #16）/125（Apple）：ACTIVE/ACTIVE/BLOCKED（缺
+  macOS 宿主），见各自 verification 文档。
+- Phase 127A（恢复源保留与启动拦截）：验收完成于 2026-10-24，提交 `690b5f5`，829 项单测 +
+  35 项 connected + 专用 AVD 阻断验收，[PR #20](https://github.com/tangyixiao/OJ-NEXUS/pull/20)
+  已创建未合并，见 `docs/verification/phase-127a-recovery-safety.md`。主 checkout 曾迁至
+  `codex/phase-127-android-base` → `codex/phase-127-recovery-safety` 工作线。
+
+本轮开始时的工作区边界：主 checkout 分支 `codex/phase-127-recovery-safety`，HEAD `5c6a6e7`
+（127A 交付提交），工作树干净（仅一个未跟踪的用户文件 `SHA256SUMS`，本轮未触碰、未提交）。
+
+## 22. Phase 127B 严格后台任务代际准入（2026-10-27，本次继续开发，全部为本次验证）
+
+本轮依据 RV022（`contracts/recovery/v1`：缺失代次的工作 `originating_work_may_write=false`，
+须"reconcile and requeue with explicit current generation"）补齐 127A 留下的缺口：分类器
+`decideRestoreWorkGeneration` 与 `RestoreWorkDecision` 值**未改**（Phase126 合同投影不动），
+只改了消费策略：
+
+- 三个 worker（JudgeSyncWorker、LuoguOpenResultWorker、ScheduledBackupWorker）只放行与进程
+  代次**精确一致**的戳记；stale 拒绝返回 `STALE_DATA_GENERATION`，缺失/空白戳记拒绝返回
+  `UNSTAMPED_DATA_GENERATION`，均在业务 I/O 之前。sync 拒绝写入 `STALE_GENERATION` 台账
+  （unstamped 记空代次）；Luogu 拒绝不动 Room；备份拒绝不动偏好/不导出。
+- `ScheduledBackupScheduler.update` 现在把当前代次写进 periodic 请求输入；Judge periodic 与
+  备份 periodic 都改用 `ExistingPeriodicWorkPolicy.UPDATE`，每次就绪启动由 bootstrap 重新
+  戳记队列——严格拒绝不会把升级/恢复后的后台同步永久卡死。
+- 提交：`c44c200`（spec）、`bedcbd8`（plan）、`e468fee`（实现，6 文件）、`ce582ef`（证据与
+  roadmap/DATA_SAFETY）。文档：`docs/superpowers/specs/2026-10-27-phase-127b-worker-generation-design.md`、
+  `docs/superpowers/plans/2026-10-27-phase-127b-worker-generation.md`、
+  `docs/verification/phase-127b-worker-generation.md`。
+
+本次验证证据（全部本轮新跑）：
+
+- RED：实现前 focused 跑 `RecoveryGenerationAdmissionTest`，5 用例 4 失败，恰好命中四个现状
+  缺陷（unstamped sync 放行、`recordStaleGeneration(null)` 不记录、unstamped Luogu 放行、
+  备份无视戳记）；stale 回归锚已绿。
+- GREEN：实现后同套件 6/6；focused 合计 8 套件 / 22 测试 0 失败。
+- 全量门禁 `tools\gradlew-local.bat testDebugUnitTest --rerun test assembleDebug assembleRelease`：
+  BUILD SUCCESSFUL 3m15s；XML 合计 **835 测试 / 182 套件，0 失败/错误/跳过**（127A 基线为
+  829/181）。仅剩两条既有 JVM 警告（Conscrypt native access、DataStore/protobuf Unsafe），
+  无新增生产编译警告。
+- connected：专用 AVD `OJNexus_Phase127_Temp` 在本机已不存在，用同一镜像
+  （android-37.1 google_apis_playstore_ps16k x86_64、pixel_7）重建，串号 `emulator-5582`。
+  第一次运行中模拟器进程死亡（28/35 中断，1 条空记录失败，无 message/stack），已如实记为
+  基础设施失败；清洁重启后重跑 **35 测试 / 11 套件，0 失败**，BUILD SUCCESSFUL 1m23s。
+  跑完已 `adb emu kill`，adb 设备清空；未触碰任何物理设备与用户数据。
+- [PR #24](https://github.com/tangyixiao/OJ-NEXUS/pull/24) 已创建：base
+  `codex/phase-127-recovery-safety`（即 PR #20 的 127A 分支，堆叠 PR，只含 4 个 127B 提交），
+  head `codex/phase-127b-generation-admission`，OPEN、MERGEABLE，未合并。
+
+本轮未做：物理设备、真实断电、127C 类型化导入存储错误（RV004 ENOSPC/IO）、minSdk 26 旧引擎
+导出兼容、全 Phase 127 release 门禁。`ExistingPeriodicWorkPolicy.KEEP→UPDATE` 的队列替换本身
+没有 WorkManager 集成测试（未新增 work-testing 依赖），其安全网（stale/unstamped 拒绝）已被
+测试覆盖——均已在 evidence 文档如实记录。
+
+## 23. 当前 checkout / 分支 / PR 布局与剩余阻塞（2026-10-27 交接完成）
+
+分支与远端布局（本轮结束时）：
+
+- 独立定向审查（针对 `c44c200..62ce918`）：SPEC PASS / QUALITY APPROVED，0 个 P0/P1、3 个
+  P2；三个 P2（companion 常量缩进回归、调度器不安全 `as` 转换、unstamped worker 未在
+  worker 层钉住空代次台账行）已在 `51145ab` 修复并复跑 admission 套件 6/6。PR #24 最终含
+  6 个提交（spec/plan/实现/验收文档/交接文档/审查修复）。
+- 本地 `codex/phase-127-recovery-safety` 与远端 `origin/codex/phase-127b-generation-admission`
+  的提交链（自 `5c6a6e7` 起）：`c44c200` → `bedcbd8` → `e468fee` → `ce582ef` → 交接文档提交 →
+  `51145ab`（审查修复）。远端 `origin/codex/phase-127-recovery-safety` 仍停在 `5c6a6e7`
+  （PR #20 的 head 不变，范围保持 127A）。**不要把本地 recovery-safety 分支再推到远端**，
+  否则 PR #20 范围会混入 127B 与交接内容。
+- 本轮 shell 为 cmd（不是 PowerShell/Git Bash）：`;` 不会分隔命令（用 `&&`）；
+  `timeout /t` 在无控制台输入时报"输入重定向"错误（改用 `ping -n N 127.0.0.1 >nul`）。
+- 本机全局 `ANDROID_SDK_ROOT` 指向失效路径 `D:\rea\tools\android-sdk`：直接启动 emulator
+  会报 "Broken AVD system path"，启动命令必须前置
+  `set ANDROID_SDK_ROOT=D:\Android && set ANDROID_AVD_HOME=D:\avd`；gradle 侧读
+  `local.properties` 不受影响。后台任务方式启动模拟器在本轮可靠（`run_in_background`），
+  MCP android-emulator 插件的 start_emulator 在 30 秒工具超时内起不来。
+- 本轮新增两个未提交的机器本地辅助：`tools/summarize-test-xml.py`（汇总 JUnit XML 计数）、
+  `tools/wait-boot-127b.bat`（等待模拟器 boot_completed），与 `tools/gradlew-local.bat`
+  同类，不入库。
+- GitHub 推送：本机 SSH（git@github.com，经 ssh.github.com:443 的 fake-IP 代理）被断连；
+  `git push https://github.com/tangyixiao/OJ-NEXUS.git <branch>` 与 `gh` CLI（已认证）可用。
+
+剩余阻塞（接替第 8/20 节的旧清单）：
+
+- Android：Phase 127C 类型化导入存储错误、minSdk 26 旧引擎（SQLite < 3.27）导出兼容策略与
+  真实旧引擎验证、全 Phase 127 release 门禁；PR #20/#24（及上游 #14/#15/#18/#19）均未合并。
+- Phase 123（Windows 干净 VM 安装）、124（Linux Qt 桌面/干净主机安装）、125（Apple，缺
+  macOS/iOS 宿主）仍按各自 verification 文档处于 ACTIVE/BLOCKED。
+- 主工作区遗留用户未跟踪文件 `SHA256SUMS`（内容为空），本轮未动；Linux 独立 worktree 边界
+  不变（`D:\AndroidAppCoding\.worktrees\linux-client`，分支 `codex/linux-client`）。
+
+交接文档状态：本文件已更新至 2026-10-27；第 21–23 节为当前权威，其余章节为历史记录。
+
+## 24. Phase 127C 类型化导入存储错误（2026-10-29，同一会话第二增量，全部为本次验证）
+
+127B 交付后继续推进 Phase 127 剩余范围，本轮完成 127C（RV004–RV006）：
+
+- **缺陷现状（RED 证实）**：`prepareImport` 把暂存临时创建失败（RV004）的原始 `IOException`
+  直接抛出（设置页导入的未捕获崩溃路径）；staged 拷贝（RV005）与 journal 写入（RV006）失败
+  均折叠为 `FILE_REPLACEMENT_FAILURE`，且 journal 写入失败会留下 staged pending 文件，下次
+  启动被孤儿证据阻断而非允许合同要求的重试；`importFrom` 只返回 Boolean，设置页把导入失败
+  显示为导出失败文案。
+- **修复**：`RestoreFailure` 追加 `STORAGE_FULL`/`STORAGE_IO`；纯函数
+  `classifyImportIoFailure` 沿 cause chain 分类（ENOSPC 特征消息 → STORAGE_FULL）；暂存临时
+  创建与输入拷贝接入 `RestoreFileOperations` 注入边界；失败只清理本 run 拥有的产物（无既有
+  journal 才删 pending），重试不再被阻断，预先存在的 staged 导入不被失败尝试破坏；独立审查
+  的 P1（validation 分支漏清理导致 pending-temp 阻断下次启动）已在 `ed7e873` 修复并带回归。
+  `importFrom` 返回完整 `RestoreOutcome`，`BackupResult` 携带类型化 failure，设置页把导入
+  失败映射为稳定重试文案（中英目录各加三个键、真实中文翻译），导出失败文案不再被导入复用。
+  Phase126 分类器与投影未改。
+- **证据**：RED 6 用例 4 失败（含 RV004 崩溃路径）→ 故障套件 8/8、127A 既有 23 例回归无损；
+  独立审查 SPEC PASS / CHANGES_REQUESTED，P1+P2 已修复；最终 HEAD `9253f0d` fresh **845 项
+  单测 / 184 套件 0 失败**、debug/release 构建通过；专用 AVD connected **35/35** 通过。
+  前两次 connected 因模拟器进程死亡中断——根因是两个空闲 Gradle daemon 占用 ~5.3GB 造成宿主
+  内存压力；`gradlew --stop`+taskkill 后清洁重跑通过。已如实记为基础设施失败。
+- **提交与 PR**：`3b66151`（spec）、`ff0c6a3`（plan）、`6d65852`、`545aa77`、`ed7e873`、
+  `9253f0d`（验收文档）。[PR #25](https://github.com/tangyixiao/OJ-NEXUS/pull/25) 已创建：
+  base 为 127B 分支 `codex/phase-127b-generation-admission`（堆叠），head
+  `codex/phase-127c-import-errors`，OPEN、MERGEABLE，未合并。合并链 #20 → #24 → #25。
+- **本轮新增机器本地辅助**：`tools/wait-boot-127b.bat` 已改为 ping 睡眠（timeout /t 在无控制台
+  环境静默失效导致轮询过短误报 BOOT_TIMEOUT）；新增 `tools/summarize-test-xml.py`、
+  `tools/show-failures.py`、`tools/patch-import-tests*.py`（均不入库）。
+
+127C 后 Phase 127 剩余：minSdk 26 旧引擎（SQLite < 3.27）导出兼容策略与真实旧引擎验证、
+整期 release 门禁。未触碰物理设备与真实 ENOSPC 硬件故障（边界注入的 I/O 异常代表 OS 级失败，
+已如实记录）。
+
+## 25. Phase 127D 旧引擎导出兼容（2026-10-30，同一会话第三增量，全部为本次验证）
+
+127C 交付后继续推进 Phase 127 最后一项功能缺口（minSdk 26 旧引擎导出兼容）：
+
+- **缺陷现状（真实旧引擎 RED 证实）**：导出走 `VACUUM INTO`（需 SQLite ≥ 3.27），API 26–28
+  设备（SQLite 3.18–3.22）导出直接失败（`IllegalStateException` fail-closed）。在本机下载
+  `system-images;android-27;default;x86_64`（远端无该 API 的 google_apis x86_64 变体）并建专用
+  AVD `OJNexus_Phase127_OldEngine`（SQLite 3.19.4，emulator-5584）后，修复前 connected 测试以
+  `export failed on engine 3.19.4` 失败——真实旧引擎的 RED。
+- **策略与实现**：导出按 `SELECT sqlite_version()` 门控（`SqliteVersion` 纯解析，畸形版本安全
+  退到回退路径）。≥3.27 保持 VACUUM INTO 不变；<3.27 走检查点拷贝回退：专用连接无事务执行
+  `wal_checkpoint(TRUNCATE)`（busy==0 且 -wal 归零为完成证明；SQLite 禁止同连接事务内 checkpoint
+  ——原 spec 的 BEGIN EXCLUSIVE 序列不可行，已在 spec 修订注记公开）、读事务物化后拷贝主文件
+  （WAL 写者只追加 -wal；回滚模式写者被 SHARED 锁阻塞）、写连接 autocheckpoint 读改写恢复。
+  全进程 `mainFileRewriteLock` 同时串行化维护 VACUUM（独立审查 P1：其 TRUNCATE checkpoint 会
+  在拷贝窗口改写主文件）。双路径导出前均跑 schema/quick_check/integrity_check/必需表校验，
+  失败销毁暂存、导出 fail-closed。
+- **证据**：真实旧引擎 RED→GREEN（同测试同引擎）；独立审查 SPEC FAIL/CHANGES_REQUESTED 的
+  P1+全部 P2 已在 `b226160` 修复（含非 WAL 低内存设备的读事务保护、connected 测试 WAL 驻留
+  前置断言、异常安全 close）；最终 HEAD `ac48f19` fresh **848 项单测/185 套件 0 失败**，
+  debug/release 构建通过；**双引擎全套 connected 各 36/36**（API 37.1=VACUUM 路径、API 27=回退
+  路径，各含 35 既有用例 + 新导出用例）。两次中间全套运行因模拟器死亡中断（同一 Gradle daemon
+  内存压力模式），清理后清洁重跑通过，已如实记为基础设施失败。
+- **提交与 PR**：`803b6cc`（spec）、`b97c4b7`（plan）、`9088ee1`、`de8914e`、`b226160`、
+  `ac48f19`。[PR #26](https://github.com/tangyixiao/OJ-NEXUS/pull/26) 已创建：base 为 127C 分支
+  `codex/phase-127c-import-errors`（堆叠），head `codex/phase-127d-old-engine-export`，OPEN、
+  MERGEABLE，未合并。合并链 #20 → #24 → #25 → #26。
+- **本轮新增机器知识**：旧引擎镜像需用 `system-images;android-27;default;x86_64`（google_apis
+  x86_64 变体远端不存在）；androidTest 方法名不能含空格（D8 拒绝）；`wal_checkpoint(TRUNCATE)`
+  不能在自身事务内执行（SQLITE_LOCKED，框架包装为 SQLiteTableLockedException）。
+
+Phase 127 至此仅剩**整期 release 门禁**（版本号决定、release note、签名构建、设备验收——
+需用户决定版本与发布节奏）。功能验收项 127A–127D 全部完成；无新 release，整期保持 ACTIVE
+直至 release 门禁通过。
+
+## 26. Phase 127 整期 release 门禁（v1.0.4，2026-10-30，本次执行，GitHub 发布留待用户）
+
+127D 交付后按用户指示启动 Phase 127 整期 release 门禁，全部本地门禁通过：
+
+- **版本递增**：沿用每交付批次 +0.0.1/versionCode+1 的规则（1.0.0 code102 → 1.0.3 code105），
+  本次 cut **v1.0.4 / versionCode 106**。发布分支 `codex/release-v1.0.4`（自 127D head
+  `756d8f4` 切出），版本 bump 提交 `5909b2e`。
+- **完整门禁（全部本次新跑）**：
+  - `tools\gradlew-local.bat testDebugUnitTest --rerun test assembleDebug assembleRelease`：
+    BUILD SUCCESSFUL 2m18s，**848 项单测/185 套件 0 失败/错误/跳过**；仅两条既有 JVM 警告。
+  - 本地化：`tools/check-localization.ps1` → **KEY PARITY EN=1026 ZH=1026、0 硬编码文案**。
+  - 可复现构建：`tools/check-reproducible-build.ps1` 两次干净 release pass 同哈希
+    **`67BDB719DF760C979C2A619566601F5EF944AA6EB0FF725CEB2723369D5A26F6`**。
+  - connected：专用 API37.1 AVD（emulator-5582）全套 **36 测试/12 套件 0 失败**
+    （35 既有 + 新引擎导出用例）；API27 旧引擎 36/36 见第 25 节。
+- **签名与核对**：`assembleRelease` 无签名产物在**仓库外**用本机标准 debug keystore 经
+  apksigner 签名（**v2+v3 校验通过**），安装回专用 AVD：系统读回
+  `versionCode=106 / versionName=1.0.4`，冷启动 `com.ojnexus/.MainActivity` PID 存活、
+  logcat **0 条 FATAL EXCEPTION/AndroidRuntime**。签名 APK SHA-256
+  `C916081B0F9FF89B1F282E227D643A21D1A511A6012CEA57FF7ECD350729601F` 记入
+  `docs/releases/SHA256SUMS-v1.0.4.txt`（格式同历史文件；密钥与 APK 均未入库，APK 留在
+  `%TEMP%` 供用户上传 release）。
+- **发布记录**：`docs/releases/v1.0.4.md`（127A–127D 变更清单 + 质量姿态 + 台账）；
+  README Status 更新（release gate passed、GitHub 发布待用户决定）；roadmap Phase 127 标记
+  **VERIFIED** 并新增 Release 门禁行。
+- **交接与 PR**：发布分支已推送并建
+  [PR #27](https://github.com/tangyixiao/OJ-NEXUS/pull/27)（base main，包含 127A–127D 与
+  release 收口全部提交——注意它同时携带未合并的 #20/#24/#25/#26 内容，合并即整链入 main）。
+  **GitHub release 发布、tag 推送与 PR 合并决定留待用户确认**，本轮未执行。
+
+用户决策点：合并 PR #27（整链入 main）→ 打 tag `v1.0.4` → 上传 `%TEMP%\OJ-NEXUS-v1.0.4.apk`
+与 SHA256SUMS 作为 GitHub release 资产。签名材料从未离开本机 keystore；如需正式签名
+（非 debug keystore），需用户提供发布密钥或沿用 CI secrets 流程。

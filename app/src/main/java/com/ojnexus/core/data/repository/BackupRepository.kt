@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.ojnexus.core.data.backup.ManifestTableCount
 import com.ojnexus.core.data.backup.SnapshotConflictReport
 import com.ojnexus.core.data.backup.SnapshotConflictRow
@@ -12,13 +13,22 @@ import com.ojnexus.core.data.backup.SnapshotManifest
 import com.ojnexus.core.data.backup.SnapshotManifestCodec
 import com.ojnexus.core.data.restore.DatabaseRestoreCoordinator
 import com.ojnexus.core.data.restore.RestoreOutcome
+import com.ojnexus.core.database.OjNexusDatabase
 import java.io.File
 import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+
+/**
+ * Serialises operations that rewrite the main database file: the old-engine fallback export
+ * copy and the maintenance VACUUM's checkpoint. Both run on Dispatchers.IO in this process.
+ */
+internal val mainFileRewriteLock = Mutex()
 
 /**
  * Exports the local Room database and stages imports for pre-Room atomic restoration.
@@ -29,7 +39,22 @@ import kotlinx.coroutines.withContext
 class BackupRepository(
     private val database: RoomDatabase,
     private val context: Context,
+    engineSupportsVacuumInto: (() -> Boolean)? = null,
 ) {
+    /**
+     * Phase 127D: `VACUUM INTO` needs SQLite 3.27+ (API 29+). Older minSdk-26 engines use
+     * the exclusive-checkpoint fallback instead. Injectable so tests can force either path.
+     */
+    private val supportsVacuumInto: () -> Boolean =
+        engineSupportsVacuumInto
+            ?: { SqliteVersion.parse(readEngineVersion()) >= VACUUM_INTO_MIN_VERSION }
+
+    private fun readEngineVersion(): String =
+        database.openHelper.writableDatabase
+            .query("SELECT sqlite_version()").use { cursor ->
+                cursor.moveToFirst()
+                cursor.getString(0)
+            }
     suspend fun exportTo(resolver: ContentResolver, destination: Uri): Boolean =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -73,19 +98,23 @@ class BackupRepository(
             }.isSuccess
         }
 
-    suspend fun importFrom(resolver: ContentResolver, source: Uri): Boolean =
+    /**
+     * Stages a snapshot or legacy database import through the restore coordinator and returns
+     * the full typed outcome (Phase 127C), so storage failures reach the UI as categories.
+     */
+    suspend fun importFrom(resolver: ContentResolver, source: Uri): RestoreOutcome =
         withContext(Dispatchers.IO) {
             val extracted = extractSnapshotDatabase(resolver, source)
             if (extracted != null) {
                 val extractedUri = Uri.fromFile(extracted)
                 try {
                     return@withContext DatabaseRestoreCoordinator(context, resolver)
-                        .prepareImport(extractedUri) is RestoreOutcome.Staged
+                        .prepareImport(extractedUri)
                 } finally {
                     extracted.delete()
                 }
             }
-            DatabaseRestoreCoordinator(context, resolver).prepareImport(source) is RestoreOutcome.Staged
+            DatabaseRestoreCoordinator(context, resolver).prepareImport(source)
         }
 
     /**
@@ -233,58 +262,139 @@ class BackupRepository(
     }
 
     private fun countTables(snapshot: File): List<ManifestTableCount> {
-        val opened: SQLiteDatabase? = runCatching {
-            SQLiteDatabase.openDatabase(snapshot.path, null, SQLiteDatabase.OPEN_READONLY)
-        }.getOrNull()
-        // When the standalone snapshot cannot be opened (some embedded SQLite builds refuse
-        // files they did not create themselves), the counts come from the live database,
-        // which the truncate checkpoint in createSnapshotFile just made consistent.
-        val counts = mutableListOf<ManifestTableCount>()
-        if (opened != null) {
-            REQUIRED_TABLES.forEach { table ->
-                opened.rawQuery("SELECT COUNT(*) FROM \"$table\"", null).use { cursor ->
-                    val rows = if (cursor.moveToFirst()) cursor.getInt(0) else 0
-                    counts += ManifestTableCount(table, rows)
-                }
+        val opened = SQLiteDatabase.openDatabase(snapshot.path, null, SQLiteDatabase.OPEN_READONLY)
+        return opened.use { standalone ->
+            val integrity = standalone.rawQuery("PRAGMA integrity_check", null).use { cursor ->
+                check(cursor.moveToFirst()) { "snapshot integrity check returned no result" }
+                cursor.getString(0)
             }
-            opened.close()
-        } else {
-            val live = database.openHelper.writableDatabase
-            REQUIRED_TABLES.forEach { table ->
-                live.query("SELECT COUNT(*) FROM \"$table\"").use { cursor ->
-                    val rows = if (cursor.moveToFirst()) cursor.getInt(0) else 0
-                    counts += ManifestTableCount(table, rows)
+            check(integrity.equals("ok", ignoreCase = true)) {
+                "snapshot integrity check failed: $integrity"
+            }
+            check(standalone.version == schemaVersion()) {
+                "snapshot schema version does not match the active database"
+            }
+            REQUIRED_TABLES.map { table ->
+                val rows = standalone.rawQuery("SELECT COUNT(*) FROM \"$table\"", null).use { cursor ->
+                    check(cursor.moveToFirst()) { "snapshot count query returned no result for $table" }
+                    cursor.getInt(0)
                 }
+                ManifestTableCount(table, rows)
             }
         }
-        return counts
     }
 
-    private fun createSnapshotFile(): File {
-        // A truncate checkpoint makes the copied main file self-contained even when Room
-        // opened the database in production WAL mode.
-        database.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { }
+    private suspend fun createSnapshotFile(): File {
+        val live = database.openHelper.writableDatabase
         val snapshot = File.createTempFile(
-            "oj-nexus-export-${UUID.randomUUID()}-",
+            "ojn-${UUID.randomUUID().toString().take(8)}-",
             ".db",
             context.cacheDir,
         ).also { it.delete() }
-        val escapedPath = snapshot.absolutePath.replace("\\", "/").replace("'", "''")
-        val vacuumed = runCatching {
-            database.openHelper.writableDatabase
-                .query("VACUUM INTO '$escapedPath'")
-                .use { }
-            snapshot.isFile
-        }.getOrDefault(false)
-        if (!vacuumed) {
-            // Older SQLite builds do not implement VACUUM INTO. The truncate
-            // checkpoint above leaves a safe main-file snapshot for those builds.
-            val source = File(requireNotNull(database.openHelper.writableDatabase.path))
-            require(source.isFile) { "database file unavailable" }
-            source.copyTo(snapshot, overwrite = true)
+        try {
+            if (supportsVacuumInto()) {
+                val escapedPath = snapshot.absolutePath.replace("\\", "/").replace("'", "''")
+                // VACUUM INTO reads through SQLite's live connection and creates a self-contained
+                // database. If this SQLite version lacks the command, fail closed instead of
+                // copying the main database file and silently omitting WAL contents.
+                live.execSQL("VACUUM INTO '$escapedPath'")
+            } else {
+                copyCheckpointedSnapshot(live, snapshot)
+            }
+            check(snapshot.isFile && snapshot.length() > 0L) { "database snapshot unavailable" }
+            validateSnapshot(snapshot)
+            return snapshot
+        } catch (error: Exception) {
+            snapshot.delete()
+            throw IllegalStateException("could not create a consistent database snapshot", error)
         }
-        require(snapshot.isFile) { "database snapshot unavailable" }
-        return snapshot
+    }
+
+    /**
+     * Pre-3.27 export. SQLite forbids running a checkpoint inside a transaction on the same
+     * connection, so the checkpoint runs first, without one. Copy safety, per journal mode:
+     * WAL writers append to the -wal file and never touch the main file, so a successful
+     * TRUNCATE checkpoint plus [mainFileRewriteLock] (which also serialises the maintenance
+     * VACUUM, the only other production checkpoint) leaves the main file static during the
+     * copy. Rollback-mode writers DO rewrite the main file on commit, so the copy runs inside
+     * a read transaction whose shared lock blocks their commits for its duration. Either way
+     * the copied file reflects the checkpointed state — never a stale main file.
+     */
+    private suspend fun copyCheckpointedSnapshot(live: SupportSQLiteDatabase, snapshot: File) {
+        val databasePath = requireNotNull(live.path)
+        val dedicated = SQLiteDatabase.openDatabase(databasePath, null, SQLiteDatabase.OPEN_READWRITE)
+        try {
+            mainFileRewriteLock.withLock {
+                val previousAutocheckpoint = dedicated.rawQuery("PRAGMA wal_autocheckpoint", null).use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getInt(0) else 1000
+                }
+                dedicated.rawQuery("PRAGMA wal_autocheckpoint=0", null).use { it.moveToFirst() }
+                try {
+                    var walMode = false
+                    dedicated.rawQuery("PRAGMA journal_mode", null).use { cursor ->
+                        if (cursor.moveToFirst()) walMode = cursor.getString(0)?.lowercase() == "wal"
+                    }
+                    if (walMode) {
+                        var checkpointRan = false
+                        dedicated.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                check(cursor.getInt(0) == 0) { "wal checkpoint blocked by another connection" }
+                                checkpointRan = true
+                            }
+                        }
+                        check(checkpointRan) { "wal checkpoint did not run" }
+                        val wal = File(databasePath + "-wal")
+                        check(!wal.isFile || wal.length() == 0L) { "wal checkpoint did not truncate" }
+                    }
+                    dedicated.execSQL("BEGIN")
+                    try {
+                        // Materialise the transaction's lock: a WAL read snapshot, or a rollback
+                        // SHARED lock that blocks committing writers while the file is copied.
+                        dedicated.rawQuery("SELECT COUNT(*) FROM sqlite_master", null).use { it.moveToFirst() }
+                        snapshot.outputStream().use { output ->
+                            File(databasePath).inputStream().use { input -> input.copyTo(output) }
+                            output.fd.sync()
+                        }
+                    } finally {
+                        dedicated.execSQL("COMMIT")
+                    }
+                } finally {
+                    runCatching {
+                        dedicated.rawQuery("PRAGMA wal_autocheckpoint=$previousAutocheckpoint", null)
+                            .use { it.moveToFirst() }
+                    }
+                }
+            }
+        } finally {
+            dedicated.close()
+        }
+    }
+
+    /**
+     * Both export paths must publish a complete database: the same schema/integrity/
+     * required-table contract the restore coordinator applies to candidates.
+     */
+    private fun validateSnapshot(snapshot: File) {
+        SQLiteDatabase.openDatabase(snapshot.path, null, SQLiteDatabase.OPEN_READONLY).use { check ->
+            check.rawQuery("PRAGMA user_version", null).use { cursor ->
+                check(cursor.moveToFirst() && cursor.getInt(0) == OjNexusDatabase.CURRENT_SCHEMA_VERSION) {
+                    "snapshot schema version mismatch"
+                }
+            }
+            listOf("PRAGMA quick_check", "PRAGMA integrity_check").forEach { pragma ->
+                check.rawQuery(pragma, null).use { cursor ->
+                    check(cursor.moveToFirst() && cursor.getString(0) == "ok") { "snapshot integrity check failed" }
+                }
+            }
+            val placeholders = REQUIRED_TABLES.joinToString(",") { "?" }
+            check.rawQuery(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ($placeholders)",
+                REQUIRED_TABLES.toTypedArray(),
+            ).use { cursor ->
+                val found = buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) }
+                check(found.containsAll(REQUIRED_TABLES)) { "snapshot is missing required tables" }
+            }
+        }
     }
 
     companion object {
@@ -322,3 +432,27 @@ class BackupRepository(
         )
     }
 }
+
+/** Parsed [SELECT sqlite_version()] triple; comparison is component-wise. */
+internal data class SqliteVersion(private val parts: List<Int>) : Comparable<SqliteVersion> {
+    override fun compareTo(other: SqliteVersion): Int {
+        for (index in 0 until maxOf(parts.size, other.parts.size)) {
+            val left = parts.getOrElse(index) { 0 }
+            val right = other.parts.getOrElse(index) { 0 }
+            if (left != right) return left - right
+        }
+        return 0
+    }
+
+    companion object {
+        /** Parses "3.19.4"; missing or non-numeric components are zero; always three parts. */
+        internal fun parse(text: String): SqliteVersion {
+            val parts = text.trim().split('.').map { part -> part.filter(Char::isDigit).toIntOrNull() ?: 0 }
+            val padded = (0 until 3).map { index -> parts.getOrElse(index) { 0 } }
+            return SqliteVersion(padded)
+        }
+    }
+}
+
+/** [VACUUM INTO] was added in SQLite 3.27.0. */
+internal val VACUUM_INTO_MIN_VERSION = SqliteVersion.parse("3.27.0")

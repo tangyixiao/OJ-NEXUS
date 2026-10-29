@@ -7,6 +7,9 @@ import androidx.activity.SystemBarStyle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.getValue
 import com.ojnexus.app.NexusApp
+import com.ojnexus.app.NexusStartupState
+import com.ojnexus.app.RecoveryBlockedScreen
+import com.ojnexus.app.RecoveryStartingScreen
 import com.ojnexus.core.data.preferences.UserPreferences
 import com.ojnexus.core.designsystem.NexusTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -20,7 +23,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        (application as OjNexusApplication).container.localDaySource.refresh()
+        ((application as OjNexusApplication).startupState as? NexusStartupState.Ready)?.container?.localDaySource?.refresh()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,14 +34,15 @@ class MainActivity : AppCompatActivity() {
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
         setContent {
-            val preferences by app.container.userPreferencesRepository.preferences
-                .collectAsStateWithLifecycle(initialValue = UserPreferences())
-            NexusTheme(
-                reduceMotion = preferences.reduceMotion,
-                hapticsEnabled = preferences.hapticsEnabled,
-                themeSlot = preferences.themeSlot,
-            ) {
-                NexusApp()
+            when (val state = app.startupState) {
+                NexusStartupState.Starting -> NexusTheme { RecoveryStartingScreen() }
+                is NexusStartupState.Blocked -> NexusTheme { RecoveryBlockedScreen() }
+                is NexusStartupState.Ready -> {
+                    val preferences by state.container.userPreferencesRepository.preferences
+                        .collectAsStateWithLifecycle(initialValue = UserPreferences())
+                    NexusTheme(reduceMotion = preferences.reduceMotion, hapticsEnabled = preferences.hapticsEnabled,
+                        themeSlot = preferences.themeSlot) { NexusApp() }
+                }
             }
         }
     }
