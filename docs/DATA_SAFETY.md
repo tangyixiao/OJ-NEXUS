@@ -58,7 +58,14 @@ validation and the Phase126 projections are unchanged; these changes are also no
 release.
 
 Functional minSdk26 backup
-compatibility also remains open. Startup readiness is not a claim that all old work is write-isolated.
+compatibility is now implemented ([Phase127D evidence](verification/phase-127d-old-engine-export.md)):
+exports are gated on the device's SQLite version — engines with `VACUUM INTO` keep the previous
+path; older engines (API 26–28) export through a checkpointed copy taken under a process-wide lock
+shared with the maintenance VACUUM, guarded by a read transaction, and every snapshot is validated
+(schema, `quick_check`, `integrity_check`, required tables) before it is archived. The fallback was
+verified end-to-end on a real pre-3.27 engine (API 27 emulator, SQLite 3.19.4) and on the modern
+engine, with the full connected suite green on both. Startup readiness is not a claim that all old
+work is write-isolated.
 The [Phase126 evidence](verification/phase-126-recovery-vectors.md) retains the narrower pure-decision
 boundary. Full Room schema validation, physical-device behavior and directory-entry power-loss
 durability are not established by the Phase127A slice.

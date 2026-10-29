@@ -426,3 +426,38 @@ HTTP body、源码或自定义输入。包内运行数据仍默认写入 `%LOCAL
 127C 后 Phase 127 剩余：minSdk 26 旧引擎（SQLite < 3.27）导出兼容策略与真实旧引擎验证、
 整期 release 门禁。未触碰物理设备与真实 ENOSPC 硬件故障（边界注入的 I/O 异常代表 OS 级失败，
 已如实记录）。
+
+## 25. Phase 127D 旧引擎导出兼容（2026-10-30，同一会话第三增量，全部为本次验证）
+
+127C 交付后继续推进 Phase 127 最后一项功能缺口（minSdk 26 旧引擎导出兼容）：
+
+- **缺陷现状（真实旧引擎 RED 证实）**：导出走 `VACUUM INTO`（需 SQLite ≥ 3.27），API 26–28
+  设备（SQLite 3.18–3.22）导出直接失败（`IllegalStateException` fail-closed）。在本机下载
+  `system-images;android-27;default;x86_64`（远端无该 API 的 google_apis x86_64 变体）并建专用
+  AVD `OJNexus_Phase127_OldEngine`（SQLite 3.19.4，emulator-5584）后，修复前 connected 测试以
+  `export failed on engine 3.19.4` 失败——真实旧引擎的 RED。
+- **策略与实现**：导出按 `SELECT sqlite_version()` 门控（`SqliteVersion` 纯解析，畸形版本安全
+  退到回退路径）。≥3.27 保持 VACUUM INTO 不变；<3.27 走检查点拷贝回退：专用连接无事务执行
+  `wal_checkpoint(TRUNCATE)`（busy==0 且 -wal 归零为完成证明；SQLite 禁止同连接事务内 checkpoint
+  ——原 spec 的 BEGIN EXCLUSIVE 序列不可行，已在 spec 修订注记公开）、读事务物化后拷贝主文件
+  （WAL 写者只追加 -wal；回滚模式写者被 SHARED 锁阻塞）、写连接 autocheckpoint 读改写恢复。
+  全进程 `mainFileRewriteLock` 同时串行化维护 VACUUM（独立审查 P1：其 TRUNCATE checkpoint 会
+  在拷贝窗口改写主文件）。双路径导出前均跑 schema/quick_check/integrity_check/必需表校验，
+  失败销毁暂存、导出 fail-closed。
+- **证据**：真实旧引擎 RED→GREEN（同测试同引擎）；独立审查 SPEC FAIL/CHANGES_REQUESTED 的
+  P1+全部 P2 已在 `b226160` 修复（含非 WAL 低内存设备的读事务保护、connected 测试 WAL 驻留
+  前置断言、异常安全 close）；最终 HEAD `ac48f19` fresh **848 项单测/185 套件 0 失败**，
+  debug/release 构建通过；**双引擎全套 connected 各 36/36**（API 37.1=VACUUM 路径、API 27=回退
+  路径，各含 35 既有用例 + 新导出用例）。两次中间全套运行因模拟器死亡中断（同一 Gradle daemon
+  内存压力模式），清理后清洁重跑通过，已如实记为基础设施失败。
+- **提交与 PR**：`803b6cc`（spec）、`b97c4b7`（plan）、`9088ee1`、`de8914e`、`b226160`、
+  `ac48f19`。[PR #26](https://github.com/tangyixiao/OJ-NEXUS/pull/26) 已创建：base 为 127C 分支
+  `codex/phase-127c-import-errors`（堆叠），head `codex/phase-127d-old-engine-export`，OPEN、
+  MERGEABLE，未合并。合并链 #20 → #24 → #25 → #26。
+- **本轮新增机器知识**：旧引擎镜像需用 `system-images;android-27;default;x86_64`（google_apis
+  x86_64 变体远端不存在）；androidTest 方法名不能含空格（D8 拒绝）；`wal_checkpoint(TRUNCATE)`
+  不能在自身事务内执行（SQLITE_LOCKED，框架包装为 SQLiteTableLockedException）。
+
+Phase 127 至此仅剩**整期 release 门禁**（版本号决定、release note、签名构建、设备验收——
+需用户决定版本与发布节奏）。功能验收项 127A–127D 全部完成；无新 release，整期保持 ACTIVE
+直至 release 门禁通过。
