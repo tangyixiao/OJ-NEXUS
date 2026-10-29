@@ -45,6 +45,20 @@ class BackupEngineExportConnectedTest {
             database.openHelper.writableDatabase.query("PRAGMA journal_mode=WAL").use { it.moveToFirst() }
             val engineVersion = database.openHelper.writableDatabase
                 .query("SELECT sqlite_version()").use { it.moveToFirst(); it.getString(0) }
+            // Prove the newest commit is WAL-resident: a fallback checkpoint must capture it,
+            // a stale main-file copy would lose it.
+            database.openHelper.writableDatabase.query("PRAGMA wal_autocheckpoint=0").use { it.moveToFirst() }
+            database.problemDao().insert(
+                ProblemEntity(
+                    judge = "codeforces", externalId = "engine-row-wal", title = "engine-row-wal",
+                    difficulty = 900, createdAt = 2L, updatedAt = 2L,
+                ),
+            )
+            val walPath = File(context.getDatabasePath(databaseName).path + "-wal")
+            assertTrue(
+                "engine $engineVersion precondition: newest commit must sit in the WAL file",
+                walPath.length() > 0L,
+            )
             val repository = BackupRepository(database, context)
             val zip = File(context.cacheDir, "engine-export-${System.nanoTime()}.zip")
             try {
@@ -60,7 +74,8 @@ class BackupEngineExportConnectedTest {
                         )
                         try {
                             check.rawQuery(
-                                "SELECT COUNT(*) FROM problems WHERE external_id = 'engine-row'", null,
+                                "SELECT COUNT(*) FROM problems WHERE external_id IN ('engine-row', 'engine-row-wal')",
+                                null,
                             ).use { cursor ->
                                 cursor.moveToFirst()
                                 cursor.getInt(0)
@@ -74,14 +89,14 @@ class BackupEngineExportConnectedTest {
                 }
                 assertEquals(
                     "exported snapshot on engine $engineVersion must contain committed rows",
-                    1,
+                    2,
                     snapshotRows,
                 )
             } finally {
                 zip.delete()
             }
         } finally {
-            database.close()
+            runCatching { database.close() }
             context.getDatabasePath(databaseName).delete()
             File(context.getDatabasePath(databaseName).path + "-wal").delete()
             File(context.getDatabasePath(databaseName).path + "-shm").delete()

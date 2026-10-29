@@ -17,16 +17,28 @@ WAL contents.
 
 ## Strategy
 
-Version-gated export with a lock-protected checkpoint fallback:
+Version-gated export with a lock-protected checkpoint fallback. Revision note: the original
+draft placed `BEGIN EXCLUSIVE` around the checkpoint on the same dedicated connection;
+SQLite forbids a checkpoint inside a transaction on its own connection (it fails with
+SQLITE_LOCKED — reproduced on the host engine), so the implemented mechanism is:
 
-1. The exporter asks the engine for its version (`SELECT sqlite_version()`), parsed once.
+1. The exporter asks the engine for its version (`SELECT sqlite_version()`), parsed into a
+   comparable triple.
 2. Engine ≥ 3.27.0 → the existing `VACUUM INTO` path, byte-for-byte unchanged.
-3. Engine < 3.27.0 → a dedicated framework connection performs, in order: `BEGIN EXCLUSIVE`
-   (blocks all other writers for the duration), `PRAGMA wal_checkpoint(TRUNCATE)` (moves
-   every committed WAL frame into the main file), a plain copy of the main file to the
-   staging path, then `COMMIT`. The copy is taken under the exclusive lock, so it is the
-   checkpointed state — not a stale main file; WAL-committed rows are captured by the
-   checkpoint, not skipped.
+3. Engine < 3.27.0 → a dedicated framework connection, under the process-wide
+   `mainFileRewriteLock` that also serialises the maintenance VACUUM (the only other
+   production checkpoint):
+   - `PRAGMA wal_autocheckpoint` is read and set to 0 (restored in `finally`), so Room's
+     writer cannot checkpoint during the copy;
+   - on WAL databases: `PRAGMA wal_checkpoint(TRUNCATE)` without a transaction, requiring
+     `busy == 0` and a zero-length `-wal` afterwards (proof that every committed frame is in
+     the main file);
+   - a read transaction is begun and materialised (`SELECT COUNT(*) FROM sqlite_master`),
+     pinning a WAL read snapshot — and its rollback-mode SHARED lock blocks committing
+     writers on non-WAL (low-RAM) databases — then the main file is copied with `fd.sync()`
+     and the transaction committed;
+   - the copy therefore reflects the checkpointed state; a stale main file that skips WAL
+     rows is impossible by construction, and a torn copy fails the validation below.
 4. Both paths validate the staging file before it is zipped: schema version, `quick_check`,
    `integrity_check` and the required-table set (the same contract the restore coordinator
    applies to candidates). A failed validation deletes the staging file and fails the

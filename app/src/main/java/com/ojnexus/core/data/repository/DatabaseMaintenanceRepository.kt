@@ -2,6 +2,7 @@ package com.ojnexus.core.data.repository
 
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.ojnexus.core.database.OjNexusDatabase
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -53,12 +54,16 @@ class DatabaseMaintenanceRepository(
      * Reclaims free pages. SQLite VACUUM is atomic and cannot be interrupted through the
      * framework API; a racing cancel therefore either loses (vacuum commits) or the job is
      * cancelled before the statement starts. [CancellationException] is always rethrown.
+     * Runs under [mainFileRewriteLock] so the checkpoint/VACUUM never rewrites the main file
+     * while the old-engine fallback export copies it.
      */
     suspend fun vacuum() = withContext(Dispatchers.IO) {
         val live = database.openHelper.writableDatabase
         try {
-            live.query("PRAGMA wal_checkpoint(TRUNCATE)").use { cursor -> cursor.moveToFirst() }
-            live.compileStatement("VACUUM").executeUpdateDelete()
+            mainFileRewriteLock.withLock {
+                live.query("PRAGMA wal_checkpoint(TRUNCATE)").use { cursor -> cursor.moveToFirst() }
+                live.compileStatement("VACUUM").executeUpdateDelete()
+            }
         } catch (exception: CancellationException) {
             throw exception
         }

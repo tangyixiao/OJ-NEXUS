@@ -20,7 +20,15 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+
+/**
+ * Serialises operations that rewrite the main database file: the old-engine fallback export
+ * copy and the maintenance VACUUM's checkpoint. Both run on Dispatchers.IO in this process.
+ */
+internal val mainFileRewriteLock = Mutex()
 
 /**
  * Exports the local Room database and stages imports for pre-Room atomic restoration.
@@ -276,7 +284,7 @@ class BackupRepository(
         }
     }
 
-    private fun createSnapshotFile(): File {
+    private suspend fun createSnapshotFile(): File {
         val live = database.openHelper.writableDatabase
         val snapshot = File.createTempFile(
             "ojn-${UUID.randomUUID().toString().take(8)}-",
@@ -304,35 +312,58 @@ class BackupRepository(
 
     /**
      * Pre-3.27 export. SQLite forbids running a checkpoint inside a transaction on the same
-     * connection, so the checkpoint runs without one. WAL writers append to the -wal file and
-     * never touch the main file, so the only way the copied main file could change mid-copy is
-     * another connection running a checkpoint — prevented by disabling autocheckpoint on the
-     * live writer for the duration. The copied file therefore reflects the checkpointed state;
-     * it is never a stale main file missing WAL rows.
+     * connection, so the checkpoint runs first, without one. Copy safety, per journal mode:
+     * WAL writers append to the -wal file and never touch the main file, so a successful
+     * TRUNCATE checkpoint plus [mainFileRewriteLock] (which also serialises the maintenance
+     * VACUUM, the only other production checkpoint) leaves the main file static during the
+     * copy. Rollback-mode writers DO rewrite the main file on commit, so the copy runs inside
+     * a read transaction whose shared lock blocks their commits for its duration. Either way
+     * the copied file reflects the checkpointed state — never a stale main file.
      */
-    private fun copyCheckpointedSnapshot(live: SupportSQLiteDatabase, snapshot: File) {
+    private suspend fun copyCheckpointedSnapshot(live: SupportSQLiteDatabase, snapshot: File) {
         val databasePath = requireNotNull(live.path)
         val dedicated = SQLiteDatabase.openDatabase(databasePath, null, SQLiteDatabase.OPEN_READWRITE)
         try {
-            live.query("PRAGMA wal_autocheckpoint=0").use { it.moveToFirst() }
-            try {
-                var checkpointRan = false
-                dedicated.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val busy = cursor.getInt(0)
-                        check(busy == 0) { "wal checkpoint blocked by another connection" }
-                        checkpointRan = true
+            mainFileRewriteLock.withLock {
+                val previousAutocheckpoint = dedicated.rawQuery("PRAGMA wal_autocheckpoint", null).use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getInt(0) else 1000
+                }
+                dedicated.rawQuery("PRAGMA wal_autocheckpoint=0", null).use { it.moveToFirst() }
+                try {
+                    var walMode = false
+                    dedicated.rawQuery("PRAGMA journal_mode", null).use { cursor ->
+                        if (cursor.moveToFirst()) walMode = cursor.getString(0)?.lowercase() == "wal"
+                    }
+                    if (walMode) {
+                        var checkpointRan = false
+                        dedicated.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                check(cursor.getInt(0) == 0) { "wal checkpoint blocked by another connection" }
+                                checkpointRan = true
+                            }
+                        }
+                        check(checkpointRan) { "wal checkpoint did not run" }
+                        val wal = File(databasePath + "-wal")
+                        check(!wal.isFile || wal.length() == 0L) { "wal checkpoint did not truncate" }
+                    }
+                    dedicated.execSQL("BEGIN")
+                    try {
+                        // Materialise the transaction's lock: a WAL read snapshot, or a rollback
+                        // SHARED lock that blocks committing writers while the file is copied.
+                        dedicated.rawQuery("SELECT COUNT(*) FROM sqlite_master", null).use { it.moveToFirst() }
+                        snapshot.outputStream().use { output ->
+                            File(databasePath).inputStream().use { input -> input.copyTo(output) }
+                            output.fd.sync()
+                        }
+                    } finally {
+                        dedicated.execSQL("COMMIT")
+                    }
+                } finally {
+                    runCatching {
+                        dedicated.rawQuery("PRAGMA wal_autocheckpoint=$previousAutocheckpoint", null)
+                            .use { it.moveToFirst() }
                     }
                 }
-                check(checkpointRan) { "wal checkpoint did not run" }
-                val wal = File(databasePath + "-wal")
-                check(!wal.isFile || wal.length() == 0L) { "wal checkpoint did not truncate" }
-                snapshot.outputStream().use { output ->
-                    File(databasePath).inputStream().use { input -> input.copyTo(output) }
-                    output.fd.sync()
-                }
-            } finally {
-                runCatching { live.query("PRAGMA wal_autocheckpoint=1000").use { it.moveToFirst() } }
             }
         } finally {
             dedicated.close()
