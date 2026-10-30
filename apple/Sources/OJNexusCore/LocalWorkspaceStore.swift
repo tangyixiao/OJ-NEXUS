@@ -69,6 +69,7 @@ public actor LocalWorkspaceStore {
             guard let bytes = try WorkspaceFileIO.read(url) else {
                 let backup = try WorkspaceFileIO.read(Self.backupURL(for: url))
                 if backup != nil || observedMain != nil {
+                    observedMain = nil
                     observedBackup = backup
                     baseline = nil
                     status = backup.flatMap { try? WorkspaceFileCodec.decode($0) } != nil
