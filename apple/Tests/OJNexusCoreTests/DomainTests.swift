@@ -775,16 +775,42 @@ final class DomainTests: XCTestCase {
         XCTAssertFalse(request.httpShouldHandleCookies)
     }
 
+    private func temporaryStore(_ label: String) -> LocalWorkspaceStore {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ojnexus-model-\(label)-tests", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        return LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
+    }
+
+    @MainActor
+    private func loadedModel(
+        accounts: [JudgeAccount] = [],
+        ledger: SyncLedger = SyncLedger(),
+        profiles: [PublicProfile] = [],
+        ratingChanges: [RatingChange] = [],
+        submissions: [SubmissionRecord] = [],
+        store: LocalWorkspaceStore,
+        httpClient: any HTTPClient = RecordingHTTPClient(payload: Data())
+    ) async throws -> NexusDashboardModel {
+        _ = try await store.load()
+        try await store.save(LocalWorkspaceState(
+            accounts: accounts, ledger: ledger, profiles: profiles,
+            ratingChanges: ratingChanges, submissions: submissions))
+        let model = NexusDashboardModel(
+            accounts: accounts, ledger: ledger, profiles: profiles,
+            ratingChanges: ratingChanges, submissions: submissions,
+            workspaceStore: store, httpClient: httpClient)
+        await model.load()
+        return model
+    }
+
     @MainActor
     func testDashboardModelSyncUpdatesProfileStatusAndLedger() async throws {
         let payload = Data(#"{"status":"OK","result":[{"handle":"tourist","rating":3800}]}"#.utf8)
         let client = RecordingHTTPClient(payload: payload)
         let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(accounts: [account], workspaceStore: store, httpClient: client)
+        let store = temporaryStore("profile")
+        let model = try await loadedModel(accounts: [account], store: store, httpClient: client)
 
         await model.syncProfile(for: account)
 
@@ -802,11 +828,8 @@ final class DomainTests: XCTestCase {
         let payload = Data(#"{"status":"OK","result":[{"contestId":1,"contestName":"TEST","oldRating":3500,"newRating":3800,"rank":1,"ratingUpdateTimeSeconds":1700000000}]}"#.utf8)
         let client = RecordingHTTPClient(payload: payload)
         let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-rating-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(accounts: [account], workspaceStore: store, httpClient: client)
+        let store = temporaryStore("rating")
+        let model = try await loadedModel(accounts: [account], store: store, httpClient: client)
 
         await model.syncRating(for: account)
 
@@ -823,11 +846,8 @@ final class DomainTests: XCTestCase {
         let payload = Data(#"{"status":"OK","result":[{"contestId":1,"contestName":"TEST","oldRating":3500,"newRating":3800,"rank":1,"ratingUpdateTimeSeconds":1700000000}]}"#.utf8)
         let client = SequencedHTTPClient(results: [.success(payload), .failure(.network)])
         let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-rating-failure-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(accounts: [account], workspaceStore: store, httpClient: client)
+        let store = temporaryStore("rating-failure")
+        let model = try await loadedModel(accounts: [account], store: store, httpClient: client)
 
         await model.syncRating(for: account)
         await model.syncRating(for: account)
@@ -842,11 +862,8 @@ final class DomainTests: XCTestCase {
         let payload = Data(#"{"status":"OK","result":[{"id":9,"contestId":1,"creationTimeSeconds":1700000000,"verdict":"OK","programmingLanguage":"GNU C++20","problem":{"index":"A","name":"TEST"}}]}"#.utf8)
         let client = RecordingHTTPClient(payload: payload)
         let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-submission-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(accounts: [account], workspaceStore: store, httpClient: client)
+        let store = temporaryStore("submission")
+        let model = try await loadedModel(accounts: [account], store: store, httpClient: client)
 
         await model.syncSubmissions(for: account)
 
@@ -863,11 +880,8 @@ final class DomainTests: XCTestCase {
         let payload = Data(#"{"status":"OK","result":[{"id":9,"contestId":1,"creationTimeSeconds":1700000000,"verdict":"OK","programmingLanguage":"GNU C++20","problem":{"index":"A","name":"TEST"}}]}"#.utf8)
         let client = SequencedHTTPClient(results: [.success(payload), .failure(.network)])
         let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-submission-failure-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(accounts: [account], workspaceStore: store, httpClient: client)
+        let store = temporaryStore("submission-failure")
+        let model = try await loadedModel(accounts: [account], store: store, httpClient: client)
 
         await model.syncSubmissions(for: account)
         await model.syncSubmissions(for: account)
@@ -967,8 +981,8 @@ final class DomainTests: XCTestCase {
     }
 
     @MainActor
-    func testDashboardModelProvidesCurrentLocalStateMessage() async {
-        let model = NexusDashboardModel()
+    func testDashboardModelProvidesCurrentLocalStateMessage() async throws {
+        let model = try await loadedModel(store: temporaryStore("state-message"))
 
         XCTAssertEqual(model.localStateMessage, "READY / LOCAL STATE")
 
@@ -982,14 +996,13 @@ final class DomainTests: XCTestCase {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("ojnexus-model-save-failure-tests", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let blocker = directory.appendingPathComponent("not-a-directory")
-        try Data().write(to: blocker)
-        let store = LocalWorkspaceStore(url: blocker.appendingPathComponent("state.json"))
+        let url = directory.appendingPathComponent("state.json")
+        let store = LocalWorkspaceStore(url: url)
         let payload = Data(#"{"status":"OK","result":[{"handle":"tourist","rating":3800}]}"#.utf8)
         let client = RecordingHTTPClient(payload: payload)
         let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
-        let model = NexusDashboardModel(accounts: [account], workspaceStore: store, httpClient: client)
+        let model = try await loadedModel(accounts: [account], store: store, httpClient: client)
+        try FileManager.default.removeItem(at: url)
 
         await model.syncProfile(for: account)
 
@@ -1002,12 +1015,8 @@ final class DomainTests: XCTestCase {
 
     @MainActor
     func testDashboardModelConfiguresAndPersistsPublicAccount() async throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-config-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let url = directory.appendingPathComponent("state.json")
-        let store = LocalWorkspaceStore(url: url)
-        let model = NexusDashboardModel(workspaceStore: store)
+        let store = temporaryStore("config")
+        let model = try await loadedModel(store: store)
 
         await model.configurePublicAccount(judge: .luogu, handle: " uid:2 ")
 
@@ -1018,12 +1027,8 @@ final class DomainTests: XCTestCase {
 
     @MainActor
     func testDashboardModelPreservesDisabledStateWhenReconfiguringEquivalentHandle() async throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-equivalent-config-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
         let disabled = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "Tourist", enabled: false))
-        let model = NexusDashboardModel(accounts: [disabled], workspaceStore: store)
+        let model = try await loadedModel(accounts: [disabled], store: temporaryStore("equivalent-config"))
 
         await model.configurePublicAccount(judge: .codeforces, handle: " tourist ")
 
@@ -1036,19 +1041,16 @@ final class DomainTests: XCTestCase {
 
     @MainActor
     func testDashboardModelClearsStaleProfileWhenHandleChanges() async throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-handle-change-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
+        let store = temporaryStore("handle-change")
         let oldAccount = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
         let oldProfile = PublicProfile(judge: .codeforces, handle: "tourist", rating: 3800)
         let oldRating = try XCTUnwrap(RatingChange(
             judge: .codeforces, handle: "tourist", contestID: "1", newRating: 3800))
         let oldSubmission = try XCTUnwrap(SubmissionRecord(
             judge: .codeforces, handle: "tourist", externalID: "9", verdict: "OK"))
-        let model = NexusDashboardModel(
+        let model = try await loadedModel(
             accounts: [oldAccount], profiles: [oldProfile], ratingChanges: [oldRating],
-            submissions: [oldSubmission], workspaceStore: store)
+            submissions: [oldSubmission], store: store)
 
         await model.configurePublicAccount(judge: .codeforces, handle: "new-user")
 
@@ -1065,18 +1067,15 @@ final class DomainTests: XCTestCase {
 
     @MainActor
     func testDashboardModelCanDisableAndRemovePublicAccount() async throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-account-lifecycle-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
+        let store = temporaryStore("account-lifecycle")
         let account = try XCTUnwrap(JudgeAccount(judge: .atcoder, handle: "tourist"))
         let profile = PublicProfile(judge: .atcoder, handle: "tourist", rating: 246)
         let operation = SyncOperation(account: account, generation: "apple-0.1",
                                       startedAt: Date(timeIntervalSince1970: 1), status: .success)
-        let model = NexusDashboardModel(accounts: [account],
-                                        ledger: SyncLedger(operations: [operation]),
-                                        profiles: [profile],
-                                        workspaceStore: store)
+        let model = try await loadedModel(accounts: [account],
+                                          ledger: SyncLedger(operations: [operation]),
+                                          profiles: [profile],
+                                          store: store)
 
         await model.setPublicAccountEnabled(judge: account.judge, enabled: false)
 
@@ -1098,7 +1097,7 @@ final class DomainTests: XCTestCase {
     @MainActor
     func testDashboardModelDoesNotSyncDisabledOrUnconfiguredAccount() async throws {
         let disabled = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist", enabled: false))
-        let model = NexusDashboardModel(accounts: [disabled])
+        let model = try await loadedModel(accounts: [disabled], store: temporaryStore("disabled-sync"))
 
         model.retryProfileSync(for: disabled)
 
@@ -1133,12 +1132,9 @@ final class DomainTests: XCTestCase {
     @MainActor
     func testDashboardModelCancelsAnActiveProfileSync() async throws {
         let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-cancel-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(
-            accounts: [account], workspaceStore: store, httpClient: BlockingHTTPClient())
+        let store = temporaryStore("cancel")
+        let model = try await loadedModel(
+            accounts: [account], store: store, httpClient: BlockingHTTPClient())
 
         model.startProfileSync(for: account)
         for _ in 0..<100 where !model.isSyncing {
@@ -1161,12 +1157,9 @@ final class DomainTests: XCTestCase {
         let payload = Data(#"{"status":"OK","result":[{"handle":"tourist","rating":3800}]}"#.utf8)
         let client = SequencedHTTPClient(results: [.failure(.network), .success(payload)])
         let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-retry-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(
-            accounts: [account], workspaceStore: store, httpClient: client)
+        let store = temporaryStore("retry")
+        let model = try await loadedModel(
+            accounts: [account], store: store, httpClient: client)
 
         await model.syncProfile(for: account)
         XCTAssertEqual(model.syncStatus, .error)
@@ -1206,12 +1199,9 @@ final class DomainTests: XCTestCase {
         let client = SequencedHTTPClient(results: [.success(codeforcesPayload), .success(atcoderPayload)])
         let codeforces = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
         let atcoder = try XCTUnwrap(JudgeAccount(judge: .atcoder, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-sync-all-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(
-            accounts: [codeforces, atcoder], workspaceStore: store, httpClient: client)
+        let store = temporaryStore("sync-all")
+        let model = try await loadedModel(
+            accounts: [codeforces, atcoder], store: store, httpClient: client)
 
         model.startProfileSyncAll()
         for _ in 0..<100 where !model.isSyncing {
@@ -1236,11 +1226,8 @@ final class DomainTests: XCTestCase {
             .success(profilePayload), .success(ratingPayload), .success(submissionsPayload)
         ])
         let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-full-sync-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(accounts: [account], workspaceStore: store, httpClient: client)
+        let store = temporaryStore("full-sync")
+        let model = try await loadedModel(accounts: [account], store: store, httpClient: client)
 
         model.startFullSyncAll()
         for _ in 0..<200 where model.isSyncing {
@@ -1259,11 +1246,8 @@ final class DomainTests: XCTestCase {
         let profilePayload = Data(#"{"user":{"uid":2,"name":"test","elo":1200}}"#.utf8)
         let client = SequencedHTTPClient(results: [.success(profilePayload)])
         let account = try XCTUnwrap(JudgeAccount(judge: .luogu, handle: "uid:2"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-luogu-full-sync-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(accounts: [account], workspaceStore: store, httpClient: client)
+        let store = temporaryStore("luogu-full-sync")
+        let model = try await loadedModel(accounts: [account], store: store, httpClient: client)
 
         model.startFullSyncAll()
         for _ in 0..<200 where model.isSyncing {
@@ -1281,11 +1265,8 @@ final class DomainTests: XCTestCase {
         let profilePayload = Data(#"{"status":"OK","result":[{"handle":"tourist","rating":3800}]}"#.utf8)
         let client = FirstSuccessThenBlockingHTTPClient(payload: profilePayload)
         let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-full-sync-cancel-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(accounts: [account], workspaceStore: store, httpClient: client)
+        let store = temporaryStore("full-sync-cancel")
+        let model = try await loadedModel(accounts: [account], store: store, httpClient: client)
 
         model.startFullSyncAll()
         for _ in 0..<200 where client.requestCount < 2 {
@@ -1308,12 +1289,9 @@ final class DomainTests: XCTestCase {
     @MainActor
     func testDashboardModelMarksBatchBusyImmediatelyAndClearsAfterCancellation() async throws {
         let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-sync-busy-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(
-            accounts: [account], workspaceStore: store, httpClient: BlockingHTTPClient())
+        let store = temporaryStore("sync-busy")
+        let model = try await loadedModel(
+            accounts: [account], store: store, httpClient: BlockingHTTPClient())
 
         model.startProfileSyncAll()
 
@@ -1331,12 +1309,9 @@ final class DomainTests: XCTestCase {
         let client = FirstSuccessThenBlockingHTTPClient(payload: payload)
         let codeforces = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
         let atcoder = try XCTUnwrap(JudgeAccount(judge: .atcoder, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-sync-cancelled-batch-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(
-            accounts: [codeforces, atcoder], workspaceStore: store, httpClient: client)
+        let store = temporaryStore("sync-cancelled-batch")
+        let model = try await loadedModel(
+            accounts: [codeforces, atcoder], store: store, httpClient: client)
 
         model.startProfileSyncAll()
         for _ in 0..<200 where client.requestCount < 2 {
@@ -1366,12 +1341,9 @@ final class DomainTests: XCTestCase {
         let client = SequencedHTTPClient(results: [.failure(.network), .success(successPayload)])
         let codeforces = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
         let atcoder = try XCTUnwrap(JudgeAccount(judge: .atcoder, handle: "tourist"))
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ojnexus-model-sync-all-partial-tests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let store = LocalWorkspaceStore(url: directory.appendingPathComponent("state.json"))
-        let model = NexusDashboardModel(
-            accounts: [codeforces, atcoder], workspaceStore: store, httpClient: client)
+        let store = temporaryStore("sync-all-partial")
+        let model = try await loadedModel(
+            accounts: [codeforces, atcoder], store: store, httpClient: client)
 
         model.startProfileSyncAll()
         for _ in 0..<200 where model.ledger.operations.count < 2 {
@@ -1386,12 +1358,94 @@ final class DomainTests: XCTestCase {
         XCTAssertEqual(model.ledger.operations[0].status, .success)
         XCTAssertEqual(model.ledger.operations[1].status, .error)
     }
+    @MainActor
+    func testDashboardModelKeepsLastCacheWhenReloadFails() async throws {
+        let payload = Data(#"{"status":"OK","result":[{"handle":"tourist","rating":3800}]}"#.utf8)
+        let client = RecordingHTTPClient(payload: payload)
+        let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
+        let profile = PublicProfile(judge: .codeforces, handle: "tourist", rating: 3800)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ojnexus-model-reload-failure-tests", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let url = directory.appendingPathComponent("state.json")
+        let store = LocalWorkspaceStore(url: url)
+        let model = try await loadedModel(
+            accounts: [account], profiles: [profile], store: store, httpClient: client)
+
+        try Data("raw-corrupt-state".utf8).write(to: url)
+        await model.load()
+
+        XCTAssertEqual(model.accounts, [account])
+        XCTAssertEqual(model.profiles, [profile])
+        XCTAssertEqual(model.loadError, "LOCAL STATE UNAVAILABLE / CORRUPT")
+        XCTAssertFalse(model.canMutate)
+        XCTAssertNil(client.requestedURL)
+        XCTAssertNil(model.syncStatus)
+    }
+
+    @MainActor
+    func testDashboardModelFullSyncStopsWhenStorageFails() async throws {
+        let payload = Data(#"{"status":"OK","result":[{"handle":"tourist","rating":3800}]}"#.utf8)
+        let client = RecordingHTTPClient(payload: payload)
+        let codeforces = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
+        let atcoder = try XCTUnwrap(JudgeAccount(judge: .atcoder, handle: "tourist"))
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ojnexus-model-storage-batch-tests", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let url = directory.appendingPathComponent("state.json")
+        let store = LocalWorkspaceStore(url: url)
+        let model = try await loadedModel(
+            accounts: [codeforces, atcoder], store: store, httpClient: client)
+
+        try FileManager.default.removeItem(at: url)
+        model.startFullSyncAll()
+        for _ in 0..<200 where model.isSyncing {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        XCTAssertFalse(model.isSyncing)
+        XCTAssertEqual(client.requestCount, 1)
+        XCTAssertTrue(model.ledger.operations.isEmpty)
+        XCTAssertEqual(model.syncStatus, .error)
+        XCTAssertFalse(model.canMutate)
+    }
+
+    @MainActor
+    func testDashboardModelRestoresValidSnapshotAndBecomesReady() async throws {
+        let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
+        let profile = PublicProfile(judge: .codeforces, handle: "tourist", rating: 3800)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ojnexus-model-restore-tests", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let url = directory.appendingPathComponent("state.json")
+        let backupURL = directory.appendingPathComponent("state.json.bak")
+        let store = LocalWorkspaceStore(url: url)
+        let model = try await loadedModel(
+            accounts: [account], profiles: [profile], store: store)
+
+        try Data("raw-corrupt-state".utf8).write(to: url)
+        await model.load()
+        XCTAssertFalse(model.canMutate)
+
+        await model.restorePreviousSnapshot()
+
+        XCTAssertEqual(model.storageStatus, .ready)
+        XCTAssertEqual(model.accounts, [account])
+        XCTAssertEqual(model.profiles, [profile])
+        XCTAssertTrue(model.canMutate)
+        let quarantines = try FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.hasPrefix("state.json.quarantine-") }
+        XCTAssertEqual(quarantines.count, 1)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: backupURL.path))
+    }
 }
 
 private final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
     let payload: Data
     let error: AdapterError?
     private(set) var requestedURL: URL?
+    private(set) var requestCount = 0
 
     init(payload: Data, error: AdapterError? = nil) {
         self.payload = payload
@@ -1400,6 +1454,7 @@ private final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 
     func get(_ url: URL) async throws -> Data {
         requestedURL = url
+        requestCount += 1
         if let error { throw error }
         return payload
     }
