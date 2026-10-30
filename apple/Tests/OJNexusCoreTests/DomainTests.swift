@@ -1027,8 +1027,9 @@ final class DomainTests: XCTestCase {
 
     @MainActor
     func testDashboardModelPreservesDisabledStateWhenReconfiguringEquivalentHandle() async throws {
+        let store = temporaryStore("equivalent-config")
         let disabled = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "Tourist", enabled: false))
-        let model = try await loadedModel(accounts: [disabled], store: temporaryStore("equivalent-config"))
+        let model = try await loadedModel(accounts: [disabled], store: store)
 
         await model.configurePublicAccount(judge: .codeforces, handle: " tourist ")
 
