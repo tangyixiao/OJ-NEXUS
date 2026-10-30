@@ -103,6 +103,52 @@ final class WorkspaceRecoveryTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
     }
 
+    func testSaveAfterFailedLoadKeepsTheTypedStorageReason() async throws {
+        let (directory, url) = try workspace()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try Data("raw-corrupt-state".utf8).write(to: url)
+        let store = LocalWorkspaceStore(url: url)
+
+        do {
+            _ = try await store.load()
+            XCTFail("corrupt main must be rejected")
+        } catch let failure as WorkspaceStorageFailure {
+            XCTAssertEqual(failure, .corrupt)
+        }
+        do {
+            try await store.save(LocalWorkspaceState())
+            XCTFail("failed load must block saving with the typed reason")
+        } catch let failure as WorkspaceStorageFailure {
+            XCTAssertEqual(failure, .corrupt)
+        }
+        XCTAssertEqual(try Data(contentsOf: url), Data("raw-corrupt-state".utf8))
+    }
+
+    func testStaleStoreSaveConflictsWithNewerWriter() async throws {
+        let (directory, url) = try workspace()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let first = LocalWorkspaceStore(url: url)
+        let second = LocalWorkspaceStore(url: url)
+        let account = try XCTUnwrap(JudgeAccount(judge: .codeforces, handle: "tourist"))
+
+        _ = try await first.load()
+        _ = try await second.load()
+        try await first.save(LocalWorkspaceState(accounts: [account]))
+
+        do {
+            try await second.save(LocalWorkspaceState())
+            XCTFail("stale baseline must not overwrite a newer writer")
+        } catch let failure as WorkspaceStorageFailure {
+            XCTAssertEqual(failure, .conflict)
+        }
+        let blockedStatus = await second.storageStatus()
+        XCTAssertEqual(blockedStatus, .blocked(.conflict))
+        let reloaded = try await second.load()
+        XCTAssertEqual(reloaded.accounts, [account])
+        try await second.save(reloaded)
+        XCTAssertEqual(try Data(contentsOf: url), try WorkspaceFileCodec.encode(reloaded))
+    }
+
     private func workspace() throws -> (directory: URL, state: URL) {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("ojnexus-workspace-recovery-\(UUID().uuidString)", isDirectory: true)

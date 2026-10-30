@@ -112,7 +112,11 @@ public actor LocalWorkspaceStore {
 
     public func save(_ state: LocalWorkspaceState) throws {
         guard case .ready = status, let baseline, let url else {
-            let failure = locationFailure ?? .notLoaded
+            let failure: WorkspaceStorageFailure
+            switch status {
+            case .blocked(let reason), .recoverable(let reason): failure = reason
+            default: failure = locationFailure ?? .notLoaded
+            }
             status = .blocked(failure)
             throw failure
         }
