@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/ojnexus">
+        <file alias="Main.qml">qml/Main.qml</file>
+    </qresource>
+</RCC>
