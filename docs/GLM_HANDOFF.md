@@ -578,3 +578,24 @@ Phase 130A，并补记台账中缺失的 128A/129A。
   仍然不要推送——其远端同名分支内容已包含于 main。
 
 交接文档状态：本文件已更新至 2026-11-01；第 26–28 节为当前权威，其余章节为历史记录。
+
+## 29. 发布收口：v1.0.4 与 linux-v0.1.1-rc.1（2026-11-01，用户指示"都给我做完"，全部为本次验证）
+
+第 28 节合并收口后，按用户指令完成全部可执行发布项：
+
+- **Android v1.0.4 已发布**：tag `v1.0.4` 指向 `a08a59f`（已审查的发布分支 head，#27 已并入
+  main），release 携带 `OJ-NEXUS-v1.0.4.apk` + `SHA256SUMS-v1.0.4.txt`；APK SHA-256
+  `C916081B…01F` 与门禁台账一致，**发布后回下载验哈希一致**。正文即
+  `docs/releases/v1.0.4.md`（发布头已补 tag/资产说明）。
+- **Linux linux-v0.1.1-rc.1 已发布（unsigned prerelease）**：版本 bump `c169ad1`（PR #29，
+  0.1.0 → 0.1.1），tag 指向 main `46b8ddc`；WSL Ubuntu-24.04（CMake 3.28.3/Ninja/GCC 13.3）
+  从发布树全新构建（57 目标 GUI+tests）、**ctest 8/8 0 失败**、真实 CLI smoke
+  （fresh 目录 `accounts == []`）、Qt GUI 离屏构造探针正常（124）；`cpack` DEB
+  `ojnexus-0.1.1-Ubuntu24.04-amd64.deb` SHA-256 `32a5f42a…b3f`，**回下载验哈希一致**；
+  发布记录 `docs/releases/linux-v0.1.1-rc.1.md`。
+- **Windows：如实跳过**——`windows-v0.1.2-rc.1` 之后 `windows/` 仅 +6 行 README，无代码变更，
+  不发空 RC；v0.1.2-rc.1 即当前 Windows 树。
+- **Apple：保持 CI-only**——无签名材料，不发二进制（规划 §2.3 边界）。
+- README Status 与规划台账（127 release 行、129 状态行）同步更新。
+
+交接文档状态：本文件已更新至 2026-11-01；第 26–29 节为当前权威，其余章节为历史记录。
