@@ -4,28 +4,64 @@ namespace OjNexus.Windows.Core.Storage;
 
 public sealed class SqliteConnectionFactory
 {
-    private const string DatabaseFileName = "ojnexus.db";
     private readonly string _connectionString;
+    private readonly OperationOwner _owner;
+    private readonly Action? _beforeCloseForTests;
 
-    public SqliteConnectionFactory(string? rootOverride = null)
+    internal SqliteConnectionFactory(string databasePath, OperationOwner owner, Action? beforeCloseForTests = null)
     {
-        var dataDirectory = WindowsPaths.GetDataDirectory(rootOverride);
-        Directory.CreateDirectory(dataDirectory);
-        DatabasePath = Path.Combine(dataDirectory, DatabaseFileName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
+        ArgumentNullException.ThrowIfNull(owner);
+        DatabasePath = databasePath;
+        _owner = owner;
+        _beforeCloseForTests = beforeCloseForTests;
         _connectionString = new SqliteConnectionStringBuilder
         {
-            DataSource = DatabasePath,
+            DataSource = databasePath,
+            Mode = SqliteOpenMode.ReadWrite,
             ForeignKeys = true,
+            Pooling = false,
+            DefaultTimeout = 2,
         }.ToString();
-        SchemaMigrator.Migrate(_connectionString);
     }
 
-    public string DatabasePath { get; }
+    internal string DatabasePath { get; }
 
-    public SqliteConnection OpenConnection()
+    internal void ValidatePermit(OperationPermit permit) => _owner.ValidatePermit(permit);
+
+    internal OperationCallLease EnterStoreCall(OperationPermit permit)
     {
-        var connection = new SqliteConnection(_connectionString);
-        connection.Open();
-        return connection;
+        ValidatePermit(permit);
+        return _owner.EnterStoreCall(permit);
+    }
+
+    internal SqliteConnectionLease OpenLease(OperationPermit permit)
+    {
+        ValidatePermit(permit);
+        var reservation = _owner.ReserveNativeLease(permit);
+        SqliteConnection? connection = null;
+        try
+        {
+            connection = new SqliteConnection(_connectionString);
+            connection.Open();
+            return new SqliteConnectionLease(connection, reservation, _beforeCloseForTests);
+        }
+        catch
+        {
+            try
+            {
+                if (connection is not null)
+                {
+                    connection.Close();
+                    connection.Dispose();
+                }
+                reservation.Dispose();
+            }
+            catch
+            {
+                // Keep the reservation if native closure cannot be confirmed.
+            }
+            throw;
+        }
     }
 }

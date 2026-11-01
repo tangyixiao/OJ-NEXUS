@@ -2,9 +2,60 @@ using Microsoft.Data.Sqlite;
 
 namespace OjNexus.Windows.Core.Storage;
 
+internal sealed class SchemaValidationException(string message, Exception? inner = null) : Exception(message, inner);
+
 public static class SchemaMigrator
 {
     private const int CurrentSchemaVersion = 7;
+
+    internal static int InspectExisting(SqliteConnection connection)
+    {
+        using var transaction = connection.BeginTransaction(deferred: true);
+        int version;
+        try
+        {
+            version = ReadSchemaVersion(connection, transaction) ?? throw new InvalidOperationException("Missing schema metadata.");
+            if (version > CurrentSchemaVersion)
+            {
+                throw new NotSupportedException("Unsupported database schema.");
+            }
+            switch (version)
+            {
+                case 0: ValidateVersionOneSchema(connection, transaction); break;
+                case 1: ValidateVersionOneSchema(connection, transaction); break;
+                case 2: ValidateVersionTwoSchema(connection, transaction); break;
+                case 3: ValidateVersionThreeSchema(connection, transaction); break;
+                case 4: ValidateVersionFourSchema(connection, transaction); break;
+                case 5: ValidateVersionFiveSchema(connection, transaction); break;
+                case 6: ValidateVersionSixSchema(connection, transaction); break;
+                case 7: ValidateVersionSevenSchema(connection, transaction); break;
+            }
+        }
+        catch (NotSupportedException)
+        {
+            throw;
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new SchemaValidationException("Database schema validation failed.", exception);
+        }
+        using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = "PRAGMA integrity_check";
+            if (!string.Equals(Convert.ToString(command.ExecuteScalar()), "ok", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Integrity check failed.");
+        }
+        using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = "PRAGMA foreign_key_check";
+            using var reader = command.ExecuteReader();
+            if (reader.Read()) throw new InvalidDataException("Foreign key check failed.");
+        }
+        transaction.Commit();
+        return version;
+    }
 
     public static void Migrate(string connectionString)
     {
@@ -96,6 +147,8 @@ public static class SchemaMigrator
             return null;
         }
 
+        ValidateMetadataLayout(connection, transaction);
+
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = "SELECT value FROM schema_metadata WHERE key = 'schema_version'";
@@ -111,6 +164,33 @@ public static class SchemaMigrator
         }
 
         return version;
+    }
+
+    private static void ValidateMetadataLayout(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "PRAGMA table_info('schema_metadata')";
+        using var reader = command.ExecuteReader();
+        var columns = new Dictionary<string, (string Type, bool NotNull, int PrimaryKey)>(StringComparer.OrdinalIgnoreCase);
+        while (reader.Read())
+        {
+            columns.Add(reader.GetString(1),
+                (reader.GetString(2), reader.GetInt32(3) != 0, reader.GetInt32(5)));
+        }
+
+        if (columns.Count != 2
+            || !columns.TryGetValue("key", out var key)
+            || !columns.TryGetValue("value", out var value)
+            || !string.Equals(key.Type, "TEXT", StringComparison.OrdinalIgnoreCase)
+            || !key.NotNull
+            || key.PrimaryKey != 1
+            || !string.Equals(value.Type, "TEXT", StringComparison.OrdinalIgnoreCase)
+            || !value.NotNull
+            || value.PrimaryKey != 0)
+        {
+            throw new InvalidOperationException("Database schema metadata layout is invalid.");
+        }
     }
 
     private static bool HasUserTables(SqliteConnection connection, SqliteTransaction transaction)

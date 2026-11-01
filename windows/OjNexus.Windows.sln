@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OjNexus.Windows.Cli.Tests",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OjNexus.Windows.Desktop.Tests", "tests\OjNexus.Windows.Desktop.Tests\OjNexus.Windows.Desktop.Tests.csproj", "{8ABF648D-956F-4D49-B539-722B2D671B2E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OjNexus.Windows.StorageTestHost", "tests\OjNexus.Windows.StorageTestHost\OjNexus.Windows.StorageTestHost.csproj", "{58D8AFC2-E8D2-4160-92D4-4AE19BFC553D}"
+EndProject
 Global
     GlobalSection(SolutionConfigurationPlatforms) = preSolution
         Debug|Any CPU = Debug|Any CPU
@@ -44,5 +46,9 @@ Global
         {8ABF648D-956F-4D49-B539-722B2D671B2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
         {8ABF648D-956F-4D49-B539-722B2D671B2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
         {8ABF648D-956F-4D49-B539-722B2D671B2E}.Release|Any CPU.Build.0 = Release|Any CPU
+        {58D8AFC2-E8D2-4160-92D4-4AE19BFC553D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {58D8AFC2-E8D2-4160-92D4-4AE19BFC553D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {58D8AFC2-E8D2-4160-92D4-4AE19BFC553D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {58D8AFC2-E8D2-4160-92D4-4AE19BFC553D}.Release|Any CPU.Build.0 = Release|Any CPU
     EndGlobalSection
 EndGlobal

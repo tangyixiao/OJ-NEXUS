@@ -38,18 +38,19 @@ public sealed class AtCoderPayloadPersistenceTests
     private sealed class TemporaryDatabase : IDisposable
     {
         private readonly string _directoryPath = Path.Combine(Path.GetTempPath(), "oj-nexus-atcoder-tests", Guid.NewGuid().ToString("N"));
+        private readonly StorageTestScope _scope;
 
         public TemporaryDatabase()
         {
-            Directory.CreateDirectory(_directoryPath);
-            Store = new SqliteSyncStore(new SqliteConnectionFactory(_directoryPath));
+            _scope = new StorageTestScope(_directoryPath);
+            Store = _scope.Store;
         }
 
-        public SqliteSyncStore Store { get; }
+        public ISyncStore Store { get; }
 
         public void Dispose()
         {
-            SqliteConnection.ClearAllPools();
+            _scope.Dispose();
             Directory.Delete(_directoryPath, recursive: true);
         }
     }
