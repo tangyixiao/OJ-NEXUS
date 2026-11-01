@@ -6,6 +6,8 @@ import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.ojnexus.OjNexusApplication
+import com.ojnexus.app.NexusStartupState
 import java.util.concurrent.TimeUnit
 
 /** Opt-in schedule for the local snapshot backup. Local only — never any cloud upload. */
@@ -33,6 +35,8 @@ object ScheduledBackupScheduler {
     const val UNIQUE_NAME = "oj-nexus-scheduled-backup"
 
     fun update(context: Context, cadence: BackupCadence) {
+        val ready = (context.applicationContext as? OjNexusApplication)?.startupState
+            as? NexusStartupState.Ready ?: return
         val manager = WorkManager.getInstance(context)
         if (cadence == BackupCadence.OFF) {
             manager.cancelUniqueWork(UNIQUE_NAME)
@@ -45,8 +49,16 @@ object ScheduledBackupScheduler {
                     .setRequiresStorageNotLow(true)
                     .build(),
             )
+            .setInputData(scheduledBackupInput(ready.container.currentDataGeneration()))
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
             .build()
         manager.enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 }
+
+/**
+ * The periodic backup request carries the resolved generation so the worker can refuse a
+ * run captured under an older or unknown store (Phase 127B strict admission).
+ */
+internal fun scheduledBackupInput(generation: String) =
+    androidx.work.workDataOf(ScheduledBackupWorker.DATA_GENERATION to generation)

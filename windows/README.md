@@ -4,6 +4,13 @@ The Windows vertical slice contains a native WPF desktop client, a scriptable CL
 local-first synchronization core. The desktop and CLI share the Core project in-process; the
 desktop client does not launch the CLI as a child process.
 
+Current source inventory (2026-10-23): WPF has `DASHBOARD`, `CONNECTORS`, `SYNC HISTORY`, and
+`PROBLEMS`. Problem listing is also available through the CLI. Review scheduling and result
+recording are currently **CLI + SQLite only** (`review due`, `review mark`); there is no WPF
+review page yet. Notes, training sessions, portable backup exchange and learning analytics are
+not part of this Windows slice. See the [platform capability ledger](../docs/verification/platform-capabilities.md)
+for source and separate build/runtime/release evidence.
+
 ## Build and test
 
 From the repository root on Windows:
@@ -35,6 +42,9 @@ capture separately; sessions without a usable interactive desktop may pass the U
 reporting `SCREENSHOTS: 0/3`. Any generated screenshots are written below
 `windows/artifacts/ui-smoke/`, which is ignored by Git.
 
+This smoke currently visits the three original views. It does not verify the newer `PROBLEMS`
+view or exercise the CLI review workflow; Phase 123 tracks those coverage gaps separately.
+
 The Dashboard `SYNC ALL` action runs the configured and enabled connectors in order. Disabled or
 unconfigured rows are skipped; a cancellation or failed connector leaves its typed operation in
 history and reports a non-success batch result without starting an unsolicited retry.
@@ -46,6 +56,12 @@ ojnexus.exe status [--json]
 ojnexus.exe sync --judge <codeforces|atcoder|luogu> [--handle <handle>] [--force] [--json]
 ojnexus.exe history [--judge <judge>] [--limit <n>] [--json]
 ojnexus.exe config show [--json]
+
+ojnexus.exe problems list [--judge <judge>] [--status <status>] [--json]
+
+ojnexus.exe review due [--judge <judge>] [--limit <n>] [--json]
+
+ojnexus.exe review mark --judge <judge> --problem <external-id> --result <PASS|HARD|FAIL|SKIP> [--json]
 ```
 
 ## Exit codes
@@ -126,7 +142,9 @@ deletions go through the .NET file APIs and the resulting filesystem state is ve
 some hosts report a recursive `Remove-Item` as failed even when the directory is already gone,
 and this script stops on errors. A path that genuinely could not be removed still fails packaging.
 
-The artifact is unsigned and is not an installer, MSIX/MSI package, or Store submission.
+The ZIP is a portable self-contained package. A separate `build-installer.ps1` path produces
+an Inno Setup installer; signing is conditional on certificate configuration. A generated
+artifact is not itself evidence of trusted signing, clean-VM installation or Store acceptance.
 
 ## Signing and installers
 
@@ -135,9 +153,11 @@ The artifact is unsigned and is not an installer, MSIX/MSI package, or Store sub
 certificate. A certificate generated in memory signs a binary successfully, but the resulting
 chain terminates in an untrusted root: that is expected and it cannot remove the "unknown
 publisher" prompt, so an internally generated certificate is only useful for exercising the
-signing step. A CA-issued code signing certificate is required for any distributed artifact.
+signing step. Trusted publisher distribution requires the corresponding trusted certificate;
+unsigned or test-signed artifacts must be labeled with their actual status and channel limits.
 
-No installer toolchain (WiX, Inno Setup, NSIS) is installed in this environment, so the release
-artifact is the ZIP and its extracted directory rather than a setup executable. MSIX packaging is
-possible with `makeappx.exe`, but an MSIX package must be signed with a trusted certificate before
-it can be installed.
+The repository now includes the Inno Setup script, `build-installer.ps1`,
+`verify-installer.ps1` and `sign-binaries.ps1`. The Windows CI installs Inno Setup and invokes
+the installer build. Local execution still needs the matching toolchain. The presence of these
+scripts or a past CI artifact must not be reported as a fresh install/uninstall test on a clean
+VM. Installer signing and clean-VM verification remain independent release gates.

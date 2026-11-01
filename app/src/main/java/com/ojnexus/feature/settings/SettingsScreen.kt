@@ -47,6 +47,7 @@ import com.ojnexus.R
 import com.ojnexus.core.data.backup.BackupCadence
 import com.ojnexus.core.data.repository.DatabaseMaintenanceRepository
 import com.ojnexus.core.data.repository.DatabaseMaintenanceStats
+import com.ojnexus.core.data.restore.RestoreFailure
 import com.ojnexus.core.data.sync.SyncPhase
 import com.ojnexus.core.data.preferences.AppLanguage
 import com.ojnexus.core.data.preferences.UserPreferences
@@ -65,6 +66,21 @@ import com.ojnexus.core.ui.LocalAppContainer
 import com.ojnexus.core.ui.UrlOpener
 import com.ojnexus.judge.JudgeCapability
 import com.ojnexus.judge.luogu.LuoguUrls
+
+/**
+ * Stable result copy for export/import attempts. Storage failures carry retry guidance;
+ * raw errors and paths never reach the copy (Phase 127C).
+ */
+internal fun backupResultLabel(result: BackupResult): Int = when {
+    result.success && result.operation == BackupOperation.EXPORT -> R.string.settings_backup_success
+    result.success -> R.string.settings_backup_import_success
+    result.operation == BackupOperation.IMPORT && result.failure == RestoreFailure.STORAGE_FULL ->
+        R.string.settings_import_storage_full
+    result.operation == BackupOperation.IMPORT && result.failure == RestoreFailure.STORAGE_IO ->
+        R.string.settings_import_storage_io
+    result.operation == BackupOperation.IMPORT -> R.string.settings_import_rejected
+    else -> R.string.settings_backup_failed
+}
 
 @Composable
 fun SettingsScreen(
@@ -285,14 +301,7 @@ fun SettingsScreen(
                 backupResult?.let { result ->
                     Spacer(Modifier.height(NexusSpacing.xs))
                     Text(
-                        text = stringResource(
-                            when {
-                                result.success && result.operation == BackupOperation.EXPORT ->
-                                    R.string.settings_backup_success
-                                result.success -> R.string.settings_backup_import_success
-                                else -> R.string.settings_backup_failed
-                            },
-                        ),
+                        text = stringResource(backupResultLabel(result)),
                         style = NexusTheme.typography.dataSmall,
                         color = if (result.success) NexusTheme.colors.success else NexusTheme.colors.danger,
                     )

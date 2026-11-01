@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.ojnexus.core.data.backup.SnapshotManifestCodec
+import com.ojnexus.core.data.restore.RestoreOutcome
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.database.entity.ProblemEntity
 import java.io.File
@@ -118,7 +119,7 @@ class BackupSnapshotRepositoryTest {
         val repository = BackupRepository(database, context)
 
         assertTrue(repository.exportSnapshot(context.contentResolver, Uri.fromFile(output)))
-        assertTrue(repository.importFrom(context.contentResolver, Uri.fromFile(output)))
+        assertTrue(repository.importFrom(context.contentResolver, Uri.fromFile(output)) is RestoreOutcome.Staged)
 
         database.close()
         assertTrue("restore outcome was not applied", BackupRepository.restorePending(context))
@@ -143,7 +144,7 @@ class BackupSnapshotRepositoryTest {
             text.replace("\"schema_version\":${OjNexusDatabase.CURRENT_SCHEMA_VERSION}", "\"schema_version\":1")
         }
 
-        assertFalse(repository.importFrom(context.contentResolver, Uri.fromFile(output)))
+        assertTrue(repository.importFrom(context.contentResolver, Uri.fromFile(output)) is RestoreOutcome.Rejected)
         assertFalse(File(context.filesDir, "oj-nexus-pending-restore.db").exists())
     }
 
@@ -156,7 +157,7 @@ class BackupSnapshotRepositoryTest {
             text.replace(Regex("\"data_generation\":\"[^\"]*\""), "\"data_generation\":\"\"")
         }
 
-        assertFalse(repository.importFrom(context.contentResolver, Uri.fromFile(output)))
+        assertTrue(repository.importFrom(context.contentResolver, Uri.fromFile(output)) is RestoreOutcome.Rejected)
     }
 
     @Test
@@ -180,7 +181,7 @@ class BackupSnapshotRepositoryTest {
         val result = repository.importFrom(context.contentResolver, Uri.fromFile(manifestOnly))
         manifestOnly.delete()
         // Falls back to the legacy raw path, which rejects the non-database payload.
-        assertFalse(result)
+        assertTrue(result is RestoreOutcome.Rejected)
     }
 
     @Test
@@ -192,7 +193,7 @@ class BackupSnapshotRepositoryTest {
 
         val imported = repository.importFrom(context.contentResolver, Uri.fromFile(legacy))
         legacy.delete()
-        assertTrue(imported)
+        assertTrue(imported is RestoreOutcome.Staged)
     }
 
     @Test
