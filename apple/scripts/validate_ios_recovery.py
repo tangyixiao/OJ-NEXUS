@@ -27,31 +27,37 @@ RUNTIME_PREFIX = "com.apple.CoreSimulator.SimRuntime.iOS-"
 
 
 def _unwrap(node):
-    """Recursively unwrap xcresulttool legacy {"_value": ...} wrappers."""
+    """Recursively unwrap xcresulttool legacy {"_value": ...} / {"_values": [...]} wrappers."""
     if isinstance(node, dict):
-        if set(node.keys()) >= {"_type", "_value"}:
+        if "_value" in node:
             return _unwrap(node["_value"])
-        return {key: _unwrap(value) for key, value in node.items()}
+        if "_values" in node:
+            return [_unwrap(item) for item in node["_values"]]
+        return {key: _unwrap(value) for key, value in node.items() if key != "_type"}
     if isinstance(node, list):
         return [_unwrap(item) for item in node]
     return node
 
 
-_OUTCOMES = ("passed", "failed", "skipped")
+_OUTCOME_MAP = {
+    "passed": "passed", "success": "passed",
+    "failed": "failed", "failure": "failed",
+    "skipped": "skipped", "expected failure": "skipped",
+}
 
 
 def _outcome_of(node):
     for key in ("result", "testStatus", "outcome"):
         value = node.get(key)
         if isinstance(value, str):
-            lowered = value.strip().lower()
-            if lowered in _OUTCOMES:
-                return lowered
+            mapped = _OUTCOME_MAP.get(value.strip().lower())
+            if mapped:
+                return mapped
     return None
 
 
 def _children_of(node):
-    for key in ("children", "subtests", "testNodes"):
+    for key in ("children", "subtests", "testNodes", "tests", "testableSummaries", "summaries"):
         kids = node.get(key)
         if isinstance(kids, list):
             return kids
@@ -292,6 +298,17 @@ def cmd_self_test():
         {"name": "WorkspaceRecoveryTests", "children": [
             {"name": "GroupA", "children": [{"name": "testA", "result": "Passed"}]},
             {"name": "testB", "testStatus": "Failed"}]}]}
+    runner_legacy = {"summaries": [{"name": "Test Scheme Action", "testableSummaries": [
+        {"name": "OJNexusCoreTests", "tests": [
+            {"name": "Selected tests", "subtests": [
+                {"name": "OJNexusCoreTests.xctest", "subtests": [
+                    {"name": "WorkspaceRecoveryTests", "subtests": [
+                        {"name": "testA()", "testStatus": "Success", "duration": 0.1},
+                        {"name": "testB()", "testStatus": "Success", "duration": 0.2},
+                        {"name": "testC()", "testStatus": "Failure", "duration": 0.3},
+                    ]}]}]}]}]}]}
+    runner_legacy_pass = json.loads(json.dumps(runner_legacy))
+    del runner_legacy_pass["summaries"][0]["testableSummaries"][0]["tests"][0]["subtests"][0]["subtests"][0]["subtests"][2]
 
     expectations = [
         (normalized_pass, {"suite_found": True, "executed": 2, "failed": 0}, True),
@@ -302,6 +319,8 @@ def cmd_self_test():
         (legacy_status, {"suite_found": True, "executed": 2, "failed": 0}, True),
         (suite_root, {"suite_found": True, "executed": 2, "failed": 0}, True),
         (mixed_group, {"suite_found": True, "executed": 2, "failed": 1}, False),
+        (runner_legacy_pass, {"suite_found": True, "executed": 2, "failed": 0}, True),
+        (runner_legacy, {"suite_found": True, "executed": 3, "failed": 1}, False),
     ]
 
     workspace_doc = {"workspace": {"name": "apple",
