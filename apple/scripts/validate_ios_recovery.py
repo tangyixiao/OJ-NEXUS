@@ -154,12 +154,22 @@ def _pick_simulator(devices):
     return best[1]
 
 
+def _list_schemes(doc):
+    for key in ("schemes", "workspace", "project"):
+        section = doc.get(key)
+        if isinstance(section, list) and key == "schemes":
+            return section
+        if isinstance(section, dict) and isinstance(section.get("schemes"), list):
+            return section["schemes"]
+    return []
+
+
 def cmd_discover(args):
     with open(args.schemes, "r", encoding="utf-8") as handle:
         scheme_doc = json.load(handle)
     with open(args.devices, "r", encoding="utf-8") as handle:
         device_doc = json.load(handle)
-    schemes = scheme_doc.get("schemes") or []
+    schemes = _list_schemes(scheme_doc)
     scheme = _pick_scheme(schemes)
     simulator = _pick_simulator(device_doc.get("devices") or {})
     destination = f"platform=iOS Simulator,id={simulator['udid']}"
@@ -237,7 +247,42 @@ def cmd_self_test():
         gate = _gate(report, "WorkspaceRecoveryTests")
         if bool(gate) == should_pass:
             raise SystemExit(f"self-test {index}: gate={gate} expected pass={should_pass}")
-    print("self-test: 5/5 fixture expectations met")
+
+    workspace_doc = {"workspace": {"name": "apple",
+                                   "schemes": ["OJNexusApple-Package", "OJNexusCore"]}}
+    top_level_doc = {"schemes": ["OJNexusCore"]}
+    project_doc = {"project": {"schemes": ["Other", "OJNexus-Package"]}}
+    if _list_schemes(workspace_doc) != ["OJNexusApple-Package", "OJNexusCore"]:
+        raise SystemExit("self-test: workspace scheme listing not read")
+    if _list_schemes(top_level_doc) != ["OJNexusCore"]:
+        raise SystemExit("self-test: top-level scheme listing not read")
+    if _list_schemes(project_doc) != ["Other", "OJNexus-Package"]:
+        raise SystemExit("self-test: project scheme listing not read")
+    if _pick_scheme(_list_schemes(workspace_doc)) != "OJNexusApple-Package":
+        raise SystemExit("self-test: package scheme not preferred")
+    if _pick_scheme(_list_schemes(project_doc)) != "OJNexus-Package":
+        raise SystemExit("self-test: exact package scheme not preferred")
+
+    device_doc = {"devices": {
+        "com.apple.CoreSimulator.SimRuntime.iOS-15-5": [
+            {"udid": "OLD-1", "name": "iPhone 13", "isAvailable": True, "state": "Shutdown"}],
+        "com.apple.CoreSimulator.SimRuntime.iOS-17-5": [
+            {"udid": "PAD-1", "name": "iPad Pro (12.9-inch)", "isAvailable": True, "state": "Shutdown"},
+            {"udid": "PHONE-1", "name": "iPhone 15", "isAvailable": True, "state": "Shutdown"}],
+        "com.apple.CoreSimulator.SimRuntime.watchOS-10-5": [
+            {"udid": "WATCH-1", "name": "Watch", "isAvailable": True, "state": "Shutdown"}],
+    }}
+    picked = _pick_simulator(device_doc["devices"])
+    if picked["udid"] != "PHONE-1" or picked["runtime"] != "com.apple.CoreSimulator.SimRuntime.iOS-17-5":
+        raise SystemExit(f"self-test: simulator pick wrong: {picked}")
+    try:
+        _pick_simulator({"devices": {"com.apple.CoreSimulator.SimRuntime.iOS-15-5": [
+            {"udid": "OLD-1", "name": "iPhone 13", "isAvailable": True}]}})
+    except SystemExit:
+        pass
+    else:
+        raise SystemExit("self-test: iOS 15 runtime must not be picked")
+    print("self-test: 5/5 result fixtures and 5/5 discovery fixtures met")
 
 
 def main():
