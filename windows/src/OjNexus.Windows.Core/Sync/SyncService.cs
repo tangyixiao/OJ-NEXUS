@@ -1,29 +1,27 @@
 using System.Collections.Concurrent;
+using System.Runtime.ExceptionServices;
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
+using OjNexus.Windows.Core.Storage;
 
 namespace OjNexus.Windows.Core.Sync;
 
 public sealed class SyncService
 {
     private readonly IReadOnlyDictionary<JudgeId, IJudgeAdapter> _adapters;
-    private readonly ISyncStore _store;
     private readonly IClock _clock;
     private readonly Func<string> _dataGeneration;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _accountGates = new(StringComparer.Ordinal);
 
     public SyncService(
         IReadOnlyDictionary<JudgeId, IJudgeAdapter> adapters,
-        ISyncStore store,
         IClock clock,
         Func<string> dataGeneration)
     {
         ArgumentNullException.ThrowIfNull(adapters);
-        ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(dataGeneration);
         _adapters = adapters;
-        _store = store;
         _clock = clock;
         _dataGeneration = dataGeneration;
     }
@@ -31,6 +29,7 @@ public sealed class SyncService
     public async Task<SyncReport> RunAsync(
         JudgeAccount account,
         bool force,
+        ISyncStore store,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(account);
@@ -39,7 +38,7 @@ public sealed class SyncService
         await gate.WaitAsync(cancellationToken);
         try
         {
-            return await RunExclusiveAsync(account, force, cancellationToken);
+            return await RunExclusiveAsync(account, force, store, cancellationToken);
         }
         finally
         {
@@ -50,6 +49,7 @@ public sealed class SyncService
     private async Task<SyncReport> RunExclusiveAsync(
         JudgeAccount account,
         bool force,
+        ISyncStore store,
         CancellationToken cancellationToken)
     {
         JudgeAccount validatedAccount;
@@ -64,7 +64,15 @@ public sealed class SyncService
 
         var startedAt = _clock.UtcNow;
         var dataGeneration = _dataGeneration();
-        var operationId = await _store.OpenOperationAsync(validatedAccount, dataGeneration, startedAt, CancellationToken.None);
+        long operationId;
+        try
+        {
+            operationId = await store.OpenOperationAsync(validatedAccount, dataGeneration, startedAt, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is not StorageException)
+        {
+            throw StorageException.ForPersistence(exception, "open-operation");
+        }
         var modules = new List<SyncModuleOutcome>();
         var status = SyncOperationStatus.Running;
         SyncError? error = null;
@@ -89,7 +97,16 @@ public sealed class SyncService
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var storedOutcome = ToStoredOutcome(outcome);
-                    await _store.AppendModuleAsync(operationId, storedOutcome, _clock.UtcNow, CancellationToken.None);
+                    try
+                    {
+                        await store.AppendModuleAsync(operationId, storedOutcome, _clock.UtcNow, CancellationToken.None);
+                    }
+                    catch (Exception exception)
+                    {
+                        throw exception is StorageException storage
+                            ? storage
+                            : StorageException.ForPersistence(exception, "append-module");
+                    }
                     MoveReplacementToEnd(modules, storedOutcome);
                 }
 
@@ -103,6 +120,24 @@ public sealed class SyncService
             status = SyncOperationStatus.Cancelled;
             error = SyncError.Cancelled;
         }
+        catch (StorageException exception)
+        {
+            status = SyncOperationStatus.Error;
+            error = SyncError.Storage;
+            var finished = _clock.UtcNow;
+            try
+            {
+                await store.CloseOperationAsync(operationId, status, error, finished, CancellationToken.None);
+            }
+            catch (Exception closeException)
+            {
+                throw closeException is StorageException closeStorage
+                    ? closeStorage
+                    : StorageException.ForPersistence(closeException, "close-operation");
+            }
+            ExceptionDispatchInfo.Capture(exception).Throw();
+            throw new InvalidOperationException("Unreachable.");
+        }
         catch (Exception)
         {
             status = SyncOperationStatus.Error;
@@ -110,7 +145,16 @@ public sealed class SyncService
         }
 
         var finishedAt = _clock.UtcNow;
-        await _store.CloseOperationAsync(operationId, status, error, finishedAt, CancellationToken.None);
+        try
+        {
+            await store.CloseOperationAsync(operationId, status, error, finishedAt, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            throw exception is StorageException storage
+                ? storage
+                : StorageException.ForPersistence(exception, "close-operation");
+        }
         var operation = new SyncOperation(operationId, validatedAccount, dataGeneration, startedAt, finishedAt, status, modules, error);
         return new SyncReport(operation, status, error);
     }

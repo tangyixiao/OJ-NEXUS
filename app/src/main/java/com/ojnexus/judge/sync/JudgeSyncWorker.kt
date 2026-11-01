@@ -13,8 +13,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.ojnexus.OjNexusApplication
+import com.ojnexus.app.NexusStartupState
 import com.ojnexus.core.data.sync.SyncPhase
-import com.ojnexus.core.data.restore.DatabaseRestoreCoordinator
 import com.ojnexus.core.data.restore.RestoreWorkDecision
 import com.ojnexus.core.data.restore.decideRestoreWorkGeneration
 import com.ojnexus.core.model.JudgeId
@@ -33,20 +33,27 @@ class JudgeSyncWorker(
         if (accountId <= 0 || judge == null) return Result.failure()
         val application = applicationContext as? OjNexusApplication
             ?: return Result.failure()
-        val dataGeneration = inputData.getString(DATA_GENERATION)
-        when (decideRestoreWorkGeneration(dataGeneration, application.container.currentDataGeneration())) {
+        val container = when (val state = application.startupState) {
+            NexusStartupState.Starting -> return Result.retry()
+            is NexusStartupState.Blocked -> return Result.failure(workDataOf(RESULT_KEY to RECOVERY_BLOCKED))
+            is NexusStartupState.Ready -> state.container
+        }
+        val stamp = inputData.getString(DATA_GENERATION)?.trim()?.takeIf { it.isNotEmpty() }
+        when (decideRestoreWorkGeneration(stamp, container.currentDataGeneration())) {
+            RestoreWorkDecision.PROCEED -> Unit
             RestoreWorkDecision.STALE -> {
-                application.container.syncDispatcher.recordStaleGeneration(judge, accountId, dataGeneration)
+                container.syncDispatcher.recordStaleGeneration(judge, accountId, stamp)
                 return Result.success(workDataOf(RESULT_KEY to STALE_RESULT))
             }
-            RestoreWorkDecision.PROCEED,
-            RestoreWorkDecision.LEGACY,
-            -> Unit
+            RestoreWorkDecision.LEGACY -> {
+                container.syncDispatcher.recordStaleGeneration(judge, accountId, null)
+                return Result.success(workDataOf(RESULT_KEY to UNSTAMPED_RESULT))
+            }
         }
         val force = inputData.getBoolean(KEY_FORCE, false)
         return try {
-            val report = application.container.syncDispatcher
-                .sync(judge, accountId, force, dataGeneration)
+            val report = container.syncDispatcher
+                .sync(judge, accountId, force, stamp)
                 ?: return Result.failure()
             when {
                 report.allOk -> Result.success()
@@ -67,17 +74,19 @@ class JudgeSyncWorker(
         const val DATA_GENERATION = "data_generation"
         const val RESULT_KEY = "result"
         const val STALE_RESULT = "STALE_DATA_GENERATION"
+        const val UNSTAMPED_RESULT = "UNSTAMPED_DATA_GENERATION"
+        const val RECOVERY_BLOCKED = "RECOVERY_BLOCKED"
         const val MAX_ATTEMPTS = 3
 
         fun enqueueManual(context: Context, judge: JudgeId, accountId: Long, force: Boolean = true) {
+            val ready = (context.applicationContext as? OjNexusApplication)?.startupState as? NexusStartupState.Ready ?: return
             val request = OneTimeWorkRequestBuilder<JudgeSyncWorker>()
                 .setInputData(
                     workDataOf(
                         KEY_JUDGE_ID to judge.id,
                         KEY_ACCOUNT_ID to accountId,
                         KEY_FORCE to force,
-                        DATA_GENERATION to DatabaseRestoreCoordinator(context.applicationContext)
-                            .currentDataGeneration(),
+                        DATA_GENERATION to ready.container.currentDataGeneration(),
                     ),
                 )
                 .setConstraints(connectedConstraint())
@@ -91,6 +100,7 @@ class JudgeSyncWorker(
         }
 
         fun enqueuePeriodic(context: Context, judge: JudgeId, accountId: Long) {
+            val ready = (context.applicationContext as? OjNexusApplication)?.startupState as? NexusStartupState.Ready ?: return
             val request = PeriodicWorkRequestBuilder<JudgeSyncWorker>(
                 SyncPolicy.PERIODIC_SYNC_MINUTES,
                 TimeUnit.MINUTES,
@@ -100,8 +110,7 @@ class JudgeSyncWorker(
                         KEY_JUDGE_ID to judge.id,
                         KEY_ACCOUNT_ID to accountId,
                         KEY_FORCE to false,
-                        DATA_GENERATION to DatabaseRestoreCoordinator(context.applicationContext)
-                            .currentDataGeneration(),
+                        DATA_GENERATION to ready.container.currentDataGeneration(),
                     ),
                 )
                 .setConstraints(
@@ -112,9 +121,11 @@ class JudgeSyncWorker(
                 )
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
                 .build()
+            // UPDATE replaces the queued spec so every ready start re-stamps the periodic
+            // entry with the current generation (Phase 127B queue replacement).
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 JudgeWorkNames.periodic(judge, accountId),
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 request,
             )
         }

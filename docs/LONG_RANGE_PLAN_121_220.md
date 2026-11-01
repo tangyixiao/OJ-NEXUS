@@ -208,26 +208,25 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **交付：** 统一“预检→暂存→提交→恢复”状态和错误类别；提供截断、磁盘写满、取消、重启、旧 generation 的合成故障向量；规定提交前不改活动数据。
 - **验收：** G-S；每个向量给出旧/新数据应保留哪份、可重试点和恢复结果；不要求桌面复制 Android 数据库结构。
 
-#### [ ] PHASE 127 — A · 备份恢复与后台任务隔离
-- **新增接续项（来自 122）：** 当前 WAL 修复使用 `VACUUM INTO`，API 37 的 SQLite 3.50.6 已实测；低于 SQLite 3.27 的设备会明确导出失败。为 minSdk 26 确定兼容策略并做真实旧引擎验证，不能恢复复制过时主库的回退。
+#### [x] PHASE 127 — A · 备份恢复与后台任务隔离（VERIFIED，2026-10-30，v1.0.4 release 门禁收口）
+- **状态：** VERIFIED；127A 恢复源保留与启动拦截、127B 严格后台任务代际准入、127C 类型化导入存储错误、127D 旧引擎导出兼容均已完成验收，整期 release 门禁随 v1.0.4 通过。127A 见 [设计](superpowers/specs/2026-10-24-phase-127a-recovery-safety-design.md)、[计划](superpowers/plans/2026-10-24-phase-127a-recovery-safety.md)、[证据](verification/phase-127a-recovery-safety.md)；127B 见 [设计](superpowers/specs/2026-10-27-phase-127b-worker-generation-design.md)、[计划](superpowers/plans/2026-10-27-phase-127b-worker-generation.md)、[证据](verification/phase-127b-worker-generation.md)；127C 见 [设计](superpowers/specs/2026-10-29-phase-127c-import-storage-errors-design.md)、[计划](superpowers/plans/2026-10-29-phase-127c-import-storage-errors.md)、[证据](verification/phase-127c-import-storage-errors.md)；127D 见 [设计](superpowers/specs/2026-10-30-phase-127d-old-engine-export-design.md)、[计划](superpowers/plans/2026-10-30-phase-127d-old-engine-export.md)、[证据](verification/phase-127d-old-engine-export.md)。
+- **127A 进展：** `690b5f5` 的恢复协议与启动接线任务审查通过；fresh 829 项单测、debug/release 构建、35 项 connected 测试及专用 API37 Activity 阻断/恢复前台/重复冷启动/200% 字体验收通过。整分支审查及最后一次测试名称修正的定向复审通过；[PR #20](https://github.com/tangyixiao/OJ-NEXUS/pull/20) 已创建、未合并。
+- **127B 进展：** `e468fee` 落地严格代际准入：三个 worker（Judge sync、Luogu 结果轮询、定时备份）只放行与进程代次精确一致的戳记，stale/unstamped 一律拒绝；sync 拒绝写入 `STALE_GENERATION` 台账（unstamped 记空代次），备份请求由调度器携带当前代次，periodic 队列改为 UPDATE 替换以便每次就绪启动重新戳记。RED（4 个现状缺陷用例）→ GREEN；fresh 835 项单测/182 套件 0 失败，debug/release 构建通过；重建专用 AVD 后 connected 35/35 通过（首次运行因模拟器进程死亡中断，已如实记录为基础设施失败）。Phase126 分类器与 RV020–022 投影未改。
+- **127C 进展：** `6d65852`/`545aa77`/`ed7e873` 落地 RV004–006：导入暂存临时创建/拷贝/日志写入的 I/O 故障现返回类型化 `STORAGE_FULL`（ENOSPC 特征）/`STORAGE_IO`（其他 I/O），RV004 原为未捕获异常（设置页导入崩溃路径），且失败后清理本 run 拥有的暂存证据使重试不再被孤儿证据阻断（预先存在的 staged 导入不受失败尝试破坏）；`importFrom` 返回完整 `RestoreOutcome`，设置页把导入失败映射为稳定的重试文案（中文目录同步真实翻译），不再复用导出失败文案。RED（含 RV004 崩溃路径）→ GREEN（故障套件 8/8）；独立审查 SPEC PASS、1 个 P1（validation 分支漏清理）已修复并回归。
+- **127D 进展：** `9088ee1`/`de8914e`/`b226160` 落地旧引擎导出兼容：导出按 `SELECT sqlite_version()` 门控，≥3.27 保持 VACUUM INTO 不变；<3.27（API 26–28 的 SQLite 3.18–3.22）走独占检查点回退——专用连接无事务执行 `wal_checkpoint(TRUNCATE)`（要求 busy==0 且 -wal 归零），在读事务保护下拷贝主文件（WAL 写者只追加 WAL；回滚模式写者被 SHARED 锁阻塞），全进程 `mainFileRewriteLock` 同时串行化维护 VACUUM（独立审查发现的 P1 并发改主文件风险已修复），双路径导出前均跑 schema/quick_check/integrity_check/必需表校验，失败即销毁暂存。**真实旧引擎验证**：下载 `system-images;android-27;default;x86_64` 并建专用 AVD `OJNexus_Phase127_OldEngine`（SQLite 3.19.4）——修复前 connected RED（`export failed on engine 3.19.4`），修复后同测试 GREEN。实施偏离（BEGIN EXCLUSIVE 序列在 SQLite 层不可行）已在 spec 修订注记公开。
+- **Release 门禁（v1.0.4，2026-10-30）：** 分支 `codex/release-v1.0.4`，versionCode 106 / versionName 1.0.4；fresh 848 项单测/185 套件 0 失败、debug/release 构建通过；本地化 EN=1026/ZH=1026 0 硬编码；可复现构建两次干净 pass 同哈希 `67BDB719…26F6`；专用 API37.1 AVD connected 36/36（API27 旧引擎亦 36/36，见 127D 证据）；签名 APK（apksigner v2+v3）真机安装冷启动 0 崩溃，`versionCode=106/versionName=1.0.4` 读回一致，签名 APK SHA-256 `C916081B…01F` 记入 [SHA256SUMS-v1.0.4](releases/SHA256SUMS-v1.0.4.txt)，发布记录 [v1.0.4.md](releases/v1.0.4.md)。GitHub release 与合并决定留待用户。
 - **依赖 / 范围：** 122、126；A-CORE 的 BackupRepository、DatabaseRestoreCoordinator、backup worker，A-TEST。
 - **交付：** 对现有快照导入、定时备份增加中断恢复与旧任务写回回归；修复被证实的暂存、generation 或文件替换缺口。
 - **验收：** G-A；故障注入后重启得到完整旧库或完整新库；旧 worker 不回写；取消预览不动库；OpenApp 凭据保持独立。
 
 #### [ ] PHASE 128 — W · SQLite 写入和恢复的原子性
-- **状态：** ACTIVE（2026-11-01）；128A 存储启动防护已交付为
-  [PR #21](https://github.com/tangyixiao/OJ-NEXUS/pull/21)（OPEN、MERGEABLE、未合并）：CLI/WPF 单一
-  存储权威、零字节/损坏/未来 schema 启动拒绝并保留原字节、类型化 Storage/exit 6、WPF 阻断/重试/退出
-  外壳；独立 Release 345 项测试与真实 CLI 故障注入证据按 PR 正文记录，未在本轮复跑。
+- **状态：** ACTIVE（2026-10-24）；[128A 设计](superpowers/specs/2026-10-24-phase-128a-windows-storage-safety.md)与[实施计划](superpowers/plans/2026-10-24-phase-128a-windows-storage-safety.md)已通过限定范围审查及产物验收：[PR #21](https://github.com/tangyixiao/OJ-NEXUS/pull/21) 待合并，[Windows v0.1.2-rc.1](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/windows-v0.1.2-rc.1) 已发布并完成回下载哈希核对；细节见 [128A 验收记录](verification/phase-128a-windows-storage-safety.md)。128B–D 的一致性备份、恢复安装/回滚与原生故障验收仍待实施，本期不勾选完成。
 - **依赖 / 范围：** 123、126；W 的 SqliteSyncStore、SchemaMigrator、WindowsPaths。
 - **交付：** 建立本端一致性备份/恢复入口，保护事务与活动连接；迁移失败、权限不足和损坏库显示稳定错误与用户可选恢复路径。
 - **验收：** G-W；中断后旧文件可打开，失败不生成空库覆盖原文件；重启后的 CLI/WPF 展示一致；测试只操作隔离目录。128A 之后剩余备份/恢复入口增量与 PR 审查合并。
 
 #### [ ] PHASE 129 — L · SQLite 与配置文件故障恢复
-- **状态：** ACTIVE（2026-11-01）；129A 存储启动校验已交付为
-  [PR #22](https://github.com/tangyixiao/OJ-NEXUS/pull/22)（OPEN、MERGEABLE、未合并）：既有零字节/非
-  SQLite/无元数据存储在启动时以 Storage/exit 6 拒绝并保留主文件字节，首用限定为原子创建的缺失路径；
-  独立 Ubuntu-24.04 构建、CTest 8/8 与真实 CLI 八组故障注入证据按 PR 正文记录，未在本轮复跑。
+- **状态：** ACTIVE（2026-10-24）；[129A 设计](superpowers/specs/2026-10-24-phase-129a-linux-storage-startup.md)与[实施计划](superpowers/plans/2026-10-24-phase-129a-linux-storage-startup.md)已落地。启动保护与首次 schema 事务化已通过限定范围复审、独立构建/CTest 8/8 与真实 CLI 故障复验，完整分支审查也已通过；[PR #22](https://github.com/tangyixiao/OJ-NEXUS/pull/22) 已创建、Linux 托管 CI 已通过，见 [129A 验收记录](verification/phase-129a-linux-storage-startup.md)。读取错误、备份恢复与中断收敛仍待后续切片，本期不勾选完成。
 - **接续核查：** 当前配置以 SQLite 设置为实际权威，独立 JSON config 路径没有对应写入实现。先核实实际写入链，再决定恢复范围，避免新增第二份权威配置。
 - **依赖 / 范围：** 124、126；L 的 store、paths、CLI runner、Qt 错误状态。
 - **交付：** 对 SQLite 与配置文件更新定义临时文件/替换顺序，处理只读目录、损坏行和取消，增加本端备份恢复路径。

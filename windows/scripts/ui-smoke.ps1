@@ -27,7 +27,7 @@ if (-not (Test-Path -LiteralPath $DesktopPath -PathType Leaf)) {
 $DesktopPath = (Resolve-Path -LiteralPath $DesktopPath).Path
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
-foreach ($screenshotName in @('dashboard.png', 'connectors.png', 'history.png')) {
+foreach ($screenshotName in @('dashboard.png', 'connectors.png', 'history.png', 'problems.png')) {
     $staleScreenshot = Join-Path $OutputDirectory $screenshotName
     if (Test-Path -LiteralPath $staleScreenshot -PathType Leaf) {
         # Remove-Item -Force can report a failure on hosts that guard deletions inside a
@@ -171,7 +171,7 @@ function Wait-ForElement {
     param(
         [System.Windows.Automation.AutomationElement] $Root,
         [string] $Name,
-        [int] $TimeoutMilliseconds = 5000
+        [int] $TimeoutMilliseconds = 15000
     )
 
     $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
@@ -182,6 +182,60 @@ function Wait-ForElement {
         }
         Start-Sleep -Milliseconds 100
     } while ([DateTime]::UtcNow -lt $deadline)
+
+    if ($Name -eq 'DASHBOARD' -and $null -ne $root -and $null -ne $process) {
+        $diagnosticPath = Join-Path $OutputDirectory 'ui-automation-diagnostics.txt'
+        $lines = [Collections.Generic.List[string]]::new()
+        $lines.Add("utc=$([DateTime]::UtcNow.ToString('O'))")
+        $lines.Add("powershellPid=$PID")
+        $lines.Add("targetProcessId=$($process.Id)")
+        $lines.Add("targetProcessName=$($process.ProcessName)")
+        $lines.Add("targetMainWindowHandle=0x$($process.MainWindowHandle.ToInt64().ToString('x'))")
+        try {
+            $info = $root.Current
+            $lines.Add("rootName=$($info.Name)")
+            $lines.Add("rootAutomationId=$($info.AutomationId)")
+            $lines.Add("rootClassName=$($info.ClassName)")
+            $lines.Add("rootControlType=$($info.ControlType.ProgrammaticName)")
+            $lines.Add("rootNativeWindowHandle=0x$($info.NativeWindowHandle.ToString('x'))")
+            $lines.Add("rootProviderProcessId=$($info.ProcessId)")
+            $lines.Add("rootOffscreen=$($info.IsOffscreen)")
+        }
+        catch { $lines.Add("rootReadFailure=$($_.Exception.GetType().FullName):$($_.Exception.Message)") }
+
+        foreach ($view in @('ControlViewWalker', 'RawViewWalker')) {
+            $walker = if ($view -eq 'ControlViewWalker') {
+                [Windows.Automation.TreeWalker]::ControlViewWalker
+            }
+            else {
+                [Windows.Automation.TreeWalker]::RawViewWalker
+            }
+            $queue = [Collections.Generic.Queue[object]]::new()
+            $child = $walker.GetFirstChild($root)
+            if ($null -ne $child) { $queue.Enqueue(@{ element = $child; depth = 0 }) }
+            $visited = 0
+            while ($queue.Count -gt 0 -and $visited -lt 400) {
+                $entry = $queue.Dequeue()
+                $element = $entry.element
+                $depth = $entry.depth
+                try {
+                    $current = $element.Current
+                    $bounds = $current.BoundingRectangle
+                    $lines.Add("${view}[$depth] type=$($current.ControlType.ProgrammaticName) name=[$($current.Name)] id=[$($current.AutomationId)] class=[$($current.ClassName)] offscreen=$($current.IsOffscreen) rect=$($bounds.X),$($bounds.Y),$($bounds.Width),$($bounds.Height) pid=$($current.ProcessId) hwnd=0x$($current.NativeWindowHandle.ToString('x'))")
+                    $visited++
+                    $next = $walker.GetFirstChild($element)
+                    if ($null -ne $next) { $queue.Enqueue(@{ element = $next; depth = $depth + 1 }) }
+                    $next = $walker.GetNextSibling($element)
+                    if ($null -ne $next) { $queue.Enqueue(@{ element = $next; depth = $depth }) }
+                }
+                catch { $lines.Add("${view}[$depth] elementReadFailure=$($_.Exception.GetType().FullName):$($_.Exception.Message)") }
+            }
+            $lines.Add("${view}Visited=$visited")
+        }
+
+        [IO.File]::WriteAllLines($diagnosticPath, $lines)
+        Write-Warning "UI Automation diagnostic retained: $diagnosticPath"
+    }
 
     throw "UI element did not appear within ${TimeoutMilliseconds}ms: $Name"
 }
@@ -361,7 +415,9 @@ try {
         throw 'Could not create a UI Automation root for the desktop window.'
     }
 
-    foreach ($navigationName in @('DASHBOARD', 'CONNECTORS', 'SYNC HISTORY')) {
+    # Storage now opens asynchronously after the shell is created; wait for the Ready shell.
+    [void](Wait-ForElement -Root $root -Name 'DASHBOARD')
+    foreach ($navigationName in @('DASHBOARD', 'CONNECTORS', 'SYNC HISTORY', 'PROBLEMS')) {
         [void](Require-DescendantByName -Root $root -Name $navigationName)
     }
     if (Try-Save-WindowScreenshot -WindowHandle $windowHandle -Path (Join-Path $OutputDirectory 'dashboard.png')) {
@@ -422,10 +478,29 @@ try {
         $screenshotCount++
     }
     Write-Host "SYNC HISTORY: RENDERED / FILTERS=$comboCount"
-    if ($screenshotCount -eq 3 -and -not (Test-ScreenshotSet -Directory $OutputDirectory -Names @('dashboard.png', 'connectors.png', 'history.png'))) {
-        $screenshotCount = 0
+
+    Invoke-ButtonByName -Root $root -Name 'PROBLEMS'
+    $problemHeading = Wait-ForElement -Root $root -Name 'LOCAL PROBLEM LEDGER'
+    if ($problemHeading.Current.IsOffscreen) {
+        throw 'LOCAL PROBLEM LEDGER is present but not visible.'
     }
-    Write-Host "SCREENSHOTS: $screenshotCount/3"
+    $visibleProblemCombos = @($root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboCondition) | Where-Object { -not $_.Current.IsOffscreen })
+    $problemComboCount = $visibleProblemCombos.Count
+    if ($problemComboCount -ne 2) {
+        throw "Expected exactly 2 problem filters, found $problemComboCount."
+    }
+    $emptyState = Wait-ForElement -Root $root -Name 'NO PROBLEMS RECORDED'
+    if ($emptyState.Current.IsOffscreen) {
+        throw 'NO PROBLEMS RECORDED is present but not visible.'
+    }
+    if (Try-Save-WindowScreenshot -WindowHandle $windowHandle -Path (Join-Path $OutputDirectory 'problems.png')) {
+        $screenshotCount++
+    }
+    Write-Host "PROBLEMS: RENDERED / FILTERS=$problemComboCount / EMPTY=PASS"
+    if ($screenshotCount -ne 4 -or -not (Test-ScreenshotSet -Directory $OutputDirectory -Names @('dashboard.png', 'connectors.png', 'history.png', 'problems.png'))) {
+        throw 'Expected four distinct page screenshots.'
+    }
+    Write-Host "SCREENSHOTS: $screenshotCount/4"
     Write-Host 'UI SMOKE: PASS'
 }
 finally {

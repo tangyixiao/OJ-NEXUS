@@ -75,7 +75,11 @@ class JudgeSyncDispatcher(
         }
     }
 
-    /** Records a worker skipped because its captured restore generation is stale. */
+    /**
+     * Records a worker refused at admission: a stale captured generation, or no captured
+     * generation at all (Phase 127B strict admission). The refusal stays auditable; an
+     * unstamped refusal is recorded with an empty generation.
+     */
     suspend fun recordStaleGeneration(
         judge: JudgeId,
         accountId: Long,
@@ -84,8 +88,8 @@ class JudgeSyncDispatcher(
         val account = accountRepository.findById(accountId)
             ?.takeIf { it.enabled && it.judge == judge.id }
             ?: return false
-        val generation = staleGeneration?.trim()?.takeIf { it.isNotEmpty() } ?: return false
-        if (generation == currentDataGeneration()) return false
+        val generation = staleGeneration?.trim().orEmpty()
+        if (generation.isNotEmpty() && generation == currentDataGeneration()) return false
         val ledger = syncOperationDao ?: return false
         val now = clock.millis()
         val operationId = ledger.openOperation(

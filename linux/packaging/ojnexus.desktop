@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=OJ NEXUS
+Comment=Competitive programming connection center
+Exec=ojnexus-gui
+Icon=ojnexus
+Terminal=false
+Categories=Development;Education;

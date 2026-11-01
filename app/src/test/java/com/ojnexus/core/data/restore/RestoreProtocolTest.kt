@@ -14,6 +14,30 @@ class RestoreProtocolTest {
         assertTrue(RestoreStage.SWAPPING.canTransitionTo(RestoreStage.ROLLED_BACK))
         assertFalse(RestoreStage.APPLIED.canTransitionTo(RestoreStage.SWAPPING))
         assertFalse(RestoreStage.REJECTED.canTransitionTo(RestoreStage.APPLIED))
+        assertTrue(RestoreStage.STAGED.canTransitionTo(RestoreStage.SAVING_ROLLBACK))
+        assertTrue(RestoreStage.SAVING_ROLLBACK.canTransitionTo(RestoreStage.INSTALLING))
+        assertTrue(RestoreStage.INSTALLING.canTransitionTo(RestoreStage.ROLLING_BACK))
+        assertTrue(RestoreStage.ROLLING_BACK.canTransitionTo(RestoreStage.ROLLED_BACK))
+    }
+
+    @Test
+    fun `new incomplete checkpoints route to blocked recovery without changing legacy projections`() {
+        val empty = RestoreFileState(target = false, candidate = false, rollback = false, staged = false)
+        assertEquals(
+            RestoreRecoveryAction.BLOCK_RECOVERY,
+            decideRestoreRecovery(RestoreJournal(RestoreStage.SAVING_ROLLBACK, "g1", null), empty),
+        )
+        assertEquals(
+            RestoreRecoveryAction.BLOCK_RECOVERY,
+            decideRestoreRecovery(RestoreJournal(RestoreStage.ROLLING_BACK, "g1", null), empty),
+        )
+        assertEquals(
+            RestoreRecoveryAction.VALIDATE_TARGET,
+            decideRestoreRecovery(
+                RestoreJournal(RestoreStage.SWAPPING, "g1", null),
+                RestoreFileState(target = true, candidate = false, rollback = true, staged = false),
+            ),
+        )
     }
 
     @Test

@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="recovery_blocked_title">LOCAL RECOVERY BLOCKED</string>
+    <string name="recovery_blocked_preserved">LOCAL FILES PRESERVED</string>
+    <string name="recovery_blocked_body">AUTOMATIC RECOVERY STOPPED. CLOSE THE APP AND KEEP THE LOCAL FILES FOR INSPECTION.</string>
+    <string name="recovery_starting">INITIALIZING LOCAL STORAGE</string>
     <!-- App -->
     <string name="app_name">OJ NEXUS</string>
 
@@ -730,6 +734,9 @@
     <string name="settings_backup_success">BACKUP EXPORTED</string>
     <string name="settings_backup_import_success">BACKUP VERIFIED — RESTART APP TO RESTORE</string>
     <string name="settings_backup_failed">BACKUP EXPORT FAILED</string>
+    <string name="settings_import_rejected">IMPORT REJECTED — TAP TO DISMISS</string>
+    <string name="settings_import_storage_full">IMPORT FAILED — FREE STORAGE AND RETRY</string>
+    <string name="settings_import_storage_io">IMPORT FAILED — STORAGE ERROR</string>
     <string name="settings_restore_applied">RESTORE APPLIED — TAP TO DISMISS</string>
     <string name="settings_restore_rolled_back">RESTORE ROLLED BACK — TAP TO DISMISS</string>
     <string name="settings_restore_rejected">RESTORE REJECTED — TAP TO DISMISS</string>
