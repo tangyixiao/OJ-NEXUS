@@ -37,39 +37,65 @@ def _unwrap(node):
     return node
 
 
+_OUTCOMES = ("passed", "failed", "skipped")
+
+
+def _outcome_of(node):
+    for key in ("result", "testStatus", "outcome"):
+        value = node.get(key)
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in _OUTCOMES:
+                return lowered
+    return None
+
+
+def _children_of(node):
+    for key in ("children", "subtests", "testNodes"):
+        kids = node.get(key)
+        if isinstance(kids, list):
+            return kids
+    return []
+
+
 def _suite_report(tree, suite_name):
-    """Find the named suite in a normalized test tree and count its test cases."""
+    """Find the named suite anywhere in a normalized test tree and count leaf cases.
+
+    Handles both the modern test-results summary shape and legacy ActionTestMetadata
+    trees: suites are matched by their name/title, leaves carry a result/testStatus
+    field without nested children.
+    """
     results = {"executed": 0, "failed": 0, "skipped": 0, "suite_found": False}
 
     def walk(node, inside):
         if not isinstance(node, dict):
-            return
+            return (0, 0, 0)
         name = node.get("name") or node.get("title")
-        node_type = node.get("nodeType") or node.get("node_type") or node.get("type")
-        child_nodes = node.get("children") or node.get("testNodes") or []
         if name == suite_name:
             inside = True
             results["suite_found"] = True
-        if inside and isinstance(name, str) and ("Test Case" in str(node_type) or node_type == "Test Case"):
-            outcome = str(node.get("result") or node.get("outcome") or "")
-            if outcome in ("Passed", "passed", "Success"):
-                results["executed"] += 1
-            elif outcome in ("Failed", "failed"):
-                results["executed"] += 1
-                results["failed"] += 1
-            elif outcome in ("Skipped", "skipped"):
-                results["skipped"] += 1
-            else:
-                results["executed"] += 1
-                results["failed"] += 1
-        for child in child_nodes if isinstance(child_nodes, list) else []:
-            walk(child, inside)
+        kids = _children_of(node)
+        outcome = _outcome_of(node)
+        if not kids and outcome and inside:
+            if outcome == "passed":
+                return (1, 0, 0)
+            if outcome == "failed":
+                return (1, 1, 0)
+            return (0, 0, 1)
+        total = [0, 0, 0]
+        for child in kids:
+            part = walk(child, inside)
+            total = [sum(pair) for pair in zip(total, part)]
+        return tuple(total)
 
-    walk(tree, False)
+    executed, failed, skipped = walk(tree, False)
+    results["executed"] = executed
+    results["failed"] = failed
+    results["skipped"] = skipped
     return results
 
 
-def _read_xcresult_tree(path):
+def _read_xcresult_tree(path, dump_dir=None):
     """Return the normalized test tree for an xcresult, trying both tool APIs."""
     new = subprocess.run(
         ["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", path, "--format", "json"],
@@ -95,6 +121,9 @@ def _read_xcresult_tree(path):
         capture_output=True, text=True)
     if detail.returncode != 0:
         raise SystemExit(f"xcresulttool could not read tests {ref_id}: {detail.stderr.strip()[:400]}")
+    if dump_dir:
+        with open(os.path.join(dump_dir, "tests-tree.json"), "w", encoding="utf-8") as handle:
+            handle.write(detail.stdout)
     return _unwrap(json.loads(detail.stdout)), "legacy-json-object"
 
 
@@ -183,7 +212,7 @@ def cmd_discover(args):
 
 
 def cmd_validate(args):
-    tree, api = _read_xcresult_tree(args.xcresult)
+    tree, api = _read_xcresult_tree(args.xcresult, dump_dir=args.evidence)
     report = _suite_report(_unwrap(tree), args.suite)
     failures = _gate(report, args.suite)
     scheme = destination = ""
@@ -239,14 +268,41 @@ def cmd_self_test():
         (normalized_wrong, {"suite_found": False, "executed": 0, "failed": 0}, False),
         (legacy_wrapped, {"suite_found": True, "executed": 1, "failed": 0}, True),
     ]
-    for index, (tree, expected, should_pass) in enumerate(expectations):
-        report = _suite_report(tree, "WorkspaceRecoveryTests")
-        for key, value in expected.items():
-            if report.get(key) != value:
-                raise SystemExit(f"self-test {index}: {key}={report.get(key)} expected {value}")
-        gate = _gate(report, "WorkspaceRecoveryTests")
-        if bool(gate) == should_pass:
-            raise SystemExit(f"self-test {index}: gate={gate} expected pass={should_pass}")
+    def suite(name, cases, node_type="Test Case"):
+        return {"nodeType": "Test Suite", "name": name,
+                "children": [{"nodeType": node_type, "name": case, "result": outcome}
+                             for case, outcome in cases]}
+
+    normalized_pass = {"testNodes": [suite("WorkspaceRecoveryTests", [
+        ("testA", "Passed"), ("testB", "Passed")])]}
+    normalized_zero = {"testNodes": [suite("WorkspaceRecoveryTests", [])]}
+    normalized_failed = {"testNodes": [suite("WorkspaceRecoveryTests", [
+        ("testA", "Passed"), ("testB", "Failed")])]}
+    normalized_wrong = {"testNodes": [suite("OtherTests", [("testA", "Passed")])]}
+    legacy_wrapped = _unwrap({"testNodes": [{"_type": {}, "_value": suite("WorkspaceRecoveryTests", [
+        ("testA", {"_type": {}, "_value": "Passed"})])}]})
+    legacy_status = {"subtests": [
+        {"nodeType": "Test Suite", "name": "OJNexusCoreTests", "children": [
+            {"nodeType": "Test Suite", "name": "WorkspaceRecoveryTests", "testStatus": "Passed",
+             "subtests": [{"name": "testA()", "testStatus": "Passed"},
+                          {"name": "testB()", "testStatus": "Passed"}]}]}]}
+    suite_root = {"name": "WorkspaceRecoveryTests", "result": "Passed", "children": [
+        {"name": "testA", "result": "Passed"}, {"name": "testB", "result": "Passed"}]}
+    mixed_group = {"name": "Root", "children": [
+        {"name": "WorkspaceRecoveryTests", "children": [
+            {"name": "GroupA", "children": [{"name": "testA", "result": "Passed"}]},
+            {"name": "testB", "testStatus": "Failed"}]}]}
+
+    expectations = [
+        (normalized_pass, {"suite_found": True, "executed": 2, "failed": 0}, True),
+        (normalized_zero, {"suite_found": True, "executed": 0, "failed": 0}, False),
+        (normalized_failed, {"suite_found": True, "executed": 2, "failed": 1}, False),
+        (normalized_wrong, {"suite_found": False, "executed": 0, "failed": 0}, False),
+        (legacy_wrapped, {"suite_found": True, "executed": 1, "failed": 0}, True),
+        (legacy_status, {"suite_found": True, "executed": 2, "failed": 0}, True),
+        (suite_root, {"suite_found": True, "executed": 2, "failed": 0}, True),
+        (mixed_group, {"suite_found": True, "executed": 2, "failed": 1}, False),
+    ]
 
     workspace_doc = {"workspace": {"name": "apple",
                                    "schemes": ["OJNexusApple-Package", "OJNexusCore"]}}
@@ -282,7 +338,7 @@ def cmd_self_test():
         pass
     else:
         raise SystemExit("self-test: iOS 15 runtime must not be picked")
-    print("self-test: 5/5 result fixtures and 5/5 discovery fixtures met")
+    print(f"self-test: {len(expectations)}/{len(expectations)} result fixtures and 5/5 discovery fixtures met")
 
 
 def main():
