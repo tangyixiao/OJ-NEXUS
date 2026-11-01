@@ -25,11 +25,15 @@ First-use guide: [docs/QUICK_START.md](docs/QUICK_START.md) / 首次使用指南
 
 ## Status
 
-Release gate passed (2026-10-30): Android `1.0.4 / versionCode 106` on
-[codex/release-v1.0.4](https://github.com/tangyixiao/OJ-NEXUS/tree/codex/release-v1.0.4) —
+Latest release (2026-11-01): Android [v1.0.4](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v1.0.4)
+(`1.0.4 / versionCode 106`; tag at `a08a59f`, merged via #27) —
 [release notes](docs/releases/v1.0.4.md),
-[SHA256SUMS](docs/releases/SHA256SUMS-v1.0.4.txt); the GitHub release and the PR merge are
-pending user decision. Published history: [v1.0.3](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v1.0.3)
+[SHA256SUMS](docs/releases/SHA256SUMS-v1.0.4.txt); hash-verified after download-back.
+Platform prereleases: Linux [v0.1.1-rc.1](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/linux-v0.1.1-rc.1)
+([record](docs/releases/linux-v0.1.1-rc.1.md); ctest 8/8, unsigned) and Windows
+[v0.1.2-rc.1](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/windows-v0.1.2-rc.1) (current `windows/`
+tree; no code delta since). Apple stays CI-only without signing material. Published history:
+[v1.0.3](https://github.com/tangyixiao/OJ-NEXUS/releases/tag/v1.0.3)
 ([PR #10](https://github.com/tangyixiao/OJ-NEXUS/pull/10)). Room v15.
 The next cycle is [Phase 121–220](docs/LONG_RANGE_PLAN_121_220.md): 100 phases balanced across
 shared contracts, Android, Windows, Linux and Apple. Execution has started with the
