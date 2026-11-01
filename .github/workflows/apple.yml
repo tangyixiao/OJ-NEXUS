@@ -37,3 +37,14 @@ jobs:
         run: swift build --product OJNexusMacOS
       - name: Build iOS Simulator product
         run: xcodebuild -scheme OJNexusIOS -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
+      - name: Run recovery tests on an installed iOS Simulator
+        timeout-minutes: 25
+        run: bash scripts/test-ios-recovery.sh "$RUNNER_TEMP/ios-recovery-evidence"
+      - name: Upload iOS recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-recovery-evidence
+          path: ${{ runner.temp }}/ios-recovery-evidence/
+          retention-days: 7
+          if-no-files-found: warn

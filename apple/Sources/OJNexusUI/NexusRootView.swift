@@ -8,6 +8,7 @@ public struct NexusRootView: View {
     @State private var newHandle = ""
     @State private var historyFilter = "ALL"
     @State private var expandedSubmissionAccountIDs = Set<String>()
+    @State private var confirmsSnapshotRestore = false
 
     public init(model: NexusDashboardModel? = nil) {
         _model = StateObject(wrappedValue: model ?? NexusDashboardModel())
@@ -31,6 +32,16 @@ public struct NexusRootView: View {
         .tint(NexusPalette.blue)
         .preferredColorScheme(.dark)
         .task { await model.load() }
+        .confirmationDialog(
+            "RESTORE VALID SNAPSHOT?",
+            isPresented: $confirmsSnapshotRestore,
+            titleVisibility: .visible) {
+                Button("RESTORE SNAPSHOT", role: .destructive) {
+                    Task { await model.restorePreviousSnapshot() }
+                }
+            } message: {
+                Text("THE CURRENT CORRUPT FILE WILL BE QUARANTINED. THE VALID SNAPSHOT WILL REPLACE IT.")
+            }
     }
 
     @ViewBuilder
@@ -53,12 +64,13 @@ public struct NexusRootView: View {
                     .font(.system(.callout, design: .monospaced))
                     .foregroundStyle(NexusPalette.mutedText)
                 localStateBanner
+                stateRecoveryControls
                 if model.isSyncing {
                     Button("CANCEL SYNC") { model.cancelSync() }
                         .buttonStyle(.bordered)
                 }
                 Button("SYNC ALL") { model.startFullSyncAll() }
-                    .disabled(model.isSyncing || model.enabledAccountCount == 0)
+                    .disabled(!model.canMutate || model.isSyncing || model.enabledAccountCount == 0)
                 if let profile = model.lastProfile {
                     header("LAST PUBLIC PROFILE")
                     Text("\(profile.judge.displayName) / \(profile.handle)")
@@ -95,8 +107,9 @@ public struct NexusRootView: View {
 
     private var connectors: some View {
         List {
-            if model.loadError != nil || model.isLoading {
+            if model.storageStatus != .ready || model.isLoading {
                 localStateBanner
+                stateRecoveryControls
             }
 
             Section("PUBLIC ACCOUNT") {
@@ -112,7 +125,7 @@ public struct NexusRootView: View {
                         newHandle = ""
                     }
                 }
-                .disabled(newHandle.isEmpty)
+                .disabled(newHandle.isEmpty || !model.canMutate)
             }
 
             Section("CONFIGURED ACCOUNTS") {
@@ -232,27 +245,27 @@ public struct NexusRootView: View {
                                 Button(account.enabled ? "DISABLE" : "ENABLE") {
                                     Task { await model.setPublicAccountEnabled(judge: account.judge, enabled: !account.enabled) }
                                 }
-                                .disabled(model.isSyncing)
+                                .disabled(!model.canMutate || model.isSyncing)
                                 Button(model.isSyncing ? "SYNC BUSY" : "SYNC") {
                                     model.startProfileSync(for: account)
                                 }
-                                .disabled(model.isSyncing || !account.enabled)
+                                .disabled(!model.canMutate || model.isSyncing || !account.enabled)
                                 if supports(account, capability: "RATING") {
                                     Button(model.isSyncing ? "RATING BUSY" : "SYNC RATING") {
                                         model.startRatingSync(for: account)
                                     }
-                                    .disabled(model.isSyncing || !account.enabled)
+                                    .disabled(!model.canMutate || model.isSyncing || !account.enabled)
                                 }
                                 if supports(account, capability: "SUBMISSIONS") {
                                     Button(model.isSyncing ? "SUBMISSIONS BUSY" : "SYNC SUBMISSIONS") {
                                         model.startSubmissionSync(for: account)
                                     }
-                                    .disabled(model.isSyncing || !account.enabled)
+                                    .disabled(!model.canMutate || model.isSyncing || !account.enabled)
                                 }
                                 Button("REMOVE") {
                                     Task { await model.removePublicAccount(judge: account.judge) }
                                 }
-                                .disabled(model.isSyncing)
+                                .disabled(!model.canMutate || model.isSyncing)
                             }
                         }
                     }
@@ -278,8 +291,9 @@ public struct NexusRootView: View {
 
     private var history: some View {
         List {
-            if model.loadError != nil || model.isLoading {
+            if model.storageStatus != .ready || model.isLoading {
                 localStateBanner
+                stateRecoveryControls
             }
 
             Picker("FILTER", selection: $historyFilter) {
@@ -320,7 +334,7 @@ public struct NexusRootView: View {
                                 Button("RETRY") {
                                     model.retrySync(for: operation)
                                 }
-                                .disabled(model.isSyncing)
+                                .disabled(!model.canMutate || model.isSyncing)
                             }
                         }
                     }
@@ -341,6 +355,19 @@ public struct NexusRootView: View {
         Text(model.localStateMessage)
             .font(.system(.caption, design: .monospaced).weight(.semibold))
             .foregroundStyle(model.loadError == nil ? NexusPalette.blue : NexusPalette.primaryText)
+    }
+
+    private var stateRecoveryControls: some View {
+        VStack(alignment: .leading, spacing: NexusLayout.rowSpacing) {
+            Button("RELOAD LOCAL STATE") { Task { await model.load() } }
+                .disabled(model.isLoading || model.isSyncing || model.isSaving || model.isRecovering)
+            if case .recoverable = model.storageStatus {
+                Button("RESTORE VALID SNAPSHOT") {
+                    confirmsSnapshotRestore = true
+                }
+                .disabled(model.isLoading || model.isSyncing || model.isSaving || model.isRecovering)
+            }
+        }
     }
 
     private func statRow(label: String, value: String) -> some View {

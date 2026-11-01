@@ -23,6 +23,9 @@ public final class NexusDashboardModel: ObservableObject {
     @Published public private(set) var syncStatus: SyncStatus?
     @Published public private(set) var lastProfile: PublicProfile?
     @Published public private(set) var isSyncing = false
+    @Published public private(set) var storageStatus: WorkspaceStorageStatus = .unloaded
+    @Published public private(set) var isSaving = false
+    @Published public private(set) var isRecovering = false
     private let workspaceStore: LocalWorkspaceStore
     private let httpClient: any HTTPClient
     private let syncService = ProfileSyncService()
@@ -33,7 +36,7 @@ public final class NexusDashboardModel: ObservableObject {
     public init(accounts: [JudgeAccount] = [], ledger: SyncLedger = SyncLedger(), profiles: [PublicProfile] = [],
                 ratingChanges: [RatingChange] = [],
                 submissions: [SubmissionRecord] = [],
-                workspaceStore: LocalWorkspaceStore = LocalWorkspaceStore(url: LocalWorkspaceStore.defaultURL()),
+                workspaceStore: LocalWorkspaceStore = LocalWorkspaceStore(),
                 httpClient: any HTTPClient = URLSessionHTTPClient()) {
         self.accounts = accounts
         self.ledger = ledger
@@ -51,7 +54,24 @@ public final class NexusDashboardModel: ObservableObject {
     }
 
     public var localStateMessage: String {
-        loadError ?? (isLoading ? "LOADING LOCAL STATE" : "READY / LOCAL STATE")
+        if isLoading { return "LOADING LOCAL STATE" }
+        if let loadError { return loadError }
+        switch storageStatus {
+        case .unloaded: return "LOCAL STATE NOT LOADED"
+        case .ready: return "READY / LOCAL STATE"
+        case .blocked(let reason): return "LOCAL STATE BLOCKED / \(reason.rawValue)"
+        case .recoverable(let reason): return "LOCAL STATE RECOVERY AVAILABLE / \(reason.rawValue)"
+        }
+    }
+
+    public var canMutate: Bool {
+        if case .ready = storageStatus { return !isLoading && !isSaving && !isRecovering && !isSyncing }
+        return false
+    }
+
+    private var storageIsReady: Bool {
+        if case .ready = storageStatus { return true }
+        return false
     }
 
     public func cachedProfile(for account: JudgeAccount) -> PublicProfile? {
@@ -111,16 +131,18 @@ public final class NexusDashboardModel: ObservableObject {
     }
 
     public func refresh() {
+        guard !isSyncing else { return }
         ledger.recoverInterrupted(at: Date())
         objectWillChange.send()
     }
 
     public func load() async {
+        guard !isSyncing, !isSaving, !isRecovering else { return }
         isLoading = true
-        loadError = nil
         defer { isLoading = false }
         do {
             let state = try await workspaceStore.load()
+            storageStatus = await workspaceStore.storageStatus()
             accounts = state.accounts
             ledger = state.ledger
             profiles = state.profiles
@@ -128,15 +150,35 @@ public final class NexusDashboardModel: ObservableObject {
             submissions = state.submissions
             lastProfile = Self.configuredProfile(from: profiles, accounts: accounts)
             ledger.recoverInterrupted(at: Date())
-            try await workspaceStore.save(LocalWorkspaceState(
-                accounts: accounts, ledger: ledger, profiles: profiles,
-                ratingChanges: ratingChanges, submissions: submissions))
+            loadError = nil
         } catch {
-            loadError = "LOCAL LEDGER UNAVAILABLE"
+            storageStatus = await workspaceStore.storageStatus()
+            loadError = "LOCAL STATE UNAVAILABLE / \(storageFailureLabel(storageStatus))"
+        }
+    }
+
+    public func restorePreviousSnapshot() async {
+        guard !isSyncing, !isSaving, !isRecovering else { return }
+        isRecovering = true
+        defer { isRecovering = false }
+        do {
+            let state = try await workspaceStore.restorePreviousSnapshot()
+            storageStatus = await workspaceStore.storageStatus()
+            accounts = state.accounts
+            ledger = state.ledger
+            profiles = state.profiles
+            ratingChanges = state.ratingChanges
+            submissions = state.submissions
+            lastProfile = Self.configuredProfile(from: profiles, accounts: accounts)
+            loadError = nil
+        } catch {
+            storageStatus = await workspaceStore.storageStatus()
+            loadError = "LOCAL RESTORE FAILED / \(storageFailureLabel(storageStatus))"
         }
     }
 
     public func configurePublicAccount(judge: JudgeID, handle: String) async {
+        guard canMutate else { return }
         let existingAccount = accounts.first { $0.judge == judge }
         guard let candidate = JudgeAccount(judge: judge, handle: handle, enabled: existingAccount?.enabled ?? true) else {
             loadError = "HANDLE REQUIRED"
@@ -163,9 +205,7 @@ public final class NexusDashboardModel: ObservableObject {
             lastProfile = Self.configuredProfile(from: profiles, accounts: accounts)
         }
         do {
-            try await workspaceStore.save(LocalWorkspaceState(
-                accounts: accounts, ledger: ledger, profiles: profiles,
-                ratingChanges: ratingChanges, submissions: submissions))
+            try await persistWorkspace()
             loadError = nil
         } catch {
             accounts = previousAccounts
@@ -178,6 +218,7 @@ public final class NexusDashboardModel: ObservableObject {
     }
 
     public func setPublicAccountEnabled(judge: JudgeID, enabled: Bool) async {
+        guard canMutate else { return }
         guard let index = accounts.firstIndex(where: { $0.judge == judge }) else {
             loadError = "ACCOUNT NOT CONFIGURED"
             return
@@ -185,9 +226,7 @@ public final class NexusDashboardModel: ObservableObject {
         let previousAccounts = accounts
         accounts[index].enabled = enabled
         do {
-            try await workspaceStore.save(LocalWorkspaceState(
-                accounts: accounts, ledger: ledger, profiles: profiles,
-                ratingChanges: ratingChanges, submissions: submissions))
+            try await persistWorkspace()
             loadError = nil
         } catch {
             accounts = previousAccounts
@@ -196,14 +235,13 @@ public final class NexusDashboardModel: ObservableObject {
     }
 
     public func removePublicAccount(judge: JudgeID) async {
+        guard canMutate else { return }
         let previousAccounts = accounts
         let previousLastProfile = lastProfile
         accounts.removeAll { $0.judge == judge }
         lastProfile = Self.configuredProfile(from: profiles, accounts: accounts)
         do {
-            try await workspaceStore.save(LocalWorkspaceState(
-                accounts: accounts, ledger: ledger, profiles: profiles,
-                ratingChanges: ratingChanges, submissions: submissions))
+            try await persistWorkspace()
             loadError = nil
         } catch {
             accounts = previousAccounts
@@ -226,6 +264,7 @@ public final class NexusDashboardModel: ObservableObject {
 
     public func startProfileSyncAll() {
         guard !isSyncing, syncTask == nil else { return }
+        guard canMutate else { return }
         let candidates = accounts.filter(\.enabled)
         guard !candidates.isEmpty else {
             syncStatus = .error
@@ -240,6 +279,7 @@ public final class NexusDashboardModel: ObservableObject {
             for account in candidates {
                 if Task.isCancelled { break }
                 await self.performProfileSync(for: account)
+                guard self.storageIsReady else { break }
                 if self.syncStatus == .success {
                     sawSuccess = true
                 } else if self.syncStatus != .running {
@@ -258,6 +298,7 @@ public final class NexusDashboardModel: ObservableObject {
 
     public func startFullSyncAll() {
         guard !isSyncing, syncTask == nil else { return }
+        guard canMutate else { return }
         let candidates = accounts.filter(\.enabled)
         guard !candidates.isEmpty else {
             syncStatus = .error
@@ -271,6 +312,7 @@ public final class NexusDashboardModel: ObservableObject {
             for account in candidates {
                 if Task.isCancelled { break }
                 statuses.append(await self.performFullSync(for: account))
+                if !self.storageIsReady { break }
             }
             self.syncStatus = Self.aggregateBatchStatus(statuses, cancelled: Task.isCancelled)
             self.isSyncing = false
@@ -329,7 +371,7 @@ public final class NexusDashboardModel: ObservableObject {
     }
 
     public func syncProfile(for account: JudgeAccount) async {
-        guard !isSyncing else { return }
+        guard !isSyncing, canMutate else { return }
         guard canSync(account) else { return }
         isSyncing = true
         defer { isSyncing = false }
@@ -337,7 +379,7 @@ public final class NexusDashboardModel: ObservableObject {
     }
 
     public func syncRating(for account: JudgeAccount) async {
-        guard !isSyncing else { return }
+        guard !isSyncing, canMutate else { return }
         guard canSync(account) else { return }
         isSyncing = true
         defer { isSyncing = false }
@@ -345,7 +387,7 @@ public final class NexusDashboardModel: ObservableObject {
     }
 
     public func syncSubmissions(for account: JudgeAccount) async {
-        guard !isSyncing else { return }
+        guard !isSyncing, canMutate else { return }
         guard canSync(account) else { return }
         isSyncing = true
         defer { isSyncing = false }
@@ -377,9 +419,7 @@ public final class NexusDashboardModel: ObservableObject {
         }
         syncStatus = result.operation.status
         do {
-            try await workspaceStore.save(LocalWorkspaceState(
-                accounts: accounts, ledger: ledger, profiles: profiles,
-                ratingChanges: ratingChanges, submissions: submissions))
+            try await persistWorkspace()
             loadError = nil
         } catch {
             ledger = previousLedger
@@ -414,9 +454,7 @@ public final class NexusDashboardModel: ObservableObject {
         }
         syncStatus = result.operation.status
         do {
-            try await workspaceStore.save(LocalWorkspaceState(
-                accounts: accounts, ledger: ledger, profiles: profiles,
-                ratingChanges: ratingChanges, submissions: submissions))
+            try await persistWorkspace()
             loadError = nil
         } catch {
             ledger = previousLedger
@@ -450,9 +488,7 @@ public final class NexusDashboardModel: ObservableObject {
         }
         syncStatus = result.operation.status
         do {
-            try await workspaceStore.save(LocalWorkspaceState(
-                accounts: accounts, ledger: ledger, profiles: profiles,
-                ratingChanges: ratingChanges, submissions: submissions))
+            try await persistWorkspace()
             loadError = nil
         } catch {
             ledger = previousLedger
@@ -467,6 +503,7 @@ public final class NexusDashboardModel: ObservableObject {
 
         await performProfileSync(for: account)
         if let status = syncStatus { statuses.append(status) }
+        guard storageIsReady else { return Self.aggregateBatchStatus(statuses, cancelled: false) }
         if Task.isCancelled || statuses.last == .cancelled {
             return .cancelled
         }
@@ -477,6 +514,7 @@ public final class NexusDashboardModel: ObservableObject {
         if adapter.supports("RATING") {
             await performRatingSync(for: account)
             if let status = syncStatus { statuses.append(status) }
+            guard storageIsReady else { return Self.aggregateBatchStatus(statuses, cancelled: false) }
             if Task.isCancelled || statuses.last == .cancelled {
                 return .cancelled
             }
@@ -493,6 +531,7 @@ public final class NexusDashboardModel: ObservableObject {
     }
 
     private func canSync(_ account: JudgeAccount) -> Bool {
+        guard canMutate else { return false }
         guard let configured = accounts.first(where: {
             $0.judge == account.judge && judgeHandlesMatch(account.judge, $0.handle, account.handle)
         }) else {
@@ -506,6 +545,28 @@ public final class NexusDashboardModel: ObservableObject {
             return false
         }
         return true
+    }
+
+    private func storageFailureLabel(_ status: WorkspaceStorageStatus) -> String {
+        switch status {
+        case .unloaded: return "NOT LOADED"
+        case .ready: return "READY"
+        case .blocked(let failure), .recoverable(let failure): return failure.rawValue
+        }
+    }
+
+    private func persistWorkspace() async throws {
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            try await workspaceStore.save(LocalWorkspaceState(
+                accounts: accounts, ledger: ledger, profiles: profiles,
+                ratingChanges: ratingChanges, submissions: submissions))
+        } catch {
+            storageStatus = await workspaceStore.storageStatus()
+            throw error
+        }
+        storageStatus = await workspaceStore.storageStatus()
     }
 
     private static func adapter(for judge: JudgeID) -> (any JudgeAdapter)? {
