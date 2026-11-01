@@ -67,6 +67,16 @@ Successful profile snapshots carry their fetch completion time and the Dashboard
 local cached data is distinguishable from a live response.
 The shared local-state banner is also shown on CONNECTORS and SYNC HISTORY when loading or save
 errors occur, so a failed account action remains visible without navigating away.
+The active local state file is guarded by typed admission: a startup load never rewrites or
+creates files, every save requires a prior successful load, and corrupt, unsupported-version,
+unavailable, busy, conflict, or missing-established states block every account and sync mutation
+while cached read-only views stay visible. A failed load keeps the last cache; RELOAD LOCAL STATE
+re-enters readiness, and when a validated state.json.bak snapshot exists for corrupt or missing
+established state, an explicit RESTORE VALID SNAPSHOT confirmation quarantines the damaged main
+bytes under a unique no-overwrite name before reinstalling the snapshot. Saves and restores hold
+a persistent cooperative-writer lock, compare exact raw bytes before replacing, stage complete
+same-directory files, and only report a committed save after verifying the installed bytes;
+post-install faults distinguish proven success from an uncertain outcome that requires a reload.
 
 ## Validation
 
@@ -77,12 +87,13 @@ swift test
 swift build --product OJNexusMacOS
 ```
 
-The current Windows host has neither `swift` nor `xcodebuild`, so Apple compilation remains a
-pending macOS/Xcode gate. The iOS executable target is source-complete for Xcode integration;
-build it for a simulator or device from an iOS application target before claiming device
-readiness.
+The current Windows host has neither `swift` nor `xcodebuild`, so Apple execution is delegated
+to the GitHub Actions macOS runner rather than claimed locally.
 
-GitHub Actions uses a macOS runner to execute the Core tests, build the macOS product, and
-compile the iOS product for a generic iOS Simulator destination. That CI build verifies source,
-package, and target-platform compatibility; it is not a substitute for an interactive simulator
-launch or App Store signing check.
+GitHub Actions uses a macOS runner to execute the full Core test suite, build the macOS product,
+compile the iOS product for a generic iOS Simulator destination, and execute the
+`OJNexusCoreTests/WorkspaceRecoveryTests` suite on a real installed iOS 16+ simulator
+(`scripts/test-ios-recovery.sh`), validating a machine-readable result summary with nonzero
+executed tests and zero failures. That CI evidence verifies source, package, target-platform
+compatibility, and the recovery suite; it is not a substitute for an interactive macOS/iOS app
+launch or an App Store signing check.

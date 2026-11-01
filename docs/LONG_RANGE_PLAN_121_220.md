@@ -215,20 +215,41 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **验收：** G-A；故障注入后重启得到完整旧库或完整新库；旧 worker 不回写；取消预览不动库；OpenApp 凭据保持独立。
 
 #### [ ] PHASE 128 — W · SQLite 写入和恢复的原子性
+- **状态：** ACTIVE（2026-11-01）；128A 存储启动防护已交付为
+  [PR #21](https://github.com/tangyixiao/OJ-NEXUS/pull/21)（OPEN、MERGEABLE、未合并）：CLI/WPF 单一
+  存储权威、零字节/损坏/未来 schema 启动拒绝并保留原字节、类型化 Storage/exit 6、WPF 阻断/重试/退出
+  外壳；独立 Release 345 项测试与真实 CLI 故障注入证据按 PR 正文记录，未在本轮复跑。
 - **依赖 / 范围：** 123、126；W 的 SqliteSyncStore、SchemaMigrator、WindowsPaths。
 - **交付：** 建立本端一致性备份/恢复入口，保护事务与活动连接；迁移失败、权限不足和损坏库显示稳定错误与用户可选恢复路径。
-- **验收：** G-W；中断后旧文件可打开，失败不生成空库覆盖原文件；重启后的 CLI/WPF 展示一致；测试只操作隔离目录。
+- **验收：** G-W；中断后旧文件可打开，失败不生成空库覆盖原文件；重启后的 CLI/WPF 展示一致；测试只操作隔离目录。128A 之后剩余备份/恢复入口增量与 PR 审查合并。
 
 #### [ ] PHASE 129 — L · SQLite 与配置文件故障恢复
+- **状态：** ACTIVE（2026-11-01）；129A 存储启动校验已交付为
+  [PR #22](https://github.com/tangyixiao/OJ-NEXUS/pull/22)（OPEN、MERGEABLE、未合并）：既有零字节/非
+  SQLite/无元数据存储在启动时以 Storage/exit 6 拒绝并保留主文件字节，首用限定为原子创建的缺失路径；
+  独立 Ubuntu-24.04 构建、CTest 8/8 与真实 CLI 八组故障注入证据按 PR 正文记录，未在本轮复跑。
 - **接续核查：** 当前配置以 SQLite 设置为实际权威，独立 JSON config 路径没有对应写入实现。先核实实际写入链，再决定恢复范围，避免新增第二份权威配置。
 - **依赖 / 范围：** 124、126；L 的 store、paths、CLI runner、Qt 错误状态。
 - **交付：** 对 SQLite 与配置文件更新定义临时文件/替换顺序，处理只读目录、损坏行和取消，增加本端备份恢复路径。
-- **验收：** G-L；强制中断不产生半配置；存储错误保持既有 exit code；GUI 可读旧缓存并显示错误，正常 XDG 用户目录未被测试污染。
+- **验收：** G-L；强制中断不产生半配置；存储错误保持既有 exit code；GUI 可读旧缓存并显示错误，正常 XDG 用户目录未被测试污染。129A 之后剩余配置写入链核查与恢复增量、PR 审查合并。
 
 #### [ ] PHASE 130 — P · Apple 本地状态原子保存
+- **状态：** ACTIVE（2026-11-01）；130A 活动工作区安全已实现并通过原生 CI 门禁，
+  [PR #23](https://github.com/tangyixiao/OJ-NEXUS/pull/23) 已转 ready（OPEN、MERGEABLE、未合并）。
+  见 [设计](superpowers/specs/2026-10-25-phase-130-apple-state-safety-design.md)、
+  [计划](superpowers/plans/2026-10-25-phase-130-apple-state-safety.md)、
+  [证据](verification/phase-130-apple-state-safety.md)。
+- **130A 进展：** 类型化 `WorkspaceStorageFailure/Status` 状态机；load 只读（不再创建/改写文件）、
+  save 必须先成功 load；损坏/未来版本/不可用启动阻断账号与网络变更并保留最后缓存；持久协作写者
+  flock、精确字节 CAS、同目录暂存 + link 首建/rename 替换、快照先于主文件安装、损坏主文件唯一名
+  隔离后显式恢复快照、post-install 区分已证实提交与 uncertainOutcome。行为 RED（4 项启动回归真实
+  断言失败，run 40110240638）→ GREEN：fresh macOS 103 项单测 0 失败、双端产品构建、真实 iOS 18.2
+  模拟器 `WorkspaceRecoveryTests` 7/7（结构化摘要 executed=7/failed=0，
+  [run 41263992374](https://github.com/tangyixiao/OJ-NEXUS/actions/runs/41263992374)，commit
+  `1fd3275`，证据 artifact `ios-recovery-evidence`）。
 - **依赖 / 范围：** 125、126；P 的活动 LocalWorkspaceStore/NexusDashboardModel；核实 legacy LocalLedgerStore 的使用后决定迁移或保留。
-- **交付：** 验证现有 `.atomic` 文件保存，补格式版本、损坏隔离和故障恢复；写失败向 UI 传递，保留上一份可恢复快照，避免形成两个权威存储。
-- **验收：** G-P；旧格式升级、截断、写失败和重复启动都有确定结果；不以空状态覆盖坏文件；macOS/iOS 各验证一次恢复。
+- **交付：** 验证现有 `.atomic` 文件保存，补格式版本、损坏隔离和故障恢复；写失败向 UI 传递，保留上一份可恢复快照，避免形成两个权威存储。130A 已交付活动文件安全；剩余交互式 macOS/iOS 恢复验收与设备验证。
+- **验收：** G-P；旧格式升级、截断、写失败和重复启动都有确定结果；不以空状态覆盖坏文件；macOS/iOS 各验证一次恢复。模拟器 XCTest 与共享 XCTest 不替代交互验收；无宿主期间该项记 BLOCKED，整期保持 ACTIVE。
 
 ### 第 03 轮 · 手动可移植交换（131–135）
 
