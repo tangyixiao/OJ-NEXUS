@@ -495,3 +495,59 @@ Phase 127 至此仅剩**整期 release 门禁**（版本号决定、release note
 用户决策点：合并 PR #27（整链入 main）→ 打 tag `v1.0.4` → 上传 `%TEMP%\OJ-NEXUS-v1.0.4.apk`
 与 SHA256SUMS 作为 GitHub release 资产。签名材料从未离开本机 keystore；如需正式签名
 （非 debug keystore），需用户提供发布密钥或沿用 CI secrets 流程。
+
+## 27. Phase 130A Apple 活动工作区安全（2026-11-01，本轮继续开发，全部为本次验证）
+
+127 系列与 v1.0.4 release 门禁收口后（第 26 节），本轮接着完成平台泳道里唯一在途未完的交付
+Phase 130A，并补记台账中缺失的 128A/129A。
+
+- **接手时状态（如实）**：[PR #23](https://github.com/tangyixiao/OJ-NEXUS/pull/23) 是 draft——
+  设计/计划与 4 个 RED 测试已提交（`ee4cb63`/`9dc46a1`，行为 RED 由 run 40110240638 证实：损坏
+  字节被账号写入覆盖、future formatVersion 被丢弃重写、RUNNING ledger 启动被改写、未 load 直接
+  save 成功），但实现提交 `68ae344`（2026-10-25）只存在于本地另一 worktree
+  （`C:/Users/tangy/.codex/worktrees/phase-130-apple-storage`），未推送、未经过任何 CI，PR 正文
+  停在 "Production implementation is in progress"。本轮从未触碰该 worktree（其内一份未提交的
+  验收草稿由本轮提交的正式验收文档取代）。
+- **本轮修复轨迹（全部已推送）**：推送 `68ae344` 驱动原生 CI——编译通过，首轮暴露多个 Dashboard
+  测试失败与一处 `Index out of range` 崩溃：模型准入 guard（canMutate）使未 load 的旧 fixture
+  全部空转，计划中的 fixture 迁移步骤此前未做。`7168406`/`97255d3` 按 spec 完成
+  load→save→model.load 迁移（20 个用例），补齐计划 Step 6 承诺的 last-cache 保留、存储失败
+  截停批次、恢复后 ready 用例；`5301ba6` 被拒绝的 save 保留类型化 blocked 原因（原实现塌缩为
+  notLoaded）；`d30caa8` missing-established 观察时清空 `observedMain`（原实现遗留旧字节，显式
+  恢复的 CAS 把 nil 现值与旧字节比较误报 conflict——真实 CI RED→GREEN）；
+  `c873d95`/`d5686f0`/`1fd3275` 完成 iOS 恢复 runner（计划 Task 2）：
+  `apple/scripts/test-ios-recovery.sh` + `scripts/validate_ios_recovery.py`，发现 scheme 与真实
+  模拟器、xcodebuild test 留日志/xcresult、结构化摘要 + 非零门禁，自测覆盖 10 种结果树形态与
+  5 种发现形态；`b70c0a5` 验收文档 `docs/verification/phase-130-apple-state-safety.md`、
+  apple/README 存储行为与 CI 门禁描述（替换"Windows 无 Swift 故 Apple 编译待定"的过期表述）、
+  规划台账 128A/129A/130A 状态。
+- **最终门禁（run [41263992374](https://github.com/tangyixiao/OJ-NEXUS/actions/runs/41263992374)，
+  commit `1fd3275`，九步全部 success）**：源边界审计；fresh macOS **103 项单测 0 失败**（含
+  7 项 WorkspaceRecoveryTests、4 项启动回归——RED 用例全部转绿）；OJNexusMacOS 构建；generic
+  iOS 构建；**真实 iPhone 16 Pro（iOS 18.2，udid 154781AA-…-4DED6241）模拟器上
+  `OJNexusCoreTests/WorkspaceRecoveryTests` 7/7**，`xcodebuild test` exit 0，结构化摘要
+  `executed=7/failed=0/result=pass`，discovery/日志/xcresult/摘要以 artifact
+  `ios-recovery-evidence` 留存（7 天）。PR #23 已转 ready、OPEN、MERGEABLE、未合并。
+- **机器经验（本轮新增）**：`xcodebuild -list -json` 对 SwiftPM 包把 schemes 放在
+  `workspace.schemes`（顶层 `schemes` 为空时别误判"无 scheme"）；macos-14 runner 的 legacy
+  `xcresulttool get --format json` 树形是 `summaries→testableSummaries→tests→subtests`，叶子用
+  `testStatus: "Success"/"Failure"`，且数组以 `_values` 包装——与常见文档的 testNodes/Passed
+  形态不同，把 runner 实际产物下载回本地用脚本探测后再写解析器最省轮次。WSL Ubuntu-24.04 可
+  `bash -n` 校验 CI 脚本语法；cmd 下多行 `python -c` 依旧不可靠，一律写脚本文件再跑。
+- **当前分支/PR 全景（接替第 23 节清单）**：Android+release 链
+  #20(127A)→#24(127B)→#25(127C)→#26(127D)→**#27(v1.0.4，base main)** 全部 OPEN/MERGEABLE/
+  未合并，合并 #27 即整链入 main；平台链 [PR #21](https://github.com/tangyixiao/OJ-NEXUS/pull/21)
+  (128A Windows)、[PR #22](https://github.com/tangyixiao/OJ-NEXUS/pull/22)(129A Linux)、
+  #23(130A Apple) 各自独立 base（126 系），全部 OPEN/MERGEABLE/未合并——128A/129A 此前从未
+  进入交接文档与规划台账，本轮已在台账补记（其验证证据按各自 PR 正文记录，本轮未复跑）。
+  本地 `codex/phase-127-recovery-safety`（HEAD `756d8f4`）仍然**不要推送**；
+  `codex/phase-130-apple-state-safety` 现指向 `b70c0a5`（本轮已推送；本地同名分支曾在另一
+  worktree 检出，远端已由本轮经 `codex/phase-130-apple-recovery` 快进）。
+- **剩余阻塞**：Phase 123（Windows 干净 VM 安装）、124（Linux Qt 桌面交互）、125（Apple 交互
+  宿主）保持原状；130A 的交互式 macOS/iOS 恢复验收同属无宿主 BLOCKED（共享 XCTest 与模拟器
+  XCTest 不构成应用交互验收）。128A 之后的备份/恢复入口增量、129A 之后的配置写入链核查
+  （独立 JSON config 无写实现，先核实实际写入链再定恢复范围）待续。
+- **用户决策点**：合并 PR #27（整链入 main）→ tag `v1.0.4` → 上传 APK + SHA256SUMS 为
+  GitHub release；平台链 #21/#22/#23 的审查与合并顺序由用户决定，任何 PR 均未自动合并。
+
+交接文档状态：本文件已更新至 2026-11-01；第 26–27 节为当前权威，其余章节为历史记录。
