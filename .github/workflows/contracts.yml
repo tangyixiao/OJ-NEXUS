@@ -1,0 +1,36 @@
+# Portable workspace contract gate.
+# No secrets, credentials or network data are used: check.py is Python 3 stdlib
+# only and inspects local golden fixtures committed in this repository.
+
+name: Portable workspace contract
+
+on:
+  push:
+    paths:
+      - 'contracts/**'
+      - '.github/workflows/contracts.yml'
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - '.github/workflows/contracts.yml'
+
+jobs:
+  check:
+    name: Golden corpus gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Compile-check the reference checker
+        working-directory: contracts/portable/v1
+        run: python3 -m py_compile check.py
+
+      - name: Run golden corpus gate
+        working-directory: contracts/portable/v1
+        run: python3 check.py --cases golden/cases.json golden/
