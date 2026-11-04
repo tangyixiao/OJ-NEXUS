@@ -1,0 +1,95 @@
+{
+  "synthetic": true,
+  "formatVersion": 1,
+  "cases": [
+    {
+      "caseId": "PW-P01",
+      "file": "pw-p01.json",
+      "expect": "valid"
+    },
+    {
+      "caseId": "PW-N01",
+      "file": "pw-n01.json",
+      "expect": "invalid",
+      "errorCategory": "UNKNOWN_FIELD"
+    },
+    {
+      "caseId": "PW-N02",
+      "file": "pw-n02.json",
+      "expect": "invalid",
+      "errorCategory": "UNSUPPORTED_VERSION"
+    },
+    {
+      "caseId": "PW-N03",
+      "file": "pw-n03.json",
+      "expect": "invalid",
+      "errorCategory": "INVALID_INPUT"
+    },
+    {
+      "caseId": "PW-N04",
+      "file": "pw-n04.json",
+      "expect": "invalid",
+      "errorCategory": "UNKNOWN_FIELD"
+    },
+    {
+      "caseId": "PW-N05",
+      "file": "pw-n05.json",
+      "expect": "invalid",
+      "errorCategory": "MISSING_REFERENCE"
+    },
+    {
+      "caseId": "PW-N06",
+      "file": "pw-n06.json",
+      "expect": "invalid",
+      "errorCategory": "DUPLICATE_ID"
+    },
+    {
+      "caseId": "PW-N09",
+      "file": "pw-n09.json",
+      "expect": "invalid",
+      "errorCategory": "SIZE_LIMIT"
+    },
+    {
+      "caseId": "PW-N10",
+      "file": "pw-n10.json",
+      "expect": "invalid",
+      "errorCategory": "PATH_UNSAFE"
+    },
+    {
+      "caseId": "PW-N11",
+      "file": "pw-n11.json",
+      "expect": "invalid",
+      "errorCategory": "UNKNOWN_FIELD"
+    },
+    {
+      "caseId": "PW-N13",
+      "file": "pw-n13.json",
+      "expect": "invalid",
+      "errorCategory": "UNKNOWN_FIELD"
+    },
+    {
+      "caseId": "PW-N15",
+      "file": "pw-n15.json",
+      "expect": "invalid",
+      "errorCategory": "INVALID_INPUT"
+    },
+    {
+      "caseId": "PW-MISSING-FORMAT-VERSION",
+      "file": "pw-missing-format-version.json",
+      "expect": "invalid",
+      "errorCategory": "INVALID_INPUT"
+    },
+    {
+      "caseId": "PW-COUNTS-MISMATCH",
+      "file": "pw-counts-mismatch.json",
+      "expect": "invalid",
+      "errorCategory": "COUNTS_MISMATCH"
+    },
+    {
+      "caseId": "PW-DUPLICATE-JSON-KEYS",
+      "file": "pw-duplicate-json-keys.json",
+      "expect": "invalid",
+      "errorCategory": "INVALID_INPUT"
+    }
+  ]
+}
