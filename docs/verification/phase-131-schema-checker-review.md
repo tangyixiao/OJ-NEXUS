@@ -348,6 +348,27 @@ draft-07 boolean form (`:424-429`) — the subset stays honest at the configurat
 
 ---
 
+## Findings
+
+Consolidated from observations O1–O7 above. Severity scale: blocker / major / minor /
+observation. No blocker or major finding.
+
+| ID | Severity | Location | Description | Recommended action |
+|---|---|---|---|---|
+| F1 (O1) | minor | `check.py:870` vs `check.py:872`; `schema.json:87,167,243,314,389`; `README.md:62`; `check.py:41` | A collection with >50000 records is reported `UNKNOWN_FIELD` (schema `maxItems`), not the documented `SIZE_LIMIT`. Rejection still occurs; no acceptance defect. | Drop `maxItems` from the 5 collection arrays so `_check_collection_sizes` owns record count as `SIZE_LIMIT`, or update README + `check.py:41` to document `UNKNOWN_FIELD` for record count. |
+| F2 (O2) | observation | `schema.json:8,22-23`; `check.py:314-332`, `:869-870` | `formatVersion` is enforced by decode/version gate and again by schema `required`+`type`+`enum:[1]`; the schema branch is unreachable by precedence. | Accept as defense in depth, or note the redundancy in the docstring. No change required. |
+| F3 (O3) | observation | `check.py:574-581`, `:716-722`, `:870-872`; `README.md:62` | String-overflow category depends on character mix: multibyte → `SIZE_LIMIT`, ASCII → `UNKNOWN_FIELD` (`maxLength`). README groups both under `SIZE_LIMIT`. | Clarify README that ASCII `maxLength` overflow is `UNKNOWN_FIELD`; byte-bound overflow is `SIZE_LIMIT`. Two-layer defense is correct. |
+| F4 (O4) | observation | `check.py:518` | Two different unknown keys: the reported key is the first in document order (probe: `zz,aa`→`zzUnknown`; `aa,zz`→`aaUnknown`). Deterministic for a fixed document; differs across re-orderings. | If strict key-choice determinism is wanted, iterate `sorted(value)` for the unknown-key check. Not a blocker. |
+| F5 (O5) | observation | `check.py:28-50` | Precedence docstring lists record-count `SIZE_LIMIT` at step 5, but step-4 schema `maxItems` preempts it (see F1). | Align docstring with actual behavior when F1 is resolved. |
+| F6 (O6) | minor | `check.py:560` (`re.search`); `schema.json:28,105,110,127,159,...` (`$`-anchored patterns) | Python `$` matches before a trailing `\n`, so identifier/dayKey strings with a trailing newline pass the shape check (probe: `stableId="p1\n"`, `dayKey="2020-01-01\n"` accepted as `VALID`). | Use `\Z` instead of `$` in the anchored patterns, or switch `_validate_string` to `fullmatch`-equivalent semantics. Low impact; value still preserved verbatim, no security rule bypassed. |
+| F7 (O7) | observation | `check.py:84`, `:733`; `README.md:63` | PATH_UNSAFE regex does not match `C:/Windows`-style forward-slash drive paths; `\.\./` arm is unanchored as documented. v1 has no file fields. | Accept as documented defense in depth, or broaden if a future phase adds path-bearing fields. |
+
+The single most actionable item is F1 (category-label disagreement); F6 is a low-impact
+shape-check looseness. Both are reported to the controller for routing to the original
+implementer; neither was fixed in this review.
+
+---
+
 ## Claims vs non-claims
 
 **Claims (verified in this review):**
