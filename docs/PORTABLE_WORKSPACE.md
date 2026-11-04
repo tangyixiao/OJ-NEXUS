@@ -172,6 +172,59 @@ The interval ladder is NOT portable data; importers schedule with their own engi
 
 Path-shaped string values are rejected as `PATH_UNSAFE`: a string containing `../`, a leading `/`, a leading `X:\` (drive letter + colon + backslash), or exactly `..`. v1 has no file fields, so this is defense in depth across all strings. The schema's `maxLength` of 16384 counts code points; the checker enforces the UTF-8 byte bound.
 
+## 8. Error categories
+
+The checker reports exactly one category per rejection. Triggers:
+
+| Category | Trigger |
+| --- | --- |
+| `INVALID_INPUT` | Malformed or truncated UTF-8 / JSON, duplicate JSON object keys anywhere, non-object root, or missing / non-integer `formatVersion`. |
+| `UNSUPPORTED_VERSION` | `formatVersion` is an integer but not `1`. |
+| `UNKNOWN_FIELD` | Any schema-shape violation: unknown key, type / enum / pattern / required / `additionalProperties` violation, credential-shaped key, or `extra` value deeper than 2 levels. |
+| `DUPLICATE_ID` | Duplicate `stableId` inside a collection, or duplicate `problemId` inside `notes[]`. |
+| `MISSING_REFERENCE` | A `problemId` (attempts, notes, reviews) or a `problemIds[]` entry (sessions) absent from `problems[].stableId`. |
+| `SIZE_LIMIT` | Package over 64 MiB, a collection over 50000 records, or a string over 16 KiB. |
+| `PATH_UNSAFE` | A string containing `../`, a leading `/`, a leading `X:\`, or exactly `..`. |
+| `COUNTS_MISMATCH` | A declared `counts` value disagrees with the actual array length. |
+
+On an unknown-key rejection the checker names the offending key in the detail line; it never reports a bare category. Precedence is fixed by `check.py` (size before decode, decode/version before shape, shape before references, references before counts), so a malformed document cannot be reclassified by a later rule.
+
+## 9. Running the checker
+
+`check.py` is a Python 3 stdlib-only reference implementation; no pip install and no network. All commands are relative to the repo root. Three modes:
+
+```
+python3 contracts/portable/v1/check.py <file>
+python3 contracts/portable/v1/check.py --cases contracts/portable/v1/golden/cases.json contracts/portable/v1/golden/
+python3 contracts/portable/v1/check.py --identity <file>
+```
+
+- Single-file mode prints `VALID` on success; on rejection it prints the category, a JSON-path-ish location and a detail line to stderr.
+- `--cases` runs the golden corpus and exits 0 only if every case matches its expected valid/invalid outcome and expected error category.
+- `--identity` prints the SHA-256 of the canonical re-encode: `json.dumps` with sorted keys, fixed `(",", ":")` separators, UTF-8, `ensure_ascii=False`, and a trailing newline. This is the deterministic byte form used for round-trip checks.
+
+`--schema PATH` is optional; by default the checker loads `schema.json` next to itself. Exit codes: `0` = valid package / every case matched; `1` = invalid package / at least one case deviated; `2` = configuration error (bad arguments, unreadable file, missing or unusable schema, malformed cases file).
+
+## 10. Golden corpus
+
+The machine-readable corpus lives at [contracts/portable/v1/golden/](../contracts/portable/v1/golden/cases.json); each fixture is synthetic and marked through schema-permitted provenance, never through a schema-unknown key. `cases.json` names each case file with its expectation (`valid`, or `invalid` plus an error category) and cites the gate duty it covers.
+
+- Positive: `PW-P01` — a mixed package (problems across all three judges, attempts from two platforms, one note, two reviews, one session, one `extra` extension, one `unassigned`-origin record).
+- Negative package files: `PW-N01` (unknown entity field outside `extra`), `PW-N02` (`formatVersion` 2), `PW-N03` (malformed JSON), `PW-N04` (unknown manifest key), `PW-N05` (attempt referencing absent `problemId`), `PW-N06` (duplicate problem `stableId`), `PW-N09` (over-size string), `PW-N10` (path-shaped string), `PW-N11` (unknown verdict), `PW-N13` (credential-shaped key), `PW-N15` (truncated bytes), plus the missing-`formatVersion`, counts-mismatch and duplicate-JSON-object-keys cases.
+- `PW-N08` (re-check identity stability of `PW-P01`) and `PW-N12` (`origin: unassigned` accepted but unattributable) are checker self-tests / assertions, not package files.
+
+`.github/workflows/contracts.yml` runs the corpus in CI on Python 3 with no dependencies; any deviation fails the workflow.
+
+## 11. Capability negotiation for phases 132–135
+
+Phase 131 ships no importer or exporter, but the contract fixes the negotiation model that phases 132–135 must bind. Each importer classifies every record into one tier and reports three honest counts (one per tier):
+
+- `editable` — stored in the live editable store.
+- `storedOnly` — understood and persisted in a bounded portable archive where no domain UI / table exists yet.
+- `rejected` — unknown or incompatible; the record and its reason are reported.
+
+Nothing is silently dropped. A record is never downgraded to `rejected` without its reason. `problems` and `attempts` are the only collections all future consumers must accept. Phases 132–135 must run the mixed golden package through import then export and show a lossless round-trip for accepted records: the canonically re-encoded bytes are identical.
+
 ## 12. Versioning
 
 `formatVersion` is a single integer and must be exactly `1` (exact major match). A future major version is a whole-package rejection (`UNSUPPORTED_VERSION`), never a best-effort decode; v1 defines no automatic upgrade path. Within major version 1 the only extension point is `extra` (§5) with stored-only semantics: only schema-declared extensions are preserved losslessly, everything else unknown is rejected. v2 defines its own stance. A later phase introducing new semantics must bump `formatVersion` and update `schema.json` and the golden corpus together in the same change; schema, contract and goldens never drift apart.
