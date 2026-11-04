@@ -34,3 +34,18 @@ jobs:
       - name: Run golden corpus gate
         working-directory: contracts/portable/v1
         run: python3 check.py --cases golden/cases.json golden/
+
+      # Canonical identity must be deterministic: the same package re-encoded
+      # twice must yield the same SHA-256. Any drift fails the job loudly.
+      - name: Assert canonical identity determinism
+        working-directory: contracts/portable/v1
+        run: |
+          first="$(python3 check.py --identity golden/pw-p01.json)"
+          second="$(python3 check.py --identity golden/pw-p01.json)"
+          if [ "$first" != "$second" ]; then
+            echo "IDENTITY MISMATCH: canonical identity is not deterministic" >&2
+            echo "  run 1: $first" >&2
+            echo "  run 2: $second" >&2
+            exit 1
+          fi
+          echo "Canonical identity (stable across runs): $first"
