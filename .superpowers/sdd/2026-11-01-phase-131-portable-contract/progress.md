@@ -42,3 +42,47 @@ the controller merges them into the phase branch. Child PRs (state: in progress)
 T1/T2 execution is recorded with the two known controller commits 79807b4 + acf4f8c. No PR
 numbers and no measured gate results are asserted in this ledger worktree; the controller
 records those after the gate. Do not force-add scratch files.
+
+## Rulings
+
+- Ruling: one package = one UTF-8 JSON document, single-file container (no ZIP, no archive in v1). This removes the archive-stowaway class; path-shaped strings and duplicate JSON keys are still rejected at the format level.
+- Ruling: `check.py` implements a deliberate draft-07 subset driven by `schema.json` (type, required, properties, additionalProperties:false, enum, pattern, min/max length, items, minItems, maxItems, integer bounds); contract rules the subset cannot express live in the checker, never silently in a looser schema.
+- Ruling: strict JSON decode with duplicate-key rejection via object_pairs_hook; last-key-wins is treated as an attack, not a default.
+- Ruling: future major `formatVersion` → whole-package reject (UNSUPPORTED_VERSION), never a best-effort decode. Minor extensions: only schema-declared fields are preserved losslessly; everything else unknown is rejected with the offending key named.
+- Ruling: `extra` (optional object, string keys → JSON scalars/arrays of scalars, depth ≤ 2) is the sole permitted extension point, stored-only semantics, preserved byte-exactly. Any other unknown key on an entity object → UNKNOWN_FIELD reject.
+- Ruling: no silent normalization. Absent `difficulty` stays absent (never coerced to 0); an unknown `verdict` value is a rejection, not a coercion; `rawVerdict` is mapped to `OTHER` by the exporter on the way out, never by the importer in the package. Historical day keys are preserved verbatim, never recomputed.
+- Ruling: capability tiers (`editable` / `storedOnly` / `rejected`), the three import counts, the never-downgrade-without-reason rule, and lossless import→export round-trip for accepted records are 131 vocabulary/counts duty only; the actual 132–135 binding and round-trip proof are deferred to those phases, not claimed here.
+- Ruling: PW-N08 (positive-side re-check that PW-P01 reports the same identity hash) and PW-N12 (`origin: unassigned` accepted but asserted unattributable) are encoded as `check.py` / `selftest.py` self-tests and assertions, not as separate golden package files.
+
+## Gate (objective; measured by the controller, not yet recorded here)
+
+| Check | Required result |
+| --- | --- |
+| local checker corpus | `check.py --cases golden/cases.json golden/` prints `15 cases, 15 passed, 0 failed` |
+| identity determinism | `check.py --identity <file>` yields the same SHA-256 across repeated runs (sorted-key canonical re-encode, no dict-order drift, no locale/clock dependence) |
+| selftest.py | PASS (PW-N08 deterministic identity + PW-N12 unassigned-origin assertion) |
+| py_compile | clean (`python3 -m py_compile check.py selftest.py`) |
+| CI | green — `.github/workflows/contracts.yml` runs the corpus on `contracts/**` and the workflow file itself |
+| Android gates | unaffected — no `app/` change in this phase; PR CI runs them anyway |
+
+## Review (whole-branch, independent — source + contract text)
+
+- Whole-branch independent review covers source and contract text; fixes route through the original implementer, never by loosening the checker silently.
+- Schema and checker must agree on every rejection reason (no rule present in one but not the other). Every golden negative cites the exact error category in `cases.json`.
+- Unknown-key rejection must name the offending key in the error, never a bare category (e.g. a `token` credential-shaped key anywhere → UNKNOWN_FIELD with the key named).
+- PW-P01 must exercise every collection (`problems`, `attempts`, `notes`, `reviews`, `sessions`) and every enum value at least once where feasible.
+- No silent normalization: absent difficulty stays absent, unknown verdict is a rejection, day keys preserved verbatim.
+- Checker decisions are deterministic: sorted-key canonical form with fixed separators, no dict-order drift.
+
+## Claims vs non-claims
+
+Claims (delivered in 131): the package contract (`README.md`), machine-checkable `schema.json`, stdlib-only reference `check.py`, golden positive + negative corpus, CI workflow, developer guide, verification record, handoff and this ledger — one honest contract for 132–135 to bind import/export against.
+
+Non-claims (explicitly out of 131): no platform import/export consumer (132–135 bind later); no encrypted or compressed container; no Android `app/` change; no v2 automatic upgrade path (v2 defines its own stance). The checker is a reference implementation, not a platform proof.
+
+## Final
+
+FINAL: PENDING controller gate. This line is left as the objective / pending gate result — no
+green result is asserted here because the gate has not been measured in this ledger worktree.
+The controller fills this line with the real measured outcome (checker corpus, identity,
+selftest, py_compile, CI, whole-branch review, PR) after the gate passes.
