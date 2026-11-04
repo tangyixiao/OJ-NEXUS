@@ -54,19 +54,36 @@ the eight declared in the contract README: `INVALID_INPUT`, `UNSUPPORTED_VERSION
 
 | Case id | Expected result | Error category | G-S duty covered |
 | --- | --- | --- | --- |
+| `PW-P01` | valid (positive fixture: mixed problems, two `sourcePlatform`s, note, two reviews, one session, one `extra` extension, one `unassigned` record) | none (accept) | golden fixture 正例; exercises every collection and enum where feasible; 同包重复导入幂等 baseline |
+| `PW-N01` | reject: unknown entity field not under `extra` | `UNKNOWN_FIELD` | 未知字段; 未知关键语义拒绝 (契约/schema 检查) |
+| `PW-N02` | reject: `formatVersion` = 2 | `UNSUPPORTED_VERSION` | 版本 (未知字段/版本); 契约/schema 检查 |
+| `PW-N03` | reject: malformed JSON | `INVALID_INPUT` | golden fixture 反例; 契约/schema 检查 |
+| `PW-N04` | reject: unknown manifest key | `UNKNOWN_FIELD` | 未知字段; 契约/schema 检查 |
+| `PW-N05` | reject: attempt references absent `problemId` | `MISSING_REFERENCE` | 缺失引用; 契约/schema 检查 |
+| `PW-N06` | reject: duplicate problem `stableId` | `DUPLICATE_ID` | 重复 ID; 同 ID 异内容必须显式处理 |
+| `PW-N09` | reject: record with a 16 KiB string over limit | `SIZE_LIMIT` | 大小限制; 契约/schema 检查 |
+| `PW-N10` | reject: path-shaped string in a free-text field | `PATH_UNSAFE` | 路径穿越; 契约/schema 检查 |
+| `PW-N11` | reject: unknown `verdict` value | `UNKNOWN_FIELD` (enum violation) | 未知字段; 未知关键语义拒绝; no silent normalization |
+| `PW-N13` | reject: credential-shaped key `token` anywhere | `UNKNOWN_FIELD` | 未知字段; 排除凭据; 契约/schema 检查 |
+| `PW-N15` | reject: truncated bytes | `INVALID_INPUT` | golden fixture 反例; 契约/schema 检查 |
+| `missing-formatVersion` | reject: manifest missing `formatVersion` | `INVALID_INPUT` | 版本; 契约/schema 检查 |
+| `counts-mismatch` | reject: `counts` declares 3, actual 2 | `COUNTS_MISMATCH` | golden fixture 反例; 契约/schema 检查 |
+| `duplicate-JSON-keys` | reject: duplicate JSON object keys | `INVALID_INPUT` | golden fixture 反例; 契约/schema 检查 |
 
 The document-phase component of the G-S duty ("文档期检查编号/依赖/链接/范围") is covered by the
-numbered inputs/links above and by the whole-branch independent review recorded below. The
+numbered inputs/links above and by the whole-branch independent review checklist below. The
 consumer-regression component ("所有受影响消费者回归") is not claimed in Phase 131: the plan fixes
 132-135 as the phases that bind platform consumers, so no affected consumer exists yet. This record
 does not assert consumer regression.
 
 ## Schema/checker agreement review
 
-Controller's review checklist, from the plan's Review focus (lines 66-72). The independent
-whole-branch review confirms the items below; this record marks the checklist as the controller's,
-and each row stays PENDING until the controller records its outcome. Fixes go through the original
-implementer.
+Controller's review checklist, from the plan's Review focus (lines 66-72). The items below are
+the properties the independent whole-branch review checks; each is traceable to the spec,
+`schema.json`, and `check.py` (enum violations map to `UNKNOWN_FIELD`, unknown-key errors name
+the offending key, `canonical_bytes` uses `sort_keys=True`, and an absent `difficulty` stays
+absent). This record marks the checklist as the controller's, and each row stays PENDING until the
+controller records its outcome. Fixes go through the original implementer.
 
 | Review item | Focus | Result |
 | --- | --- | --- |
