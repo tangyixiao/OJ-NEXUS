@@ -133,3 +133,53 @@ CI (`.github/workflows/contracts.yml`) runs the corpus on `contracts/**`
 changes. Android gates are unaffected by 131 because there are no `app/`
 changes, but PR CI runs them anyway. No third-party dependencies and no network
 access are needed for `check.py`. All golden fixtures are synthetic.
+
+## 5. Open work / next phases
+
+Phases 132–135 bind real import/export on Android, Windows, Linux, and Apple.
+The binding work must:
+
+- Run the mixed PW-P01 golden package through import then export and show a
+  lossless round-trip for accepted records: the canonical re-encode bytes must
+  be identical.
+- Implement capability tiers `editable` / `storedOnly` / `rejected` with three
+  honest counts, so no record is silently dropped.
+- Handle same-ID-different-content explicitly, and handle same-package reimport
+  idempotently.
+- Keep `origin: "unassigned"` records unattributable to the importing account.
+
+v2 will define its own version stance; there is no automatic upgrade path from
+v1. No credentials, cookies, tokens, or account configs are portable in any
+phase.
+
+## 6. Gotchas for the next agent
+
+- **SSH remote is broken on this host.** `git@github.com:tangyixiao/OJ-NEXUS.git`
+  fails because port 443 is closed. Use the full HTTPS URL
+  `https://github.com/tangyixiao/OJ-NEXUS.git` for `git push` / `git fetch`,
+  and `gh` (API/HTTPS) for PRs.
+- **The controller branch is the integration base.** It carries the spec+plan
+  commit `0aa419c` that `main` lacks. Child PRs must base on
+  `codex/phase-131-portable-contract`, not on `main`.
+- `check.py` has no third-party dependencies and no network access.
+- All golden fixtures are synthetic; do not treat them as real user data.
+- Phase 131 is a contract-only delivery. Do not assume any platform import or
+  export code already exists.
+
+## 7. Links
+
+Relative markdown paths:
+
+- Spec: [docs/superpowers/specs/2026-11-01-phase-131-portable-workspace-design.md](superpowers/specs/2026-11-01-phase-131-portable-workspace-design.md)
+- Plan: [docs/superpowers/plans/2026-11-01-phase-131-portable-workspace.md](superpowers/plans/2026-11-01-phase-131-portable-workspace.md)
+- Human contract: [contracts/portable/v1/README.md](../contracts/portable/v1/README.md)
+- Schema: [contracts/portable/v1/schema.json](../contracts/portable/v1/schema.json)
+- Reference checker: [contracts/portable/v1/check.py](../contracts/portable/v1/check.py)
+- Golden cases: [contracts/portable/v1/golden/cases.json](../contracts/portable/v1/golden/cases.json)
+- Verification record: [docs/verification/phase-131-portable-contract.md](verification/phase-131-portable-contract.md)
+- Developer guide: [docs/PORTABLE_WORKSPACE.md](PORTABLE_WORKSPACE.md)
+- CI workflow: [.github/workflows/contracts.yml](../.github/workflows/contracts.yml)
+
+Handoff status: this document is the current authority for the Phase 131
+contract-only delivery. Sections 1–7 are authoritative; earlier phases keep
+their own handoff documents.
