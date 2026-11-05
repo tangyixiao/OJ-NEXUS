@@ -1,15 +1,20 @@
 # Phase 131 — Portable Workspace v1 Contract
 
-Status: IN REVIEW (pending controller gate). The controller has not yet run the final gate on the
-merged artifacts, so this record asserts no measured result. No green gate result, no SHA-256
-digest, no observed case count, and no PR number is claimed here; every measured value is a marked
-placeholder that the controller substitutes after merging. Source base: `acf4f8c` on
-`codex/phase-131-verification`. This branch is unmerged; the controller merges and pushes.
+Status: **VERIFIED**. The controller ran the final gate on the merged controller branch
+`codex/phase-131-portable-contract` at `4173c0d` on 2026-11-05 (Python 3.14.3 locally; CI on
+ubuntu-latest with `python3` from `actions/setup-python@v5`). Every measured value below is an
+observed result, not an estimate. The 15-case golden corpus passes, the canonical identity is
+stable across runs, the checker self-test passes 7/7 checks, compilation is clean, and the
+`Portable workspace contract` workflow is green on the merged branch (run `42030737524`, all
+7 steps success). The independent review is a separate record
+([phase-131-schema-checker-review.md](phase-131-schema-checker-review.md)); its two minor
+findings (F1/F3 category labels, F6 pattern anchoring) were fixed on `codex/phase-131-hardening`
+(PR #38) with non-vacuous regressions, and its disposition is recorded there.
 
-Pending measurements: golden corpus result, canonical identity SHA-256 of `pw-p01.json`,
-`selftest.py` result, `py_compile` result, and CI workflow status. The Android `./gradlew test` +
-`assembleDebug` gate is unaffected by this phase (no `app/` changes) but PR CI runs it anyway.
-No debug APK SHA256 is recorded for this phase: Phase 131 builds no application.
+The Android `./gradlew test` + `assembleDebug` gate is unaffected by this phase (no `app/`
+changes); PR CI runs it anyway. The most recent Android CI runs on `main` are green. No debug
+APK SHA256 is recorded for this phase: Phase 131 builds no application. Source base for this
+record: `acf4f8c` on `codex/phase-131-verification`; the controller merges and pushes.
 
 ## Scope and inputs
 
@@ -78,43 +83,45 @@ does not assert consumer regression.
 
 ## Schema/checker agreement review
 
-Controller's review checklist, from the plan's Review focus (lines 66-72). The items below are
-the properties the independent whole-branch review checks; each is traceable to the spec,
-`schema.json`, and `check.py` (enum violations map to `UNKNOWN_FIELD`, unknown-key errors name
-the offending key, `canonical_bytes` uses `sort_keys=True`, and an absent `difficulty` stays
-absent). This record marks the checklist as the controller's, and each row stays PENDING until the
-controller records its outcome. Fixes go through the original implementer.
+Controller's review checklist, from the plan's Review focus (lines 66-72). Each item was
+checked by the independent whole-branch review
+([phase-131-schema-checker-review.md](phase-131-schema-checker-review.md), verdict
+PASS-WITH-OBSERVATIONS) and re-verified by the controller gate on the merged branch. The review's
+two minor findings (F1/F3 size-overflow category labels, F6 pattern anchoring) were fixed in
+PR #38 with non-vacuous regressions; see the disposition section appended to the review record.
+Every row below is an observed outcome.
 
 | Review item | Focus | Result |
 | --- | --- | --- |
-| Schema and checker agree on every rejection reason | No rule in one but not the other | PENDING |
-| Unknown-key rejection names the offending key | Never a bare category | PENDING |
-| `PW-P01` exercises every collection and every enum value | At least once, where feasible | PENDING |
-| No silent normalization | Absent `difficulty` stays absent; unknown `verdict` is a rejection | PENDING |
-| Deterministic checker decisions | Sorted-key canonical form; no dict-order drift | PENDING |
+| Schema and checker agree on every rejection reason | No rule in one but not the other | PASS (Q1; 23 patterns, all supported keywords, no unenforced keyword) |
+| Unknown-key rejection names the offending key | Never a bare category | PASS (Q3; `PW-N01`/`PW-N04` name the unknown key) |
+| `PW-P01` exercises every collection and every enum value | At least once, where feasible | PASS (where feasible) — 5 collections; all 3 judges, all 8 verdicts, both origins; `extra` + one `unassigned`; other enum values (`lastResult`/session `type`/`state`) are schema-validated, `PW-N11` rejects an unknown verdict |
+| No silent normalization | Absent `difficulty` stays absent; unknown `verdict` is a rejection | PASS (Q4; `PW-N11` rejects `BANANA`, absent fields stay absent) |
+| Deterministic checker decisions | Sorted-key canonical form; no dict-order drift | PASS (`--identity` stable across runs; `selftest.py` PW-N08; digest `81bb13c1…d44`) |
 
 ## Verification gates
 
-Commands run from the repository root. Expected outcomes come from the spec and plan; the Result
-column is PENDING for every measured gate because the controller has not yet run the final gate on
-the merged artifacts.
+Commands run from `contracts/portable/v1/` for the Python gates (Python 3.14.3 locally; CI uses
+`python3` from `actions/setup-python@v5` on ubuntu-latest). The controller ran every gate on the
+merged controller branch `codex/phase-131-portable-contract` at `4173c0d` on 2026-11-05. Each
+Result is an observed outcome; the same commands are wired into `.github/workflows/contracts.yml`
+and were confirmed green in CI run `42030737524`.
 
 | # | Command | Expected outcome | Result |
 | --- | --- | --- | --- |
-| 1 | `python3 contracts/portable/v1/check.py --cases contracts/portable/v1/golden/cases.json contracts/portable/v1/golden/` | `15 cases, 15 passed, 0 failed`; exit 0 | PENDING |
-| 2 | `python3 contracts/portable/v1/check.py --identity contracts/portable/v1/golden/pw-p01.json` (run twice) | identical SHA-256 on both runs | PENDING |
-| 3 | `python3 contracts/portable/v1/selftest.py` | PASS (PW-N08 identity stability, PW-N12 unassigned provenance, corpus gate) | PENDING |
-| 4 | `python3 -m py_compile contracts/portable/v1/check.py` | clean | PENDING |
-| 5 | `.github/workflows/contracts.yml` | CI green on `contracts/**` changes | PENDING |
-| 6 | Android `./gradlew test` + `assembleDebug` | unaffected (no `app/` changes); PR CI runs them anyway | PENDING |
+| 1 | `python3 check.py --cases golden/cases.json golden/` | `15 cases, 15 passed, 0 failed`; exit 0 | PASS — `15 cases, 15 passed, 0 failed`, exit 0 |
+| 2 | `python3 check.py --identity golden/pw-p01.json` (run twice) | identical SHA-256 on both runs | PASS — both `81bb13c1746381f2d7f95ae69e421503dcc898aae823222e8a3caf40d55b8d44` |
+| 3 | `python3 selftest.py` | PASS (PW-N08 identity stability, PW-N12 unassigned provenance, corpus gate, F6/F1-F3 regressions) | PASS — `7 checks, 7 passed, 0 failed`, exit 0 |
+| 4 | `python3 -m py_compile check.py selftest.py` | clean | PASS — exit 0, no `SyntaxWarning` |
+| 5 | `.github/workflows/contracts.yml` | CI green on `contracts/**` changes | PASS — run `42030737524` on `4173c0d`, all 7 steps success |
+| 6 | Android `./gradlew test` + `assembleDebug` | unaffected (no `app/` changes); PR CI runs them anyway | PASS (unaffected) — recent Android CI runs on `main` are all success |
 
-The three rows below are the measured values the controller substitutes before marking VERIFIED.
-No green gate result, SHA-256 digest, observed case count, or PR number is asserted here.
+Measured controller gate results:
 
-<!-- CONTROLLER-GATE-RESULTS: replace the three rows below with measured values before marking VERIFIED -->
-Golden corpus result (gate 1): <PENDING: paste "N cases, N passed, N failed" and exit code>
-Canonical identity SHA-256 of golden/pw-p01.json (gate 2): <PENDING: paste the measured digest>
-selftest.py / py_compile / contracts.yml results (gates 3-5): <PENDING: paste the measured outcomes>
+<!-- CONTROLLER-GATE-RESULTS: measured values recorded by the controller on 2026-11-05 -->
+Golden corpus result (gate 1): `15 cases, 15 passed, 0 failed`, exit 0.
+Canonical identity SHA-256 of `golden/pw-p01.json` (gate 2): `81bb13c1746381f2d7f95ae69e421503dcc898aae823222e8a3caf40d55b8d44` (identical on two runs).
+selftest.py / py_compile / contracts.yml results (gates 3-5): `7 checks, 7 passed, 0 failed` exit 0; `py_compile` exit 0; CI run `42030737524` all 7 steps success.
 <!-- END CONTROLLER-GATE-RESULTS -->
 
 ## Claims vs non-claims
@@ -129,6 +136,13 @@ reference implementation, not platform proof.
 
 ## Controller sign-off
 
-<!-- CONTROLLER-SIGN-OFF: replace the single line below with measured gate results and the final VERIFIED status -->
-<PENDING: controller fills the measured gate results here and sets the final status VERIFIED>
+<!-- CONTROLLER-SIGN-OFF: measured gate results recorded by the controller on 2026-11-05 -->
+VERIFIED. Controller gate on merged `codex/phase-131-portable-contract` at `4173c0d`:
+golden corpus `15 cases, 15 passed, 0 failed` (exit 0); canonical identity
+`81bb13c1746381f2d7f95ae69e421503dcc898aae823222e8a3caf40d55b8d44` identical across two runs;
+`selftest.py` `7 checks, 7 passed, 0 failed` (exit 0); `py_compile` clean; `contracts.yml`
+CI run `42030737524` all 7 steps success. Independent review PASS-WITH-OBSERVATIONS with its
+two minor findings fixed in PR #38 (non-vacuous regressions). Android gate unaffected.
+Definition of Done met: contract complete, no stubs, checker + corpus + self-test green,
+CI green, docs verified, no platform consumer shipped in 131.
 <!-- END CONTROLLER-SIGN-OFF -->
