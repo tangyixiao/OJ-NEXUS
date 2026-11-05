@@ -329,11 +329,112 @@ def check_corpus_gate():
     )
 
 
+def check_pattern_anchoring():
+    """F6: anchored patterns use absolute-end (ECMA-262) semantics.
+
+    Python's ``$`` also matches just before a trailing newline, which would
+    wrongly admit a dayKey / id ending in ``\\n``. The checker translates a
+    terminal, unescaped ``$`` into an absolute-end anchor; prefix-only rules
+    (sourceUrl) must stay untouched so valid URLs still pass.
+    """
+    _require(check is not None, "could not import check.py")
+    day_key = r"^\d{4}-\d{2}-\d{2}$"
+    anchored = getattr(check, "_pattern_matches", None)
+    if anchored is not None:  # helper exists only on the hardened checker
+        _require(
+            anchored(day_key, "2026-11-01"),
+            "valid dayKey rejected by the anchored pattern",
+        )
+        _require(
+            not anchored(day_key, "2026-11-01\n"),
+            "anchored pattern wrongly accepted a trailing newline (F6 regression)",
+        )
+        _require(
+            anchored(
+                r"^https?://", "https://codeforces.com/problemset/problem/1/A"
+            ),
+            "prefix-only sourceUrl pattern no longer matches a valid URL",
+        )
+
+    # End-to-end: a package whose problem dayKey ends in a newline must be
+    # rejected with UNKNOWN_FIELD at the pattern keyword, not accepted. This
+    # alone catches the F6 bug and does not depend on any private helper.
+    raw = _read_bytes(PW_P01, PW_P01_MISSING)
+    variant = json.loads(raw.decode("utf-8"))
+    variant["problems"][0]["dayKey"] = "2026-11-01\n"
+    variant_raw = json.dumps(variant, ensure_ascii=False).encode("utf-8")
+    try:
+        check.check_package(variant_raw, get_schema())
+    except check.ContractError as exc:
+        _require(
+            exc.category == "UNKNOWN_FIELD" and "pattern" in exc.detail,
+            "trailing-newline dayKey rejected with wrong category/keyword: %s / %s"
+            % (exc.category, exc.detail),
+        )
+    else:
+        raise AssertionError("trailing-newline dayKey was accepted (F6 regression)")
+
+
+def check_size_limit_categories():
+    """F1/F3: maxItems/maxLength overflow maps to SIZE_LIMIT, not UNKNOWN_FIELD.
+
+    README and the error-category contract describe oversized arrays and
+    strings as SIZE_LIMIT; the draft-07 subset validator must agree.
+    """
+    _require(check is not None, "could not import check.py")
+
+    # maxLength (F3): a 16385-code-point ASCII title trips the schema's
+    # maxLength rule. It has no pattern, so maxLength is the first violation.
+    raw = _read_bytes(PW_P01, PW_P01_MISSING)
+    variant = json.loads(raw.decode("utf-8"))
+    variant["problems"][0]["title"] = "A" * 16385
+    variant_raw = json.dumps(variant, ensure_ascii=False).encode("utf-8")
+    try:
+        check.check_package(variant_raw, get_schema())
+    except check.ContractError as exc:
+        _require(
+            exc.category == "SIZE_LIMIT" and "maxLength" in exc.detail,
+            "oversized title reported as %s / %s, expected SIZE_LIMIT / maxLength"
+            % (exc.category, exc.detail),
+        )
+    else:
+        raise AssertionError("16385-character title was accepted")
+
+    # maxItems (F1): route the keyword through validate_against_schema directly
+    # (no need to build a 50001-record package to test the category mapping).
+    try:
+        check.validate_against_schema([1, 2], {"type": "array", "maxItems": 1}, "$")
+    except check.ContractError as exc:
+        _require(
+            exc.category == "SIZE_LIMIT" and "maxItems" in exc.detail,
+            "maxItems overflow reported as %s / %s, expected SIZE_LIMIT / maxItems"
+            % (exc.category, exc.detail),
+        )
+    else:
+        raise AssertionError("array over maxItems was accepted")
+
+    # Control: a non-size subset violation still maps to UNKNOWN_FIELD.
+    try:
+        check.validate_against_schema(
+            {"x": 1}, {"type": "object", "additionalProperties": False}, "$"
+        )
+    except check.ContractError as exc:
+        _require(
+            exc.category == "UNKNOWN_FIELD",
+            "unknown-key violation reported as %s, expected UNKNOWN_FIELD"
+            % exc.category,
+        )
+    else:
+        raise AssertionError("unknown key was accepted")
+
+
 CHECKS = [
     ("import check.py", check_import),
     ("PW-N08 canonical determinism", check_canonical_determinism),
     ("PW-N08 CLI identity stability", check_cli_identity_stability),
     ("PW-N12 unassigned provenance", check_unassigned_provenance),
+    ("F6 trailing-newline pattern anchoring", check_pattern_anchoring),
+    ("F1/F3 size-overflow categories", check_size_limit_categories),
     ("golden corpus gate", check_corpus_gate),
 ]
 
