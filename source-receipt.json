@@ -2,10 +2,33 @@
   "repo": "tangyixiao/OJ-NEXUS",
   "sourceBranch": "main",
   "sourceCommit": "6eddcf5fd246d8c54e0b02a36e4aac016d54f0f2",
+  "designVersion": 3,
+  "direction": {
+    "visualConcept": "严格沿用 NEXUS BLUE 的墨黑训练终端：首屏就是紧凑的 command deck，左侧 judge adapter 轨道、中部训练与复盘结构、右侧原生客户端源码证据。拒绝通用大幅 hero、玻璃、泛光、营销词和循环动画。事实边界：介绍 native Android 项目，不伪装可登录的在线 judge；亮色仅为网站阅读皮肤，不宣称原生 app 已支持该主题。",
+    "layout": "command",
+    "palette": {
+      "light": {
+        "bg": "#E8EDF2",
+        "surface": "#F5F7FA",
+        "ink": "#162230",
+        "muted": "#526272",
+        "accent": "#195d9e"
+      },
+      "dark": {
+        "bg": "#090B0D",
+        "surface": "#101317",
+        "ink": "#ECEFF1",
+        "muted": "#9aa3ac",
+        "accent": "#4fa1ff"
+      }
+    },
+    "threeConcept": "Three.js 仅在终端窄侧栏呈现可手动剖开的不透明手机机架，三层铭牌写 ADAPTER / LOCAL DATA / REVIEW。镜头固定、无 idle animation、无发光和玻璃；不占用大幅营销 hero，降低动态时改为正投影剖面图。",
+    "distinctiveInteraction": "ADAPTER / LOCAL DATA / REVIEW 选项按用户点击短暂切换来源说明与剖面层，保留键盘焦点；点击不会抓取真实 OJ 账号、进行推荐或模拟比赛倒计时。"
+  },
   "media": [],
   "skills": [
     "baoyu-design",
     "design-taste-frontend"
   ],
-  "design": "content-first source/product/photography; no rejected template or faux 3D"
+  "flagshipModel": "WorkBuddy / deepseek-v4.1-flash"
 }
