@@ -1,0 +1,55 @@
+# Portable workspace contract gate.
+# No secrets, credentials or network data are used: check.py is Python 3 stdlib
+# only and inspects local golden fixtures committed in this repository.
+
+name: Portable workspace contract
+
+on:
+  push:
+    paths:
+      - 'contracts/**'
+      - '.github/workflows/contracts.yml'
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - '.github/workflows/contracts.yml'
+
+jobs:
+  check:
+    name: Golden corpus gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Compile-check checker and self-test
+        working-directory: contracts/portable/v1
+        run: python3 -m py_compile check.py selftest.py
+
+      - name: Run golden corpus gate
+        working-directory: contracts/portable/v1
+        run: python3 check.py --cases golden/cases.json golden/
+
+      - name: Run checker self-test
+        working-directory: contracts/portable/v1
+        run: python3 selftest.py
+
+      # Canonical identity must be deterministic: the same package re-encoded
+      # twice must yield the same SHA-256. Any drift fails the job loudly.
+      - name: Assert canonical identity determinism
+        working-directory: contracts/portable/v1
+        run: |
+          first="$(python3 check.py --identity golden/pw-p01.json)"
+          second="$(python3 check.py --identity golden/pw-p01.json)"
+          if [ "$first" != "$second" ]; then
+            echo "IDENTITY MISMATCH: canonical identity is not deterministic" >&2
+            echo "  run 1: $first" >&2
+            echo "  run 2: $second" >&2
+            exit 1
+          fi
+          echo "Canonical identity (stable across runs): $first"

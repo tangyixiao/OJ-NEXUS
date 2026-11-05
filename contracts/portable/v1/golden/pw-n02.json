@@ -1,0 +1,43 @@
+{
+  "formatVersion": 2,
+  "scopeId": "scope.alpha",
+  "sourcePlatform": "android",
+  "generator": {
+    "name": "synthetic-fixture-gen",
+    "version": "1.0"
+  },
+  "createdAtEpochMs": 1730500000000,
+  "counts": {
+    "problems": 1,
+    "attempts": 1,
+    "notes": 0,
+    "reviews": 0,
+    "sessions": 0
+  },
+  "problems": [
+    {
+      "stableId": "cf.1A",
+      "sourceScopeId": "scope.alpha",
+      "origin": "scope",
+      "judge": "codeforces",
+      "externalId": "1A",
+      "title": "Theatre Square",
+      "solved": true,
+      "dayKey": "2026-11-01"
+    }
+  ],
+  "attempts": [
+    {
+      "stableId": "att.1",
+      "sourceScopeId": "scope.alpha",
+      "origin": "scope",
+      "problemId": "cf.1A",
+      "timestampEpochMs": 1730500000000,
+      "verdict": "AC",
+      "dayKey": "2026-11-01"
+    }
+  ],
+  "notes": [],
+  "reviews": [],
+  "sessions": []
+}

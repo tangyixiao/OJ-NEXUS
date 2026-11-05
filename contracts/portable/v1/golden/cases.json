@@ -1,0 +1,125 @@
+{
+  "synthetic": true,
+  "formatVersion": 1,
+  "cases": [
+    {
+      "caseId": "PW-P01",
+      "file": "pw-p01.json",
+      "expect": "valid",
+      "duty": "Mixed positive package: every collection exercised; all three judges, all eight verdict enums, two source scopes, a stored-only extra extension, an unassigned-origin record, one note, two reviews and one session are admitted without silent normalization; difficulty is absent on one problem and present on another.",
+      "note": "PW-N08 (identity re-check: re-checking PW-P01 must report the same --identity SHA-256) is a checker self-test handled by a sibling PR, not a separate file. PW-N12 (origin:'unassigned' accepted but never attributed to the importing account) is a positive property asserted here via the luogu.P1001 record. The spec says 'attempts from two sourcePlatforms'; manifest-level sourcePlatform is necessarily single, so this is represented by two distinct sourceScopeId values (scope.alpha, scope.beta) across the eight attempts. synthetic:true is marked inside the extra extension where the schema permits provenance."
+    },
+    {
+      "caseId": "PW-N01",
+      "file": "pw-n01.json",
+      "expect": "invalid",
+      "errorCategory": "UNKNOWN_FIELD",
+      "duty": "Unknown entity field rejected; nothing silently ignored.",
+      "note": "One defect: unknownField added to a problem entity outside extra."
+    },
+    {
+      "caseId": "PW-N02",
+      "file": "pw-n02.json",
+      "expect": "invalid",
+      "errorCategory": "UNSUPPORTED_VERSION",
+      "duty": "A future major version is a whole-package reject, never best-effort decoded.",
+      "note": "One defect: formatVersion = 2."
+    },
+    {
+      "caseId": "PW-N03",
+      "file": "pw-n03.json",
+      "expect": "invalid",
+      "errorCategory": "INVALID_INPUT",
+      "duty": "Malformed JSON is invalid at strict decode, not partially salvaged.",
+      "note": "One defect: raw bytes b'{\"formatVersion\": 1,' written verbatim."
+    },
+    {
+      "caseId": "PW-N04",
+      "file": "pw-n04.json",
+      "expect": "invalid",
+      "errorCategory": "UNKNOWN_FIELD",
+      "duty": "Unknown manifest key rejected; nothing silently ignored.",
+      "note": "One defect: mystery added as a root key."
+    },
+    {
+      "caseId": "PW-N05",
+      "file": "pw-n05.json",
+      "expect": "invalid",
+      "errorCategory": "MISSING_REFERENCE",
+      "duty": "An attempt referencing an absent problemId is a missing-reference finding, never a silent drop.",
+      "note": "One defect: attempts[0].problemId = cf.MISSING."
+    },
+    {
+      "caseId": "PW-N06",
+      "file": "pw-n06.json",
+      "expect": "invalid",
+      "errorCategory": "DUPLICATE_ID",
+      "duty": "Duplicate problem stableId rejected; identity collisions never last-key-wins.",
+      "note": "One defect: a second problem with the same stableId is appended; counts.problems bumped to 2 so the duplicate check is reached unambiguously."
+    },
+    {
+      "caseId": "PW-N09",
+      "file": "pw-n09.json",
+      "expect": "invalid",
+      "errorCategory": "SIZE_LIMIT",
+      "duty": "A 27000 UTF-8-byte string exceeds the 16 KiB byte bound even though its code-point length is under the schema maxLength.",
+      "note": "One defect: problem title set to 9000 CJK characters (27000 UTF-8 bytes > 16384)."
+    },
+    {
+      "caseId": "PW-N10",
+      "file": "pw-n10.json",
+      "expect": "invalid",
+      "errorCategory": "PATH_UNSAFE",
+      "duty": "A path-shaped string in a free-text field is rejected as defense in depth; v1 has no file fields.",
+      "note": "One defect: problem title set to ../../etc/passwd."
+    },
+    {
+      "caseId": "PW-N11",
+      "file": "pw-n11.json",
+      "expect": "invalid",
+      "errorCategory": "UNKNOWN_FIELD",
+      "duty": "An unknown verdict is a rejection, not a coercion to OTHER.",
+      "note": "One defect: attempts[0].verdict = BANANA."
+    },
+    {
+      "caseId": "PW-N13",
+      "file": "pw-n13.json",
+      "expect": "invalid",
+      "errorCategory": "UNKNOWN_FIELD",
+      "duty": "A credential-shaped key (token) anywhere, including under extra, is rejected; credentials are never portable.",
+      "note": "One defect: extra = {token: abc123} on a problem; the checker walks all dict keys recursively."
+    },
+    {
+      "caseId": "PW-N15",
+      "file": "pw-n15.json",
+      "expect": "invalid",
+      "errorCategory": "INVALID_INPUT",
+      "duty": "Truncated bytes are invalid at strict decode, not partially salvaged.",
+      "note": "One defect: json.dumps(base, ensure_ascii=False).encode('utf-8')[:-12] written verbatim."
+    },
+    {
+      "caseId": "PW-MISSING-FORMAT-VERSION",
+      "file": "pw-missing-format-version.json",
+      "expect": "invalid",
+      "errorCategory": "INVALID_INPUT",
+      "duty": "Missing formatVersion fails the version gate; versionless packages are never best-effort decoded.",
+      "note": "One defect: the root formatVersion key deleted."
+    },
+    {
+      "caseId": "PW-COUNTS-MISMATCH",
+      "file": "pw-counts-mismatch.json",
+      "expect": "invalid",
+      "errorCategory": "COUNTS_MISMATCH",
+      "duty": "Declared counts must reconcile with actual array lengths (honest-counts rule).",
+      "note": "One defect: counts.problems = 3 while problems[] holds 1."
+    },
+    {
+      "caseId": "PW-DUPLICATE-JSON-KEYS",
+      "file": "pw-duplicate-json-keys.json",
+      "expect": "invalid",
+      "errorCategory": "INVALID_INPUT",
+      "duty": "Duplicate JSON object keys make the document invalid at strict decode; last-key-wins is an attack, not a default.",
+      "note": "One defect: a duplicated scopeId key in the raw JSON text."
+    }
+  ]
+}

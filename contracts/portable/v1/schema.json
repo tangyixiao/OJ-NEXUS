@@ -1,0 +1,464 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OJ NEXUS portable workspace package v1",
+  "description": "One UTF-8 JSON document carrying problems, attempts, notes, reviews and sessions between OJ NEXUS surfaces. Human contract: contracts/portable/v1/README.md. The reference checker implements a deliberate draft-07 subset: type, required, properties, additionalProperties: false, enum, pattern, minLength/maxLength, minimum/maximum, items, minItems, maxItems.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "formatVersion",
+    "scopeId",
+    "sourcePlatform",
+    "generator",
+    "createdAtEpochMs",
+    "counts",
+    "problems",
+    "attempts",
+    "notes",
+    "reviews",
+    "sessions"
+  ],
+  "properties": {
+    "formatVersion": {
+      "type": "integer",
+      "enum": [1],
+      "description": "Exactly 1. Any other major version is a whole-package reject (UNSUPPORTED_VERSION); never a best-effort decode."
+    },
+    "scopeId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+      "maxLength": 16384,
+      "description": "Non-credential local identifier of the exporting workspace. Provenance data only; importers never auto-bind it to a target handle."
+    },
+    "sourcePlatform": {
+      "type": "string",
+      "enum": ["android", "windows", "linux", "macos", "ios"]
+    },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        }
+      }
+    },
+    "createdAtEpochMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["problems", "attempts", "notes", "reviews", "sessions"],
+      "properties": {
+        "problems": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "notes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reviews": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sessions": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "Per-collection integer counts; importers reconcile against actual array lengths (honest-counts rule; COUNTS_MISMATCH)."
+    },
+    "problems": {
+      "type": "array",
+      "maxItems": 50000,
+      "description": "Reference anchor; problems and attempts are the only collections all future consumers must accept.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stableId",
+          "sourceScopeId",
+          "origin",
+          "judge",
+          "externalId",
+          "title",
+          "solved",
+          "dayKey"
+        ],
+        "properties": {
+          "stableId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384
+          },
+          "sourceScopeId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384
+          },
+          "origin": {
+            "type": "string",
+            "enum": ["scope", "unassigned"]
+          },
+          "extra": {
+            "type": "object",
+            "description": "Only schema-permitted extension point: string keys whose values are JSON scalars or arrays of scalars, at most two levels deep; stored-only semantics, preserved value-for-value. Value shapes and depth are enforced by the checker beyond the draft-07 subset."
+          },
+          "judge": {
+            "type": "string",
+            "enum": ["codeforces", "atcoder", "luogu"]
+          },
+          "externalId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,64}$",
+            "maxLength": 16384
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 16384
+          },
+          "sourceUrl": {
+            "type": "string",
+            "pattern": "^https?://",
+            "maxLength": 16384
+          },
+          "solved": {
+            "type": "boolean"
+          },
+          "firstSolvedAtEpochMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "difficulty": {
+            "type": "integer",
+            "description": "Absent stays absent; importers never coerce it to 0."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 16384
+            }
+          },
+          "dayKey": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "maxLength": 16384
+          }
+        }
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "maxItems": 50000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stableId",
+          "sourceScopeId",
+          "origin",
+          "problemId",
+          "timestampEpochMs",
+          "verdict",
+          "dayKey"
+        ],
+        "properties": {
+          "stableId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384
+          },
+          "sourceScopeId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384
+          },
+          "origin": {
+            "type": "string",
+            "enum": ["scope", "unassigned"]
+          },
+          "extra": {
+            "type": "object",
+            "description": "Only schema-permitted extension point: string keys whose values are JSON scalars or arrays of scalars, at most two levels deep; stored-only semantics, preserved value-for-value. Value shapes and depth are enforced by the checker beyond the draft-07 subset."
+          },
+          "problemId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384,
+            "description": "Must exist in problems (MISSING_REFERENCE)."
+          },
+          "timestampEpochMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dayKey": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "maxLength": 16384
+          },
+          "verdict": {
+            "type": "string",
+            "enum": ["AC", "WA", "TLE", "MLE", "RE", "CE", "PE", "OTHER"]
+          },
+          "rawVerdict": {
+            "type": "string",
+            "maxLength": 16384
+          },
+          "language": {
+            "type": "string",
+            "maxLength": 16384
+          },
+          "durationMin": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "externalSubmissionId": {
+            "type": "string",
+            "maxLength": 16384
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 16384
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "maxItems": 50000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stableId",
+          "sourceScopeId",
+          "origin",
+          "problemId",
+          "keyInsight",
+          "implementationNotes",
+          "complexity",
+          "general",
+          "updatedEpochMs",
+          "dayKey"
+        ],
+        "properties": {
+          "stableId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384
+          },
+          "sourceScopeId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384
+          },
+          "origin": {
+            "type": "string",
+            "enum": ["scope", "unassigned"]
+          },
+          "extra": {
+            "type": "object",
+            "description": "Only schema-permitted extension point: string keys whose values are JSON scalars or arrays of scalars, at most two levels deep; stored-only semantics, preserved value-for-value. Value shapes and depth are enforced by the checker beyond the draft-07 subset."
+          },
+          "problemId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384,
+            "description": "Must exist in problems (MISSING_REFERENCE); one note per problem per package (DUPLICATE_ID)."
+          },
+          "keyInsight": {
+            "type": "string",
+            "maxLength": 16384
+          },
+          "implementationNotes": {
+            "type": "string",
+            "maxLength": 16384
+          },
+          "complexity": {
+            "type": "string",
+            "maxLength": 16384
+          },
+          "general": {
+            "type": "string",
+            "maxLength": 16384
+          },
+          "updatedEpochMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dayKey": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "maxLength": 16384
+          }
+        }
+      }
+    },
+    "reviews": {
+      "type": "array",
+      "maxItems": 50000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stableId",
+          "sourceScopeId",
+          "origin",
+          "problemId",
+          "stage",
+          "dueEpochMs",
+          "dueDayKey",
+          "createdEpochMs",
+          "dayKey"
+        ],
+        "properties": {
+          "stableId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384
+          },
+          "sourceScopeId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384
+          },
+          "origin": {
+            "type": "string",
+            "enum": ["scope", "unassigned"]
+          },
+          "extra": {
+            "type": "object",
+            "description": "Only schema-permitted extension point: string keys whose values are JSON scalars or arrays of scalars, at most two levels deep; stored-only semantics, preserved value-for-value. Value shapes and depth are enforced by the checker beyond the draft-07 subset."
+          },
+          "problemId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384,
+            "description": "Must exist in problems (MISSING_REFERENCE)."
+          },
+          "stage": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "dueEpochMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dueDayKey": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "maxLength": 16384
+          },
+          "lastResult": {
+            "type": "string",
+            "enum": ["PASS", "HARD", "FAIL", "SKIP"]
+          },
+          "lastReviewedEpochMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "createdEpochMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dayKey": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "maxLength": 16384
+          }
+        }
+      }
+    },
+    "sessions": {
+      "type": "array",
+      "maxItems": 50000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stableId",
+          "sourceScopeId",
+          "origin",
+          "type",
+          "state",
+          "startedEpochMs",
+          "totalPausedMs",
+          "dayKey"
+        ],
+        "properties": {
+          "stableId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384
+          },
+          "sourceScopeId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "maxLength": 16384
+          },
+          "origin": {
+            "type": "string",
+            "enum": ["scope", "unassigned"]
+          },
+          "extra": {
+            "type": "object",
+            "description": "Only schema-permitted extension point: string keys whose values are JSON scalars or arrays of scalars, at most two levels deep; stored-only semantics, preserved value-for-value. Value shapes and depth are enforced by the checker beyond the draft-07 subset."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["PRACTICE", "FOCUS", "UPSOLVE", "REVIEW"]
+          },
+          "state": {
+            "type": "string",
+            "enum": ["PLANNED", "RUNNING", "PAUSED", "FINISHED", "CANCELLED"]
+          },
+          "startedEpochMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "finishedEpochMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalPausedMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "targetDurationMin": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "problemIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+              "maxLength": 16384
+            },
+            "description": "Problem stableIds; each must exist in problems (MISSING_REFERENCE)."
+          },
+          "dayKey": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "maxLength": 16384
+          }
+        }
+      }
+    }
+  }
+}
