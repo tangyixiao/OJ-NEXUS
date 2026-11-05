@@ -33,13 +33,14 @@ order below is the precedence order:
     3. UNSUPPORTED_VERSION formatVersion present as an integer but != 1
     4. UNKNOWN_FIELD      any draft-07 subset schema violation (type, required,
                           additionalProperties:false, enum, const, pattern,
-                          minLength/maxLength, minimum/maximum with the
-                          draft-07 boolean exclusiveMinimum, items, minItems/
-                          maxItems), credential-shaped keys anywhere (including
-                          inside `extra`), `extra` values deeper than the
-                          2-level limit (scalar or array of scalars)
-    5. SIZE_LIMIT         entity collection longer than 50000 records, any
-                          string longer than 16384 UTF-8 bytes
+                          minLength, minimum/maximum with the draft-07 boolean
+                          exclusiveMinimum, items, minItems), credential-shaped
+                          keys anywhere (including inside `extra`), `extra`
+                          values deeper than the 2-level limit (scalar or
+                          array of scalars)
+    5. SIZE_LIMIT         a schema maxItems/maxLength overflow, an entity
+                          collection longer than 50000 records, or any string
+                          longer than 16384 UTF-8 bytes
     6. PATH_UNSAFE        string value matching (^([A-Za-z]:\\)|^/|\.\./|^\.\.$)
                           - v1 has no file fields; this is defense in depth
     7. DUPLICATE_ID       duplicate stableId inside a collection, or duplicate
@@ -52,7 +53,9 @@ order below is the precedence order:
 Mapping note (resolved ambiguity): the category list has no dedicated
 "schema violation" category, so every draft-07 subset violation maps to
 UNKNOWN_FIELD and its detail names the keyword, the offending key or value,
-and the path. Enum violations are UNKNOWN_FIELD by contract.
+and the path. Enum violations are UNKNOWN_FIELD by contract. The two size-overflow
+keywords (maxItems, maxLength) are instead mapped to SIZE_LIMIT, matching the
+documented size-limit behavior in README and the error-category contract.
 """
 
 import argparse
@@ -78,6 +81,12 @@ CATEGORIES = (
 )
 
 COLLECTIONS = ("problems", "attempts", "notes", "reviews", "sessions")
+
+# Schema keywords whose violation is a size limit, not an unknown field. The
+# documented SIZE_LIMIT category covers maxItems (array at most 50000) and
+# maxLength (string at most 16384 code points); reporting them as UNKNOWN_FIELD
+# would contradict README and the error-category contract.
+SIZE_LIMIT_KEYWORDS = frozenset(("maxItems", "maxLength"))
 
 # v1 has no file fields; any string shaped like a filesystem path is rejected
 # as defense in depth. Applied to string values only.
@@ -555,9 +564,24 @@ def _validate_array(value, schema, path):
     return None
 
 
+def _pattern_matches(pattern, value):
+    """Apply a JSON Schema (ECMA-262) pattern using re.search semantics.
+
+    ECMA-262 dollar matches only at the absolute end of the string, while
+    Python's dollar also matches just before a trailing newline. That would
+    wrongly admit a value with a trailing newline against an anchored day-key
+    or id pattern. Translate a terminal, unescaped dollar into Python's
+    absolute-end anchor (backslash-Z). Prefix-only patterns that do not end in
+    dollar (the sourceUrl rule) are left untouched so valid URLs still pass.
+    """
+    if pattern.endswith("$") and not pattern.endswith("\\$"):
+        pattern = pattern[:-1] + r"\Z"
+    return re.search(pattern, value) is not None
+
+
 def _validate_string(value, schema, path):
     pattern = schema.get("pattern")
-    if pattern is not None and re.search(pattern, value) is None:
+    if pattern is not None and not _pattern_matches(pattern, value):
         return (
             "pattern",
             path,
@@ -620,11 +644,17 @@ def _validate_enum_const(value, schema, path):
 
 
 def validate_against_schema(value, schema, path="$"):
-    """Raise ContractError(UNKNOWN_FIELD) on the first schema violation."""
+    """Raise ContractError on the first schema violation.
+
+    Size-overflow keywords (maxItems, maxLength) map to SIZE_LIMIT; every other
+    draft-07 subset violation maps to UNKNOWN_FIELD. There is no dedicated
+    "schema violation" category in the contract.
+    """
     violation = _validate(value, schema, path)
     if violation is not None:
         keyword, where, message = violation
-        raise ContractError("UNKNOWN_FIELD", "%s: %s" % (keyword, message), where)
+        category = "SIZE_LIMIT" if keyword in SIZE_LIMIT_KEYWORDS else "UNKNOWN_FIELD"
+        raise ContractError(category, "%s: %s" % (keyword, message), where)
 
 
 # ---------------------------------------------------------------------------

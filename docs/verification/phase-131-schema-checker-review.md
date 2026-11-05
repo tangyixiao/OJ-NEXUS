@@ -398,6 +398,26 @@ implementer; neither was fixed in this review.
 
 ---
 
+Review disposition (controller, 2026-11-05)
+------------------------------------------
+The controller reviewed this report and hardened `check.py` on branch
+`codex/phase-131-hardening`:
+
+| ID | Disposition |
+|---|---|
+| F1 (minor) | **Fixed.** `validate_against_schema` now maps a `maxItems` violation to `SIZE_LIMIT` (see `SIZE_LIMIT_KEYWORDS`); the precedence docstring step 5 was aligned. `schema.json` was intentionally left unchanged so the published JSON Schema keeps standard ECMA-262 patterns and its `maxItems` guard. Regression: `selftest.py` check `F1/F3 size-overflow categories`. |
+| F3 (observation) | **Fixed.** `maxLength` overflow likewise maps to `SIZE_LIMIT`; ASCII and multibyte overflows now agree with `README.md:62`. Regression: same selftest check. |
+| F5 (observation) | **Fixed.** Module docstring step 4/5 rewritten to describe the real precedence after the F1/F3 mapping change. |
+| F6 (minor) | **Fixed.** `_validate_string` now routes anchored patterns through `_pattern_matches`, which translates a terminal, unescaped `$` to Python's absolute-end `\\Z`. Prefix-only `^https?://` (sourceUrl) is untouched. Regression: `selftest.py` check `F6 trailing-newline pattern anchoring` (end-to-end package rejection, helper-agnostic). |
+| F2, F4, F7 (observation) | **Accepted, no change.** F2 is harmless defense in depth (version gate + schema enum); F4 is deterministic for a fixed document (unknown key is first in document order) and the contract does not require byte-level key-choice stability across re-orderings; F7 is documented defense in depth for a version with no file fields (broaden only if a future phase adds path-bearing fields). |
+
+These fixes are behavior-preserving for every conforming package: the golden corpus
+(15 cases) and the canonical identity of `pw-p01.json` are unchanged. A negative control
+running the updated `selftest.py` against the un-hardened `check.py` at `acf4f8c`
+fails exactly the two new regression checks (F6, F1/F3), confirming they are not
+vacuous. The independent review above remains an accurate record of the source as it
+was read at `acf4f8c`; this section records the controller's subsequent disposition.
+
 ## Closing note
 
 This review covers **source + contract text only** — `schema.json`, `check.py`, `README.md`,

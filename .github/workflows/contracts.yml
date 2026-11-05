@@ -27,13 +27,17 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Compile-check the reference checker
+      - name: Compile-check checker and self-test
         working-directory: contracts/portable/v1
-        run: python3 -m py_compile check.py
+        run: python3 -m py_compile check.py selftest.py
 
       - name: Run golden corpus gate
         working-directory: contracts/portable/v1
         run: python3 check.py --cases golden/cases.json golden/
+
+      - name: Run checker self-test
+        working-directory: contracts/portable/v1
+        run: python3 selftest.py
 
       # Canonical identity must be deterministic: the same package re-encoded
       # twice must yield the same SHA-256. Any drift fails the job loudly.
