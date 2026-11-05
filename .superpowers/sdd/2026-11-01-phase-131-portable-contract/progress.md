@@ -82,7 +82,18 @@ Non-claims (explicitly out of 131): no platform import/export consumer (132–13
 
 ## Final
 
-FINAL: PENDING controller gate. This line is left as the objective / pending gate result — no
-green result is asserted here because the gate has not been measured in this ledger worktree.
-The controller fills this line with the real measured outcome (checker corpus, identity,
-selftest, py_compile, CI, whole-branch review, PR) after the gate passes.
+FINAL: PASS / VERIFIED. The controller ran the final gate on merged
+`codex/phase-131-portable-contract` at `4173c0d` on 2026-11-05. Measured results:
+golden corpus `15 cases, 15 passed, 0 failed` (exit 0); canonical identity of
+`golden/pw-p01.json` = `81bb13c1746381f2d7f95ae69e421503dcc898aae823222e8a3caf40d55b8d44`
+identical across two runs; `selftest.py` `7 checks, 7 passed, 0 failed` (exit 0);
+`py_compile check.py selftest.py` clean; `.github/workflows/contracts.yml` CI run `42030737524`
+all 7 steps success. Independent whole-branch review verdict PASS-WITH-OBSERVATIONS; its two
+minor findings (F1/F3 size-overflow category labels, F6 pattern anchoring) were fixed in PR #38
+with non-vacuous regressions gated by the self-test and CI. Android `app/` gate unaffected.
+Definition of Done met: complete contract, no stubs, checker + corpus + self-test + CI green,
+verified documentation, no platform consumer shipped in 131.
+
+Delivery: PRs #31–#38 merged into the controller branch; final scoped PR merges the controller
+into `main`. This ledger was force-added with `git add -f` (the `.superpowers/sdd/.gitignore`
+ignores the whole tree).
