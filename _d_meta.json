@@ -1,0 +1,18 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "OJ NEXUS": {
+      "versions": [
+        {
+          "path": "index.html",
+          "createdAt": "2026-11-05T13:19:38.057Z",
+          "status": "needs-review"
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-11-05T13:19:38.058Z",
+  "updatedAt": "2026-11-05T13:56:56.048Z"
+}
