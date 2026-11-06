@@ -51,7 +51,7 @@ class RoomIndexAuditTest {
     }
 
     @Test
-    fun `fresh v15 schema carries both audited composite indices`() {
+    fun `fresh v16 schema carries both audited composite indices`() {
         val database = open("audit-fresh-${System.nanoTime()}.db")
         try {
             val plans = plan(
@@ -134,7 +134,7 @@ class RoomIndexAuditTest {
             .allowMainThreadQueries()
             .build()
         try {
-            assertEquals(15, migrated.openHelper.writableDatabase.version)
+            assertEquals(16, migrated.openHelper.writableDatabase.version)
             // Row survived the migration: read the seeded job back through the raw store.
             val jobs = mutableListOf<String>()
             migrated.openHelper.writableDatabase.query(
@@ -180,6 +180,7 @@ class RoomIndexAuditTest {
             OjNexusDatabase.MIGRATION_12_13,
             OjNexusDatabase.MIGRATION_13_14,
             OjNexusDatabase.MIGRATION_14_15,
+            OjNexusDatabase.MIGRATION_15_16,
         )
     }
 }
