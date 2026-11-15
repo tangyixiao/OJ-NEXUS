@@ -5,7 +5,7 @@ Status: planning snapshot for review; implementation has not started.
 
 ## Requested outcome
 
-The user requested a development plan covering at least the next 100 phases, selected balanced
+This development plan covers at least the next 100 phases, selected balanced
 progress across platforms, and requested frequent meaningful PRs, Releases, and help progressing
 GitHub achievements through real contributions. Deliver exactly 100 numbered phases, 121–220,
 with dependencies, write scopes, concrete outcomes, and acceptance criteria.

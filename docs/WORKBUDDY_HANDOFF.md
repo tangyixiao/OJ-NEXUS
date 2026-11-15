@@ -18,7 +18,7 @@ SQLite 或 Windows 存储。
 - 不自动提交代码；网络只做同步，本地缓存和历史必须可离线使用。
 - UI 保持深色、英文大写、遥测台风格、单一 NEXUS BLUE 强调色和现有设计系统；禁止营销文案、
   emoji 图标、渐变、玻璃拟态和无意义循环动画。
-- 用户要求“继续”时，先审计分支、worktree、差异和实际验证，再增量推进；不要重做已提交阶段。
+- 收到继续推进指令时，先审计分支、worktree、差异和实际验证，再增量推进；不要重做已提交阶段。
 
 除非本轮重新得到对应证据，不要把历史测试结果写成当前通过，也不要使用“DONE”“已发布”描述
 仍缺少真实运行或发布门禁的部分。
@@ -209,7 +209,7 @@ ctest --test-dir build --output-on-failure
 - Windows：CI runner 实际执行、installer、签名、商店包和自动更新待做；CLI 物理进程 Ctrl+C 仍不应仅凭单测宣称完成。
 - Linux：核心代码和文档仍在独立 worktree 未提交；Luogu rating history 和受保护 submissions 不在当前公开凭据边界内。
 - Android：历史 v0.3.74 验收有效，但当前 public HTTP hardening 改动需要重新形成 focused、完整 Gradle 和设备证据。
-- 整仓库：主分支 ahead 远端且有大量未提交文件；是否提交、拆分 commit、推送或合并必须由用户明确决定。
+- 整仓库：主分支 ahead 远端且有大量未提交文件；是否提交、拆分 commit、推送或合并必须由 Tangyixiao 明确决定。
 
 ## 7. 交付报告格式
 
@@ -416,7 +416,7 @@ Luogu `uid:2` → `Partial` 3/4（认证受限，见 10.1）。`data --judge cod
 Apple 需 macOS/CI 编译；Linux 需 Linux 主机或 CI；Windows self-contained 包重建仍被宿主删除保护阻断、
 旧哈希作废；交互式终端 Ctrl+C 未验证。
 
-## 11. 提交记录（Workbuddy，2026-09-18，经用户授权）
+## 11. 提交记录（Workbuddy，2026-09-18，经 Tangyixiao 授权）
 
 用户在 2026-09-18 明确授权提交「本轮改动 + 既有未提交工作」，并要求排除构建产物与 worktree。
 分支 `codex/phase-5-arena`，ahead 61 → **67**，**未推送**。全部只按明确文件 `git add`，未使用
@@ -466,7 +466,7 @@ Core 72/72、CLI 28/28、Desktop 19/19；`tools\gradlew-local.bat test assembleD
 
 ### 11.3 仍未推送
 
-`git push` 未执行，需用户明确授权；推送前应再扫一次 `git diff origin/codex/phase-5-arena..HEAD` 的敏感信息。
+`git push` 未执行，需 Tangyixiao 明确授权；推送前应再扫一次 `git diff origin/codex/phase-5-arena..HEAD` 的敏感信息。
 
 ## 12. 跨端错误语义对照（2026-09-18 只读审查，未改代码）
 
