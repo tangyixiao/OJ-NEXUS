@@ -14,7 +14,7 @@
 
 OJ NEXUS 是本地优先的原生 Android 竞赛编程工具，不是社交应用，也不是 AI 产品。UI 使用英文大写、遥测台风格；保持深色、单一 NEXUS BLUE、Material 3 和现有设计系统。禁止 WebView 壳、Flutter/React Native/Electron、伪造 OJ 数据、密码/Cookie 持久化、自动提交和营销文案。
 
-用户要求“继续”时，先审计当前 checkout、分支、未提交改动和真实测试状态，再在现有基础上增量推进；不要重做已经提交的阶段，也不要把历史测试结果当成本次验证。
+收到继续推进指令时，先审计当前 checkout、分支、未提交改动和真实测试状态，再在现有基础上增量推进；不要重做已经提交的阶段，也不要把历史测试结果当成本次验证。
 
 ## 2. 当前 checkout 和边界
 
@@ -26,7 +26,7 @@ OJ NEXUS 是本地优先的原生 Android 竞赛编程工具，不是社交应�
 - `origin/codex/phase-5-arena` 当前指向 `b143ded`（Android v0.3.70 发布提交）
 - 当前未提交内容包括：Phase 73–76 规划/设计文档、Windows `bin/`/`obj/` 构建产物、该交接草稿，以及 `.worktrees/linux-client/`
 
-不要执行 `git add -A`，不要删除上述内容，不要用 reset/checkout 覆盖用户已有工作。Windows `bin/`/`obj/` 是生成物；如需整理，先确认并只处理明确目标。
+不要执行 `git add -A`，不要删除上述内容，不要用 reset/checkout 覆盖已有工作。Windows `bin/`/`obj/` 是生成物；如需整理，先确认并只处理明确目标。
 
 Linux 是独立 worktree：
 
@@ -462,9 +462,9 @@ Phase 127 至此仅剩**整期 release 门禁**（版本号决定、release note
 需用户决定版本与发布节奏）。功能验收项 127A–127D 全部完成；无新 release，整期保持 ACTIVE
 直至 release 门禁通过。
 
-## 26. Phase 127 整期 release 门禁（v1.0.4，2026-10-30，本次执行，GitHub 发布留待用户）
+## 26. Phase 127 整期 release 门禁（v1.0.4，2026-10-30，本次执行，GitHub 发布待确认）
 
-127D 交付后按用户指示启动 Phase 127 整期 release 门禁，全部本地门禁通过：
+127D 交付后按既定范围启动 Phase 127 整期 release 门禁，全部本地门禁通过：
 
 - **版本递增**：沿用每交付批次 +0.0.1/versionCode+1 的规则（1.0.0 code102 → 1.0.3 code105），
   本次 cut **v1.0.4 / versionCode 106**。发布分支 `codex/release-v1.0.4`（自 127D head
@@ -483,14 +483,14 @@ Phase 127 至此仅剩**整期 release 门禁**（版本号决定、release note
   logcat **0 条 FATAL EXCEPTION/AndroidRuntime**。签名 APK SHA-256
   `C916081B0F9FF89B1F282E227D643A21D1A511A6012CEA57FF7ECD350729601F` 记入
   `docs/releases/SHA256SUMS-v1.0.4.txt`（格式同历史文件；密钥与 APK 均未入库，APK 留在
-  `%TEMP%` 供用户上传 release）。
+  `%TEMP%` 供后续上传 release）。
 - **发布记录**：`docs/releases/v1.0.4.md`（127A–127D 变更清单 + 质量姿态 + 台账）；
-  README Status 更新（release gate passed、GitHub 发布待用户决定）；roadmap Phase 127 标记
+  README Status 更新（release gate passed、GitHub 发布待 Tangyixiao 决定）；roadmap Phase 127 标记
   **VERIFIED** 并新增 Release 门禁行。
 - **交接与 PR**：发布分支已推送并建
   [PR #27](https://github.com/tangyixiao/OJ-NEXUS/pull/27)（base main，包含 127A–127D 与
   release 收口全部提交——注意它同时携带未合并的 #20/#24/#25/#26 内容，合并即整链入 main）。
-  **GitHub release 发布、tag 推送与 PR 合并决定留待用户确认**，本轮未执行。
+  **GitHub release 发布、tag 推送与 PR 合并决定留待 Tangyixiao 确认**，本轮未执行。
 
 用户决策点：合并 PR #27（整链入 main）→ 打 tag `v1.0.4` → 上传 `%TEMP%\OJ-NEXUS-v1.0.4.apk`
 与 SHA256SUMS 作为 GitHub release 资产。签名材料从未离开本机 keystore；如需正式签名
@@ -548,7 +548,7 @@ Phase 130A，并补记台账中缺失的 128A/129A。
   XCTest 不构成应用交互验收）。128A 之后的备份/恢复入口增量、129A 之后的配置写入链核查
   （独立 JSON config 无写实现，先核实实际写入链再定恢复范围）待续。
 - **用户决策点**：合并 PR #27（整链入 main）→ tag `v1.0.4` → 上传 APK + SHA256SUMS 为
-  GitHub release；平台链 #21/#22/#23 的审查与合并顺序由用户决定，任何 PR 均未自动合并。
+  GitHub release；平台链 #21/#22/#23 的审查与合并顺序由 Tangyixiao 决定，任何 PR 均未自动合并。
 
 交接文档状态：本文件已更新至 2026-11-01；第 26–27 节为当前权威，其余章节为历史记录。
 
@@ -574,14 +574,14 @@ Phase 130A，并补记台账中缺失的 128A/129A。
   （"no new commits"），已按实情关闭并逐个留注释指明并入路径（#27 整链 / #21 windows 线）
   与对应验收文档。
 - **遗留决策点**：打 tag `v1.0.4` + 发布 GitHub release 并上传 APK 与 SHA256SUMS（资产与记录
-  备齐，见第 26 节）仍待用户指令。本地 `codex/phase-127-recovery-safety`（HEAD `756d8f4`）
+  备齐，见第 26 节）仍待 Tangyixiao 指令。本地 `codex/phase-127-recovery-safety`（HEAD `756d8f4`）
   仍然不要推送——其远端同名分支内容已包含于 main。
 
 交接文档状态：本文件已更新至 2026-11-01；第 26–28 节为当前权威，其余章节为历史记录。
 
 ## 29. 发布收口：v1.0.4 与 linux-v0.1.1-rc.1（2026-11-01，用户指示"都给我做完"，全部为本次验证）
 
-第 28 节合并收口后，按用户指令完成全部可执行发布项：
+第 28 节合并收口后，按既定范围完成全部可执行发布项：
 
 - **Android v1.0.4 已发布**：tag `v1.0.4` 指向 `a08a59f`（已审查的发布分支 head，#27 已并入
   main），release 携带 `OJ-NEXUS-v1.0.4.apk` + `SHA256SUMS-v1.0.4.txt`；APK SHA-256
