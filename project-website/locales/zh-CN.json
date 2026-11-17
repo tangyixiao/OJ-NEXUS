@@ -1,0 +1,136 @@
+{
+  "meta": {
+    "description": "连接 Codeforces、AtCoder 与洛谷公开账号，集中查看题目、提交与比赛，在本地保存笔记和复习进度。"
+  },
+  "pages": {
+    "home": {
+      "title": "在同一份训练记录里追踪多平台刷题 · {project}"
+    },
+    "features": {
+      "title": "项目特点 · {project}",
+      "description": "连接 Codeforces、AtCoder 与洛谷公开账号，集中查看题目、提交与比赛，在本地保存笔记和复习进度。"
+    },
+    "download": {
+      "title": "开始使用 · {project}",
+      "description": "打开 Android v1.0.4 发布页，下载 APK，按发布说明核对校验值。"
+    },
+    "community": {
+      "title": "参与项目 · {project}",
+      "description": "从这里找到使用说明、已有讨论和项目变更。"
+    }
+  },
+  "nav": {
+    "home": "首页",
+    "features": "项目特点",
+    "download": "开始使用",
+    "community": "参与项目"
+  },
+  "ui": {
+    "skip_link": "跳转到主要内容",
+    "navigation": "主导航",
+    "open_navigation": "打开导航",
+    "close_navigation": "关闭导航",
+    "language": "选择语言",
+    "theme": "选择主题",
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统",
+    "platforms": "支持的平台",
+    "github": "GitHub",
+    "view_image": "查看完整演示图",
+    "feature_more": "查看详情",
+    "download": "获取 Android v1.0.4",
+    "release_notes": "仓库源代码",
+    "documentation": "使用文档",
+    "source": "仓库源代码",
+    "illustration": "使用路径",
+    "license": "Apache-2.0"
+  },
+  "hero": {
+    "title": [
+      "在同一份训练记录里追踪多平台刷题"
+    ],
+    "description": [
+      "连接 Codeforces、AtCoder 与洛谷公开账号，集中查看题目、提交与比赛，在本地保存笔记和复习进度。"
+    ],
+    "primary_action": "获取 Android v1.0.4",
+    "secondary_action": "查看详情"
+  },
+  "preview": {
+    "caption": "使用路径",
+    "tabs": [
+      {
+        "label": "开始使用",
+        "icon": "book"
+      }
+    ],
+    "items": [
+      {
+        "title": "获取 Android 版",
+        "description": "打开 Android v1.0.4 发布页，下载 APK，按发布说明核对校验值。",
+        "icon": "book"
+      },
+      {
+        "title": "第一次同步",
+        "description": "按首次使用指南添加一个公开 OJ 账号，完成同步后打开题库与复习页面。",
+        "icon": "link"
+      }
+    ]
+  },
+  "features": {
+    "title": "项目特点",
+    "groups": [
+      {
+        "title": "查找旧题",
+        "description": "用平台、题号、标题或本地笔记检索做过的题，再查看对应的提交记录。",
+        "detail": "",
+        "icon": "layers"
+      },
+      {
+        "title": "安排回顾",
+        "description": "根据到期复习、未解决题和薄弱点挑选练习，查看每条推荐的依据。",
+        "detail": "",
+        "icon": "book"
+      }
+    ]
+  },
+  "getting_started": {
+    "title": "开始使用 · {project}",
+    "steps": [
+      {
+        "title": "获取 Android 版",
+        "description": "打开 Android v1.0.4 发布页，下载 APK，按发布说明核对校验值。",
+        "icon": "book"
+      },
+      {
+        "title": "第一次同步",
+        "description": "按首次使用指南添加一个公开 OJ 账号，完成同步后打开题库与复习页面。",
+        "icon": "link"
+      }
+    ]
+  },
+  "community": {
+    "title": "参与 · {project}",
+    "description": "从这里找到使用说明、已有讨论和项目变更。",
+    "links": [
+      {
+        "label": "帮助与反馈",
+        "description": "查看已报告的问题，或描述复现步骤。",
+        "icon": "book"
+      },
+      {
+        "label": "仓库源代码",
+        "description": "查看原项目与维护入口。",
+        "icon": "link"
+      },
+      {
+        "label": "查看项目变更",
+        "description": "查看已有拉取请求或准备贡献。",
+        "icon": "code"
+      }
+    ]
+  },
+  "footer": {
+    "copyright": "{copyright}"
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "meta": {
+    "description": "Connect public Codeforces, AtCoder and Luogu accounts to browse problems, submissions and contests. Notes and review history stay available offline."
+  },
+  "pages": {
+    "home": {
+      "title": "Keep a training record across online judges · {project}"
+    },
+    "features": {
+      "title": "Features · {project}",
+      "description": "Connect public Codeforces, AtCoder and Luogu accounts to browse problems, submissions and contests. Notes and review history stay available offline."
+    },
+    "download": {
+      "title": "Get started · {project}",
+      "description": "Open the Android v1.0.4 release, download the APK and check its published checksum."
+    },
+    "community": {
+      "title": "Community · {project}",
+      "description": "Find usage guidance, follow discussions and review changes to this project."
+    }
+  },
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "download": "Get started",
+    "community": "Community"
+  },
+  "ui": {
+    "skip_link": "Skip to main content",
+    "navigation": "Main navigation",
+    "open_navigation": "Open navigation",
+    "close_navigation": "Close navigation",
+    "language": "Choose language",
+    "theme": "Choose theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "platforms": "Supported platforms",
+    "github": "GitHub",
+    "view_image": "View full illustration",
+    "feature_more": "Explore features",
+    "download": "Get Android v1.0.4",
+    "release_notes": "Source repository",
+    "documentation": "Documentation",
+    "source": "Source repository",
+    "illustration": "First steps",
+    "license": "Apache-2.0"
+  },
+  "hero": {
+    "title": [
+      "Keep a training record across online judges"
+    ],
+    "description": [
+      "Connect public Codeforces, AtCoder and Luogu accounts to browse problems, submissions and contests. Notes and review history stay available offline."
+    ],
+    "primary_action": "Get Android v1.0.4",
+    "secondary_action": "Explore features"
+  },
+  "preview": {
+    "caption": "First steps",
+    "tabs": [
+      {
+        "label": "Get started",
+        "icon": "book"
+      }
+    ],
+    "items": [
+      {
+        "title": "Install the Android release",
+        "description": "Open the Android v1.0.4 release, download the APK and check its published checksum.",
+        "icon": "book"
+      },
+      {
+        "title": "Run the first sync",
+        "description": "Follow the first-use guide to add a public judge account, sync it and visit the problem library and reviews.",
+        "icon": "link"
+      }
+    ]
+  },
+  "features": {
+    "title": "Project features",
+    "groups": [
+      {
+        "title": "Find an old problem",
+        "description": "Filter by judge, title, ID or a saved note and return to the corresponding submission history.",
+        "detail": "",
+        "icon": "layers"
+      },
+      {
+        "title": "Plan a review",
+        "description": "See why a due review, an unsolved problem or a weak topic was selected for a training session.",
+        "detail": "",
+        "icon": "book"
+      }
+    ]
+  },
+  "getting_started": {
+    "title": "Get started · {project}",
+    "steps": [
+      {
+        "title": "Install the Android release",
+        "description": "Open the Android v1.0.4 release, download the APK and check its published checksum.",
+        "icon": "book"
+      },
+      {
+        "title": "Run the first sync",
+        "description": "Follow the first-use guide to add a public judge account, sync it and visit the problem library and reviews.",
+        "icon": "link"
+      }
+    ]
+  },
+  "community": {
+    "title": "Community · {project}",
+    "description": "Find usage guidance, follow discussions and review changes to this project.",
+    "links": [
+      {
+        "label": "Help and feedback",
+        "description": "Browse existing reports or describe a reproducible problem.",
+        "icon": "book"
+      },
+      {
+        "label": "Source repository",
+        "description": "Find the project and its maintenance links.",
+        "icon": "link"
+      },
+      {
+        "label": "Review changes",
+        "description": "Review open pull requests or prepare a contribution.",
+        "icon": "code"
+      }
+    ]
+  },
+  "footer": {
+    "copyright": "{copyright}"
+  }
+}
