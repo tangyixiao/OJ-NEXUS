@@ -52,7 +52,11 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var viewModel = DesktopRuntime.Create(result.Session, result.Session.DataDirectory);
+            var viewModel = DesktopRuntime.Create(
+                result.Session,
+                result.Session.DataDirectory,
+                () => result.Session.BeginOperation(),
+                result.Session.CreatePortableRepository);
             if (_closing)
             {
                 await viewModel.DisposeAsync();
@@ -181,6 +185,7 @@ public partial class MainWindow : Window
                     DesktopPage.Connectors => "connectors.png",
                     DesktopPage.History => "history.png",
                     DesktopPage.Problems => "problems.png",
+                    DesktopPage.Portable => "portable.png",
                     _ => throw new ArgumentOutOfRangeException(nameof(page), page, null),
                 });
                 var temporaryPath = path + ".tmp";
@@ -203,6 +208,29 @@ public partial class MainWindow : Window
     private async void Refresh_Click(object sender, RoutedEventArgs e)
     {
         if (_viewModel is not null) await SafeUiActionAsync(() => _viewModel.RefreshAsync(_lifetime.Token));
+    }
+
+    private void ImportPortable_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null) return;
+        var path = _viewModel.PickPortableImportFile();
+        _ = SafeUiActionAsync(() => _viewModel.ImportPortableAsync(path, _lifetime.Token));
+    }
+
+    private async void ConfirmPortableImport_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) await SafeUiActionAsync(() => _viewModel.ConfirmPortableImportAsync(_lifetime.Token));
+    }
+
+    private void CancelPortableImport_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel?.CancelPortableImport();
+    }
+
+    private void ExportPortable_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null) return;
+        _ = SafeUiActionAsync(() => _viewModel.ExportPortableAsync(_lifetime.Token));
     }
 
     private async void SyncAll_Click(object sender, RoutedEventArgs e)

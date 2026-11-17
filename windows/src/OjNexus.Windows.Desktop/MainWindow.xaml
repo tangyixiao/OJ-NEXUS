@@ -34,6 +34,7 @@
         <Button Content="CONNECTORS" Tag="Connectors" Style="{StaticResource NavButton}" Click="Navigate_Click" />
         <Button Content="SYNC HISTORY" Tag="History" Style="{StaticResource NavButton}" Click="Navigate_Click" />
         <Button Content="PROBLEMS" Tag="Problems" Style="{StaticResource NavButton}" Click="Navigate_Click" />
+        <Button Content="PORTABLE" Tag="Portable" Style="{StaticResource NavButton}" Click="Navigate_Click" AutomationProperties.Name="PORTABLE" />
       </StackPanel>
 
       <StackPanel Grid.Row="2">
@@ -212,6 +213,23 @@
             <TextBlock Text="NO PROBLEMS RECORDED" Visibility="{Binding HasNoProblems, Converter={StaticResource BoolToVisibility}}" Foreground="{StaticResource NexusMutedTextBrush}" Margin="0,16,0,0" />
           </StackPanel>
         </Grid>
+      </ScrollViewer>
+
+      <ScrollViewer Grid.Row="2" Visibility="{Binding IsPortableVisible, Converter={StaticResource BoolToVisibility}}">
+        <StackPanel AutomationProperties.AutomationId="PortablePanel">
+          <TextBlock Text="PORTABLE WORKSPACE / SEPARATE FROM WHOLE-DATABASE BACKUP" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" />
+          <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+            <Button Content="IMPORT" Style="{StaticResource ActionButton}" Click="ImportPortable_Click" AutomationProperties.AutomationId="PortableImport" />
+            <Button Content="EXPORT" Style="{StaticResource ActionButton}" Margin="12,0,0,0" Click="ExportPortable_Click" AutomationProperties.AutomationId="PortableExport" />
+          </StackPanel>
+          <TextBlock Text="{Binding PortableIdentity}" Margin="0,20,0,0" FontSize="11" FontFamily="Consolas" Foreground="{StaticResource NexusAccentBrush}" />
+          <TextBlock Text="{Binding PortableSummary}" Margin="0,10,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource NexusTextBrush}" />
+          <TextBlock Text="{Binding PortableStatus}" Margin="0,14,0,0" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource NexusWarningBrush}" />
+          <StackPanel Orientation="Horizontal" Margin="0,20,0,0" Visibility="{Binding HasPendingPortableImport, Converter={StaticResource BoolToVisibility}}">
+            <Button Content="CONFIRM IMPORT" Style="{StaticResource ActionButton}" Click="ConfirmPortableImport_Click" AutomationProperties.AutomationId="PortableConfirm" />
+            <Button Content="CANCEL" Style="{StaticResource ActionButton}" Margin="12,0,0,0" Click="CancelPortableImport_Click" AutomationProperties.AutomationId="PortableCancel" />
+          </StackPanel>
+        </StackPanel>
       </ScrollViewer>
     </Grid>
    </Grid>
