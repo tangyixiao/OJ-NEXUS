@@ -20,7 +20,7 @@ Baseline: main `5a81347` (phase 131).
 | 7 | Task 4b: `PortableWorkspaceScreen` + strings + settings entry + nav destination | `codex/phase-132-task-4-ui` | #49 | `89ba7c0` | MERGED |
 | 8 | Task 6: independent review of the final task-4 diff; findings disposition | `codex/phase-132-task-6-review` / `codex/phase-132-task-6-findings` | #52 / #53 | `2e1d7c8` / `f2f0517` | MERGED |
 | 9 | Task 6: G-A gate `tools\gradlew-local.bat test assembleDebug` → `BUILD SUCCESSFUL in 1m 55s` (896/0/0, 47 portable tests); verification record + handoff flipped with measured results | integration branch | #54 | — | DONE (docs ride delivery PR #54) |
-| 10 | Task 6: roadmap line 261 ticked; final delivery PR integration→main | integration branch | #54 | — | OPEN — CI corroboration pending; flipped to MERGED in the pre-merge amend |
+| 10 | Task 6: roadmap line 261 ticked; final delivery PR integration→main | integration branch | #54 | — | CI GREEN (runs `44122867005` + `44122867084`) — merging as the delivery act; merge commit recorded in the follow-up ledger flip |
 | 11 | Hardening: zh-rCN parity mirror for the 43 task-4b strings (gate run 1 caught it) | `codex/phase-132-task-4-hardening` | #51 | `4b2ceb8` | MERGED |
 | 12 | Findings disposition: F1/F2 KDoc limits, F3 neutral wording (en+zh), F5 supersede test | `codex/phase-132-task-6-findings` | #53 | `f2f0517` | MERGED |
 

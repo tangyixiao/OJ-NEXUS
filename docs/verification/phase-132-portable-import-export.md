@@ -92,7 +92,7 @@ with the observed value only at flip time.
 | 2 | `cmd /c "D:\AndroidAppCoding\tools\gradlew-local.bat assembleDebug"` | `BUILD SUCCESSFUL` | PASS — same run, APK assembled |
 | 3 | JUnit XML for `PortableGoldenRoundTripTest` (7), `PortableRepositoryTest` (14), `PortableArchiveStoreTest` (7), `PortableWorkspaceViewModelTest` (19) | all `failures="0" errors="0"`, counts recorded | PASS — 47 portable tests green; aggregate 896/0/0 across 189 classes |
 | 4 | Independent review of the final task-4 diff (review record appended or disposition noted) | findings fixed in follow-up PR or recorded | PASS — [phase-132-task4-review.md](phase-132-task4-review.md) PASS-WITH-OBSERVATIONS (PR #52); F1/F2/F3/F5 fixed in PR #53, F4/F6 accepted |
-| 5 | `.github/workflows/android.yml` on the delivery PR | green | PENDING — runs on delivery PR #54; run id recorded before merge |
+| 5 | `.github/workflows/android.yml` on the delivery PR | green | PASS — delivery PR #54: run `44122867005` (build `7m54s`, emulator `5m10s`, release `2m6s`, all success) + run `44122867084` (build `4m18s`, success) |
 
 Gate history (honest record, all measured on this host):
 
@@ -109,8 +109,8 @@ Final gate (run 3) on merged integration tip `f2f0517`: `tools\gradlew-local.bat
 classes; portable classes green (`PortableGoldenRoundTripTest` 7, `PortableRepositoryTest` 14,
 `PortableArchiveStoreTest` 7, `PortableWorkspaceViewModelTest` 19). History: run 1 (`89ba7c0`)
 895 tests / 1 failure (`LocalizationResourceTest` zh-rCN parity) → PR #51; run 2 (`4b2ceb8`)
-895/0/0 in 1m 48s. CI corroboration: `android.yml` on delivery PR #54 (run id recorded below
-before merge).
+895/0/0 in 1m 48s. CI corroboration: `android.yml` on delivery PR #54 — run `44122867005`
+(build/emulator/release all success) + run `44122867084` (build success), observed 2026-11-18.
 <!-- END CONTROLLER-GATE-RESULTS -->
 
 ## Claims vs non-claims
