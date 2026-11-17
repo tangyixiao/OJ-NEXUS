@@ -232,6 +232,26 @@ class PortableWorkspaceViewModelTest {
     }
 
     @Test
+    fun `a superseding preview aborts the stale preview`() = runBlocking {
+        var previews = 0
+        val fake = FakeRepository(previewBehavior = { previews += 1; delay(60_000); previewOf() })
+        val viewModel = PortableWorkspaceViewModel(fake)
+
+        viewModel.preview(bytes)
+        viewModel.preview(bytes)
+        awaitState(viewModel) { previews == 2 }
+        viewModel.cancel()
+        awaitState(viewModel) { fake.cancelCalls == 1 }
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val state = viewModel.state.value
+        assertFalse(state.previewOpen)
+        assertEquals(2, previews)
+        assertEquals(1, fake.cancelCalls)
+        assertEquals(0, fake.applyCalls)
+    }
+
+    @Test
     fun `beginRead clears a pending offer so apply becomes a no-op`() = runBlocking {
         val fake = FakeRepository()
         val viewModel = PortableWorkspaceViewModel(fake)
