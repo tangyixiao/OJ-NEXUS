@@ -51,6 +51,9 @@ import com.ojnexus.core.database.entity.TrainingSessionEntity
 import com.ojnexus.core.database.entity.TrainingSessionProblemEntity
 import com.ojnexus.core.database.entity.TrainingTaskEntity
 import com.ojnexus.core.database.entity.WorkspaceDraftEntity
+import com.ojnexus.core.portable.archive.PortableArchiveDao
+import com.ojnexus.core.portable.archive.PortableArchivePackageEntity
+import com.ojnexus.core.portable.archive.PortableArchiveRecordEntity
 
 /**
  * OJ NEXUS local database. Schema history is exported to app/schemas and committed;
@@ -84,8 +87,12 @@ import com.ojnexus.core.database.entity.WorkspaceDraftEntity
  * v12 (Phase 52 Luogu): backfill legacy submission titles from local problem caches.
  *
  * v13 (Phase 76): bounded explicit sync operation history and committed module outcomes.
+ *
+ * v16 (Phase 132): bounded domain-archive tables for the portable workspace. Additive only:
+ * the archive keeps accepted portable records with their provenance and capability tier so a
+ * later phase can project them into domain tables.
  */
-const val OJ_NEXUS_SCHEMA_VERSION = 15
+const val OJ_NEXUS_SCHEMA_VERSION = 16
 
 @Database(
     entities = [
@@ -116,6 +123,8 @@ const val OJ_NEXUS_SCHEMA_VERSION = 15
         SyncLogOperationEntity::class,
         SyncLogOpEntity::class,
         SyncConflictLogEntity::class,
+        PortableArchivePackageEntity::class,
+        PortableArchiveRecordEntity::class,
     ],
     version = OJ_NEXUS_SCHEMA_VERSION,
     exportSchema = true,
@@ -145,6 +154,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
     abstract fun syncLogOperationDao(): com.ojnexus.core.database.dao.SyncLogOperationDao
     abstract fun syncLogOpDao(): com.ojnexus.core.database.dao.SyncLogOpDao
     abstract fun syncConflictLogDao(): com.ojnexus.core.database.dao.SyncConflictLogDao
+    abstract fun portableArchiveDao(): PortableArchiveDao
 
     companion object {
         const val DATABASE_NAME = "oj-nexus.db"
@@ -737,6 +747,13 @@ abstract class OjNexusDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v15 → v16 (Phase 132): the bounded domain-archive tables, additive only. Defined in
+         * [Migration15To16.kt] and re-exported here so every step of the chain is reachable as
+         * `OjNexusDatabase.MIGRATION_<from>_<to>`.
+         */
+        val MIGRATION_15_16: Migration get() = com.ojnexus.core.database.MIGRATION_15_16
+
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
                 .addMigrations(
@@ -754,6 +771,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
                     MIGRATION_12_13,
                     MIGRATION_13_14,
                     MIGRATION_14_15,
+                    MIGRATION_15_16,
                 )
                 .build()
     }

@@ -171,6 +171,7 @@ class MigrationTest {
             OjNexusDatabase.MIGRATION_10_11,
             OjNexusDatabase.MIGRATION_11_12,
             OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15,
+            OjNexusDatabase.MIGRATION_15_16,
         ).build()
 
         try {
@@ -232,7 +233,7 @@ class MigrationTest {
         v12.close()
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15)
+            .addMigrations(OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15, OjNexusDatabase.MIGRATION_15_16)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -302,6 +303,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_10_11,
                 OjNexusDatabase.MIGRATION_11_12,
                 OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15,
+                OjNexusDatabase.MIGRATION_15_16,
             )
             .build()
         db.openHelper.writableDatabase
@@ -379,6 +381,7 @@ class MigrationTest {
                 OjNexusDatabase.MIGRATION_10_11,
                 OjNexusDatabase.MIGRATION_11_12,
                 OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15,
+                OjNexusDatabase.MIGRATION_15_16,
             )
             .build()
         try {
@@ -406,7 +409,7 @@ class MigrationTest {
         v8.close()
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_8_9, OjNexusDatabase.MIGRATION_9_10, OjNexusDatabase.MIGRATION_10_11, OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15)
+            .addMigrations(OjNexusDatabase.MIGRATION_8_9, OjNexusDatabase.MIGRATION_9_10, OjNexusDatabase.MIGRATION_10_11, OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15, OjNexusDatabase.MIGRATION_15_16)
             .build()
         try {
             val detail = com.ojnexus.core.database.entity.RemoteProblemDetailEntity(
@@ -458,7 +461,7 @@ class MigrationTest {
         createDatabaseFromSchema(5)
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_5_6, OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9, OjNexusDatabase.MIGRATION_9_10, OjNexusDatabase.MIGRATION_10_11, OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15)
+            .addMigrations(OjNexusDatabase.MIGRATION_5_6, OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9, OjNexusDatabase.MIGRATION_9_10, OjNexusDatabase.MIGRATION_10_11, OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15, OjNexusDatabase.MIGRATION_15_16)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -486,7 +489,7 @@ class MigrationTest {
         createDatabaseFromSchema(6)
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9, OjNexusDatabase.MIGRATION_9_10, OjNexusDatabase.MIGRATION_10_11, OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15)
+            .addMigrations(OjNexusDatabase.MIGRATION_6_7, OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9, OjNexusDatabase.MIGRATION_9_10, OjNexusDatabase.MIGRATION_10_11, OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15, OjNexusDatabase.MIGRATION_15_16)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -525,7 +528,7 @@ class MigrationTest {
         v7.close()
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9, OjNexusDatabase.MIGRATION_9_10, OjNexusDatabase.MIGRATION_10_11, OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15)
+            .addMigrations(OjNexusDatabase.MIGRATION_7_8, OjNexusDatabase.MIGRATION_8_9, OjNexusDatabase.MIGRATION_9_10, OjNexusDatabase.MIGRATION_10_11, OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15, OjNexusDatabase.MIGRATION_15_16)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -579,7 +582,7 @@ class MigrationTest {
         v9.close()
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_9_10, OjNexusDatabase.MIGRATION_10_11, OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15)
+            .addMigrations(OjNexusDatabase.MIGRATION_9_10, OjNexusDatabase.MIGRATION_10_11, OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15, OjNexusDatabase.MIGRATION_15_16)
             .build()
         try {
             db.openHelper.writableDatabase
@@ -624,7 +627,7 @@ class MigrationTest {
         v10.close()
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_10_11, OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15)
+            .addMigrations(OjNexusDatabase.MIGRATION_10_11, OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15, OjNexusDatabase.MIGRATION_15_16)
             .build()
         try {
             assertEquals("req-v10", kotlinx.coroutines.runBlocking {
@@ -686,7 +689,7 @@ class MigrationTest {
         v11.close()
 
         val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
-            .addMigrations(OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15)
+            .addMigrations(OjNexusDatabase.MIGRATION_11_12, OjNexusDatabase.MIGRATION_12_13, OjNexusDatabase.MIGRATION_13_14, OjNexusDatabase.MIGRATION_14_15, OjNexusDatabase.MIGRATION_15_16)
             .build()
         try {
             val dao = db.submissionJobDao()
@@ -703,4 +706,52 @@ class MigrationTest {
             db.close()
         }
     }
+
+    @Test
+    fun `migrate 15 to 16 adds empty archive tables and keeps existing rows`() {
+        createDatabaseFromSchema(15)
+        val v15 = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(
+            context.getDatabasePath(dbName).absolutePath,
+            null,
+        )
+        v15.execSQL(
+            "INSERT INTO problems (judge, external_id, title, created_at, updated_at, " +
+                "first_solved_at, last_attempt_at, attempt_count, solved, favorite, source_url) " +
+                "VALUES ('codeforces', '2134C', 'Yet Another Array Query', 10, 20, NULL, NULL, 0, 0, 1, NULL)",
+        )
+        v15.execSQL(
+            "INSERT INTO judge_accounts (judge, handle, canonical_handle, connected_at, updated_at, " +
+                "enabled, verification_state, source_reliability) " +
+                "VALUES ('atcoder', 'tourist', 'tourist', 30, 30, 1, 'VERIFIED', 'OFFICIAL')",
+        )
+        v15.close()
+
+        val db = Room.databaseBuilder(context, OjNexusDatabase::class.java, dbName)
+            .addMigrations(OjNexusDatabase.MIGRATION_15_16)
+            .build()
+        try {
+            // Room validates the migrated file against its v16 expectations on first open.
+            assertEquals(16, db.openHelper.writableDatabase.version)
+            assertEquals("2134C", kotlinx.coroutines.runBlocking {
+                db.problemDao().findLibrary()
+            }.single().problem.externalId)
+            assertEquals("tourist", kotlinx.coroutines.runBlocking {
+                db.judgeAccountDao().findActiveByJudge("atcoder")
+            }?.handle)
+
+            assertEquals(0, rawCount(db, "portable_archive_packages"))
+            assertEquals(0, rawCount(db, "portable_archive_records"))
+            assertEquals(2, rawCount(db, "sqlite_master WHERE type = 'table' AND name IN " +
+                "('portable_archive_packages', 'portable_archive_records')"))
+        } finally {
+            db.close()
+        }
+    }
+
+    /** `SELECT COUNT(*)` over one table (or over `sqlite_master` with a WHERE clause). */
+    private fun rawCount(db: OjNexusDatabase, from: String): Int =
+        db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM $from").use { cursor ->
+            cursor.moveToFirst()
+            cursor.getInt(0)
+        }
 }

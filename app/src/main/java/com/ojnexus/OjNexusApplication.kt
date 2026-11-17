@@ -24,6 +24,9 @@ import com.ojnexus.core.data.repository.TrainingRepository
 import com.ojnexus.core.data.repository.RoomWorkspaceDraftRepository
 import com.ojnexus.core.data.preferences.UserPreferencesRepository
 import com.ojnexus.core.database.OjNexusDatabase
+import com.ojnexus.core.portable.PortableRepository
+import com.ojnexus.core.portable.PortableWorkspaceRepository
+import com.ojnexus.core.portable.archive.RoomPortableArchiveStore
 import com.ojnexus.core.network.CoroutineDelayProvider
 import com.ojnexus.core.network.SystemMonotonicClock
 import com.ojnexus.judge.codeforces.CodeforcesClient
@@ -108,6 +111,8 @@ class AppContainer(context: android.content.Context, readiness: RestoreReadiness
     val contestFocusRepository: ContestFocusRepository = ContestFocusRepository(database, clock)
     val knowledgeRepository: KnowledgeRepository = KnowledgeRepository(database, localDaySource)
     val backupRepository: BackupRepository = BackupRepository(database, context)
+    val portableWorkspaceRepository: PortableWorkspaceRepository =
+        PortableRepository(RoomPortableArchiveStore(database.portableArchiveDao()))
     val databaseMaintenanceRepository: DatabaseMaintenanceRepository =
         DatabaseMaintenanceRepository(database, context.getDatabasePath(OjNexusDatabase.DATABASE_NAME))
     val userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepository(context)
