@@ -67,18 +67,26 @@ pwsh (SDK 10.0.401; solution targets net8.0):
 
 | # | Command | Expected outcome | Result |
 | --- | --- | --- | --- |
-| 1 | `dotnet test windows/OjNexus.Windows.sln -c Release --no-restore` | `Build succeeded`, all tests passed | PASS — **390 tests / 0 failures** (Core 272, Cli 75, Desktop 43; 22 new portable tests) |
+| 1 | `dotnet test windows/OjNexus.Windows.sln -c Release --no-restore` | `Build succeeded`, all tests passed | PASS — **391 tests / 0 failures** (Core 273, Cli 75, Desktop 43) on final head `0e7065b` |
 | 2 | `dotnet build windows/OjNexus.Windows.sln -c Release --no-restore` | `Build succeeded` (TWE: 0 warnings) | PASS — clean build, 0 warnings |
 | 3 | `pwsh -File windows/scripts/smoke.ps1 -Configuration Release` | CLI `status --json` ready + WPF alive | PASS — `CLI EXIT CODE: 0`, `{"status":"ready","accountCount":0,...}`, `DESKTOP START: ALIVE WITHIN 15 SECONDS` |
 | 4 | `pwsh -File windows/scripts/ui-smoke.ps1 -Configuration Release` | UIA over FIVE pages, `SCREENSHOTS: 5/5`, PORTABLE RENDERED | PASS — `PORTABLE: RENDERED`, `SCREENSHOTS: 5/5`, `UI SMOKE: PASS` |
-| 5 | Independent review of the final diff | findings fixed or recorded | PENDING — reviewer in flight; record linked at flip |
+| 5 | Independent review of the final diff | findings fixed or recorded | PENDING — reviewer in flight; the review's P2 (unanchored integer-literal matching) was confirmed and fixed on `0e7065b` with a regression test |
 | 6 | CI (`windows.yml`) on the delivery PR | green | PENDING — runs on the delivery PR; run id recorded at merge |
 
 Gate history: per-task gates were measured at each merge (PRs #57–#61 bodies
-carry their runs); this final gate ran on the merged integration tip.
+carry their runs); the pre-review full gate measured 390/0 on `193984c`; the
+final gate re-measured **391/0** on `0e7065b` after the review's P2 fix
+(anchored integer-literal matching + regression test).
 
-<!-- CONTROLLER-GATE-RESULTS: to be filled by the controller with measured values only -->
-PENDING — final gate in flight.
+<!-- CONTROLLER-GATE-RESULTS: measured values recorded by the controller on 2026-11-18 -->
+Final gate on merged integration tip `0e7065b`: `dotnet test windows/OjNexus.Windows.sln
+-c Release --no-restore` → **391 tests / 0 failures** (Core 273, Cli 75, Desktop 43);
+`dotnet build -c Release --no-restore` → clean under TreatWarningsAsErrors;
+`windows/scripts/smoke.ps1` → CLI EXIT CODE 0 + `{"status":"ready",...}` + DESKTOP START ALIVE;
+`windows/scripts/ui-smoke.ps1` → UI SMOKE PASS, SCREENSHOTS 5/5, PORTABLE RENDERED.
+Gate history: 390/0 on `193984c` (pre-review); 391/0 on `0e7065b` after the P2 fix.
+CI corroboration: delivery PR #62 (run ids recorded at merge).
 <!-- END CONTROLLER-GATE-RESULTS -->
 
 ## Claims vs non-claims
