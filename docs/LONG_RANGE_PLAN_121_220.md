@@ -263,7 +263,7 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **交付：** 新增与整库备份分开的 Portable Workspace 入口；预览数量、来源、跳过与冲突，用户确认后事务应用，支持系统文件访问取消。
 - **验收：** G-A；同一混合 golden 包无损往返，重复导入幂等；预览/取消不修改数据库；越界字段拒绝；合成训练记录标注测试来源，暂不可编辑项有保存状态。
 
-#### [ ] PHASE 133 — W · Windows 可移植导入导出
+#### [x] PHASE 133 — W · Windows 可移植导入导出
 - **依赖 / 范围：** 128、131；W 的 Core codec/store、CLI 与 WPF 文件操作。
 - **交付：** CLI 提供 inspect/import/export，WPF 提供预览确认；以领域映射落到本端 schema，保留不能编辑的受支持记录而不静默丢弃。
 - **验收：** G-W；混合 golden 包无损往返，暂不能编辑的笔记/session 由领域归档保存；取消/失败事务回滚；CLI JSON 与 UI 计数相符，不直接打开 Android SQLite。
