@@ -940,7 +940,10 @@ public sealed class PortableCodec
     private static string Child(string path, string key) => $"{path}.{key}";
 
     private static bool IsIntegerLiteral(string literal) =>
-        Regex.IsMatch(literal, """-?(0|[1-9][0-9]*)""");
+        // Anchored with \A/\z (NOT unanchored IsMatch, and NOT `$` which matches
+        // before a trailing newline): Android uses full-string matches, so
+        // "1.5", "1e5" and "01" must all classify as non-integers.
+        Regex.IsMatch(literal, """\A-?(0|[1-9][0-9]*)\z""");
 
     private static string TypeName(PortableValue value) => value switch
     {

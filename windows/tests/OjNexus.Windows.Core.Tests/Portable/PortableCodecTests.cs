@@ -240,6 +240,28 @@ public sealed class PortableCodecTests
         Assert.Equal("SYNTHETIC-TEST-FIXTURE", markedPackage.SourceTag);
     }
 
+    [Fact]
+    public void IntegerLiterals_AreFullStringMatched()
+    {
+        // Regression (independent review): unanchored Regex.IsMatch classified
+        // "1.5"/"1e5"/"01" as integers and let a raw FormatException escape
+        // later in the pipeline. Android uses full-string matches; the schema
+        // walk must reject all three as UNKNOWN_FIELD, and a fractional
+        // formatVersion stays INVALID_INPUT at the version gate.
+        RejectsAs(
+            Encoding.UTF8.GetBytes("""{"formatVersion":1,"createdAtEpochMs":1.5}"""),
+            PortableRejectCategory.UnknownField);
+        RejectsAs(
+            Encoding.UTF8.GetBytes("""{"formatVersion":1,"createdAtEpochMs":1e5}"""),
+            PortableRejectCategory.UnknownField);
+        RejectsAs(
+            Encoding.UTF8.GetBytes("""{"formatVersion":1,"createdAtEpochMs":01}"""),
+            PortableRejectCategory.InvalidInput);
+        RejectsAs(
+            Encoding.UTF8.GetBytes("""{"formatVersion":1.5}"""),
+            PortableRejectCategory.InvalidInput);
+    }
+
     private static void RejectsAs(byte[] bytes, PortableRejectCategory expected)
     {
         var exception = Assert.Throws<PortableContractException>(() => new PortableCodec().Validate(bytes));
