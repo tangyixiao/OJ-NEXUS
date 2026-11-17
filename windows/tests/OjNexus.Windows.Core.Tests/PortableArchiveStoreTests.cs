@@ -13,7 +13,7 @@ public sealed class PortableArchiveStoreTests
         Identity: FirstIdentity,
         ScopeId: "scope-1",
         SourcePlatform: "windows",
-        Generator: "scope-export 1.0",
+        GeneratorJson: """{"name":"scope-export","version":"1.0"}""",
         CreatedAtEpochMs: 1_000L,
         CountsJson: """{"notes":1,"problems":2}""");
 
@@ -56,7 +56,7 @@ public sealed class PortableArchiveStoreTests
         var store = database.CreateStore();
         await store.ReplaceAllAsync(Package, Records, CancellationToken.None);
 
-        var second = Package with { Identity = SecondIdentity, Generator = "re-import 2.0" };
+        var second = Package with { Identity = SecondIdentity, GeneratorJson = """{"name":"re-import","version":"2.0"}""" };
         var secondRecords = new[] { Records[0] with { SortOrder = 0 } };
         await store.ReplaceAllAsync(second, secondRecords, CancellationToken.None);
 

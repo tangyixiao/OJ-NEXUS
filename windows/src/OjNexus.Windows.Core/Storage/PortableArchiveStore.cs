@@ -2,12 +2,12 @@ using Microsoft.Data.Sqlite;
 
 namespace OjNexus.Windows.Core.Storage;
 
-/// <summary>One archived portable package header. The archive holds a single package at a time.</summary>
+/// <summary>One archived portable package header. The archive holds a single package at a time. <see cref="GeneratorJson"/> is the canonical generator-object JSON.</summary>
 public sealed record PortableArchivePackageRow(
     string Identity,
     string ScopeId,
     string SourcePlatform,
-    string Generator,
+    string GeneratorJson,
     long CreatedAtEpochMs,
     string CountsJson);
 
@@ -68,7 +68,7 @@ public sealed class PortableArchiveStore
             command.Parameters.AddWithValue("$identity", package.Identity);
             command.Parameters.AddWithValue("$scopeId", package.ScopeId);
             command.Parameters.AddWithValue("$sourcePlatform", package.SourcePlatform);
-            command.Parameters.AddWithValue("$generator", package.Generator);
+            command.Parameters.AddWithValue("$generator", package.GeneratorJson);
             command.Parameters.AddWithValue("$createdAtEpochMs", package.CreatedAtEpochMs);
             command.Parameters.AddWithValue("$countsJson", package.CountsJson);
             await command.ExecuteNonQueryAsync(cancellationToken);
