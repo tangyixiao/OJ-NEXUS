@@ -87,6 +87,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     focusOpenApp: Boolean = false,
     focusLuogu: Boolean = false,
+    onOpenPortableWorkspace: () -> Unit = {},
 ) {
     val container = LocalAppContainer.current
     val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<SettingsViewModel>(
@@ -306,6 +307,17 @@ fun SettingsScreen(
                         color = if (result.success) NexusTheme.colors.success else NexusTheme.colors.danger,
                     )
                 }
+                Spacer(Modifier.height(NexusSpacing.sm))
+                Text(
+                    text = stringResource(R.string.settings_portable_hint),
+                    style = NexusTheme.typography.dataSmall,
+                    color = NexusTheme.colors.textTertiary,
+                )
+                Spacer(Modifier.height(NexusSpacing.xs))
+                SettingsAction(
+                    label = stringResource(R.string.settings_portable_workspace),
+                    onClick = onOpenPortableWorkspace,
+                )
                 Spacer(Modifier.height(NexusSpacing.sm))
                 ScheduledBackupSection(
                     preferences = preferences,
