@@ -35,8 +35,8 @@ public static class Program
             int exitCode;
             await using (var bootstrap = await Bootstrap.OpenAsync(dataDirectoryOverride, adapters, cancellationToken))
             {
-                await using var operation = bootstrap.Session.BeginOperation(cancellationToken);
-                exitCode = await ExecuteAsync(command, bootstrap, operation.Store, stagedOutput, stagedError, operation.CancellationToken);
+            await using var operation = bootstrap.Session.BeginOperation(cancellationToken);
+            exitCode = await ExecuteAsync(command, bootstrap, operation.Store, operation, stagedOutput, stagedError, operation.CancellationToken);
             }
             await output.WriteAsync(stagedOutput.ToString());
             await error.WriteAsync(stagedError.ToString());
@@ -46,6 +46,16 @@ public static class Program
         {
             await error.WriteLineAsync($"ARGUMENT ERROR: {exception.Message}");
             return (int)CliExitCode.InvalidArguments;
+        }
+        catch (PortablePackageReadException)
+        {
+            // The handler's staged output was discarded with the failed operation; print the
+            // read-failure line directly so automation still gets one parseable response.
+            if (wantsJson)
+                await output.WriteLineAsync(PortableCommands.PackageReadUnavailableJson);
+            else
+                await output.WriteLineAsync(PortableCommands.PackageReadUnavailableHuman);
+            return (int)CliExitCode.Storage;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -68,10 +78,22 @@ public static class Program
         }
     }
 
-    private static async Task<int> ExecuteAsync(CliCommand command, Bootstrap bootstrap, ISyncStore store, TextWriter output, TextWriter error, CancellationToken cancellationToken)
+    private static async Task<int> ExecuteAsync(
+        CliCommand command,
+        Bootstrap bootstrap,
+        ISyncStore store,
+        StorageOperationContext operation,
+        TextWriter output,
+        TextWriter error,
+        CancellationToken cancellationToken)
     {
         switch (command)
         {
+            case PortableCommand portable:
+            {
+                var repository = bootstrap.Session.CreatePortableRepository(operation);
+                return await PortableCommands.HandleAsync(portable, repository, output, cancellationToken);
+            }
             case StatusCommand status:
             {
                 var accounts = await store.GetAccountsAsync(cancellationToken);
