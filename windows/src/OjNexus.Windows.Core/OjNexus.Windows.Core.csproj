@@ -5,4 +5,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The portable contract is read-only; the golden corpus is consumed in
+         place from contracts/ (never copied into the Windows tree). -->
+    <Content Include="..\..\..\contracts\portable\v1\golden\**\*.json" Link="portable\golden\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
