@@ -6,7 +6,7 @@ internal sealed class SchemaValidationException(string message, Exception? inner
 
 public static class SchemaMigrator
 {
-    private const int CurrentSchemaVersion = 7;
+    private const int CurrentSchemaVersion = 8;
 
     internal static int InspectExisting(SqliteConnection connection)
     {
@@ -29,6 +29,7 @@ public static class SchemaMigrator
                 case 5: ValidateVersionFiveSchema(connection, transaction); break;
                 case 6: ValidateVersionSixSchema(connection, transaction); break;
                 case 7: ValidateVersionSevenSchema(connection, transaction); break;
+                case 8: ValidateVersionEightSchema(connection, transaction); break;
             }
         }
         catch (NotSupportedException)
@@ -78,6 +79,7 @@ public static class SchemaMigrator
             ApplyVersionFiveMigration(connection, transaction);
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
+            ApplyVersionEightMigration(connection, transaction);
         }
         else if (version > CurrentSchemaVersion)
         {
@@ -92,6 +94,7 @@ public static class SchemaMigrator
             ApplyVersionFiveMigration(connection, transaction);
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
+            ApplyVersionEightMigration(connection, transaction);
         }
         else if (version == 1)
         {
@@ -101,6 +104,7 @@ public static class SchemaMigrator
             ApplyVersionFiveMigration(connection, transaction);
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
+            ApplyVersionEightMigration(connection, transaction);
         }
         else if (version == 2)
         {
@@ -109,6 +113,7 @@ public static class SchemaMigrator
             ApplyVersionFiveMigration(connection, transaction);
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
+            ApplyVersionEightMigration(connection, transaction);
         }
         else if (version == 3)
         {
@@ -116,25 +121,33 @@ public static class SchemaMigrator
             ApplyVersionFiveMigration(connection, transaction);
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
+            ApplyVersionEightMigration(connection, transaction);
         }
         else if (version == 4)
         {
             ApplyVersionFiveMigration(connection, transaction);
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
+            ApplyVersionEightMigration(connection, transaction);
         }
         else if (version == 5)
         {
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
+            ApplyVersionEightMigration(connection, transaction);
         }
         else if (version == 6)
         {
             ApplyVersionSevenMigration(connection, transaction);
+            ApplyVersionEightMigration(connection, transaction);
+        }
+        else if (version == 7)
+        {
+            ApplyVersionEightMigration(connection, transaction);
         }
         else if (version == CurrentSchemaVersion)
         {
-            ValidateVersionSevenSchema(connection, transaction);
+            ValidateVersionEightSchema(connection, transaction);
         }
 
         transaction.Commit();
@@ -602,6 +615,80 @@ public static class SchemaMigrator
             new ColumnDefinition("stage", true, 0),
             new ColumnDefinition("completed_at", true, 0),
             new ColumnDefinition("day_index", true, 0));
+    }
+
+    private static void ApplyVersionEightMigration(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        Execute(connection, transaction, """
+            CREATE TABLE IF NOT EXISTS portable_archive_packages (
+                identity TEXT NOT NULL PRIMARY KEY,
+                scope_id TEXT NOT NULL,
+                source_platform TEXT NOT NULL,
+                generator TEXT NOT NULL,
+                created_at_epoch_ms INTEGER NOT NULL,
+                counts_json TEXT NOT NULL
+            );
+            """);
+        Execute(connection, transaction, """
+            CREATE TABLE IF NOT EXISTS portable_archive_records (
+                identity TEXT NOT NULL,
+                collection TEXT NOT NULL,
+                stable_id TEXT NOT NULL,
+                source_scope_id TEXT NOT NULL,
+                origin TEXT NOT NULL,
+                state TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                source_tag TEXT NOT NULL,
+                synthetic INTEGER NOT NULL,
+                sort_order INTEGER NOT NULL,
+                PRIMARY KEY (identity, collection, stable_id),
+                FOREIGN KEY (identity) REFERENCES portable_archive_packages(identity) ON DELETE CASCADE
+            );
+            """);
+        Execute(connection, transaction, "CREATE INDEX IF NOT EXISTS idx_portable_archive_records_order ON portable_archive_records(identity, sort_order ASC);");
+        ValidateVersionEightSchema(connection, transaction);
+
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.Transaction = transaction;
+        versionCommand.CommandText = "UPDATE schema_metadata SET value = '8' WHERE key = 'schema_version'";
+        versionCommand.ExecuteNonQuery();
+    }
+
+    private static void ValidateVersionEightSchema(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        ValidateVersionSevenSchema(connection, transaction);
+        ValidateTable(
+            connection,
+            transaction,
+            "portable_archive_packages",
+            new ColumnDefinition("identity", true, 1),
+            new ColumnDefinition("scope_id", true, 0),
+            new ColumnDefinition("source_platform", true, 0),
+            new ColumnDefinition("generator", true, 0),
+            new ColumnDefinition("created_at_epoch_ms", true, 0),
+            new ColumnDefinition("counts_json", true, 0));
+        ValidateTable(
+            connection,
+            transaction,
+            "portable_archive_records",
+            new ColumnDefinition("identity", true, 1),
+            new ColumnDefinition("collection", true, 2),
+            new ColumnDefinition("stable_id", true, 3),
+            new ColumnDefinition("source_scope_id", true, 0),
+            new ColumnDefinition("origin", true, 0),
+            new ColumnDefinition("state", true, 0),
+            new ColumnDefinition("payload_json", true, 0),
+            new ColumnDefinition("source_tag", true, 0),
+            new ColumnDefinition("synthetic", true, 0),
+            new ColumnDefinition("sort_order", true, 0));
+        ValidateForeignKey(
+            connection,
+            transaction,
+            "portable_archive_records",
+            "identity",
+            "portable_archive_packages",
+            "identity",
+            expectedDeleteAction: "CASCADE");
     }
 
     private static void ValidateVersionOneSchema(SqliteConnection connection, SqliteTransaction transaction)

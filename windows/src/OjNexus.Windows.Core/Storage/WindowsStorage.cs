@@ -67,7 +67,7 @@ internal sealed record StartupTestHooks(Action<StartupStage>? OnStage = null, Ac
 
 public static class WindowsStorage
 {
-    private const int CurrentSchemaVersion = 7;
+    private const int CurrentSchemaVersion = 8;
     private static readonly byte[] MarkerBytes = Encoding.UTF8.GetBytes("v1\n");
 
     public static Task<StorageOpenResult> OpenAsync(string? rootOverride, IClock? clock, CancellationToken cancellationToken) =>

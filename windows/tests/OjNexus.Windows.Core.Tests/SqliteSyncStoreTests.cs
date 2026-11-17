@@ -8,11 +8,11 @@ namespace OjNexus.Windows.Core.Tests;
 public sealed class SqliteSyncStoreTests
 {
     [Fact]
-    public void Migrate_FreshDatabase_SetsSchemaVersionSeven()
+    public void Migrate_FreshDatabase_SetsSchemaVersionEight()
     {
         using var database = new TemporaryDatabase();
 
-        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
     }
 
     [Fact]
@@ -25,7 +25,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("tourist", ReadAccountHandle(database.DatabasePath, "Codeforces"));
     }
 
@@ -37,7 +37,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.Equal(1L, CountModules(database.DatabasePath, 7));
         Assert.Equal("Success", ReadString(database.DatabasePath, "SELECT status FROM sync_operations WHERE id = 7"));
@@ -54,7 +54,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.True(TableExists(database.DatabasePath, "codeforces_profiles"));
         Assert.True(TableExists(database.DatabasePath, "luogu_payloads"));
@@ -69,7 +69,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
         Assert.True(TableExists(database.DatabasePath, "atcoder_submissions"));
         Assert.True(TableExists(database.DatabasePath, "luogu_payloads"));
     }
@@ -84,7 +84,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
         Assert.True(ColumnExists(database.DatabasePath, "sync_operations", "handle"));
     }
 
@@ -225,11 +225,11 @@ public sealed class SqliteSyncStoreTests
     {
         using var database = new TemporaryDatabaseDirectory();
         ExecuteNonQuery(database.DatabasePath, "CREATE TABLE schema_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL)");
-        ExecuteNonQuery(database.DatabasePath, "INSERT INTO schema_metadata (key, value) VALUES ('schema_version', '7')");
+        ExecuteNonQuery(database.DatabasePath, "INSERT INTO schema_metadata (key, value) VALUES ('schema_version', '9')");
 
         Assert.Throws<InvalidOperationException>(() => SchemaMigrator.Migrate(database.ConnectionString));
 
-        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("9", ReadSchemaVersion(database.DatabasePath));
         Assert.False(TableExists(database.DatabasePath, "accounts"));
     }
 
@@ -261,7 +261,7 @@ public sealed class SqliteSyncStoreTests
             tableNames.Add(reader.GetString(0));
         }
 
-        Assert.Equal(new[] { "accounts", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "luogu_payloads", "problems", "review_log", "reviews", "schema_metadata", "sync_modules", "sync_operations" }, tableNames);
+        Assert.Equal(new[] { "accounts", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "luogu_payloads", "portable_archive_packages", "portable_archive_records", "problems", "review_log", "reviews", "schema_metadata", "sync_modules", "sync_operations" }, tableNames);
     }
 
     [Fact]
@@ -419,7 +419,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("7", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
         Assert.True(TableExists(database.DatabasePath, "reviews"));
         Assert.True(TableExists(database.DatabasePath, "review_log"));
     }

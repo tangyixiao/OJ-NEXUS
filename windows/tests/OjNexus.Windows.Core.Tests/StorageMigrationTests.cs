@@ -31,7 +31,7 @@ public sealed class StorageMigrationTests
         Assert.Equal("legacy-handle", operation.Account.Handle);
         Assert.Equal(SyncOperationStatus.Success, operation.Status);
         Assert.Equal("PROFILE", Assert.Single(operation.Modules).Stage);
-        Assert.Equal(7, ReadSchemaVersion(Path.Combine(root, "ojnexus.db")));
+        Assert.Equal(8, ReadSchemaVersion(Path.Combine(root, "ojnexus.db")));
     }
 
     [Fact]
