@@ -64,7 +64,21 @@ ojnexus.exe problems list [--judge <judge>] [--status <status>] [--json]
 ojnexus.exe review due [--judge <judge>] [--limit <n>] [--json]
 
 ojnexus.exe review mark --judge <judge> --problem <external-id> --result <PASS|HARD|FAIL|SKIP> [--json]
+
+ojnexus.exe portable inspect --file <path> [--json]
+ojnexus.exe portable import --file <path> [--yes] [--json]
+ojnexus.exe portable export --file <path> [--json]
 ```
+
+The `portable` verbs exchange a Portable Workspace package (one UTF-8 JSON
+document under the phase 131 contract; see `docs/PORTABLE_WORKSPACE.md`).
+`inspect` validates and previews counts, sources, skips, conflicts and the
+editable/stored-only/rejected capability tiers without writing. `import`
+shows the same preview and requires an explicit `--yes` before the
+transactional apply; a rejected package is a valid outcome (exit 0 with
+`REJECTED <category>`), never a partial write. `export` rebuilds the
+canonical package from the saved archive and writes it to the path; exporting
+an empty archive fails with `ARCHIVE EMPTY` and exit 7.
 
 ## Exit codes
 
