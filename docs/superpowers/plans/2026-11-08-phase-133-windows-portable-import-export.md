@@ -106,7 +106,9 @@ rejects exit 0 with `status=rejected`; usage → 2; storage-classified failures
 commands),
 `windows/src/OjNexus.Windows.Desktop/PortableView.xaml` + `.xaml.cs` if the
 shell splits views per its existing pattern,
-`windows/tests/OjNexus.Windows.Desktop.Tests/PortableViewModelTests.cs`.
+`windows/tests/OjNexus.Windows.Desktop.Tests/PortableViewModelTests.cs`,
+`windows/scripts/ui-smoke.ps1` (extend the per-page switch + assertions for
+the new PORTABLE page; AutomationProperties names required).
 
 Pick → preview (same `PortablePreview` model as the CLI) → CONFIRM/CANCEL
 dialog; SaveFileDialog export; every cancel/failure a write-free text status;
@@ -122,11 +124,14 @@ uppercase telemetry tone matching the existing shell.
    identity; reimport idempotent; preview/cancel zero writes.
 3. Independent review subagent audits the final diff (house review record);
    findings fixed in a follow-up PR if needed.
-4. Gate: `dotnet test windows/OjNexus.Windows.sln -c Release --no-restore`
+4. Gate (G-W): `dotnet test windows/OjNexus.Windows.sln -c Release --no-restore`
    + `dotnet build windows/OjNexus.Windows.sln -c Release --no-restore` →
-   `Build succeeded` with 0 failed tests; Windows CI (`windows.yml`) green on
-   the delivery PR. Verification record + handoff + ledger + roadmap line 266
-   ticked; final delivery PR to `main` (badge in body), merged via `gh`.
+   `Build succeeded` with 0 failed tests; `pwsh -File windows/scripts/smoke.ps1
+   -Configuration Release` and `pwsh -File windows/scripts/ui-smoke.ps1
+   -Configuration Release` green (UI changed → smoke + new page per the G-W
+   duty); Windows CI (`windows.yml`) green on the delivery PR. Verification
+   record + handoff + ledger + roadmap line 266 ticked; final delivery PR to
+   `main` (badge in body), merged via `gh`.
 
 ## Review focus
 
