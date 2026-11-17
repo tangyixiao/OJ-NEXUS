@@ -1100,7 +1100,7 @@
     <string name="portable_action_export">EXPORT</string>
     <string name="portable_action_dismiss">DISMISS</string>
     <string name="portable_section_archive">ARCHIVE STATE</string>
-    <string name="portable_state_saved">SAVED ARCHIVE PRESENT. EXPORT REBUILDS THE CANONICAL PACKAGE FROM IT.</string>
+    <string name="portable_state_saved">EXPORT REBUILDS THE CANONICAL PACKAGE FROM THE SAVED ARCHIVE.</string>
     <string name="portable_state_empty">NO TRANSFER IN PROGRESS</string>
     <string name="portable_state_reading">READING DOCUMENT</string>
     <string name="portable_state_rebuilding">REBUILDING CANONICAL PACKAGE</string>
