@@ -4,8 +4,7 @@ Status: **VERIFIED**. The controller's final G-W gate ran on the merged
 integration branch at `0e7065b` on 2026-11-18; every gate
 below carries a measured value recorded in this document. The independent review
 is [phase-133-task6-review.md](phase-133-task6-review.md) (PASS-WITH-OBSERVATIONS; its P2 fixed in `0e7065b`). The plan ledger ([phase-133-plan-ledger.md](phase-133-plan-ledger.md))
-tracks per-task merge state; the handoff is `docs/PHASE_133_HANDOFF.md`; the
-independent review record will be linked at flip time.
+tracks per-task merge state; the handoff is `docs/PHASE_133_HANDOFF.md`.
 
 ## Scope and inputs
 
