@@ -42,6 +42,7 @@ import com.ojnexus.feature.problems.ProblemDetailScreen
 import com.ojnexus.feature.problems.ProblemFormScreen
 import com.ojnexus.feature.problems.LuoguProblemDetailScreen
 import com.ojnexus.feature.problems.ProblemsScreen
+import com.ojnexus.feature.portable.PortableWorkspaceScreen
 import com.ojnexus.feature.settings.SettingsScreen
 import com.ojnexus.feature.submissions.SubmissionCenterScreen
 import com.ojnexus.feature.training.TrainingScreen
@@ -64,6 +65,7 @@ object NexusRoutes {
     const val SETTINGS = "settings"
     const val SETTINGS_OPENAPP = "settings/openapp"
     const val SETTINGS_LUOGU = "settings/luogu"
+    const val PORTABLE_WORKSPACE = "settings/portable-workspace"
     const val SUBMISSIONS = "submissions"
     const val WORKSPACE = "workspace/{pid}?title={title}&sampleInput={sampleInput}&sampleOutput={sampleOutput}"
     const val LUOGU_PROBLEM_DETAIL = "luogu-problem/{pid}"
@@ -299,18 +301,32 @@ fun NexusApp(modifier: Modifier = Modifier) {
                         )
                     }
                     composable(route = NexusRoutes.SETTINGS) {
-                        SettingsScreen(onBack = { navController.popBackStack() })
+                        SettingsScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenPortableWorkspace = {
+                                navController.navigate(NexusRoutes.PORTABLE_WORKSPACE)
+                            },
+                        )
+                    }
+                    composable(route = NexusRoutes.PORTABLE_WORKSPACE) {
+                        PortableWorkspaceScreen(onBack = { navController.popBackStack() })
                     }
                     composable(route = NexusRoutes.SETTINGS_OPENAPP) {
                         SettingsScreen(
                             onBack = { navController.popBackStack() },
                             focusOpenApp = true,
+                            onOpenPortableWorkspace = {
+                                navController.navigate(NexusRoutes.PORTABLE_WORKSPACE)
+                            },
                         )
                     }
                     composable(route = NexusRoutes.SETTINGS_LUOGU) {
                         SettingsScreen(
                             onBack = { navController.popBackStack() },
                             focusLuogu = true,
+                            onOpenPortableWorkspace = {
+                                navController.navigate(NexusRoutes.PORTABLE_WORKSPACE)
+                            },
                         )
                     }
                     composable(route = NexusRoutes.SUBMISSIONS) {
