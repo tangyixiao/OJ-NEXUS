@@ -37,7 +37,11 @@ public sealed record ValidatedPackage(
 public sealed class PortableCodec
 {
     private const int MaxLen = 16_384; // schema maxLength counts characters, not bytes
-    private static readonly Regex PathUnsafeRegex = CompilePattern("""(^[A-Za-z]:\\)|^/|\.\./|^\.\.$""");
+    // Android compiles PATH_UNSAFE with the RAW pattern (no `$` translation): .NET's
+    // default `$` matches before a final line terminator exactly like Python's and
+    // Java's, so translating it to `\z` here would ACCEPT "бн\n" strings the
+    // references reject. Only schema patterns get the translation.
+    private static readonly Regex PathUnsafeRegex = new("""(^[A-Za-z]:\\)|^/|\.\./|^\.\.$""", RegexOptions.None, TimeSpan.FromSeconds(1));
     private static readonly Dictionary<string, Rule.TObj> EntitySchemas;
     private static readonly Rule.TObj RootSchema;
     private static readonly Rule.TObj GeneratorSchema;

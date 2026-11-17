@@ -262,6 +262,31 @@ public sealed class PortableCodecTests
             PortableRejectCategory.InvalidInput);
     }
 
+    [Fact]
+    public void PathUnsafe_MatchesPythonDollarSemantics()
+    {
+        // Regression (independent review): translating the terminal `$` to `\z`
+        // for PATH_UNSAFE accepted "…\n" strings (a `^\.\.$` path with a
+        // trailing newline) that Python and Java both reject. .NET's default
+        // `$` already matches before a final line terminator, so the raw
+        // pattern must be used here.
+        RejectsAs(
+            Encoding.UTF8.GetBytes(PlainPackage("""{"a":"..\n"}""")),
+            PortableRejectCategory.PathUnsafe);
+    }
+
+    [Fact]
+    public void NegativeZero_CanonicalizesToZero()
+    {
+        // Regression (independent review): Android's normalizeNumber maps "-0"
+        // to "0" — Python's int semantics do the same at dumps time — so the
+        // canonical form must never carry "-0".
+        var doc = PortableJson.Parse(Encoding.UTF8.GetBytes("""{"extra":{"a":-0}}"""));
+        var text = Encoding.UTF8.GetString(PortableJson.CanonicalBytes(doc));
+
+        Assert.Equal("""{"extra":{"a":0}}""" + "\n", text);
+    }
+
     private static void RejectsAs(byte[] bytes, PortableRejectCategory expected)
     {
         var exception = Assert.Throws<PortableContractException>(() => new PortableCodec().Validate(bytes));

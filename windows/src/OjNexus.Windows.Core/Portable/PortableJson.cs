@@ -238,7 +238,10 @@ public static class PortableJson
             case JsonTokenType.False:
                 return new PortableValue.Bool(false);
             case JsonTokenType.Number:
-                return new PortableValue.Num(Encoding.UTF8.GetString(reader.ValueSpan));
+                var literal = Encoding.UTF8.GetString(reader.ValueSpan);
+                // Android's normalizeNumber: "-0" canonicalizes to "0" (Python int
+                // semantics do the same at dumps time).
+                return new PortableValue.Num(literal == "-0" ? "0" : literal);
             case JsonTokenType.String:
                 return new PortableValue.Str(ReadValidString(ref reader));
         }

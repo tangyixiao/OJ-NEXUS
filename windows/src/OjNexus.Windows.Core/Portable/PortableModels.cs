@@ -13,7 +13,6 @@ public static class PortableSpec
     public const int MaxStringBytes = 16 * 1024;
     public const int MaxRecords = 50_000;
     public const int FormatVersion = 1;
-    public const string SchemaResource = "/portable/v1/schema.json";
 
     public static readonly IReadOnlyList<string> Collections = new[]
     {
