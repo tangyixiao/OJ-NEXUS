@@ -1,6 +1,7 @@
 # Phase 132 Portable Workspace Import/Export (Android) — Handoff
 
-Status: delivered on the integration branch; final delivery to `main` via PR (see Links).
+Status: **delivered to `main`** via PR #54 (merge commit `81f5fca`); CI green on the delivery PR
+(runs `44122867005` + `44122867084`).
 Date: 2026-11-18 (Asia/Shanghai).
 Baseline main: `5a81347` (phase 131 contract delivery).
 Integration branch: `codex/phase-132-portable-import-export`.
