@@ -1048,7 +1048,7 @@
     <string name="portable_action_export">导出</string>
     <string name="portable_action_dismiss">关闭</string>
     <string name="portable_section_archive">档案状态</string>
-    <string name="portable_state_saved">已存在保存的档案。导出将基于它重建规范包。</string>
+    <string name="portable_state_saved">导出将基于保存的档案重建规范包。</string>
     <string name="portable_state_empty">没有进行中的传输</string>
     <string name="portable_state_reading">正在读取文档</string>
     <string name="portable_state_rebuilding">正在重建规范包</string>
