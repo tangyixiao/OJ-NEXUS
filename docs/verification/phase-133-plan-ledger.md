@@ -12,9 +12,9 @@ Baseline: main `15cd876` (phase 132 merged; SDD PR #56 merge commit).
 | # | Task | Branch | PR | Merge commit | Status |
 | --- | --- | --- | --- | --- | --- |
 | 1 | SDD: spec + implementation plan (explorer-synthesized) | `codex/phase-133-windows-portable-import-export` | #56 | `15cd876` | MERGED |
-| 2 | Task 1: strict C# portable codec + golden corpus tests | `codex/phase-133-task-1-codec` | — | — | PENDING |
-| 3 | Task 2: schema v8 portable archive tables + store | `codex/phase-133-task-2-store` | — | — | PENDING |
-| 4 | Task 3: `PortableRepository` orchestration | `codex/phase-133-task-3-repo` | — | — | PENDING |
+| 2 | Task 1: strict C# portable codec + golden corpus tests | `codex/phase-133-task-1-codec` | #58 | `05766da` | MERGED |
+| 3 | Task 2: schema v8 portable archive tables + store | `codex/phase-133-task-2-store` | #57 | `085ec07` | MERGED |
+| 4 | Task 3: `PortableRepository` orchestration | `codex/phase-133-task-3-repo` | #59 | `2818209` | MERGED |
 | 5 | Task 4: CLI `portable` verbs + README | `codex/phase-133-task-4-cli` | — | — | PENDING |
 | 6 | Task 5: WPF PORTABLE view + UIA smoke extension | `codex/phase-133-task-5-wpf` | — | — | PENDING |
 | 7 | Task 6: independent review of the final diff; disposition PR if needed | `codex/phase-133-task-6-review` | — | — | PENDING |
