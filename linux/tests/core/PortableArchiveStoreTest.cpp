@@ -205,7 +205,8 @@ void PortableArchiveStoreTest::cascadeDeleteRemovesRecordsWithPackage() {
         auto database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), QStringLiteral("cascade-fixture"));
         database.setDatabaseName(databasePath);
         QVERIFY(database.open());
-        QVERIFY(database.exec(QStringLiteral("PRAGMA foreign_keys = ON")));
+        QSqlQuery pragmaQuery(database);
+        QVERIFY2(pragmaQuery.exec(QStringLiteral("PRAGMA foreign_keys = ON")), qPrintable(pragmaQuery.lastError().text()));
         QSqlQuery query(database);
         QVERIFY2(query.exec(QStringLiteral("DELETE FROM portable_archive_packages")), qPrintable(query.lastError().text()));
         database.close();
