@@ -17,8 +17,8 @@ Baseline: main `15cd876` (phase 132 merged; SDD PR #56 merge commit).
 | 4 | Task 3: `PortableRepository` orchestration | `codex/phase-133-task-3-repo` | #59 | `2818209` | MERGED |
 | 5 | Task 4: CLI `portable` verbs + README + session bridge | `codex/phase-133-task-4-cli` | #60 | `4873aaa` | MERGED |
 | 6 | Task 5: WPF PORTABLE view + UIA smoke extension | `codex/phase-133-task-5-wpf` | #61 | `0f45b55` | MERGED |
-| 7 | Task 6: independent review of the final diff; disposition PR if needed | `codex/phase-133-task-6-review` | — | — | PENDING |
-| 8 | Task 6: G-W gate `dotnet test` + `dotnet build` + smoke + ui-smoke → green; verification record + handoff flipped with measured results | integration branch | — | — | PENDING |
+| 7 | Task 6: independent review of the final diff; disposition PR if needed | `codex/phase-133-task-6-review` | #63 | `42eff99` | MERGED (controller-authored record; round-2 fixes in `fa33c89`) |
+| 8 | Task 6: G-W gate dotnet test + dotnet build + smoke + ui-smoke -> green; verification record + handoff flipped with measured results | integration branch | - | `fa33c89` | DONE (393/0, clean TWE build, smoke CLI exit 0 + desktop alive, UIA 5/5 with PORTABLE; docs ride delivery PR #62) |
 | 9 | Task 6: roadmap line 266 ticked; final delivery PR integration→main | integration branch | — | — | PENDING |
 
 Notes:

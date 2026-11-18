@@ -66,3 +66,20 @@ UIA 5/5 (controller-owned measurements).
 stands (controller-authored after agent stalls — the single independent
 discovery is F1); no domain projection of imported records; no whole-DB
 backup change; no installer/signing claims.
+
+## Round 2 — post-record parity audit (`fa33c89`)
+
+A second audit pass of the codec against `check.py` and the Android reference
+found two further parity defects; both are **FIXED** in `fa33c89` with
+non-vacuous regressions, and the G-W gate was re-measured on the fixed head.
+
+| ID | Severity | Location | Description | Disposition |
+| --- | --- | --- | --- | --- |
+| F5 | P2 | `PortableCodec.cs` `PathUnsafeRegex` | The terminal `$` of PATH_UNSAFE was translated to `\z` like a schema pattern. .NET's default `$` already matches before a final line terminator exactly like Python's and Java's, so the translation ACCEPTED a `^..$` path with a trailing `"\n"` that both references reject. Only schema patterns get the translation. | **FIXED** in `fa33c89`: raw pattern compiled without translation (timeout-bounded); regression `PathUnsafe_MatchesPythonDollarSemantics` (`{"a":"..\n"}` → `PathUnsafe`). |
+| F6 | P2 | `PortableJson.cs` number decode | `-0` was carried verbatim into canonical output; Android's `normalizeNumber` canonicalizes `-0` to `0` (Python `int` semantics do the same at dumps time), so export identities over `-0` extras diverged. | **FIXED** in `fa33c89`: `-0` canonicalizes to `0` at decode; regression `NegativeZero_CanonicalizesToZero` asserts canonical bytes `{"extra":{"a":0}}`. |
+
+Round-2 head `fa33c89` re-measured (controller G-W gate): `dotnet test -c
+Release` → **393 tests / 0 failures** (Core 275, Cli 75, Desktop 43 — the two
+round-2 regressions included), clean TWE build, `smoke.ps1` CLI exit 0 +
+desktop alive, `ui-smoke.ps1` **5/5** with PORTABLE rendered. Round 2 is
+controller-authored (same independence caveat as the main record above).
