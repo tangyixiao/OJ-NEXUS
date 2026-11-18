@@ -23,6 +23,18 @@ target_link_libraries(ojnexus-portable-codec-tests PRIVATE
 )
 add_test(NAME ojnexus-portable-codec-tests COMMAND ojnexus-portable-codec-tests)
 
+add_executable(ojnexus-portable-repo-tests
+    core/PortableRepositoryTest.cpp
+)
+target_compile_definitions(ojnexus-portable-repo-tests PRIVATE
+    OJNEXUS_PORTABLE_GOLDEN_DIR="${CMAKE_CURRENT_BINARY_DIR}/portable/golden"
+)
+target_link_libraries(ojnexus-portable-repo-tests PRIVATE
+    OjNexusCore
+    Qt6::Test
+)
+add_test(NAME ojnexus-portable-repo-tests COMMAND ojnexus-portable-repo-tests)
+
 add_executable(ojnexus-store-tests
     core/SqliteStoreTest.cpp
 )
