@@ -433,7 +433,7 @@ void MainViewModel::portableImportSelected(const QString& path) {
         return;
     }
     const auto bytes = file.readAll();
-    Portable::PortableArchiveStore archiveStore(store_);
+    PortableArchiveStore archiveStore(store_);
     Portable::PortableRepository repository(archiveStore);
     try {
         pendingImportBytes_ = bytes;
@@ -453,7 +453,7 @@ void MainViewModel::portableImportConfirm() {
         return;
     }
     setBusy(true);
-    Portable::PortableArchiveStore archiveStore(store_);
+    PortableArchiveStore archiveStore(store_);
     Portable::PortableRepository repository(archiveStore);
     try {
         const auto result = repository.apply(pendingImportBytes_);
@@ -490,7 +490,7 @@ void MainViewModel::portablePickExport() {
 
 void MainViewModel::portableExportSelected(const QString& path) {
     setBusy(true);
-    Portable::PortableArchiveStore archiveStore(store_);
+    PortableArchiveStore archiveStore(store_);
     Portable::PortableRepository repository(archiveStore);
     QByteArray bytes;
     try {
@@ -508,8 +508,9 @@ void MainViewModel::portableExportSelected(const QString& path) {
         return;
     }
     setBusy(false);
+    const Portable::PortableCodec codec;
     setPortableStatusLine(QStringLiteral("EXPORTED %1 (%2 BYTES) -> %3")
-        .arg(repository.identity(bytes).left(12)).arg(bytes.size()).arg(path));
+        .arg(codec.identity(bytes).left(12)).arg(bytes.size()).arg(path));
 }
 
 } // namespace OjNexus::Gui
