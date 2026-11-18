@@ -78,7 +78,7 @@ void SqliteStoreTest::repeatedFailureClearsSchemaVersion() {
     const auto path = dir.filePath(QStringLiteral("state.db"));
     OjNexus::SqliteStore store(path);
     QVERIFY(store.initialize().has_value());
-    QCOMPARE(store.schemaVersion(), 2);
+    QCOMPARE(store.schemaVersion(), 3);
     const auto name = QStringLiteral("repeat-init-corruption");
     {
         auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
@@ -271,7 +271,7 @@ void SqliteStoreTest::acceptsOwnerColumnsWithoutDefaultsAndSupportsOperationLife
 
     OjNexus::SqliteStore store(path);
     QVERIFY(store.initialize().has_value());
-    QCOMPARE(store.schemaVersion(), 2);
+    QCOMPARE(store.schemaVersion(), 3);
     const auto account = OjNexus::JudgeAccount::create(OjNexus::JudgeId::Codeforces, QStringLiteral("owner-default-optional")).value();
     QVERIFY(store.upsertAccount(account).has_value());
     const auto operation = store.openOperation(account, QStringLiteral("owner-default-optional-test"));
@@ -367,7 +367,7 @@ void SqliteStoreTest::opensValidWalStoreWithLiveConnection() {
         OjNexus::SqliteStore concurrent(path);
         const auto initialized = concurrent.initialize();
         QVERIFY2(initialized.has_value(), "valid WAL store failed read-only preflight or writable reopen");
-        QCOMPARE(concurrent.schemaVersion(), 2);
+        QCOMPARE(concurrent.schemaVersion(), 3);
         QCOMPARE(concurrent.accounts().size(), 1);
         db.close();
         db = {};
@@ -380,7 +380,7 @@ void SqliteStoreTest::createsSchemaAndStoresAccount() {
     QVERIFY(dir.isValid());
     OjNexus::SqliteStore store(dir.filePath("state.db"));
     QVERIFY(store.initialize().has_value());
-    QCOMPARE(store.schemaVersion(), 2);
+    QCOMPARE(store.schemaVersion(), 3);
 
     const auto account = OjNexus::JudgeAccount::create(OjNexus::JudgeId::Codeforces, "  demo  ");
     QVERIFY(account.has_value());
@@ -539,7 +539,7 @@ void SqliteStoreTest::migratesLegacyCacheWithoutDroppingOrGuessingOwners() {
 
     OjNexus::SqliteStore migrated(databasePath);
     QVERIFY(migrated.initialize().has_value());
-    QCOMPARE(migrated.schemaVersion(), 2);
+    QCOMPARE(migrated.schemaVersion(), 3);
     const auto profile = migrated.latestProfile(OjNexus::JudgeId::Codeforces, QStringLiteral("tourist"));
     QVERIFY(profile.has_value());
     QCOMPARE(profile->payload.value(QStringLiteral("rating")).toInt(), 3800);
