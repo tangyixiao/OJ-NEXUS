@@ -7,6 +7,34 @@ target_link_libraries(ojnexus-core-tests PRIVATE
 )
 add_test(NAME ojnexus-core-tests COMMAND ojnexus-core-tests)
 
+# The frozen golden corpus is consumed from contracts/ (single source of
+# truth); it is copied next to the build tree for the codec tests.
+file(COPY ${CMAKE_SOURCE_DIR}/../contracts/portable/v1/golden DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/portable)
+
+add_executable(ojnexus-portable-codec-tests
+    core/PortableCodecTest.cpp
+)
+target_compile_definitions(ojnexus-portable-codec-tests PRIVATE
+    OJNEXUS_PORTABLE_GOLDEN_DIR="${CMAKE_CURRENT_BINARY_DIR}/portable/golden"
+)
+target_link_libraries(ojnexus-portable-codec-tests PRIVATE
+    OjNexusCore
+    Qt6::Test
+)
+add_test(NAME ojnexus-portable-codec-tests COMMAND ojnexus-portable-codec-tests)
+
+add_executable(ojnexus-portable-repo-tests
+    core/PortableRepositoryTest.cpp
+)
+target_compile_definitions(ojnexus-portable-repo-tests PRIVATE
+    OJNEXUS_PORTABLE_GOLDEN_DIR="${CMAKE_CURRENT_BINARY_DIR}/portable/golden"
+)
+target_link_libraries(ojnexus-portable-repo-tests PRIVATE
+    OjNexusCore
+    Qt6::Test
+)
+add_test(NAME ojnexus-portable-repo-tests COMMAND ojnexus-portable-repo-tests)
+
 add_executable(ojnexus-store-tests
     core/SqliteStoreTest.cpp
 )
@@ -15,6 +43,15 @@ target_link_libraries(ojnexus-store-tests PRIVATE
     Qt6::Test
 )
 add_test(NAME ojnexus-store-tests COMMAND ojnexus-store-tests)
+
+add_executable(ojnexus-portable-store-tests
+    core/PortableArchiveStoreTest.cpp
+)
+target_link_libraries(ojnexus-portable-store-tests PRIVATE
+    OjNexusCore
+    Qt6::Test
+)
+add_test(NAME ojnexus-portable-store-tests COMMAND ojnexus-portable-store-tests)
 
 add_executable(ojnexus-adapter-tests
     core/AdapterTest.cpp
@@ -57,6 +94,9 @@ endif()
 add_executable(ojnexus-cli-tests
     cli/CommandParserTest.cpp
 )
+target_compile_definitions(ojnexus-cli-tests PRIVATE
+    OJNEXUS_PORTABLE_GOLDEN_DIR="${CMAKE_CURRENT_BINARY_DIR}/portable/golden"
+)
 target_link_libraries(ojnexus-cli-tests PRIVATE
     OjNexusCore
     OjNexusCli
@@ -72,6 +112,9 @@ add_executable(ojnexus-gui-tests
 )
 target_include_directories(ojnexus-gui-tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/gui
+)
+target_compile_definitions(ojnexus-gui-tests PRIVATE
+    OJNEXUS_PORTABLE_GOLDEN_DIR="${CMAKE_CURRENT_BINARY_DIR}/portable/golden"
 )
 target_link_libraries(ojnexus-gui-tests PRIVATE
     OjNexusCore

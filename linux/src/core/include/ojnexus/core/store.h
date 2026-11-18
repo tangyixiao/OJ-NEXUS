@@ -32,7 +32,6 @@ public:
 
     Result<void> initialize();
     int schemaVersion() const { return schemaVersion_; }
-
     Result<void> upsertAccount(const JudgeAccount& account);
     Result<void> configureAccount(const JudgeAccount& account);
     Result<void> setAccountEnabled(JudgeId::Value judge, bool enabled);
@@ -65,6 +64,7 @@ public:
     int contestCount(JudgeId::Value judge) const;
 
 private:
+    friend class PortableArchiveStore;
     Result<void> exec(const QString& sql) const;
     QString cacheHandle(JudgeId::Value judge, const QString& handle) const;
     Result<void> recoverRunningOperations() const;

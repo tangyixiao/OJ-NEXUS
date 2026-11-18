@@ -30,7 +30,7 @@ jobs:
             qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools \
             qt6-tools-dev qt6-tools-dev-tools \
             qml6-module-qtqml qml6-module-qtqml-workerscript qml6-module-qttest \
-            qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+            qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-dialogs qml6-module-qtquick-layouts \
             qml6-module-qtquick-templates qml6-module-qtquick-window
       - name: Configure
         run: cmake -S linux -B build/linux -G Ninja -DOJNEXUS_BUILD_GUI=ON -DOJNEXUS_BUILD_TESTS=ON
@@ -46,6 +46,10 @@ jobs:
           jq -e '.accounts == []' "$RUNNER_TEMP/linux-status.json"
           ./build/linux/src/cli/ojnexus history --json | jq -e '.operations == []'
           ./build/linux/src/cli/ojnexus config show --json | jq -e .
+          ./build/linux/src/cli/ojnexus portable inspect --file contracts/portable/v1/golden/pw-p01.json --json | jq -e '.status == "preview"'
+          ./build/linux/src/cli/ojnexus portable import --file contracts/portable/v1/golden/pw-p01.json --json | jq -e '.status == "preview"'
+          ./build/linux/src/cli/ojnexus portable import --yes --file contracts/portable/v1/golden/pw-p01.json --json | jq -e '.status == "applied"'
+          ./build/linux/src/cli/ojnexus portable export --file "$RUNNER_TEMP/linux-portable-export.json" --json | jq -e '.status == "exported"'
       - name: Build DEB
         run: cpack --config build/linux/CPackConfig.cmake -G DEB
       - name: Upload test report

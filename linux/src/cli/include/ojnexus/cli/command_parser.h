@@ -8,15 +8,18 @@
 
 namespace OjNexus::Cli {
 
-enum class CommandKind { Status, Sync, History, ConfigShow, AuthLogin, AuthStatus, AuthLogout, AuthRemove };
+enum class CommandKind { Status, Sync, History, ConfigShow, AuthLogin, AuthStatus, AuthLogout, AuthRemove,
+                          PortableInspect, PortableImport, PortableExport };
 
 struct Command {
     CommandKind kind = CommandKind::Status;
     JudgeId::Value judge = JudgeId::Unknown;
     QString handle;
+    QString file;
     int limit = 20;
     bool force = false;
     bool json = false;
+    bool yes = false;
 };
 
 class CommandParser final {

@@ -9,6 +9,7 @@
 #include "ojnexus/core/paths.h"
 #include "ojnexus/core/store.h"
 #include "ojnexus/core/http_transport.h"
+#include "ojnexus/core/portable_repository.h"
 
 namespace OjNexus::Gui {
 
@@ -39,6 +40,11 @@ class MainViewModel final : public QObject {
     Q_PROPERTY(QVariantList capabilityRows READ capabilityRows NOTIFY capabilityRowsChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(HistoryModel* history READ history CONSTANT)
+    Q_PROPERTY(QString portableIdentity READ portableIdentity NOTIFY portableStateChanged)
+    Q_PROPERTY(QString portablePreviewLines READ portablePreviewLines NOTIFY portableStateChanged)
+    Q_PROPERTY(QString portableCapabilityLine READ portableCapabilityLine NOTIFY portableStateChanged)
+    Q_PROPERTY(bool portableConfirmable READ portableConfirmable NOTIFY portableStateChanged)
+    Q_PROPERTY(QString portableStatusLine READ portableStatusLine NOTIFY portableStatusLineChanged)
 
 public:
     explicit MainViewModel(std::shared_ptr<IHttpTransport> transport = {}, QObject* parent = nullptr);
@@ -54,6 +60,11 @@ public:
     QVariantList capabilityRows() const { return capabilityRows_; }
     bool busy() const { return busy_; }
     HistoryModel* history() { return &history_; }
+    QString portableIdentity() const;
+    QString portablePreviewLines() const;
+    QString portableCapabilityLine() const;
+    bool portableConfirmable() const { return pendingPreview_.has_value(); }
+    QString portableStatusLine() const { return portableStatusLine_; }
 
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void configureAccount(const QString& judge, const QString& handle);
@@ -64,6 +75,17 @@ public:
     Q_INVOKABLE void retryHistory(qint64 operationId);
     Q_INVOKABLE void cancel();
 
+    // Portable workspace (phase 134): import pick -> preview -> CONFIRM/CANCEL
+    // -> apply; export pick -> write. The pick dialogs are QML-side and every
+    // cancel/back-out is write-free, so tests can invoke the *Selected slots
+    // directly without any dialog.
+    Q_INVOKABLE void portablePickImport();
+    Q_INVOKABLE void portableImportSelected(const QString& path);
+    Q_INVOKABLE void portableImportConfirm();
+    Q_INVOKABLE void portableImportCancel();
+    Q_INVOKABLE void portablePickExport();
+    Q_INVOKABLE void portableExportSelected(const QString& path);
+
 signals:
     void currentPageChanged();
     void statusLineChanged();
@@ -73,10 +95,16 @@ signals:
     void configuredAccountsChanged();
     void capabilityRowsChanged();
     void busyChanged();
+    void portableStateChanged();
+    void portableStatusLineChanged();
+    void requestImportFile();
+    void requestExportFile();
 
 private:
     void setBusy(bool value);
     void setStatusLine(const QString& value);
+    void setPortableStatusLine(const QString& value);
+    void clearPendingImport();
     void startSyncAccounts(const QList<JudgeAccount>& accounts, const QString& label);
     AppPaths paths_;
     SqliteStore store_;
@@ -86,9 +114,12 @@ private:
     QString accountSummary_ = QStringLiteral("0 CONNECTORS");
     QString profileSummary_ = QStringLiteral("NONE / NO PROFILE SNAPSHOT");
     QString historyFilter_ = QStringLiteral("all");
+    QString portableStatusLine_ = QStringLiteral("NO ARCHIVE / IMPORT A PACKAGE TO PREVIEW");
     QVariantList configuredAccounts_;
     QVariantList capabilityRows_;
     bool busy_ = false;
+    QByteArray pendingImportBytes_;
+    std::optional<Portable::PortablePreview> pendingPreview_;
     QThread* syncThread_ = nullptr;
     std::shared_ptr<std::stop_source> stopSource_;
     std::shared_ptr<IHttpTransport> transport_;

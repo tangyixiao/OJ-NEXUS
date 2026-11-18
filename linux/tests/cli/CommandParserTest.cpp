@@ -2,9 +2,11 @@
 #include <utility>
 
 #include <QtTest/QtTest>
+#include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QFile>
 #include <QTemporaryDir>
+#include <QTextStream>
 
 #include "ojnexus/cli/command_parser.h"
 #include "ojnexus/cli/runner.h"
@@ -40,6 +42,14 @@ private slots:
     void rejectsLogoutForUnconfiguredHandleWithoutChangingAccount();
     void authStatusReportsConfiguredAccountState();
     void loginClearsStaleProfileWhenHandleChanges();
+    void parsesPortableVerbs();
+    void rejectsPortableFlagsOutsideScope();
+    void portableRequiresFile();
+    void portableInspectEmitsPreviewJson();
+    void portableImportWithoutYesWritesNothing();
+    void portableImportConfirmAppliesAndExportRoundTrips();
+    void portableRejectExitsZero();
+    void portableImportTwiceIsIdenticalNoOp();
 };
 
 void CommandParserTest::rejectedStoreReturnsStorageExitCode() {
@@ -394,7 +404,7 @@ void CommandParserTest::statusHumanOutputIncludesAccountDetails() {
     QCOMPARE(code, OjNexus::Cli::Ok);
     QVERIFY2(errorText.isEmpty(), qPrintable(errorText));
     QVERIFY(outputText.contains(QStringLiteral("DATABASE: READY")));
-    QVERIFY(outputText.contains(QStringLiteral("SCHEMA VERSION: 2")));
+    QVERIFY(outputText.contains(QStringLiteral("SCHEMA VERSION: 3")));
     QVERIFY(outputText.contains(QStringLiteral("ACCOUNTS: 1")));
     QVERIFY(outputText.contains(QStringLiteral("CODEFORCES / tourist / DISABLED")));
     QVERIFY(outputText.contains(QStringLiteral("LAST SYNC NEVER")));
@@ -617,6 +627,200 @@ void CommandParserTest::loginClearsStaleProfileWhenHandleChanges() {
     QCOMPARE(OjNexus::Cli::execute(command, input, output, error), OjNexus::Cli::Ok);
     QVERIFY(!store.latestProfile(OjNexus::JudgeId::Codeforces).has_value());
     QCOMPARE(store.accounts().first().handle, QStringLiteral("new-user"));
+}
+
+namespace {
+
+QByteArray portableGolden(const QString& name) {
+    QFile file(QStringLiteral(OJNEXUS_PORTABLE_GOLDEN_DIR) + QLatin1Char('/') + name);
+    if (!file.open(QIODevice::ReadOnly)) return {};
+    return file.readAll();
+}
+
+QString copyGoldenToTemp(const QTemporaryDir& dir, const QString& name) {
+    const auto bytes = portableGolden(name);
+    const auto path = dir.filePath(name);
+    QFile out(path);
+    if (!out.open(QIODevice::WriteOnly)) return {};
+    out.write(bytes);
+    return path;
+}
+
+OjNexus::Cli::Command portableCommand(OjNexus::Cli::CommandKind kind, const QString& file, bool yes = false, bool json = false) {
+    OjNexus::Cli::Command command;
+    command.kind = kind;
+    command.file = file;
+    command.yes = yes;
+    command.json = json;
+    return command;
+}
+
+int run(OjNexus::Cli::Command command, QString& outputText, QString& errorText) {
+    QString inputText;
+    QTextStream input(&inputText, QIODevice::ReadOnly);
+    QTextStream output(&outputText, QIODevice::WriteOnly);
+    QTextStream error(&errorText, QIODevice::WriteOnly);
+    return OjNexus::Cli::execute(command, input, output, error);
+}
+
+} // namespace
+
+void CommandParserTest::parsesPortableVerbs() {
+    const auto inspect = OjNexus::Cli::CommandParser::parse(
+        QStringList{QStringLiteral("ojnexus"), QStringLiteral("portable"), QStringLiteral("inspect"),
+                    QStringLiteral("--file"), QStringLiteral("pkg.json"), QStringLiteral("--json")});
+    QVERIFY(inspect.has_value());
+    QCOMPARE(inspect.value().kind, OjNexus::Cli::CommandKind::PortableInspect);
+    QCOMPARE(inspect.value().file, QStringLiteral("pkg.json"));
+    QVERIFY(inspect.value().json);
+    QVERIFY(!inspect.value().yes);
+
+    const auto import = OjNexus::Cli::CommandParser::parse(
+        QStringList{QStringLiteral("ojnexus"), QStringLiteral("portable"), QStringLiteral("import"),
+                    QStringLiteral("--file"), QStringLiteral("pkg.json"), QStringLiteral("--yes")});
+    QVERIFY(import.has_value());
+    QCOMPARE(import.value().kind, OjNexus::Cli::CommandKind::PortableImport);
+    QVERIFY(import.value().yes);
+
+    const auto exportCommand = OjNexus::Cli::CommandParser::parse(
+        QStringList{QStringLiteral("ojnexus"), QStringLiteral("portable"), QStringLiteral("export"),
+                    QStringLiteral("--file"), QStringLiteral("out.json")});
+    QVERIFY(exportCommand.has_value());
+    QCOMPARE(exportCommand.value().kind, OjNexus::Cli::CommandKind::PortableExport);
+}
+
+void CommandParserTest::rejectsPortableFlagsOutsideScope() {
+    QVERIFY(!OjNexus::Cli::CommandParser::parse(
+        QStringList{QStringLiteral("ojnexus"), QStringLiteral("portable"), QStringLiteral("inspect"),
+                    QStringLiteral("--file"), QStringLiteral("p"), QStringLiteral("--yes")}).has_value());
+    QVERIFY(!OjNexus::Cli::CommandParser::parse(
+        QStringList{QStringLiteral("ojnexus"), QStringLiteral("status"), QStringLiteral("--file"), QStringLiteral("p")}).has_value());
+    QVERIFY(!OjNexus::Cli::CommandParser::parse(
+        QStringList{QStringLiteral("ojnexus"), QStringLiteral("status"), QStringLiteral("--yes")}).has_value());
+    QVERIFY(!OjNexus::Cli::CommandParser::parse(
+        QStringList{QStringLiteral("ojnexus"), QStringLiteral("portable"), QStringLiteral("inspect"),
+                    QStringLiteral("--judge"), QStringLiteral("codeforces"), QStringLiteral("--file"), QStringLiteral("p")}).has_value());
+    QVERIFY(!OjNexus::Cli::CommandParser::parse(
+        QStringList{QStringLiteral("ojnexus"), QStringLiteral("portable"), QStringLiteral("rebase")}).has_value());
+}
+
+void CommandParserTest::portableRequiresFile() {
+    QVERIFY(!OjNexus::Cli::CommandParser::parse(
+        QStringList{QStringLiteral("ojnexus"), QStringLiteral("portable"), QStringLiteral("inspect")}).has_value());
+    QVERIFY(!OjNexus::Cli::CommandParser::parse(
+        QStringList{QStringLiteral("ojnexus"), QStringLiteral("portable"), QStringLiteral("import"), QStringLiteral("--file"), QString()}).has_value());
+}
+
+void CommandParserTest::portableInspectEmitsPreviewJson() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", dir.path().toUtf8());
+    QVERIFY(OjNexus::AppPaths::fromEnvironment().ensureDirectories().has_value());
+    const auto packagePath = copyGoldenToTemp(dir, QStringLiteral("pw-p01.json"));
+    QVERIFY(!packagePath.isEmpty());
+
+    QString out, err;
+    const auto code = run(portableCommand(OjNexus::Cli::CommandKind::PortableInspect, packagePath, false, true), out, err);
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+    QCOMPARE(code, OjNexus::Cli::Ok);
+    QVERIFY(err.isEmpty());
+    QVERIFY(out.contains(QStringLiteral("\"status\":\"preview\"")));
+    QVERIFY(out.contains(QStringLiteral("81bb13c1746381f2")));
+}
+
+void CommandParserTest::portableImportWithoutYesWritesNothing() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", dir.path().toUtf8());
+    QVERIFY(OjNexus::AppPaths::fromEnvironment().ensureDirectories().has_value());
+    const auto packagePath = copyGoldenToTemp(dir, QStringLiteral("pw-p01.json"));
+    QVERIFY(!packagePath.isEmpty());
+    const auto exportPath = dir.filePath(QStringLiteral("roundtrip.json"));
+
+    QString out, err;
+    const auto code = run(portableCommand(OjNexus::Cli::CommandKind::PortableImport, packagePath), out, err);
+    QCOMPARE(code, OjNexus::Cli::Ok);
+    QVERIFY(out.contains(QStringLiteral("CONFIRMATION REQUIRED: RERUN WITH --yes")));
+
+    // The confirm gate must have written nothing: the archive is still empty.
+    QString exportOut, exportErr;
+    const auto exportCode = run(portableCommand(OjNexus::Cli::CommandKind::PortableExport, exportPath), exportOut, exportErr);
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+    QCOMPARE(exportCode, OjNexus::Cli::GeneralError);
+    QVERIFY(exportOut.contains(QStringLiteral("ARCHIVE EMPTY")));
+}
+
+void CommandParserTest::portableImportConfirmAppliesAndExportRoundTrips() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", dir.path().toUtf8());
+    QVERIFY(OjNexus::AppPaths::fromEnvironment().ensureDirectories().has_value());
+    const auto packagePath = copyGoldenToTemp(dir, QStringLiteral("pw-p01.json"));
+    QVERIFY(!packagePath.isEmpty());
+    const auto exportPath = dir.filePath(QStringLiteral("roundtrip.json"));
+
+    QString inspectOut, err;
+    QCOMPARE(run(portableCommand(OjNexus::Cli::CommandKind::PortableInspect, packagePath, false, true), inspectOut, err),
+             OjNexus::Cli::Ok);
+    const auto document = QJsonDocument::fromJson(inspectOut.toUtf8());
+    QVERIFY(document.object().value(QStringLiteral("status")).toString() == QStringLiteral("preview"));
+    const auto identity = document.object().value(QStringLiteral("identity")).toString();
+    QVERIFY(!identity.isEmpty());
+
+    QString applyOut, applyErr;
+    QCOMPARE(run(portableCommand(OjNexus::Cli::CommandKind::PortableImport, packagePath, true, true), applyOut, applyErr),
+             OjNexus::Cli::Ok);
+    QVERIFY(applyOut.contains(QStringLiteral("\"status\":\"applied\"")));
+
+    QString exportOut, exportErr;
+    QCOMPARE(run(portableCommand(OjNexus::Cli::CommandKind::PortableExport, exportPath, false, true), exportOut, exportErr),
+             OjNexus::Cli::Ok);
+    QVERIFY(exportOut.contains(QStringLiteral("\"status\":\"exported\"")));
+    QVERIFY(exportOut.contains(identity.left(12)));
+
+    // The exported file's bytes hash to the same identity: lossless round trip.
+    QFile exported(exportPath);
+    QVERIFY(exported.open(QIODevice::ReadOnly));
+    const auto exportedBytes = exported.readAll();
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+    const auto exportedIdentity = QString::fromLatin1(
+        QCryptographicHash::hash(exportedBytes, QCryptographicHash::Sha256).toHex());
+    QCOMPARE(exportedIdentity, identity);
+}
+
+void CommandParserTest::portableRejectExitsZero() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", dir.path().toUtf8());
+    QVERIFY(OjNexus::AppPaths::fromEnvironment().ensureDirectories().has_value());
+    const auto invalidPath = copyGoldenToTemp(dir, QStringLiteral("pw-n01.json"));
+    QVERIFY(!invalidPath.isEmpty());
+
+    QString out, err;
+    const auto code = run(portableCommand(OjNexus::Cli::CommandKind::PortableImport, invalidPath, true, true), out, err);
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+    QCOMPARE(code, OjNexus::Cli::Ok);
+    QVERIFY(out.contains(QStringLiteral("\"status\":\"rejected\"")));
+    QVERIFY(out.contains(QStringLiteral("UNKNOWN_FIELD")));
+}
+
+void CommandParserTest::portableImportTwiceIsIdenticalNoOp() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", dir.path().toUtf8());
+    QVERIFY(OjNexus::AppPaths::fromEnvironment().ensureDirectories().has_value());
+    const auto packagePath = copyGoldenToTemp(dir, QStringLiteral("pw-p01.json"));
+    QVERIFY(!packagePath.isEmpty());
+
+    QString firstOut, firstErr;
+    QCOMPARE(run(portableCommand(OjNexus::Cli::CommandKind::PortableImport, packagePath, true, true), firstOut, firstErr),
+             OjNexus::Cli::Ok);
+
+    QString secondOut, secondErr;
+    const auto secondCode = run(portableCommand(OjNexus::Cli::CommandKind::PortableImport, packagePath, true, true), secondOut, secondErr);
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+    QCOMPARE(secondCode, OjNexus::Cli::Ok);
+    QVERIFY(secondOut.contains(QStringLiteral("\"identical\":true")));
 }
 
 QTEST_MAIN(CommandParserTest)

@@ -1,6 +1,7 @@
 #include <QtTest>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QCryptographicHash>
 #include <QTemporaryDir>
 #include <QFile>
 #include "ojnexus/core/paths.h"
@@ -10,6 +11,24 @@
 
 using namespace OjNexus;
 using namespace OjNexus::Gui;
+
+namespace {
+
+QString guiGoldenPath(const QString& name) {
+    return QStringLiteral(OJNEXUS_PORTABLE_GOLDEN_DIR) + QLatin1Char('/') + name;
+}
+
+QString copyGoldenForGui(const QTemporaryDir& dir, const QString& name) {
+    QFile source(guiGoldenPath(name));
+    if (!source.open(QIODevice::ReadOnly)) return {};
+    const auto path = dir.filePath(name);
+    QFile out(path);
+    if (!out.open(QIODevice::WriteOnly)) return {};
+    out.write(source.readAll());
+    return path;
+}
+
+} // namespace
 
 class OfflineTransport final : public IHttpTransport {
 public:
@@ -42,6 +61,10 @@ private slots:
     void matchesCodeforcesIdentityAcrossViewModelProjections();
     void clearsStaleProfileWhenHandleChanges();
     void exposesAdapterDeclaredCapabilityRows();
+    void portableImportPreviewThenCancelWritesNothing();
+    void portableImportConfirmAppliesAndExportsLosslessly();
+    void portableImportRejectShowsCategory();
+    void portableExportEmptyArchiveReportsHonestly();
 };
 
 void MainViewModelTest::rejectedStoreShowsUnavailableState() {
@@ -438,6 +461,87 @@ void MainViewModelTest::exposesAdapterDeclaredCapabilityRows() {
     QVERIFY(atcoder.value(QStringLiteral("summary")).toString().contains(QStringLiteral("PROBLEM_CATALOG")));
     const auto luogu = viewModel.capabilityRows().at(2).toMap();
     QVERIFY(!luogu.value(QStringLiteral("summary")).toString().contains(QStringLiteral("RATING_HISTORY")));
+}
+
+void MainViewModelTest::portableImportPreviewThenCancelWritesNothing() {
+    QTemporaryDir data;
+    QVERIFY(data.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", data.path().toUtf8());
+    QVERIFY(AppPaths::fromEnvironment().ensureDirectories().has_value());
+    const auto packagePath = copyGoldenForGui(data, QStringLiteral("pw-p01.json"));
+    QVERIFY(!packagePath.isEmpty());
+
+    MainViewModel viewModel;
+    viewModel.portableImportSelected(packagePath);
+    QVERIFY(viewModel.portableConfirmable());
+    QVERIFY(viewModel.portableIdentity().startsWith(QStringLiteral("81bb13c1")));
+    QVERIFY(viewModel.portablePreviewLines().contains(QStringLiteral("IDENTITY")));
+    QVERIFY(viewModel.portableCapabilityLine().contains(QStringLiteral("EDITABLE")));
+
+    // Cancel is write-free: the export attempt still reports an empty archive.
+    viewModel.portableImportCancel();
+    QVERIFY(!viewModel.portableConfirmable());
+    const auto exportPath = data.filePath(QStringLiteral("should-not-exist.json"));
+    viewModel.portableExportSelected(exportPath);
+    QVERIFY(viewModel.portableStatusLine().contains(QStringLiteral("ARCHIVE EMPTY")));
+    QVERIFY(!QFile::exists(exportPath));
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+}
+
+void MainViewModelTest::portableImportConfirmAppliesAndExportsLosslessly() {
+    QTemporaryDir data;
+    QVERIFY(data.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", data.path().toUtf8());
+    QVERIFY(AppPaths::fromEnvironment().ensureDirectories().has_value());
+    const auto packagePath = copyGoldenForGui(data, QStringLiteral("pw-p01.json"));
+    QVERIFY(!packagePath.isEmpty());
+    const auto exportPath = data.filePath(QStringLiteral("exported.json"));
+
+    MainViewModel viewModel;
+    viewModel.portableImportSelected(packagePath);
+    const auto previewIdentity = viewModel.portableIdentity();
+    viewModel.portableImportConfirm();
+    QVERIFY(viewModel.portableStatusLine().contains(QStringLiteral("APPLIED")));
+    QVERIFY(!viewModel.portableConfirmable());
+
+    viewModel.portableExportSelected(exportPath);
+    QVERIFY(viewModel.portableStatusLine().contains(QStringLiteral("EXPORTED")));
+    QFile exported(exportPath);
+    QVERIFY(exported.open(QIODevice::ReadOnly));
+    const auto exportedBytes = exported.readAll();
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+    const auto exportedIdentity = QString::fromLatin1(
+        QCryptographicHash::hash(exportedBytes, QCryptographicHash::Sha256).toHex());
+    QCOMPARE(exportedIdentity, previewIdentity);
+}
+
+void MainViewModelTest::portableImportRejectShowsCategory() {
+    QTemporaryDir data;
+    QVERIFY(data.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", data.path().toUtf8());
+    QVERIFY(AppPaths::fromEnvironment().ensureDirectories().has_value());
+    const auto invalidPath = copyGoldenForGui(data, QStringLiteral("pw-n01.json"));
+    QVERIFY(!invalidPath.isEmpty());
+
+    MainViewModel viewModel;
+    viewModel.portableImportSelected(invalidPath);
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+    QVERIFY(!viewModel.portableConfirmable());
+    QVERIFY(viewModel.portableStatusLine().contains(QStringLiteral("REJECTED UNKNOWN_FIELD")));
+}
+
+void MainViewModelTest::portableExportEmptyArchiveReportsHonestly() {
+    QTemporaryDir data;
+    QVERIFY(data.isValid());
+    qputenv("OJ_NEXUS_DATA_DIRECTORY", data.path().toUtf8());
+    QVERIFY(AppPaths::fromEnvironment().ensureDirectories().has_value());
+    const auto exportPath = data.filePath(QStringLiteral("empty.json"));
+
+    MainViewModel viewModel;
+    viewModel.portableExportSelected(exportPath);
+    qunsetenv("OJ_NEXUS_DATA_DIRECTORY");
+    QVERIFY(viewModel.portableStatusLine().contains(QStringLiteral("ARCHIVE EMPTY")));
+    QVERIFY(!QFile::exists(exportPath));
 }
 
 QTEST_MAIN(MainViewModelTest)
