@@ -12,7 +12,7 @@ Baseline: main `0b17d7c` (phase 133 fully delivered; PRs #62/#66).
 | 1 | SDD: design + implementation plan (recon-synthesized) | `codex/phase-134-linux-portable-import-export` | #67 | `18ed9ab` | MERGED |
 | 2 | Task 1: strict C++ portable codec + golden corpus/identity tests | `codex/phase-134-task-1-codec` | #69 | `693dd4f` | MERGED |
 | 3 | Task 2: schema v2→v3 portable archive tables + transactional store | `codex/phase-134-task-2-store` | #68 | `783fb82` | MERGED |
-| 4 | Task 3: `PortableRepository` orchestration + round trip | `codex/phase-134-task-3-repo` | — | — | PENDING |
+| 4 | Task 3: `PortableRepository` orchestration + round trip | `codex/phase-134-task-3-repo` | #70 | `c65e436` | MERGED |
 | 5 | Task 4: CLI `portable` verbs + exit mapping + smoke script | `codex/phase-134-task-4-cli` | — | — | PENDING |
 | 6 | Task 5: QML PORTABLE page + VM + FileDialog seam + tests | `codex/phase-134-task-5-gui` | — | — | PENDING |
 | 7 | Task 6: independent review of the final diff; disposition PR if needed | `codex/phase-134-task-6-review` | — | — | PENDING |
