@@ -7,6 +7,22 @@ target_link_libraries(ojnexus-core-tests PRIVATE
 )
 add_test(NAME ojnexus-core-tests COMMAND ojnexus-core-tests)
 
+# The frozen golden corpus is consumed from contracts/ (single source of
+# truth); it is copied next to the build tree for the codec tests.
+file(COPY ${CMAKE_SOURCE_DIR}/../contracts/portable/v1/golden DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/portable)
+
+add_executable(ojnexus-portable-codec-tests
+    core/PortableCodecTest.cpp
+)
+target_compile_definitions(ojnexus-portable-codec-tests PRIVATE
+    OJNEXUS_PORTABLE_GOLDEN_DIR="${CMAKE_CURRENT_BINARY_DIR}/portable/golden"
+)
+target_link_libraries(ojnexus-portable-codec-tests PRIVATE
+    OjNexusCore
+    Qt6::Test
+)
+add_test(NAME ojnexus-portable-codec-tests COMMAND ojnexus-portable-codec-tests)
+
 add_executable(ojnexus-store-tests
     core/SqliteStoreTest.cpp
 )
