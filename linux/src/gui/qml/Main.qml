@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import QtQuick.Window
 
@@ -35,10 +36,11 @@ ApplicationWindow {
         TabBar {
             id: tabs
             Layout.fillWidth: true
-            onCurrentIndexChanged: viewModel.currentPage = ["DASHBOARD", "CONNECTORS", "SYNC HISTORY"][currentIndex]
+            onCurrentIndexChanged: viewModel.currentPage = ["DASHBOARD", "CONNECTORS", "SYNC HISTORY", "PORTABLE"][currentIndex]
             TabButton { text: "DASHBOARD" }
             TabButton { text: "CONNECTORS" }
             TabButton { text: "SYNC HISTORY" }
+            TabButton { text: "PORTABLE" }
         }
 
         StackLayout {
@@ -169,6 +171,45 @@ ApplicationWindow {
                         }
                         Text { anchors.centerIn: parent; visible: parent.count === 0; text: "EMPTY / NO SYNC OPERATIONS"; color: "#7E8CA3" }
                     }
+                }
+            }
+
+            Pane {
+                background: Rectangle { color: "#111927"; border.color: "#27364A"; radius: 8 }
+                ColumnLayout {
+                    anchors.fill: parent; anchors.margins: 28; spacing: 14
+                    Text { text: "PORTABLE WORKSPACE"; color: "#7E8CA3"; font.pixelSize: 12 }
+                    Text { text: "Import validates and previews first; nothing is written until you confirm. Stored-only records keep saved archive state."; color: "#A9B5C7"; wrapMode: Text.WordWrap; Layout.maximumWidth: 620 }
+                    Text { text: viewModel.portablePreviewLines; color: "#E6EDF7"; font.pixelSize: 12 }
+                    Text { text: viewModel.portableCapabilityLine; color: "#2F81F7"; font.pixelSize: 16; font.bold: true }
+                    RowLayout {
+                        spacing: 12
+                        Button { text: "IMPORT PACKAGE"; enabled: !viewModel.busy; onClicked: viewModel.portablePickImport() }
+                        Button { text: "CONFIRM IMPORT"; visible: viewModel.portableConfirmable; enabled: !viewModel.busy; onClicked: viewModel.portableImportConfirm() }
+                        Button { text: "CANCEL IMPORT"; visible: viewModel.portableConfirmable; onClicked: viewModel.portableImportCancel() }
+                        Button { text: "EXPORT ARCHIVE"; enabled: !viewModel.busy; onClicked: viewModel.portablePickExport() }
+                    }
+                    Text { text: viewModel.portableStatusLine; color: "#F2CC60"; font.pixelSize: 12 }
+                    Item { Layout.fillHeight: true }
+                }
+                FileDialog {
+                    id: portableImportDialog
+                    title: "IMPORT PORTABLE PACKAGE"
+                    fileMode: FileDialog.OpenFile
+                    nameFilters: ["Portable packages (*.json)"]
+                    onAccepted: viewModel.portableImportSelected(selectedFile.toString())
+                }
+                FileDialog {
+                    id: portableExportDialog
+                    title: "EXPORT PORTABLE ARCHIVE"
+                    fileMode: FileDialog.SaveFile
+                    nameFilters: ["Portable packages (*.json)"]
+                    onAccepted: viewModel.portableExportSelected(selectedFile.toString())
+                }
+                Connections {
+                    target: viewModel
+                    function onRequestImportFile() { portableImportDialog.open() }
+                    function onRequestExportFile() { portableExportDialog.open() }
                 }
             }
         }
