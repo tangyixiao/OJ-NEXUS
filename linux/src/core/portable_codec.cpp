@@ -154,12 +154,12 @@ struct Rule {
     QList<qint64> intEnum;
 };
 
-RulePtr makeObj(const QStringList& required, QList<QPair<QString, RulePtr>> props)
+RulePtr makeObj(const QStringList& required, QList<QPair<QString, RulePtr>> props, bool closed = true)
 {
     auto rule = std::make_shared<Rule>();
     rule->kind = Rule::Kind::Obj;
     rule->required = required;
-    rule->closed = true;
+    rule->closed = closed;
     for (int i = 0; i < props.size(); ++i) {
         rule->propIndex.insert(props.at(i).first, i);
     }
@@ -230,8 +230,9 @@ SchemaTables buildSchemaTables()
     const auto dayKey = makeStr(true, PortableSpec::dayKeyPattern(), false, 0, true, kMaxLen);
     const auto origin = makeStr(false, {}, false, 0, false, 0, true, PortableSpec::origins());
     // `extra` is declared as {"type":"object"} only: value shapes and depth
-    // are enforced by the checker beyond the schema subset, not here.
-    const auto extra = makeObj({}, {});
+    // are enforced by the checker beyond the schema subset, not here; the
+    // object itself is OPEN (Closed: false in the C# reference).
+    const auto extra = makeObj({}, {}, false);
     const auto plainStr = makeStr(false, {}, false, 0, true, kMaxLen);
     const auto epoch = makeInt(true, 0);
 
@@ -249,7 +250,7 @@ SchemaTables buildSchemaTables()
         props[0].second = makeStr(true, PortableSpec::stableIdPattern(), false, 0, true, kMaxLen);
         props[1].second = props[0].second;
         props[2].second = makeStr(false, {}, false, 0, false, 0, true, PortableSpec::origins());
-        props[3].second = makeObj({}, {});
+        props[3].second = makeObj({}, {}, false);
     };
 
     auto problemsProps = withBase({
