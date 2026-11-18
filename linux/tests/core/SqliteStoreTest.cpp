@@ -85,7 +85,7 @@ void SqliteStoreTest::repeatedFailureClearsSchemaVersion() {
         db.setDatabaseName(path);
         QVERIFY(db.open());
         QSqlQuery query(db);
-        QVERIFY(query.exec(QStringLiteral("UPDATE schema_metadata SET version=3")));
+        QVERIFY(query.exec(QStringLiteral("UPDATE schema_metadata SET version=9")));
         db.close();
         db = {};
     }
