@@ -44,6 +44,10 @@ ojnexus auth login --judge codeforces --handle tourist --json
 ojnexus auth status --judge luogu --json
 ojnexus auth logout --judge luogu --handle 1000 --json
 ojnexus auth remove --judge luogu --handle 1000 --json
+ojnexus portable inspect --file package.json --json
+ojnexus portable import --file package.json --json
+ojnexus portable import --yes --file package.json --json
+ojnexus portable export --file exported.json --json
 ```
 
 `status --json` includes each account's last sync status, start/finish timestamps, typed error
@@ -63,6 +67,16 @@ fallback path.
 
 `sync --handle` performs a one-shot public-handle sync and does not change the configured
 account list. Omit it to sync enabled accounts already stored in the local ledger.
+
+`portable` consumes and produces phase-131 portable packages: `inspect` validates and prints
+the preview (counts, sources, capability split) without writing; `import` prints the same
+preview and exits `0` until `--yes` is passed, then applies the whole package in one
+transaction (problems/reviews land editable, everything else keeps saved archive state);
+`export` rebuilds canonical bytes from the archive and verifies the rebuilt identity. A
+contract reject (`INVALID_INPUT`, `UNSUPPORTED_VERSION`, `UNKNOWN_FIELD`, `DUPLICATE_ID`,
+`MISSING_REFERENCE`, `SIZE_LIMIT`, `PATH_UNSAFE`, `COUNTS_MISMATCH`) is a valid outcome and
+exits `0`; a package file or export target that cannot be read or written exits `6`; an
+empty archive on `export` exits `7`. Cancelled applies exit `5` and never leave partial rows.
 For automation, `sync --json` returns an aggregate `status` and keeps one report per account;
 the process exit code follows the contract shared with the Windows client: `0` for all-success,
 `1` for mixed or otherwise uncategorized failure, `2` for a usage error, `3` for all

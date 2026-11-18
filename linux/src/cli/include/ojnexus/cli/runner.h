@@ -29,4 +29,9 @@ QString syncAggregateStatus(const QList<SyncReport>& reports);
 int execute(const Command& command, QTextStream& input, QTextStream& output, QTextStream& error,
             std::stop_token cancellation = {});
 
+/// Handlers for the `portable` verb family (inspect/import/export), defined in
+/// portable_runner.cpp. A rejected package is a valid outcome (exit 0); only
+/// transport/storage failures and internal errors carry non-zero exits.
+int runPortable(const Command& command, SqliteStore& store, QTextStream& output, QTextStream& error);
+
 } // namespace OjNexus::Cli

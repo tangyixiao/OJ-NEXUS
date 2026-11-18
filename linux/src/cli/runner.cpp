@@ -194,6 +194,11 @@ int execute(const Command& command, QTextStream& input, QTextStream& output, QTe
     if (!paths.ensureDirectories().has_value()) { error << "storage unavailable" << Qt::endl; return StorageError; }
     SqliteStore store(paths.databaseFile);
     if (!store.initialize().has_value()) { error << "storage unavailable" << Qt::endl; return StorageError; }
+    if (command.kind == CommandKind::PortableInspect ||
+        command.kind == CommandKind::PortableImport ||
+        command.kind == CommandKind::PortableExport) {
+        return runPortable(command, store, output, error);
+    }
     if (command.kind == CommandKind::ConfigShow) {
         QJsonArray adapters;
         for (const auto judge : {JudgeId::Codeforces, JudgeId::AtCoder, JudgeId::Luogu}) {

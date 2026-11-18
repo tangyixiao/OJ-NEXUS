@@ -23,7 +23,14 @@ Result<Command> CommandParser::parse(const QStringList& argv) {
         command.kind = CommandKind::ConfigShow;
         index = 3;
     } else if (root == QStringLiteral("sync")) command.kind = CommandKind::Sync;
-    else if (root == QStringLiteral("auth") && argv.size() > 2) {
+    else if (root == QStringLiteral("portable") && argv.size() > 2) {
+        const auto action = argv.at(2).toLower();
+        if (action == QStringLiteral("inspect")) command.kind = CommandKind::PortableInspect;
+        else if (action == QStringLiteral("import")) command.kind = CommandKind::PortableImport;
+        else if (action == QStringLiteral("export")) command.kind = CommandKind::PortableExport;
+        else return invalid();
+        index = 3;
+    } else if (root == QStringLiteral("auth") && argv.size() > 2) {
         const auto action = argv.at(2).toLower();
         if (action == QStringLiteral("login")) command.kind = CommandKind::AuthLogin;
         else if (action == QStringLiteral("status")) command.kind = CommandKind::AuthStatus;
@@ -37,10 +44,17 @@ Result<Command> CommandParser::parse(const QStringList& argv) {
     bool sawHandle = false;
     bool sawLimit = false;
     bool sawForce = false;
+    bool sawFile = false;
+    bool sawYes = false;
     for (; index < argv.size(); ++index) {
         const auto argument = argv.at(index);
         if (argument == QStringLiteral("--json")) command.json = true;
         else if (argument == QStringLiteral("--force")) { command.force = true; sawForce = true; }
+        else if (argument == QStringLiteral("--file") && index + 1 < argv.size()) {
+            command.file = argv.at(++index).trimmed();
+            if (command.file.isEmpty()) return invalid();
+            sawFile = true;
+        } else if (argument == QStringLiteral("--yes")) { command.yes = true; sawYes = true; }
         else if (argument == QStringLiteral("--judge") && index + 1 < argv.size()) {
             command.judge = parseJudge(argv.at(++index));
             if (command.judge == JudgeId::Unknown) return invalid();
@@ -60,13 +74,18 @@ Result<Command> CommandParser::parse(const QStringList& argv) {
     const auto authCommand = command.kind == CommandKind::AuthLogin ||
         command.kind == CommandKind::AuthLogout ||
         command.kind == CommandKind::AuthStatus || command.kind == CommandKind::AuthRemove;
+    const auto portableCommand = command.kind == CommandKind::PortableInspect ||
+        command.kind == CommandKind::PortableImport || command.kind == CommandKind::PortableExport;
     const auto judgeAllowed = command.kind == CommandKind::Sync || command.kind == CommandKind::History || authCommand;
     const auto handleAllowed = command.kind == CommandKind::Sync || authCommand;
     if ((sawJudge && !judgeAllowed) || (sawHandle && !handleAllowed) ||
         (sawLimit && command.kind != CommandKind::History) ||
-        (sawForce && command.kind != CommandKind::Sync)) {
+        (sawForce && command.kind != CommandKind::Sync) ||
+        (sawFile && !portableCommand) ||
+        (sawYes && command.kind != CommandKind::PortableImport)) {
         return invalid();
     }
+    if (portableCommand && command.file.isEmpty()) return invalid();
     if ((command.kind == CommandKind::Sync ||
          command.kind == CommandKind::AuthLogin ||
          command.kind == CommandKind::AuthLogout || command.kind == CommandKind::AuthStatus ||

@@ -1,4 +1,4 @@
-add_library(OjNexusCli STATIC command_parser.cpp runner.cpp)
+add_library(OjNexusCli STATIC command_parser.cpp runner.cpp portable_runner.cpp)
 target_include_directories(OjNexusCli PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )

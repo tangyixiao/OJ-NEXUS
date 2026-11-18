@@ -94,6 +94,9 @@ endif()
 add_executable(ojnexus-cli-tests
     cli/CommandParserTest.cpp
 )
+target_compile_definitions(ojnexus-cli-tests PRIVATE
+    OJNEXUS_PORTABLE_GOLDEN_DIR="${CMAKE_CURRENT_BINARY_DIR}/portable/golden"
+)
 target_link_libraries(ojnexus-cli-tests PRIVATE
     OjNexusCore
     OjNexusCli
