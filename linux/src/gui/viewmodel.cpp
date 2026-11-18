@@ -497,8 +497,9 @@ void MainViewModel::portableExportSelected(const QString& path) {
         bytes = repository.exportArchive();
     } catch (const Portable::PortableExportException& exception) {
         setBusy(false);
-        setPortableStatusLine(QStringLiteral("EXPORT UNAVAILABLE / %1")
-            .arg(QString::fromUtf8(exception.what()).toUpper()));
+        // Only two sources exist (empty archive / identity mismatch); the CLI
+        // prints "ARCHIVE EMPTY" for both - keep the same phrase visible here.
+        setPortableStatusLine(QStringLiteral("EXPORT UNAVAILABLE / ARCHIVE EMPTY"));
         return;
     }
     QFile file(path);
