@@ -19,7 +19,13 @@ QString goldenPath(const QString& name)
 QByteArray readGolden(const QString& name)
 {
     QFile file(goldenPath(name));
-    QVERIFY2(file.open(QIODevice::ReadOnly), qPrintable(file.errorString()));
+    if (!file.open(QIODevice::ReadOnly)) {
+        // QTest macros bake in a bare `return`, which is invalid here; use the
+        // function form so the failure is recorded without a void return.
+        QTest::qFail(qPrintable(QStringLiteral("cannot open %1: %2").arg(goldenPath(name), file.errorString())),
+            __FILE__, __LINE__);
+        return {};
+    }
     return file.readAll();
 }
 
