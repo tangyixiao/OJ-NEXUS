@@ -9,7 +9,7 @@ Baseline: main `0b17d7c` (phase 133 fully delivered; PRs #62/#66).
 
 | # | Task | Branch | PR | Merge commit | Status |
 | --- | --- | --- | --- | --- | --- |
-| 1 | SDD: design + implementation plan (recon-synthesized) | `codex/phase-134-linux-portable-import-export` | TBD | TBD | PENDING |
+| 1 | SDD: design + implementation plan (recon-synthesized) | `codex/phase-134-linux-portable-import-export` | #67 | `18ed9ab` | MERGED |
 | 2 | Task 1: strict C++ portable codec + golden corpus/identity tests | `codex/phase-134-task-1-codec` | — | — | PENDING |
 | 3 | Task 2: schema v2→v3 portable archive tables + transactional store | `codex/phase-134-task-2-store` | — | — | PENDING |
 | 4 | Task 3: `PortableRepository` orchestration + round trip | `codex/phase-134-task-3-repo` | — | — | PENDING |
