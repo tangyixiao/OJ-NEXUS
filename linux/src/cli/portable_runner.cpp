@@ -104,7 +104,7 @@ bool readPackageBytes(const QString& path, QByteArray& bytes, bool json, QTextSt
 } // namespace
 
 int runPortable(const Command& command, SqliteStore& store, QTextStream& output, QTextStream& error) {
-    Portable::PortableArchiveStore archiveStore(store);
+    PortableArchiveStore archiveStore(store);
     Portable::PortableRepository repository(archiveStore);
 
     if (command.kind == CommandKind::PortableExport) {
