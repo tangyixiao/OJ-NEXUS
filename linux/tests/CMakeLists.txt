@@ -110,6 +110,9 @@ add_executable(ojnexus-gui-tests
 target_include_directories(ojnexus-gui-tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/gui
 )
+target_compile_definitions(ojnexus-gui-tests PRIVATE
+    OJNEXUS_PORTABLE_GOLDEN_DIR="${CMAKE_CURRENT_BINARY_DIR}/portable/golden"
+)
 target_link_libraries(ojnexus-gui-tests PRIVATE
     OjNexusCore
     Qt6::Test

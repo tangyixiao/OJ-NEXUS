@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include <QFile>
 #include <QMetaObject>
 #include <QStringList>
 
@@ -374,6 +375,141 @@ void MainViewModel::startSyncAccounts(const QList<JudgeAccount>& accounts, const
 void MainViewModel::cancel() {
     if (stopSource_) stopSource_->request_stop();
     if (busy_) setStatusLine(QStringLiteral("CANCEL REQUESTED / CORE WILL CLOSE THE OPERATION"));
+}
+
+QString MainViewModel::portableIdentity() const {
+    return pendingPreview_.has_value() ? pendingPreview_->identity : QString();
+}
+
+QString MainViewModel::portablePreviewLines() const {
+    if (!pendingPreview_.has_value()) return QStringLiteral("NO PENDING PACKAGE PREVIEW");
+    const auto& preview = *pendingPreview_;
+    QStringList sources;
+    for (const auto& source : preview.sources) {
+        sources << QStringLiteral("%1 (%2)").arg(source.sourceScopeId).arg(source.recordCount);
+    }
+    QStringList counts;
+    for (const auto& collection : Portable::PortableSpec::collections()) {
+        counts << QStringLiteral("%1 %2").arg(collection).arg(preview.counts.value(collection));
+    }
+    QStringList lines{
+        QStringLiteral("IDENTITY %1").arg(preview.identity),
+        QStringLiteral("SCOPE %1 PLATFORM %2").arg(preview.scopeId, preview.sourcePlatform),
+        QStringLiteral("GENERATOR %1").arg(preview.generator),
+        QStringLiteral("COUNTS %1").arg(counts.join(QStringLiteral(" / "))),
+        QStringLiteral("SOURCES %1").arg(sources.isEmpty() ? QStringLiteral("NONE") : sources.join(QStringLiteral(", "))),
+    };
+    return lines.join(QLatin1Char('\n'));
+}
+
+QString MainViewModel::portableCapabilityLine() const {
+    if (!pendingPreview_.has_value()) return QStringLiteral("EDITABLE 0 / STORED-ONLY 0 / REJECTED 0");
+    return QStringLiteral("EDITABLE %1 / STORED-ONLY %2 / REJECTED %3")
+        .arg(pendingPreview_->editableCount).arg(pendingPreview_->storedOnlyCount)
+        .arg(pendingPreview_->rejectedCount);
+}
+
+void MainViewModel::setPortableStatusLine(const QString& value) {
+    if (portableStatusLine_ == value) return;
+    portableStatusLine_ = value;
+    emit portableStatusLineChanged();
+}
+
+void MainViewModel::clearPendingImport() {
+    pendingImportBytes_.clear();
+    pendingPreview_.reset();
+    emit portableStateChanged();
+}
+
+void MainViewModel::portablePickImport() {
+    emit requestImportFile();
+}
+
+void MainViewModel::portableImportSelected(const QString& path) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        setPortableStatusLine(QStringLiteral("IMPORT UNAVAILABLE / PACKAGE READ FAILURE"));
+        clearPendingImport();
+        return;
+    }
+    const auto bytes = file.readAll();
+    Portable::PortableArchiveStore archiveStore(store_);
+    Portable::PortableRepository repository(archiveStore);
+    try {
+        pendingImportBytes_ = bytes;
+        pendingPreview_ = repository.preview(bytes);
+        emit portableStateChanged();
+        setPortableStatusLine(QStringLiteral("PREVIEW READY / CONFIRM TO APPLY THE WHOLE PACKAGE"));
+    } catch (const Portable::PortableContractException& exception) {
+        clearPendingImport();
+        setPortableStatusLine(QStringLiteral("REJECTED %1: %2")
+            .arg(exception.reject().wire(), exception.reject().detail));
+    }
+}
+
+void MainViewModel::portableImportConfirm() {
+    if (!pendingPreview_.has_value()) {
+        setPortableStatusLine(QStringLiteral("CONFIRM IGNORED / NO PENDING IMPORT"));
+        return;
+    }
+    setBusy(true);
+    Portable::PortableArchiveStore archiveStore(store_);
+    Portable::PortableRepository repository(archiveStore);
+    try {
+        const auto result = repository.apply(pendingImportBytes_);
+        clearPendingImport();
+        setPortableStatusLine(result.identical
+            ? QStringLiteral("ARCHIVE ALREADY MATCHES PACKAGE / NO CHANGES APPLIED")
+            : QStringLiteral("APPLIED %1 UPSERTED / %2 DELETED").arg(result.rowsUpserted).arg(result.rowsDeleted));
+    } catch (const Portable::PortableApplyCancelled&) {
+        clearPendingImport();
+        setPortableStatusLine(QStringLiteral("IMPORT CANCELLED / NOTHING WRITTEN"));
+    } catch (const Portable::PortableStorageFailure&) {
+        clearPendingImport();
+        setPortableStatusLine(QStringLiteral("ERROR / APPLY STORAGE FAILURE"));
+    } catch (const Portable::PortableContractException& exception) {
+        clearPendingImport();
+        setPortableStatusLine(QStringLiteral("REJECTED %1: %2")
+            .arg(exception.reject().wire(), exception.reject().detail));
+    }
+    setBusy(false);
+}
+
+void MainViewModel::portableImportCancel() {
+    if (!pendingPreview_.has_value()) {
+        setPortableStatusLine(QStringLiteral("CANCEL IGNORED / NO PENDING IMPORT"));
+        return;
+    }
+    clearPendingImport();
+    setPortableStatusLine(QStringLiteral("IMPORT CANCELLED / NOTHING WRITTEN"));
+}
+
+void MainViewModel::portablePickExport() {
+    emit requestExportFile();
+}
+
+void MainViewModel::portableExportSelected(const QString& path) {
+    setBusy(true);
+    Portable::PortableArchiveStore archiveStore(store_);
+    Portable::PortableRepository repository(archiveStore);
+    QByteArray bytes;
+    try {
+        bytes = repository.exportArchive();
+    } catch (const Portable::PortableExportException& exception) {
+        setBusy(false);
+        setPortableStatusLine(QStringLiteral("EXPORT UNAVAILABLE / %1")
+            .arg(QString::fromUtf8(exception.what()).toUpper()));
+        return;
+    }
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate) || file.write(bytes) != bytes.size()) {
+        setBusy(false);
+        setPortableStatusLine(QStringLiteral("EXPORT WRITE UNAVAILABLE / STORAGE_IO_FAILURE"));
+        return;
+    }
+    setBusy(false);
+    setPortableStatusLine(QStringLiteral("EXPORTED %1 (%2 BYTES) -> %3")
+        .arg(repository.identity(bytes).left(12)).arg(bytes.size()).arg(path));
 }
 
 } // namespace OjNexus::Gui
