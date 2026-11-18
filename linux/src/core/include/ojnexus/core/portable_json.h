@@ -10,6 +10,8 @@
 
 namespace OjNexus::Portable {
 
+struct ObjectEntry;
+
 /// A decoded portable JSON value. Order of object entries is document order.
 class PortableValue {
 public:

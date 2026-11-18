@@ -13,11 +13,6 @@ PortableContractException invalidInput(const QString& detail)
         PortableRejectCategory::InvalidInput, detail, QStringLiteral("$")}};
 }
 
-struct Payload {
-    QList<PortableValue> items;
-    QList<ObjectEntry> entries;
-};
-
 bool isWhitespace(char c)
 {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
@@ -431,6 +426,11 @@ void writeCanonical(QByteArray& out, const PortableValue& value)
 }
 
 } // namespace
+
+struct PortableValue::Payload {
+    QList<PortableValue> items;
+    QList<ObjectEntry> entries;
+};
 
 PortableValue PortableValue::boolean(bool value)
 {
