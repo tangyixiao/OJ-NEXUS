@@ -16,6 +16,15 @@ target_link_libraries(ojnexus-store-tests PRIVATE
 )
 add_test(NAME ojnexus-store-tests COMMAND ojnexus-store-tests)
 
+add_executable(ojnexus-portable-store-tests
+    core/PortableArchiveStoreTest.cpp
+)
+target_link_libraries(ojnexus-portable-store-tests PRIVATE
+    OjNexusCore
+    Qt6::Test
+)
+add_test(NAME ojnexus-portable-store-tests COMMAND ojnexus-portable-store-tests)
+
 add_executable(ojnexus-adapter-tests
     core/AdapterTest.cpp
 )
