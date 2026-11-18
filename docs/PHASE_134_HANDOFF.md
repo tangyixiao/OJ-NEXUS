@@ -1,7 +1,7 @@
 # Phase 134 Linux Portable Workspace Import/Export — Handoff
 
-Status: implementation delivered on the integration branch; delivery to `main`
-via PR (see Links).
+Status: delivered to `main` (delivery PR #73, merge `f292ae0`; delivery CI all
+five checks success on head `f522b25`).
 Date: 2026-11-19 (Asia/Shanghai).
 Baseline main: `0b17d7c` (phase 133 merged).
 Integration branch: `codex/phase-134-linux-portable-import-export`.
@@ -105,7 +105,9 @@ build/linux -G Ninja -DOJNEXUS_BUILD_GUI=ON -DOJNEXUS_BUILD_TESTS=ON`,
 - Independent review: [docs/verification/phase-134-task6-review.md](verification/phase-134-task6-review.md)
 - Contract: [contracts/portable/v1/README.md](../contracts/portable/v1/README.md)
 - Merged PRs: #68 (store), #69 (codec), #70 (repository), #71 (CLI),
-  #72 (QML view); delivery PR to `main` recorded at merge.
+  #72 (QML view); delivery PR #73 to `main` (merge `f292ae0`; delivery CI all
+  five checks success on head `f522b25` — Linux `44350847032`, Windows
+  `44350847038`/`44350747579`, Android `44350847025`/`44350747566`).
 - Phase 133 handoff: [docs/PHASE_133_HANDOFF.md](PHASE_133_HANDOFF.md)
 
 Handoff status: this document is the current authority for the Phase 134

@@ -69,7 +69,7 @@ The host has no Linux toolchain (recon-verified); build/test gates run in CI
 | --- | --- | --- | --- |
 | 1 | `python check.py --cases golden/cases.json golden/` (contracts/portable/v1) | 15/15 PASS | PASS — **15 cases, 15 passed, 0 failed** on integration tip `a84efd3` (controller-measured 2026-11-19) |
 | 2 | CI `linux.yml` per task PR | build + full ctest green | PASS — PRs #68 (run `44339200234`), #69 (run `44341560297` rerun), #70 (run `44343358910`), #72 (run `44347269769`) all success on their heads |
-| 3 | CI `linux.yml` on the delivery PR head | build + ctest + smoke (incl. 4 portable jq checks) + cpack green | PENDING — flips at merge; run id recorded then |
+| 3 | CI `linux.yml` on the delivery PR head | build + ctest + smoke (incl. 4 portable jq checks) + cpack green | PASS — delivery PR #73 head `f522b25`: Linux run `44350847032` success, Windows runs `44350847038`/`44350747579` success, Android runs `44350847025`/`44350747566` success; merged as `f292ae0`. History: the Windows job failed once on a pre-existing `WindowsStorageTests` temp-file-lock flake (windows/ untouched by this PR) and passed on rerun |
 | 4 | Independent review of the final diff | findings fixed or recorded | PASS — [phase-134-task6-review.md](phase-134-task6-review.md): PASS-WITH-OBSERVATIONS; findings F1–F9 were found and fixed during CI-gated development (each a landed fix commit); F10–F11 accepted observations. Authorship caveat recorded (controller-authored after the review agent produced zero auditable output). |
 | 5 | Mixed golden round trip (import→apply→export→identity) | identity equals preview identity `81bb13c1…d44` | PASS via CI-run evidence: `PortableRepositoryTest.Reimport_ThenExport_RoundTripsTheGoldenPackage` green in the PR #70 run; CLI round trip green in PR #71 tests |
 
@@ -80,8 +80,12 @@ Per-task CI evidence: PR #68 run `44339200234` success (schema v3 + store +
 rollback/cascade tests), PR #69 run `44341560297` success (golden corpus 15/15
 + pinned identity in `PortableCodecTest`), PR #70 run `44343358910` success
 (repository semantics incl. golden round trip), PR #72 run `44347269769`
-success (QML VM tests + 4-page QML contract). PR #71 run pending at record
-time; flips at merge. Delivery CI gate: PENDING, flips at merge with run id.
+success (QML VM tests + 4-page QML contract), PR #71 run success on the
+rebased head. Delivery gate: PR #73 head `f522b25` all five checks success —
+Linux `44350847032`, Windows `44350847038`/`44350747579`, Android
+`44350847025`/`44350747566`; merged as `f292ae0`. Windows job flaked once on
+a pre-existing `WindowsStorageTests` temp-file lock (windows/ untouched by
+this PR) and passed on rerun.
 <!-- END CONTROLLER-GATE-RESULTS -->
 
 ## Claims vs non-claims
@@ -99,8 +103,15 @@ cpack DEB step; no Apple consumer (phase 135); no screenshot harness for Qt.
 ## Controller sign-off
 
 <!-- CONTROLLER-SIGN-OFF: recorded by the controller on 2026-11-19 -->
-PENDING DELIVERY GATES. Definition-of-Done evidence so far: implementation
-complete through merged PRs #68–#72; contract oracle 15/15 measured locally;
-per-task CI green on merged heads; independent review + delivery CI pending.
-Flips to VERIFIED when gates 3–4 land with measured results.
+VERIFIED. Phase 134 delivered to `main` via delivery PR #73 (merge `f292ae0`).
+Gates: contract oracle 15/15 (measured locally on `a84efd3`); per-task CI
+green on every merged implementation head (runs `44339200234`, `44341560297`,
+`44343358910`, `44347269769`, PR #71 rebased-head run); delivery CI all five
+checks success on `f522b25` (Linux `44350847032` incl. build + full ctest +
+portable smoke + cpack; Windows + Android regression suites green);
+independent review PASS-WITH-OBSERVATIONS (controller-authored, disclosed).
+Golden corpus 15/15 + pinned identity `81bb13c1…d44` + full-stack round trip
+green. Definition of Done met: code complete, no stubs, compiles, core logic
+unit-tested, Loading/Empty/Error/Success handled, UI matches the design
+system, no obvious performance problems.
 <!-- END CONTROLLER-SIGN-OFF -->
