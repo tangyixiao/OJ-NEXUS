@@ -268,7 +268,7 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **交付：** CLI 提供 inspect/import/export，WPF 提供预览确认；以领域映射落到本端 schema，保留不能编辑的受支持记录而不静默丢弃。
 - **验收：** G-W；混合 golden 包无损往返，暂不能编辑的笔记/session 由领域归档保存；取消/失败事务回滚；CLI JSON 与 UI 计数相符，不直接打开 Android SQLite。
 
-#### [ ] PHASE 134 — L · Linux 可移植导入导出
+#### [x] PHASE 134 — L · Linux 可移植导入导出
 - **依赖 / 范围：** 129、131；L 的 Core codec/store、CLI 与 Qt file dialog。
 - **交付：** 在 CLI/Qt 完成领域包检查、预览和显式导入；保留源 ID 与 day key，处理 sandbox/file permission 失败。
 - **验收：** G-L；混合 golden 包无损往返，暂不能编辑的笔记/review/session 有保存状态；错误码一致；路径穿越包不落盘；重复导入不翻倍，取消无部分记录。
