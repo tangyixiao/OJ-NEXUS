@@ -70,7 +70,7 @@ The host has no Linux toolchain (recon-verified); build/test gates run in CI
 | 1 | `python check.py --cases golden/cases.json golden/` (contracts/portable/v1) | 15/15 PASS | PASS — **15 cases, 15 passed, 0 failed** on integration tip `a84efd3` (controller-measured 2026-11-19) |
 | 2 | CI `linux.yml` per task PR | build + full ctest green | PASS — PRs #68 (run `44339200234`), #69 (run `44341560297` rerun), #70 (run `44343358910`), #72 (run `44347269769`) all success on their heads |
 | 3 | CI `linux.yml` on the delivery PR head | build + ctest + smoke (incl. 4 portable jq checks) + cpack green | PENDING — flips at merge; run id recorded then |
-| 4 | Independent review of the final diff | findings fixed or recorded | PENDING — [phase-134-task6-review.md](phase-134-task6-review.md) |
+| 4 | Independent review of the final diff | findings fixed or recorded | PASS — [phase-134-task6-review.md](phase-134-task6-review.md): PASS-WITH-OBSERVATIONS; findings F1–F9 were found and fixed during CI-gated development (each a landed fix commit); F10–F11 accepted observations. Authorship caveat recorded (controller-authored after the review agent produced zero auditable output). |
 | 5 | Mixed golden round trip (import→apply→export→identity) | identity equals preview identity `81bb13c1…d44` | PASS via CI-run evidence: `PortableRepositoryTest.Reimport_ThenExport_RoundTripsTheGoldenPackage` green in the PR #70 run; CLI round trip green in PR #71 tests |
 
 <!-- CONTROLLER-GATE-RESULTS: measured values recorded by the controller on 2026-11-19 -->
