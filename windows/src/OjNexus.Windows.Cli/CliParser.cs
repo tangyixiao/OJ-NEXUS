@@ -20,19 +20,29 @@ public sealed record ReviewMarkCommand(JudgeId Judge, string Problem, ReviewResu
 
 public sealed record ConfigShowCommand(bool Json) : CliCommand(Json);
 
+public abstract record PortableCommand(bool Json) : CliCommand(Json);
+
+public sealed record PortableInspectCommand(string File, bool Json) : PortableCommand(Json);
+
+public sealed record PortableImportCommand(string File, bool Yes, bool Json) : PortableCommand(Json);
+
+public sealed record PortableExportCommand(string File, bool Json) : PortableCommand(Json);
+
 public sealed class CliParseException(string message) : Exception(message);
 
 public static class CliParser
 {
     private const int DefaultHistoryLimit = 20;
     private const int DefaultProblemsLimit = 50;
+    private const string CommandUsage =
+        "status | sync | data | history | problems list | review due | review mark | config show | portable inspect/import/export";
 
     public static CliCommand Parse(string[] args)
     {
         ArgumentNullException.ThrowIfNull(args);
         if (args.Length == 0)
         {
-            throw new CliParseException("MISSING COMMAND. USE: status | sync | data | history | problems list | review due | review mark | config show.");
+            throw new CliParseException($"MISSING COMMAND. USE: {CommandUsage}.");
         }
 
         return args[0] switch
@@ -44,7 +54,70 @@ public static class CliParser
             "problems" => ParseProblems(args),
             "review" => ParseReview(args),
             "config" => ParseConfig(args),
-            _ => throw new CliParseException($"UNKNOWN COMMAND '{args[0]}'. USE: status | sync | data | history | problems list | review due | review mark | config show."),
+            "portable" => ParsePortable(args),
+            _ => throw new CliParseException($"UNKNOWN COMMAND '{args[0]}'. USE: {CommandUsage}."),
+        };
+    }
+
+    private static CliCommand ParsePortable(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            throw new CliParseException("PORTABLE REQUIRES SUBCOMMAND 'inspect', 'import', OR 'export'. USE: portable inspect --file <path> [--json] | portable import --file <path> [--yes] [--json] | portable export --file <path> [--json].");
+        }
+
+        var json = false;
+        var yes = false;
+        string? file = null;
+        var start = 2;
+        switch (args[1])
+        {
+            case "inspect":
+                break;
+            case "import":
+                break;
+            case "export":
+                break;
+            default:
+                throw new CliParseException($"UNKNOWN SUBCOMMAND '{args[1]}'. USE: portable inspect --file <path> [--json] | portable import --file <path> [--yes] [--json] | portable export --file <path> [--json].");
+        }
+
+        for (var index = start; index < args.Length; index++)
+        {
+            switch (args[index])
+            {
+                case "--file":
+                    EnsureNotAlreadySet(file is not null, "--file");
+                    file = ReadNonBlankValue(args, ref index, "--file");
+                    break;
+                case "--yes":
+                    if (args[1] != "import")
+                    {
+                        throw new CliParseException($"OPTION '--yes' IS ONLY VALID FOR 'portable import'.");
+                    }
+
+                    EnsureNotAlreadySet(yes, "--yes");
+                    yes = true;
+                    break;
+                case "--json": EnsureNotAlreadySet(json, "--json"); json = true; break;
+                default:
+                    ThrowUnknownOption(args[index], args[1] == "import"
+                        ? "portable import --file <path> [--yes] [--json]"
+                        : $"portable {args[1]} --file <path> [--json]");
+                    break;
+            }
+        }
+
+        if (file is null)
+        {
+            throw new CliParseException($"MISSING REQUIRED OPTION '--file'. USE: portable {args[1]} --file <path> [--json]" + (args[1] == "import" ? " [--yes]." : "."));
+        }
+
+        return args[1] switch
+        {
+            "inspect" => new PortableInspectCommand(file, json),
+            "import" => new PortableImportCommand(file, yes, json),
+            _ => new PortableExportCommand(file, json),
         };
     }
 

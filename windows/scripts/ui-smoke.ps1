@@ -27,7 +27,7 @@ if (-not (Test-Path -LiteralPath $DesktopPath -PathType Leaf)) {
 $DesktopPath = (Resolve-Path -LiteralPath $DesktopPath).Path
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
-foreach ($screenshotName in @('dashboard.png', 'connectors.png', 'history.png', 'problems.png')) {
+foreach ($screenshotName in @('dashboard.png', 'connectors.png', 'history.png', 'problems.png', 'portable.png')) {
     $staleScreenshot = Join-Path $OutputDirectory $screenshotName
     if (Test-Path -LiteralPath $staleScreenshot -PathType Leaf) {
         # Remove-Item -Force can report a failure on hosts that guard deletions inside a
@@ -497,10 +497,20 @@ try {
         $screenshotCount++
     }
     Write-Host "PROBLEMS: RENDERED / FILTERS=$problemComboCount / EMPTY=PASS"
-    if ($screenshotCount -ne 4 -or -not (Test-ScreenshotSet -Directory $OutputDirectory -Names @('dashboard.png', 'connectors.png', 'history.png', 'problems.png'))) {
-        throw 'Expected four distinct page screenshots.'
+
+    Invoke-ButtonByName -Root $root -Name 'PORTABLE'
+    [void](Wait-ForElement -Root $root -Name 'PORTABLE WORKSPACE / SEPARATE FROM WHOLE-DATABASE BACKUP')
+    [void](Require-DescendantByName -Root $root -Name 'IMPORT')
+    [void](Require-DescendantByName -Root $root -Name 'EXPORT')
+    if (Try-Save-WindowScreenshot -WindowHandle $windowHandle -Path (Join-Path $OutputDirectory 'portable.png')) {
+        $screenshotCount++
     }
-    Write-Host "SCREENSHOTS: $screenshotCount/4"
+    Write-Host 'PORTABLE: RENDERED'
+
+    if ($screenshotCount -ne 5 -or -not (Test-ScreenshotSet -Directory $OutputDirectory -Names @('dashboard.png', 'connectors.png', 'history.png', 'problems.png', 'portable.png'))) {
+        throw 'Expected five distinct page screenshots.'
+    }
+    Write-Host "SCREENSHOTS: $screenshotCount/5"
     Write-Host 'UI SMOKE: PASS'
 }
 finally {

@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
 using OjNexus.Windows.Core.Network;
+using OjNexus.Windows.Core.Portable;
 using OjNexus.Windows.Core.Storage;
 using OjNexus.Windows.Core.Sync;
 
@@ -16,6 +18,7 @@ public enum DesktopPage
     Connectors,
     History,
     Problems,
+    Portable,
 }
 
 public sealed class ConnectorRow : INotifyPropertyChanged
@@ -149,6 +152,8 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
 
     private readonly IStorageOperationSource _storage;
     private readonly SyncService _syncService;
+    private readonly Func<StorageOperationContext>? _beginPortableOperation;
+    private readonly Func<StorageOperationContext, PortableRepository>? _createPortableRepository;
     private readonly object _syncCancellationLock = new();
     private readonly Dictionary<ConnectorRow, CancellationTokenSource> _syncCancellations = [];
     private DesktopPage _currentPage = DesktopPage.Dashboard;
@@ -164,14 +169,22 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
     private string _selectedHistoryJudge = "ALL";
     private string _selectedProblemJudge = "ALL";
     private string _selectedProblemStatus = "ALL";
+    private byte[]? _pendingPortableBytes;
+    private string _portableIdentity = "NONE";
+    private string _portableSummary = "NO PACKAGE LOADED";
+    private string _portableStatus = string.Empty;
 
-    public DesktopViewModel(IStorageOperationSource storage, SyncService syncService, string dataDirectory)
+    public DesktopViewModel(IStorageOperationSource storage, SyncService syncService, string dataDirectory,
+        Func<StorageOperationContext>? beginPortableOperation = null,
+        Func<StorageOperationContext, PortableRepository>? createPortableRepository = null)
     {
         ArgumentNullException.ThrowIfNull(storage);
         ArgumentNullException.ThrowIfNull(syncService);
         ArgumentException.ThrowIfNullOrWhiteSpace(dataDirectory);
         _storage = storage;
         _syncService = syncService;
+        _beginPortableOperation = beginPortableOperation;
+        _createPortableRepository = createPortableRepository;
         DataDirectory = dataDirectory;
         foreach (var (judge, capability) in SupportedJudges)
         {
@@ -229,6 +242,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
                 OnPropertyChanged(nameof(IsConnectorsVisible));
                 OnPropertyChanged(nameof(IsHistoryVisible));
                 OnPropertyChanged(nameof(IsProblemsVisible));
+                OnPropertyChanged(nameof(IsPortableVisible));
             }
         }
     }
@@ -238,6 +252,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
         DesktopPage.Connectors => "CONNECTORS",
         DesktopPage.History => "SYNC HISTORY",
         DesktopPage.Problems => "PROBLEMS",
+        DesktopPage.Portable => "PORTABLE WORKSPACE",
         _ => "DASHBOARD",
     };
 
@@ -248,6 +263,8 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
     public bool IsHistoryVisible => CurrentPage == DesktopPage.History;
 
     public bool IsProblemsVisible => CurrentPage == DesktopPage.Problems;
+
+    public bool IsPortableVisible => CurrentPage == DesktopPage.Portable;
 
     public int AccountCount
     {
@@ -895,12 +912,242 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
         return true;
     }
 
+    // --- portable workspace (phase 133) ---
+
+    /// <summary>Test stub for the import file picker; null uses the real OpenFileDialog.</summary>
+    internal Func<string?>? PortableOpenFilePicker { get; set; }
+
+    /// <summary>Test stub for the export save picker; null uses the real SaveFileDialog.</summary>
+    internal Func<string?>? PortableSaveFilePicker { get; set; }
+
+    public string PortableIdentity
+    {
+        get => _portableIdentity;
+        private set => SetField(ref _portableIdentity, value);
+    }
+
+    public string PortableSummary
+    {
+        get => _portableSummary;
+        private set => SetField(ref _portableSummary, value);
+    }
+
+    public string PortableStatus
+    {
+        get => _portableStatus;
+        private set => SetField(ref _portableStatus, value);
+    }
+
+    public bool HasPendingPortableImport => _pendingPortableBytes is not null;
+
+    private bool PortableStorageAvailable => _beginPortableOperation is not null && _createPortableRepository is not null;
+
+    /// <summary>
+    /// Opens the import file picker (UI thread) and loads a read-only preview.
+    /// A cancelled picker is a clean no-op; nothing is written at this stage.
+    /// </summary>
+    public async Task ImportPortableAsync(string? pickedPath, CancellationToken cancellationToken)
+    {
+        if (pickedPath is null)
+        {
+            PortableStatus = "IMPORT CANCELLED";
+            return;
+        }
+
+        if (!PortableStorageAvailable)
+        {
+            PortableStatus = "PORTABLE STORAGE UNAVAILABLE";
+            return;
+        }
+
+        PortableStatus = "READING";
+        try
+        {
+            var bytes = await File.ReadAllBytesAsync(pickedPath, cancellationToken);
+            var preview = await RunPortableAsync((repository, token) => repository.PreviewAsync(bytes, token), cancellationToken);
+            _pendingPortableBytes = bytes;
+            PortableIdentity = preview.Identity;
+            PortableSummary = BuildPortableSummary(preview);
+            PortableStatus = preview.AcceptAll
+                ? "PREVIEW READY — CONFIRM TO APPLY"
+                : "PREVIEW READY — PACKAGE HAS REJECTS";
+        }
+        catch (PortableContractException exception)
+        {
+            DiscardPendingPortableImport();
+            PortableStatus = $"REJECTED {exception.Reject.Wire}: {exception.Reject.Detail}";
+        }
+        catch (Exception exception)
+        {
+            DiscardPendingPortableImport();
+            PortableStatus = $"IMPORT FAILED: {ClassifyPortableError(exception)}";
+        }
+    }
+
+    /// <summary>Applies the pending preview inside one transaction. Cancel-safe: nothing is written until commit.</summary>
+    public async Task ConfirmPortableImportAsync(CancellationToken cancellationToken)
+    {
+        if (_pendingPortableBytes is null)
+        {
+            PortableStatus = "NO PACKAGE PENDING";
+            return;
+        }
+
+        PortableStatus = "APPLYING";
+        try
+        {
+            var pending = _pendingPortableBytes;
+            var result = await RunPortableAsync((repository, token) => repository.ApplyAsync(pending, token), cancellationToken);
+            DiscardPendingPortableImport();
+            PortableStatus = result.Identical
+                ? "ARCHIVE ALREADY MATCHES PACKAGE. NO CHANGES APPLIED."
+                : $"APPLIED {result.RowsUpserted} UPSERTED / {result.RowsDeleted} DELETED";
+        }
+        catch (PortableContractException exception)
+        {
+            DiscardPendingPortableImport();
+            PortableStatus = $"REJECTED {exception.Reject.Wire}: {exception.Reject.Detail}";
+        }
+        catch (OperationCanceledException)
+        {
+            DiscardPendingPortableImport();
+            PortableStatus = "APPLY CANCELLED — NOTHING WRITTEN";
+        }
+        catch (Exception exception)
+        {
+            PortableStatus = $"APPLY FAILED: {ClassifyPortableError(exception)}";
+        }
+    }
+
+    /// <summary>Discards a pending preview. Pre-apply only: nothing was ever written to discard.</summary>
+    public void CancelPortableImport()
+    {
+        if (_pendingPortableBytes is null)
+        {
+            PortableStatus = "NO PACKAGE PENDING";
+            return;
+        }
+
+        DiscardPendingPortableImport();
+        PortableStatus = "IMPORT CANCELLED — NOTHING WRITTEN";
+    }
+
+    /// <summary>Rebuilds the canonical package from the archive and writes it through the save picker.</summary>
+    public async Task ExportPortableAsync(CancellationToken cancellationToken)
+    {
+        if (!PortableStorageAvailable)
+        {
+            PortableStatus = "PORTABLE STORAGE UNAVAILABLE";
+            return;
+        }
+
+        var savePath = PortableSaveFilePicker?.Invoke();
+        if (savePath is null)
+        {
+            PortableStatus = "EXPORT CANCELLED";
+            return;
+        }
+
+        PortableStatus = "WRITING";
+        try
+        {
+            var bytes = await RunPortableAsync((repository, token) => repository.ExportAsync(token), cancellationToken);
+            await File.WriteAllBytesAsync(savePath, bytes, cancellationToken);
+            PortableStatus = $"EXPORT WRITTEN ({bytes.Length} BYTES)";
+        }
+        catch (InvalidOperationException)
+        {
+            PortableStatus = "ARCHIVE EMPTY — NOTHING TO EXPORT";
+        }
+        catch (Exception exception)
+        {
+            PortableStatus = $"EXPORT FAILED: {ClassifyPortableError(exception)}";
+        }
+    }
+
+    /// <summary>UI-thread picker resolution: stub first, then the real dialog. Null = cancelled.</summary>
+    public string? PickPortableImportFile()
+    {
+        if (PortableOpenFilePicker is { } stub)
+        {
+            return stub();
+        }
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "Portable workspace (*.json)|*.json|All files (*.*)|*.*",
+            Title = "IMPORT PORTABLE WORKSPACE",
+        };
+        return dialog.ShowDialog() == true ? dialog.FileName : null;
+    }
+
+    public string? PickPortableExportFile()
+    {
+        if (PortableSaveFilePicker is { } stub)
+        {
+            return stub();
+        }
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "Portable workspace (*.json)|*.json",
+            FileName = "oj-nexus-portable-workspace.json",
+            Title = "EXPORT PORTABLE WORKSPACE",
+        };
+        return dialog.ShowDialog() == true ? dialog.FileName : null;
+    }
+
+    private async Task<T> RunPortableAsync<T>(Func<PortableRepository, CancellationToken, Task<T>> work, CancellationToken cancellationToken)
+    {
+        var begin = _beginPortableOperation ?? throw new InvalidOperationException("portable storage unavailable");
+        var create = _createPortableRepository ?? throw new InvalidOperationException("portable storage unavailable");
+        await using var operation = begin();
+        var repository = create(operation);
+        return await work(repository, operation.CancellationToken).ConfigureAwait(false);
+    }
+
+    private void DiscardPendingPortableImport()
+    {
+        _pendingPortableBytes = null;
+        PortableIdentity = "NONE";
+        PortableSummary = "NO PACKAGE LOADED";
+        OnPropertyChanged(nameof(HasPendingPortableImport));
+    }
+
+    private static string BuildPortableSummary(PortablePreview preview)
+    {
+        var lines = new List<string>
+        {
+            "COUNTS " + string.Join(" / ", PortableSpec.Collections.Select(c => $"{c.ToUpperInvariant()} {preview.Counts.GetValueOrDefault(c)}")),
+        };
+        lines.Add(preview.Sources.Count == 0
+            ? "SOURCES NONE"
+            : "SOURCES " + string.Join(" / ", preview.Sources.Select(s => $"{s.SourceScopeId} {s.RecordCount}")));
+        lines.Add($"CAPABILITY EDITABLE {preview.EditableCount} / STORED-ONLY {preview.StoredOnlyCount} / REJECTED {preview.RejectedCount}");
+        lines.Add("STORED-ONLY RECORDS KEEP SAVED ARCHIVE STATE");
+        if (preview.Conflicts.Count > 0)
+        {
+            lines.Add("CONFLICTS " + string.Join(" / ", preview.Conflicts.Select(c => $"{c.Collection} {c.StableId} {c.Kind}")));
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string ClassifyPortableError(Exception exception) => exception switch
+    {
+        PortableContractException contract => contract.Reject.Wire,
+        StorageException storage => storage.Failure.WireCode,
+        _ => "INTERNAL FAILURE",
+    };
+
     private void OnPropertyChanged(string? propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }
 
 public static class DesktopRuntime
 {
-    public static DesktopViewModel Create(IStorageOperationSource storage, string dataDirectory)
+    public static DesktopViewModel Create(IStorageOperationSource storage, string dataDirectory,
+        Func<StorageOperationContext>? beginPortableOperation = null,
+        Func<StorageOperationContext, PortableRepository>? createPortableRepository = null)
     {
         ArgumentNullException.ThrowIfNull(storage);
         var clock = new SystemClock();
@@ -911,7 +1158,7 @@ public static class DesktopRuntime
             [JudgeId.Luogu] = new LuoguAdapter(PublicHttpClientFactory.Create),
         };
         var syncService = new SyncService(adapters, clock, static () => "windows-desktop-v1");
-        return new DesktopViewModel(storage, syncService, dataDirectory);
+        return new DesktopViewModel(storage, syncService, dataDirectory, beginPortableOperation, createPortableRepository);
     }
 
     private sealed class SystemClock : IClock

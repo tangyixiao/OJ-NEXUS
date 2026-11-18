@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.Data.Sqlite;
 using OjNexus.Windows.Core.Contracts;
+using OjNexus.Windows.Core.Portable;
 
 namespace OjNexus.Windows.Core.Storage;
 
@@ -36,6 +37,17 @@ public sealed class WindowsStorageSession : IStorageOperationSource
     public StorageOperationContext BeginOperation(CancellationToken cancellationToken = default) =>
         _owner.Begin(permit => new StorageClassifyingStore(new SqliteSyncStore(_factory, permit, _clock)), cancellationToken);
 
+    /// <summary>
+    /// Creates a portable repository bound to <paramref name="operation"/>'s permit and this
+    /// session's connection factory — the same scope pattern the sync store uses. The caller
+    /// must keep <paramref name="operation"/> alive for the duration of the repository calls.
+    /// </summary>
+    public PortableRepository CreatePortableRepository(StorageOperationContext operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        return new PortableRepository(new PortableCodec(), new PortableArchiveStore(_factory, operation.Permit));
+    }
+
     public async Task RunAsync(Func<ISyncStore, CancellationToken, Task> work, CancellationToken cancellationToken)
     {
         await using var operation = BeginOperation(cancellationToken);
@@ -67,7 +79,7 @@ internal sealed record StartupTestHooks(Action<StartupStage>? OnStage = null, Ac
 
 public static class WindowsStorage
 {
-    private const int CurrentSchemaVersion = 7;
+    private const int CurrentSchemaVersion = 8;
     private static readonly byte[] MarkerBytes = Encoding.UTF8.GetBytes("v1\n");
 
     public static Task<StorageOpenResult> OpenAsync(string? rootOverride, IClock? clock, CancellationToken cancellationToken) =>

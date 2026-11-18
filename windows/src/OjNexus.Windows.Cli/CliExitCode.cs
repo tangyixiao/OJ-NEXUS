@@ -7,8 +7,9 @@ namespace OjNexus.Windows.Cli;
 /// contract — the same number means the same thing on every OJ NEXUS CLI — so renumbering is a
 /// breaking change for scripts and CI expectations.
 ///
-/// A platform only emits the categories it can actually produce. <see cref="Storage"/> is declared
-/// for contract completeness even though the Windows client has no storage failure category today.
+/// A platform only emits the categories it can actually produce. <see cref="Storage"/> is
+/// emitted by the portable verbs when a package file or export target cannot be read or
+/// written.
 /// </summary>
 public enum CliExitCode
 {
