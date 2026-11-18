@@ -71,7 +71,7 @@ pwsh (SDK 10.0.401; solution targets net8.0):
 | 3 | `pwsh -File windows/scripts/smoke.ps1 -Configuration Release` | CLI `status --json` ready + WPF alive | PASS �?`CLI EXIT CODE: 0`, `{"status":"ready","accountCount":0,...}`, `DESKTOP START: ALIVE WITHIN 15 SECONDS` |
 | 4 | `pwsh -File windows/scripts/ui-smoke.ps1 -Configuration Release` | UIA over FIVE pages, `SCREENSHOTS: 5/5`, PORTABLE RENDERED | PASS �?`PORTABLE: RENDERED`, `SCREENSHOTS: 5/5`, `UI SMOKE: PASS` |
 | 5 | Independent review of the final diff | findings fixed or recorded | PASS �?[phase-133-task6-review.md](phase-133-task6-review.md): PASS-WITH-OBSERVATIONS; the independent P2 (unanchored integer-literal matching) was FIXED in `0e7065b` with a regression test; F2-F4 accepted P3 observations; round-2 parity findings F5/F6 FIXED in `fa33c89` with regressions (see the review record Round 2). Authorship caveat recorded (controller-authored after agent stalls). |
-| 6 | CI (`windows.yml`) on the delivery PR | green | PENDING �?runs on the delivery PR; run id recorded at merge |
+| 6 | CI (`windows.yml` + `android.yml`) on the delivery PR | green | PASS - Android CI run `44332741408` (release/build/emulator all success) + Windows CI run `44332741442` (build success), both on head `50844ad`; PR #62 merged as `afeadf7` |
 
 Gate history: per-task gates were measured at each merge (PRs #57�?61 bodies
 carry their runs); the pre-review full gate measured 390/0 on `193984c`; the
@@ -89,7 +89,7 @@ Final gate on merged integration tip `0e7065b`: `dotnet test windows/OjNexus.Win
 Gate history: 390/0 on `193984c` (pre-review); 391/0 on `0e7065b` after the P2 fix;
 393/0 on `fa33c89` after the round-2 F5/F6 fixes (PathUnsafe raw `$` semantics,
 `-0` canonicalization).
-CI corroboration: delivery PR #62 (run ids recorded at merge).
+CI corroboration: delivery PR #62 green - Android CI run `44332741408` (release/build/emulator success) + Windows CI run `44332741442` (build success) on head `50844ad`; merged `afeadf7`.
 <!-- END CONTROLLER-GATE-RESULTS -->
 
 ## Claims vs non-claims

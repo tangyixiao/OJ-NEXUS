@@ -1,6 +1,6 @@
 # Phase 133 Windows Portable Workspace Import/Export — Handoff
 
-Status: delivered on the integration branch; final delivery to `main` via PR (see Links).
+Status: delivered to `main` (delivery PR #62, merge `afeadf7`; CI green on head `50844ad`).
 Date: 2026-11-18 (Asia/Shanghai).
 Baseline main: `d1660f8` (phase 132 merged).
 Integration branch: `codex/phase-133-windows-portable-import-export`.
@@ -12,9 +12,10 @@ Integration branch: `codex/phase-133-windows-portable-import-export`.
 > (v7→v8), a transactional repository with lossless export, CLI `portable
 > inspect/import/export` verbs, and a WPF PORTABLE page with preview-confirm
 > — the CLI JSON and the UI render the same `PortablePreview` model, so
-> counts cannot drift. Delivered through six merged PRs (#56–#61), an
-> independent review record, and the G-W gate (390 tests / 0 failures,
-> smoke + UIA smoke 5/5). Phases 134–135 bind Linux and Apple.
+> counts cannot drift. Delivered through merged PRs #56–#63 (review record
+> PR #63; round-2 parity fixes `fa33c89`), an independent review record, and
+> the G-W gate (final gate 393 tests / 0 failures on `fa33c89`, smoke + UIA
+> smoke 5/5). Phases 134–135 bind Linux and Apple.
 
 ## 1. What shipped
 
@@ -77,7 +78,7 @@ pwsh -File windows/scripts/smoke.ps1 -Configuration Release
 pwsh -File windows/scripts/ui-smoke.ps1 -Configuration Release
 ```
 
-Measured on the merged integration tip: 390 tests / 0 failures, clean TWE
+Measured on the merged integration tip `fa33c89`: 393 tests / 0 failures, clean TWE
 build, CLI ready + WPF alive, UIA 5/5 with PORTABLE rendered. The portable
 contract gates still apply: `python3 check.py --cases golden/cases.json
 golden/` from `contracts/portable/v1/` (CI workflow `contracts.yml`
@@ -119,7 +120,9 @@ unchanged).
 - Independent review: [docs/verification/phase-133-task6-review.md](verification/phase-133-task6-review.md)
 - Contract: [contracts/portable/v1/README.md](../contracts/portable/v1/README.md)
 - Merged PRs: #56 (SDD), #58 (codec), #57 (store), #59 (repository),
-  #60 (CLI + bridge), #61 (WPF view), plus the delivery PR to `main`.
+  #60 (CLI + bridge), #61 (WPF view), #63 (review record); delivery PR #62
+  to `main` (merge `afeadf7`, CI green: Android run `44332741408` +
+  Windows run `44332741442` on head `50844ad`).
 - Phase 132 handoff: [docs/PHASE_132_HANDOFF.md](PHASE_132_HANDOFF.md)
 
 Handoff status: this document is the current authority for the Phase 133
