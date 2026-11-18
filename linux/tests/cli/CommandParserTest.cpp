@@ -394,7 +394,7 @@ void CommandParserTest::statusHumanOutputIncludesAccountDetails() {
     QCOMPARE(code, OjNexus::Cli::Ok);
     QVERIFY2(errorText.isEmpty(), qPrintable(errorText));
     QVERIFY(outputText.contains(QStringLiteral("DATABASE: READY")));
-    QVERIFY(outputText.contains(QStringLiteral("SCHEMA VERSION: 2")));
+    QVERIFY(outputText.contains(QStringLiteral("SCHEMA VERSION: 3")));
     QVERIFY(outputText.contains(QStringLiteral("ACCOUNTS: 1")));
     QVERIFY(outputText.contains(QStringLiteral("CODEFORCES / tourist / DISABLED")));
     QVERIFY(outputText.contains(QStringLiteral("LAST SYNC NEVER")));

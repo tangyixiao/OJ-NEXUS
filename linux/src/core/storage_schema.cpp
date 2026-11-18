@@ -34,6 +34,8 @@ constexpr Column profilesV1[]{{"judge", "TEXT", true, 1}, {"handle", "TEXT", tru
 constexpr Column payloadV1[]{{"judge", "TEXT", true, 1}, {"external_id", "TEXT", true, 2}, {"payload", "TEXT", true, 0}, {"updated_at", "INTEGER", true, 0}};
 constexpr Column profilesV2[]{{"scope", "TEXT", true, 1}, {"judge", "TEXT", true, 2}, {"handle", "TEXT", true, 3}, {"payload", "TEXT", true, 0}, {"updated_at", "INTEGER", true, 0}};
 constexpr Column payloadV2[]{{"scope", "TEXT", true, 1}, {"judge", "TEXT", true, 2}, {"handle", "TEXT", true, 3}, {"external_id", "TEXT", true, 4}, {"payload", "TEXT", true, 0}, {"updated_at", "INTEGER", true, 0}};
+constexpr Column portablePackages[]{{"identity", "TEXT", true, 1}, {"scope_id", "TEXT", true, 0}, {"source_platform", "TEXT", true, 0}, {"generator", "TEXT", true, 0}, {"created_at_epoch_ms", "INTEGER", true, 0}, {"counts_json", "TEXT", true, 0}};
+constexpr Column portableRecords[]{{"identity", "TEXT", true, 1}, {"collection", "TEXT", true, 2}, {"stable_id", "TEXT", true, 3}, {"source_scope_id", "TEXT", true, 0}, {"origin", "TEXT", true, 0}, {"state", "TEXT", true, 0}, {"payload_json", "TEXT", true, 0}, {"source_tag", "TEXT", true, 0}, {"synthetic", "INTEGER", true, 0}, {"sort_order", "INTEGER", true, 0}};
 
 bool hasTable(QSqlDatabase& db, const char* name) {
     QSqlQuery q(db);
@@ -146,6 +148,21 @@ bool quickCheck(QSqlDatabase& db) {
     return rows == 1 && q.lastError().type() == QSqlError::NoError;
 }
 
+bool hasPortableArchiveForeignKey(QSqlDatabase& db) {
+    QSqlQuery q(db);
+    if (!q.exec(QStringLiteral("PRAGMA foreign_key_list(\"portable_archive_records\")"))) return false;
+    while (q.next()) {
+        const auto from = q.value(3).toString();
+        const auto table = q.value(2).toString();
+        const auto to = q.value(4).toString();
+        const auto onDelete = q.value(6).toString();
+        if (from == QStringLiteral("identity") && table == QStringLiteral("portable_archive_packages") &&
+            to == QStringLiteral("identity") && onDelete.compare(QStringLiteral("CASCADE"), Qt::CaseInsensitive) == 0)
+            return true;
+    }
+    return false;
+}
+
 } // namespace
 
 Result<int> validateExistingSchema(QSqlDatabase& db) {
@@ -155,7 +172,7 @@ Result<int> validateExistingSchema(QSqlDatabase& db) {
     if (!version.next() || version.value(1).toString() != QStringLiteral("integer")) return SyncError::Storage;
     bool versionOk = false;
     const auto wideVersion = version.value(0).toLongLong(&versionOk);
-    if (!versionOk || (wideVersion != 1 && wideVersion != 2)) return SyncError::Storage;
+    if (!versionOk || (wideVersion != 1 && wideVersion != 2 && wideVersion != 3)) return SyncError::Storage;
     if (version.next() || version.lastError().type() != QSqlError::NoError) return SyncError::Storage;
     const auto value = static_cast<int>(wideVersion);
     const Table common[]{{"accounts", accounts, 4}, {"sync_operations", operations, value == 1 ? 8 : 11}, {"sync_modules", modules, 7}};
@@ -166,6 +183,11 @@ Result<int> validateExistingSchema(QSqlDatabase& db) {
         {"problems", value == 1 ? payloadV1 : payloadV2, value == 1 ? 4 : 6},
         {"contests", value == 1 ? payloadV1 : payloadV2, value == 1 ? 4 : 6}};
     for (const auto& table : payloadTables) if (!validateTable(db, table)) return SyncError::Storage;
+    if (value >= 3) {
+        const Table portableTables[]{{"portable_archive_packages", portablePackages, 6}, {"portable_archive_records", portableRecords, 10}};
+        for (const auto& table : portableTables) if (!validateTable(db, table)) return SyncError::Storage;
+        if (!hasPortableArchiveForeignKey(db)) return SyncError::Storage;
+    }
     return value;
 }
 
@@ -182,7 +204,10 @@ Result<void> createInitialSchema(QSqlDatabase& db) {
         QStringLiteral("CREATE TABLE submissions (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle, external_id))"),
         QStringLiteral("CREATE TABLE problems (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle, external_id))"),
         QStringLiteral("CREATE TABLE contests (scope TEXT NOT NULL, judge TEXT NOT NULL, handle TEXT NOT NULL, external_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(scope, judge, handle, external_id))"),
-        QStringLiteral("INSERT INTO schema_metadata(version) VALUES (2)")};
+        QStringLiteral("CREATE TABLE portable_archive_packages (identity TEXT NOT NULL PRIMARY KEY, scope_id TEXT NOT NULL, source_platform TEXT NOT NULL, generator TEXT NOT NULL, created_at_epoch_ms INTEGER NOT NULL, counts_json TEXT NOT NULL)"),
+        QStringLiteral("CREATE TABLE portable_archive_records (identity TEXT NOT NULL, collection TEXT NOT NULL, stable_id TEXT NOT NULL, source_scope_id TEXT NOT NULL, origin TEXT NOT NULL, state TEXT NOT NULL, payload_json TEXT NOT NULL, source_tag TEXT NOT NULL, synthetic INTEGER NOT NULL, sort_order INTEGER NOT NULL, PRIMARY KEY(identity, collection, stable_id), FOREIGN KEY(identity) REFERENCES portable_archive_packages(identity) ON DELETE CASCADE)"),
+        QStringLiteral("CREATE INDEX idx_portable_archive_records_order ON portable_archive_records(identity, sort_order ASC)"),
+        QStringLiteral("INSERT INTO schema_metadata(version) VALUES (3)")};
     for (const auto& statement : schema) if (!run(db, statement)) { db.rollback(); return SyncError::Storage; }
     if (!db.commit()) { db.rollback(); return SyncError::Storage; }
     return {};

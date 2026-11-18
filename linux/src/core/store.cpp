@@ -203,7 +203,7 @@ Result<void> SqliteStore::initialize() {
 
     if (newlyReserved) {
         if (!StorageSchema::createInitialSchema(database_).has_value()) return SyncError::Storage;
-        validatedVersion = 2;
+        validatedVersion = 3;
     } else {
         const auto revalidated = StorageSchema::validateExistingSchema(database_);
         if (!revalidated.has_value() || revalidated.value() != validatedVersion) return SyncError::Storage;
@@ -240,16 +240,29 @@ Result<void> SqliteStore::initialize() {
             if (failed || !database_.commit()) { database_.rollback(); return SyncError::Storage; }
             validatedVersion = 2;
         }
+        if (validatedVersion == 2) {
+            if (!database_.transaction()) return SyncError::Storage;
+            const QStringList portableMigrations{
+                QStringLiteral("CREATE TABLE IF NOT EXISTS portable_archive_packages (identity TEXT NOT NULL PRIMARY KEY, scope_id TEXT NOT NULL, source_platform TEXT NOT NULL, generator TEXT NOT NULL, created_at_epoch_ms INTEGER NOT NULL, counts_json TEXT NOT NULL)"),
+                QStringLiteral("CREATE TABLE IF NOT EXISTS portable_archive_records (identity TEXT NOT NULL, collection TEXT NOT NULL, stable_id TEXT NOT NULL, source_scope_id TEXT NOT NULL, origin TEXT NOT NULL, state TEXT NOT NULL, payload_json TEXT NOT NULL, source_tag TEXT NOT NULL, synthetic INTEGER NOT NULL, sort_order INTEGER NOT NULL, PRIMARY KEY(identity, collection, stable_id), FOREIGN KEY(identity) REFERENCES portable_archive_packages(identity) ON DELETE CASCADE)"),
+                QStringLiteral("CREATE INDEX IF NOT EXISTS idx_portable_archive_records_order ON portable_archive_records(identity, sort_order ASC)"),
+                QStringLiteral("UPDATE schema_metadata SET version=3"),
+            };
+            bool portableFailed = false;
+            for (const auto& sql : portableMigrations) if (!exec(sql).has_value()) { portableFailed = true; break; }
+            if (portableFailed || !database_.commit()) { database_.rollback(); return SyncError::Storage; }
+            validatedVersion = 3;
+        }
         const auto finalCheck = StorageSchema::validateExistingSchema(database_);
-        if (!finalCheck.has_value() || finalCheck.value() != 2) return SyncError::Storage;
+        if (!finalCheck.has_value() || finalCheck.value() != 3) return SyncError::Storage;
     }
     if (newlyReserved) {
         const auto finalCheck = StorageSchema::validateExistingSchema(database_);
-        if (!finalCheck.has_value() || finalCheck.value() != 2) return SyncError::Storage;
+        if (!finalCheck.has_value() || finalCheck.value() != 3) return SyncError::Storage;
     }
     const auto recovery = recoverRunningOperations();
     if (!recovery.has_value()) return SyncError::Storage;
-    schemaVersion_ = 2;
+    schemaVersion_ = 3;
     return {};
 }
 
