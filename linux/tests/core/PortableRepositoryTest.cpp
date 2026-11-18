@@ -37,7 +37,7 @@ struct Fixture {
     explicit Fixture()
         : store(dir.filePath(QStringLiteral("repo.db"))),
           archive(store),
-          repository(OjNexus::Portable::PortableArchiveStore(archive))
+          repository(OjNexus::PortableArchiveStore(archive))
     {
         const auto initialized = store.initialize();
         if (!initialized.has_value()) {
