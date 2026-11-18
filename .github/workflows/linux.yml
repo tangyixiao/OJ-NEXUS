@@ -46,6 +46,10 @@ jobs:
           jq -e '.accounts == []' "$RUNNER_TEMP/linux-status.json"
           ./build/linux/src/cli/ojnexus history --json | jq -e '.operations == []'
           ./build/linux/src/cli/ojnexus config show --json | jq -e .
+          ./build/linux/src/cli/ojnexus portable inspect --file contracts/portable/v1/golden/pw-p01.json --json | jq -e '.status == "preview"'
+          ./build/linux/src/cli/ojnexus portable import --file contracts/portable/v1/golden/pw-p01.json --json | jq -e '.status == "preview"'
+          ./build/linux/src/cli/ojnexus portable import --yes --file contracts/portable/v1/golden/pw-p01.json --json | jq -e '.status == "applied"'
+          ./build/linux/src/cli/ojnexus portable export --file "$RUNNER_TEMP/linux-portable-export.json" --json | jq -e '.status == "exported"'
       - name: Build DEB
         run: cpack --config build/linux/CPackConfig.cmake -G DEB
       - name: Upload test report
