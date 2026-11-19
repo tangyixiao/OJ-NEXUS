@@ -41,7 +41,7 @@ JSON �?UI 计数相符；不直接打开 Android SQLite�?
 | Non-editable records preserved via the domain archive | `PortableArchiveStoreTests` + tiered rows in `PortableRepositoryTests.Apply_SwapsTheArchiveWithTieredRows` | merged (PRs #57/#59) |
 | Cancel/failure transactional rollback | `PortableArchiveStoreTests.ReplaceAll_FailureRollsBackToPreviousArchive` + cancel no-op semantics | merged (PRs #57/#59) |
 | CLI JSON and UI counts parity | both render from the same `PortablePreview` model | merged (PRs #60/#61) |
-| No direct Android SQLite access | design constraint; review checklist | pending review |
+| No direct Android SQLite access | design constraint; review checklist | PASS - review record confirms no Android SQLite access in `windows/` (grep verified) |
 | CLI confirm gate (`--yes` required) | `PortableCommandTests.Import_WithoutYes_PrintsConfirmationAndWritesNothing` | merged (PR #60) |
 | WPF cancel/back-out write-free | `PortableViewModelTests` (cancelled pickers, cancel discard) | merged (PR #61) |
 
