@@ -83,8 +83,8 @@ public actor PortableArchiveStore {
             return snapshot
         } catch let failure as WorkspaceStorageFailure {
             // House semantics: a corrupt main with a decodable backup is
-            // recoverable, not blocked.
-            if failure == .corrupt, let url = url,
+            // recoverable, not blocked. `url` is already unwrapped here.
+            if failure == .corrupt,
                let backupBytes = try? WorkspaceFileIO.read(backupURL(for: url)),
                (try? decodeArchive(bytes: backupBytes)) != nil {
                 baseline = nil
