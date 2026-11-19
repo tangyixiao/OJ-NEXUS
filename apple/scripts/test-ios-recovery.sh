@@ -41,4 +41,30 @@ python3 scripts/validate_ios_recovery.py validate \
   --xcresult "$EVIDENCE_DIR/ios-recovery.xcresult" \
   --evidence "$EVIDENCE_DIR"
 
+# Phase 135: the portable-exchange suite runs on the same simulator through its
+# own result bundle and summary, gated exactly like the recovery suite. A
+# failure here fails the job.
+set +e
+xcodebuild test \
+  -scheme "$SCHEME" \
+  -destination "$DESTINATION" \
+  -only-testing:OJNexusCoreTests/PortableExchangeTests \
+  -resultBundlePath "$EVIDENCE_DIR/ios-portable.xcresult" \
+  CODE_SIGNING_ALLOWED=NO \
+  > "$EVIDENCE_DIR/xcodebuild-portable.log" 2>&1
+PORTABLE_STATUS=$?
+set -e
+echo "[ios-portable] xcodebuild test exit=$PORTABLE_STATUS"
+tail -40 "$EVIDENCE_DIR/xcodebuild-portable.log" || true
+
+python3 scripts/validate_ios_recovery.py validate \
+  --xcresult "$EVIDENCE_DIR/ios-portable.xcresult" \
+  --evidence "$EVIDENCE_DIR" \
+  --suite PortableExchangeTests \
+  --summary-name ios-portable-summary.json
+
+if [ "$PORTABLE_STATUS" -ne 0 ]; then
+  exit "$PORTABLE_STATUS"
+fi
+
 exit "$TEST_STATUS"

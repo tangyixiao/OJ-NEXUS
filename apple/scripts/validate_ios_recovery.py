@@ -244,7 +244,7 @@ def cmd_validate(args):
         "result": "pass" if not failures else "fail",
         "failures": failures,
     }
-    out_path = os.path.join(args.evidence, "ios-recovery-summary.json")
+    out_path = os.path.join(args.evidence, getattr(args, "summary_name", "ios-recovery-summary.json"))
     with open(out_path, "w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=2)
     print(json.dumps(summary, indent=2))
@@ -375,6 +375,7 @@ def main():
     validate.add_argument("--xcresult", required=True)
     validate.add_argument("--evidence", required=True)
     validate.add_argument("--suite", default="WorkspaceRecoveryTests")
+    validate.add_argument("--summary-name", default="ios-recovery-summary.json")
     validate.set_defaults(func=cmd_validate)
 
     args = parser.parse_args()
