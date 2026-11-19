@@ -63,7 +63,7 @@ public actor PortableArchiveStore {
                 if observedMain != nil || observedBackup != nil {
                     baseline = .some(nil)
                     if let backupBytes = try WorkspaceFileIO.read(backupURL(for: url)),
-                       let snapshot = try decodeArchive(bytes: backupBytes) {
+                       let snapshot = try? decodeArchive(bytes: backupBytes) {
                         status = .recoverable(.missingEstablished)
                         baseline = nil
                         return snapshot
@@ -82,6 +82,15 @@ public actor PortableArchiveStore {
             status = .ready
             return snapshot
         } catch let failure as WorkspaceStorageFailure {
+            // House semantics: a corrupt main with a decodable backup is
+            // recoverable, not blocked.
+            if failure == .corrupt, let url = url,
+               let backupBytes = try? WorkspaceFileIO.read(backupURL(for: url)),
+               (try? decodeArchive(bytes: backupBytes)) != nil {
+                baseline = nil
+                status = .recoverable(.corrupt)
+                throw failure
+            }
             if case .recoverable = status {} else if case .blocked = status {} else {
                 status = .blocked(failure)
             }
@@ -117,7 +126,7 @@ public actor PortableArchiveStore {
         guard status == .ready, baseline != nil, let url = url else {
             throw WorkspaceStorageFailure.notLoaded
         }
-        try WorkspaceFileIO.withLock(url) {
+        try WorkspaceFileIO.withLock(url: url) {
             let backup = backupURL(for: url)
             if (try? WorkspaceFileIO.read(backup)) != nil {
                 try? FileManager.default.removeItem(at: backup)
@@ -140,7 +149,7 @@ public actor PortableArchiveStore {
         url: URL
     ) throws -> PortableArchiveSnapshot {
         do {
-            try WorkspaceFileIO.withLock(url) {
+            try WorkspaceFileIO.withLock(url: url) {
                 let current = try WorkspaceFileIO.read(url)
                 guard current == (baseline ?? nil) else {
                     throw WorkspaceStorageFailure.conflict
