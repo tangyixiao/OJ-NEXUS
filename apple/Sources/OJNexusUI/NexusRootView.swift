@@ -1,5 +1,6 @@
 import OJNexusCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 @MainActor
 public struct NexusRootView: View {
@@ -9,6 +10,9 @@ public struct NexusRootView: View {
     @State private var historyFilter = "ALL"
     @State private var expandedSubmissionAccountIDs = Set<String>()
     @State private var confirmsSnapshotRestore = false
+    @State private var showsPortableImporter = false
+    @State private var showsPortableExporter = false
+    @State private var portableExportDocument: PortableExportPayload?
 
     public init(model: NexusDashboardModel? = nil) {
         _model = StateObject(wrappedValue: model ?? NexusDashboardModel())
@@ -50,6 +54,7 @@ public struct NexusRootView: View {
         case .dashboard: dashboard
         case .connectors: connectors
         case .history: history
+        case .portable: portableExchange
         }
     }
 
@@ -388,5 +393,99 @@ public struct NexusRootView: View {
 
     private func supports(_ account: JudgeAccount, capability: String) -> Bool {
         JudgeCatalog.descriptors.first { $0.judge == account.judge }?.capabilities.contains(capability) == true
+    }
+
+    // MARK: portable exchange (phase 135)
+
+    private var portableExchange: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: NexusLayout.rowSpacing) {
+                header("PORTABLE WORKSPACE")
+                Text("EXCHANGE THE WORKSPACE WITH A PORTABLE PACKAGE. NOTHING IS WRITTEN BEFORE THE EXPLICIT CONFIRM.")
+                    .font(.system(.callout, design: .monospaced))
+                    .foregroundStyle(NexusPalette.mutedText)
+                localStateBanner
+                if let status = model.portableStatus {
+                    Text(status)
+                        .font(.system(.callout, design: .monospaced).weight(.semibold))
+                        .foregroundStyle(NexusPalette.primaryText)
+                }
+                if let summary = model.portableSummary {
+                    Text(summary)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(NexusPalette.mutedText)
+                }
+                Button("IMPORT PACKAGE") { showsPortableImporter = true }
+                    .disabled(model.isPortableBusy)
+                if model.hasStagedImport {
+                    Text("STAGED IDENTITY \(model.stagedImportIdentity ?? "UNKNOWN")")
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(NexusPalette.mutedText)
+                    Button("CONFIRM APPLY") {
+                        Task { await model.confirmPortableApply() }
+                    }
+                    .disabled(model.isPortableBusy)
+                    Button("CANCEL STAGED", role: .destructive) {
+                        Task { await model.cancelStagedImport() }
+                    }
+                    .disabled(model.isPortableBusy)
+                }
+                Button("EXPORT ARCHIVE") {
+                    Task {
+                        if let payload = await model.preparePortableExport() {
+                            portableExportDocument = payload
+                            showsPortableExporter = true
+                        }
+                    }
+                }
+                .disabled(model.isPortableBusy)
+            }
+            .frame(maxWidth: 720, alignment: .leading)
+            .padding(NexusLayout.pagePadding)
+        }
+        .fileImporter(
+            isPresented: $showsPortableImporter,
+            allowedContentTypes: [.json]) { result in
+            switch result {
+            case .success(let url):
+                Task { await model.importPortablePackage(from: url) }
+            case .failure:
+                model.portableImportCancelled()
+            }
+        }
+        .fileExporter(
+            isPresented: $showsPortableExporter,
+            document: portableExportDocument,
+            contentType: .json,
+            defaultFilename: "ojnexus-portable.json") { outcome in
+            switch outcome {
+            case .success:
+                model.portableExportFinished(nil)
+            case .failure(let error):
+                model.portableExportFinished(error.localizedDescription)
+            }
+        }
+    }
+}
+
+/// The exported portable package as a document the system file exporter can
+/// write; a write failure surfaces through the exporter's completion as a
+/// typed status line.
+public struct PortableExportPayload: FileDocument, Sendable {
+    public static var readableContentTypes: [UTType] { [.json] }
+    public static var writableContentTypes: [UTType] { [.json] }
+
+    private let data: Data
+
+    public init(data: Data) {
+        self.data = data
+    }
+
+    public init(configuration: ReadConfiguration) throws {
+        data = configuration.file.regularFileContents ?? Data()
+    }
+
+    public func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
     }
 }

@@ -6,6 +6,7 @@ public enum NexusPage: String, CaseIterable, Hashable, Identifiable, Sendable {
     case dashboard = "DASHBOARD"
     case connectors = "CONNECTORS"
     case history = "SYNC HISTORY"
+    case portable = "PORTABLE"
 
     public var id: String { rawValue }
 }
@@ -26,18 +27,29 @@ public final class NexusDashboardModel: ObservableObject {
     @Published public private(set) var storageStatus: WorkspaceStorageStatus = .unloaded
     @Published public private(set) var isSaving = false
     @Published public private(set) var isRecovering = false
+    // Portable exchange state (phase 135). Status lines are telemetry-style
+    // text so state is never color-only.
+    @Published public private(set) var portableStatus: String?
+    @Published public private(set) var portableSummary: String?
+    @Published public private(set) var isPortableBusy = false
+    @Published public private(set) var hasStagedImport = false
+    @Published public private(set) var stagedImportIdentity: String?
+    private var stagedImportBytes: Data?
     private let workspaceStore: LocalWorkspaceStore
     private let httpClient: any HTTPClient
     private let syncService = ProfileSyncService()
     private let ratingSyncService = RatingSyncService()
     private let submissionSyncService = SubmissionSyncService()
     private var syncTask: Task<Void, Never>?
+    private let portableArchiveStore: PortableArchiveStore
+    private let portableRepository: PortableRepository
 
     public init(accounts: [JudgeAccount] = [], ledger: SyncLedger = SyncLedger(), profiles: [PublicProfile] = [],
                 ratingChanges: [RatingChange] = [],
                 submissions: [SubmissionRecord] = [],
                 workspaceStore: LocalWorkspaceStore = LocalWorkspaceStore(),
-                httpClient: any HTTPClient = URLSessionHTTPClient()) {
+                httpClient: any HTTPClient = URLSessionHTTPClient(),
+                portableArchiveStore: PortableArchiveStore = PortableArchiveStore()) {
         self.accounts = accounts
         self.ledger = ledger
         self.profiles = profiles
@@ -46,6 +58,8 @@ public final class NexusDashboardModel: ObservableObject {
         self.lastProfile = Self.configuredProfile(from: profiles, accounts: accounts)
         self.workspaceStore = workspaceStore
         self.httpClient = httpClient
+        self.portableArchiveStore = portableArchiveStore
+        self.portableRepository = PortableRepository(store: portableArchiveStore)
         self.ledger.recoverInterrupted(at: Date())
     }
 
@@ -175,6 +189,122 @@ public final class NexusDashboardModel: ObservableObject {
             storageStatus = await workspaceStore.storageStatus()
             loadError = "LOCAL RESTORE FAILED / \(storageFailureLabel(storageStatus))"
         }
+    }
+
+    // MARK: portable exchange (phase 135)
+
+    /// Reads a picked package through the security-scoped lifecycle and stages
+    /// its frozen preview. Authorization cancel and unreadable files are typed
+    /// states, never crashes.
+    public func importPortablePackage(from url: URL) async {
+        guard !isPortableBusy else { return }
+        isPortableBusy = true
+        defer { isPortableBusy = false }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let bytes: Data
+        do {
+            bytes = try Data(contentsOf: url)
+        } catch {
+            clearStagedImport()
+            portableStatus = "PORTABLE IMPORT FAILED / FILE UNREADABLE"
+            return
+        }
+        do {
+            let preview = try await portableRepository.preview(bytes)
+            stagedImportBytes = bytes
+            hasStagedImport = true
+            stagedImportIdentity = preview.identity
+            portableSummary = Self.portableSummary(for: preview)
+            portableStatus = "PORTABLE PREVIEW — CONFIRM TO APPLY / IDENTITY \(preview.identity.prefix(8))"
+        } catch let failure as PortableContractError {
+            clearStagedImport()
+            portableStatus = "PORTABLE IMPORT REJECTED / \(failure.reject.wire)"
+        } catch {
+            clearStagedImport()
+            portableStatus = "PORTABLE IMPORT FAILED / FILE UNREADABLE"
+        }
+    }
+
+    /// Applies the staged package. The repository revalidates from the bytes
+    /// (never trusting the preview) and writes only after the last checkpoint.
+    public func confirmPortableApply() async {
+        guard !isPortableBusy else { return }
+        guard let bytes = stagedImportBytes else {
+            portableStatus = "PORTABLE APPLY SKIPPED / NOTHING STAGED"
+            return
+        }
+        isPortableBusy = true
+        defer { isPortableBusy = false }
+        do {
+            let result = try await portableRepository.apply(bytes)
+            clearStagedImport()
+            portableSummary = nil
+            if result.identical {
+                portableStatus = "PORTABLE APPLIED / IDENTICAL PACKAGE — NO RECORDS WRITTEN"
+            } else {
+                portableStatus = "PORTABLE APPLIED / UP \(result.rowsUpserted) DEL \(result.rowsDeleted)"
+            }
+        } catch is PortableApplyCancelled {
+            portableStatus = "PORTABLE APPLY CANCELLED — NO RECORDS WRITTEN"
+        } catch let failure as PortableContractError {
+            portableStatus = "PORTABLE IMPORT REJECTED / \(failure.reject.wire)"
+        } catch {
+            portableStatus = "PORTABLE APPLY FAILED / STORAGE ERROR"
+        }
+    }
+
+    public func cancelStagedImport() async {
+        guard !isPortableBusy else { return }
+        await portableRepository.cancel()
+        clearStagedImport()
+        portableStatus = "PORTABLE IMPORT CANCELLED — NOTHING WRITTEN"
+    }
+
+    /// The picker dismissed without a usable authorization: a typed state.
+    public func portableImportCancelled() {
+        portableStatus = "PORTABLE IMPORT CANCELLED — NOTHING READ"
+    }
+
+    /// Builds the export payload for the file exporter; nil means the typed
+    /// failure state is already set.
+    public func preparePortableExport() async -> PortableExportPayload? {
+        guard !isPortableBusy else { return nil }
+        isPortableBusy = true
+        defer { isPortableBusy = false }
+        do {
+            let bytes = try await portableRepository.export()
+            portableStatus = "PORTABLE EXPORT READY"
+            return PortableExportPayload(data: bytes)
+        } catch let failure as PortableExportEmpty {
+            portableStatus = failure.description
+            return nil
+        } catch {
+            portableStatus = "PORTABLE EXPORT FAILED / STORAGE ERROR"
+            return nil
+        }
+    }
+
+    public func portableExportFinished(_ failureMessage: String?) {
+        if let failureMessage {
+            portableStatus = "PORTABLE EXPORT FAILED / \(failureMessage)"
+        } else {
+            portableStatus = "PORTABLE EXPORT WRITTEN"
+        }
+    }
+
+    private func clearStagedImport() {
+        stagedImportBytes = nil
+        hasStagedImport = false
+        stagedImportIdentity = nil
+    }
+
+    private static func portableSummary(for preview: PortablePreview) -> String {
+        PortableSpec.collections.compactMap { key -> String? in
+            guard let value = preview.counts[key] else { return nil }
+            return "\(key)=\(value)"
+        }
+        .joined(separator: " ")
     }
 
     public func configurePublicAccount(judge: JudgeID, handle: String) async {
