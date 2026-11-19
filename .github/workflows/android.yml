@@ -57,10 +57,26 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # A step-level `if` cannot see step env or secrets through the `env` context,
+      # so the signing state is resolved once here and every later gate reads the
+      # step output. Without keystore secrets the job still builds and uploads the
+      # unsigned release APK (labeled in the artifact name), so the pipeline never
+      # hard-fails.
+      - name: Resolve signing state
+        id: signstate
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # The keystore is decoded to RUNNER_TEMP (wiped per job, never uploaded), never into the
       # checkout, so no signing material can leak into artifacts or the git tree.
       - name: Decode signing keystore
-        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        if: steps.signstate.outputs.signed == 'true'
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
@@ -68,7 +84,7 @@ jobs:
           test -s "$RUNNER_TEMP/oj-nexus-release.jks"
 
       - name: Build signed release APK
-        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        if: steps.signstate.outputs.signed == 'true'
         env:
           OJ_NEXUS_KEYSTORE_PATH: ${{ runner.temp }}/oj-nexus-release.jks
           OJ_NEXUS_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -77,14 +93,18 @@ jobs:
         run: ./gradlew assembleRelease
 
       - name: Build unsigned release APK
-        if: ${{ env.ANDROID_KEYSTORE_BASE64 == '' }}
+        if: steps.signstate.outputs.signed != 'true'
         run: ./gradlew assembleRelease
 
       - name: Verify APK signature
         run: |
           APK=$(ls app/build/outputs/apk/release/app-release*.apk | head -1)
           BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
-          "$BT/apksigner" verify --verbose "$APK" || echo "APKSIGNER: UNSIGNED (no secrets configured)"
+          if [ "${{ steps.signstate.outputs.signed }}" = "true" ]; then
+            "$BT/apksigner" verify --verbose "$APK"
+          else
+            "$BT/apksigner" verify --verbose "$APK" || echo "APKSIGNER: UNSIGNED (no signing secrets configured)"
+          fi
 
       - name: Generate SHA256 sums
         run: |
@@ -96,7 +116,7 @@ jobs:
       - name: Upload release APK + sums
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
+          name: release-apk-${{ steps.signstate.outputs.signed == 'true' && 'signed' || 'unsigned' }}
           path: |
             app/build/outputs/apk/release/app-release*.apk
             app/build/outputs/apk/release/SHA256SUMS-*.txt
