@@ -23,8 +23,9 @@ Frozen semantics (README.md is authoritative; this file is the oracle):
   one dataset are invalid.
 - Status is derived: inReview -> REVIEW, else solved -> SOLVED, else
   attemptCount > 0 -> ATTEMPTED, else UNSOLVED.
-- Search: query stripped, then Unicode simple lowercase; substring match over
-  the lowered title and the lowered externalId; empty query matches all.
+- Search: query trimmed of leading/trailing ASCII whitespace, then Unicode
+  simple lowercase; substring match over the lowered title and the lowered
+  externalId; an empty (or whitespace-only) query matches all.
 - Filters AND-combined: status equality (derived), judge equality,
   favoriteOnly, tag membership (exact, case-sensitive), difficulty bounds
   (inclusive; unknown difficulty excluded when either bound is set).
@@ -43,6 +44,12 @@ from pathlib import Path
 JUDGES = ("local", "codeforces", "atcoder", "luogu")
 STATUSES = ("UNSOLVED", "ATTEMPTED", "SOLVED", "REVIEW")
 SORTS = ("UPDATED", "DIFFICULTY", "TITLE", "ATTEMPTS")
+
+# The trim set for search queries is frozen to ASCII whitespace so every
+# consumer platform can reproduce it exactly (Python's str.strip() would also
+# strip Unicode whitespace like NBSP that Kotlin's trim() keeps — vector 026
+# pins the difference).
+ASCII_WHITESPACE = " \t\n\r\v\f"
 
 REQUIRED_FIELDS = (
     "judge",
@@ -97,6 +104,10 @@ def derive_status(record):
 def _validate_record(record):
     if not isinstance(record, dict):
         raise ContractError("dataset record must be a JSON object")
+    allowed = set(REQUIRED_FIELDS) | set(OPTIONAL_FIELDS)
+    unknown = sorted(set(record.keys()) - allowed)
+    if unknown:
+        raise ContractError("record has unknown fields: {}".format(unknown))
     for field in REQUIRED_FIELDS:
         if field not in record:
             raise ContractError("record missing field {!r}".format(field))
@@ -144,9 +155,24 @@ def _validate_dataset(dataset):
         seen.add(key)
 
 
+QUERY_FIELDS = (
+    "search",
+    "status",
+    "judge",
+    "favoriteOnly",
+    "tag",
+    "difficultyMin",
+    "difficultyMax",
+    "sort",
+)
+
+
 def _validate_query(query):
     if not isinstance(query, dict):
         raise ContractError("query must be a JSON object")
+    unknown = sorted(set(query.keys()) - set(QUERY_FIELDS))
+    if unknown:
+        raise ContractError("query has unknown fields: {}".format(unknown))
     if "sort" not in query:
         raise ContractError("query.sort is required")
     if query["sort"] not in SORTS:
@@ -175,7 +201,7 @@ def _validate_query(query):
 
 
 def _passes(record, query):
-    search = (query.get("search") or "").strip().lower()
+    search = (query.get("search") or "").strip(ASCII_WHITESPACE).lower()
     if search:
         lowered_title = record["title"].lower()
         lowered_external = record["externalId"].lower()
@@ -230,16 +256,53 @@ def filter_and_sort(dataset, query):
     return [key_string(record) for record in surviving]
 
 
+def _reject_lone_surrogates(value, where="input"):
+    """Lone surrogates survive Python's decoder but cannot round-trip through
+    JVM/Qt/Swift UTF-8 decoders — a vector carrying one would be unreproducible
+    on the consumer platforms, so the corpus rejects them outright."""
+    if isinstance(value, str):
+        for char in value:
+            if 0xD800 <= ord(char) <= 0xDFFF:
+                raise ContractError(
+                    "{}: lone surrogate U+{:04X} is not portable across platform decoders".format(
+                        where, ord(char)
+                    )
+                )
+    elif isinstance(value, list):
+        for item in value:
+            _reject_lone_surrogates(item, where)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            _reject_lone_surrogates(key, where)
+            _reject_lone_surrogates(item, where)
+
+
 def _load_json(path):
     with open(path, encoding="utf-8") as handle:
-        return json.load(handle)
+        loaded = json.load(handle)
+    _reject_lone_surrogates(loaded, where=str(path))
+    return loaded
 
 
 def _run_gate(cases_path, golden_dir):
     cases = _load_json(cases_path)
     if not isinstance(cases, dict) or "vectors" not in cases:
         raise ContractError("cases file must be an object with a 'vectors' list")
+    if cases.get("version") != 1:
+        raise ContractError(
+            "cases version must be 1, got {!r}".format(cases.get("version"))
+        )
     golden = Path(golden_dir)
+    listed = set(cases["vectors"])
+    unlisted = sorted(
+        path.name
+        for path in golden.glob("*.json")
+        if path.name != "cases.json" and path.name not in listed
+    )
+    if unlisted:
+        raise ContractError(
+            "golden files present but not listed in the cases file: {}".format(unlisted)
+        )
     failures = []
     checked = 0
     for name in cases["vectors"]:
@@ -248,9 +311,15 @@ def _run_gate(cases_path, golden_dir):
         try:
             if not isinstance(vector, dict):
                 raise ContractError("vector must be a JSON object")
-            for field in ("dataset", "query", "expect"):
+            for field in ("name", "dataset", "query", "expect"):
                 if field not in vector:
                     raise ContractError("vector missing field {!r}".format(field))
+            if vector["name"] != Path(name).stem:
+                raise ContractError(
+                    "vector name {!r} does not match filename {!r}".format(
+                        vector["name"], name
+                    )
+                )
             computed = filter_and_sort(vector["dataset"], vector["query"])
             expected = vector["expect"]
             if computed != expected:

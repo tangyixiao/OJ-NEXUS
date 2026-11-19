@@ -34,13 +34,17 @@ never on a stored status (vectors 018-021).
 
 ## Search (frozen)
 
-- The query is **trimmed** then folded with Unicode **simple lowercase**
-  (Kotlin `lowercase()`, Python `str.lower()` — NOT full case-fold: `ß`
-  stays `ß`, vectors 012/013).
+- The query is **trimmed of leading/trailing ASCII whitespace** (exactly
+  `U+0020, U+0009-U+000D`; implementations must trim exactly this set —
+  Python's `str.strip()` strips more, e.g. NBSP, and would fail vector 026)
+  then folded with Unicode **simple lowercase** (Kotlin `lowercase()`, Python
+  `str.lower()` — NOT full case-fold: `ß` stays `ß`, vectors 012/013).
 - A record matches when the lowered query is a **substring** of the lowered
   title **or** of the lowered externalId (search is case-insensitive even
   though identity is not; vector 011).
-- An empty or whitespace-only query matches everything (vector 022).
+- An empty or ASCII-whitespace-only query matches everything (vector 027);
+  a query containing other Unicode whitespace (e.g. NBSP) is a real search
+  term and matches nothing unless the text contains it (vector 026).
 
 ## Filters (frozen, AND-combined)
 
@@ -133,3 +137,15 @@ Python 3 stdlib only; no network, no secrets. The gate runs in CI via
 - v1 (2026-11-19, phase 136): initial freeze — identity, derived status,
   search, filters, sorts with the code-point stable tie-break; 25 golden
   vectors; checker self-test 15 checks.
+- v1 (same day, post-review hardening — no semantic change): the search trim
+  set is frozen to ASCII whitespace (U+0020, U+0009-U+000D) with NBSP and
+  whitespace-only vectors 026/027; the tie-break key's own code-point order is
+  pinned by vector 028; the null-difficulty group tie is pinned in vector 003;
+  optional `difficultySource` covered (vector 001, selftest 18); the checker
+  now rejects unknown record/query fields, unlisted golden files, name/filename
+  mismatches, wrong cases versions and lone surrogates; selftest gate-level
+  checks drive the real `check._run_gate` path. 28 golden vectors, self-test
+  23 checks. Findings from the independent review
+  (`docs/verification/phase-136-task-review.md`): F1/F2 (P2) and F3-F7 (P3)
+  fixed with this commit; no vector expectation changed except 003's dataset
+  growth (its ordering claim and expect remain hand-derived).

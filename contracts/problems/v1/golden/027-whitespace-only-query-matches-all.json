@@ -1,0 +1,54 @@
+{
+  "name": "027-whitespace-only-query-matches-all",
+  "note": "ASCII whitespace-only query trims to empty -> matches all; TITLE order with key tie-break pins the full ordering.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "Two Sum",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "twosum",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "atcoder",
+      "externalId": "z",
+      "title": "Other",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "search": " \t\n",
+    "sort": "TITLE"
+  },
+  "expect": [
+    "atcoder/z",
+    "codeforces/1",
+    "codeforces/2"
+  ]
+}

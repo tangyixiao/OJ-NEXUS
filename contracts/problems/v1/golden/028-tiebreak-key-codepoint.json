@@ -1,0 +1,39 @@
+{
+  "name": "028-tiebreak-key-codepoint",
+  "note": "Equal difficulty; the tie-break compares key strings 'codeforces/Ａ1' (U+FF21=65281) before 'codeforces/𝐀1' (U+1D400=119808) by code points. A UTF-16-naive comparator puts the astral surrogate first and fails.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "𝐀1",
+      "title": "Astral Key",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "Ａ1",
+      "title": "Fullwidth Key",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "sort": "DIFFICULTY"
+  },
+  "expect": [
+    "codeforces/Ａ1",
+    "codeforces/𝐀1"
+  ]
+}

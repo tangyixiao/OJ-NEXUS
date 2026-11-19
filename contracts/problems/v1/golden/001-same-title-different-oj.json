@@ -1,6 +1,6 @@
 {
   "name": "001-same-title-different-oj",
-  "note": "Same title on two judges never merges; equal lowered titles tie-break on key code-point order ('atcoder/...' < 'codeforces/...').",
+  "note": "Same title on two judges never merges; equal lowered titles tie-break on key code-point order ('atcoder/...' < 'codeforces/...'); optional difficultySource present on one record.",
   "dataset": [
     {
       "judge": "codeforces",
@@ -13,7 +13,8 @@
       "inReview": false,
       "tags": [],
       "createdAt": 1700000000000,
-      "updatedAt": 1700000000000
+      "updatedAt": 1700000000000,
+      "difficultySource": "CODEFORCES"
     },
     {
       "judge": "atcoder",
