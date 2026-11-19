@@ -57,11 +57,16 @@ def _outcome_of(node):
 
 
 def _children_of(node):
-    for key in ("children", "subtests", "testNodes", "tests", "testableSummaries", "summaries"):
-        kids = node.get(key)
-        if isinstance(kids, list):
-            return kids
-    return []
+    """Generic child collection: the summary shape moved between toolchains
+    (macos-14 -> macos-15 Xcode), so instead of keying on a fixed vocabulary
+    we descend into every dict value and every list-of-dicts value."""
+    kids = []
+    for value in node.values():
+        if isinstance(value, list):
+            kids.extend(item for item in value if isinstance(item, dict))
+        elif isinstance(value, dict):
+            kids.append(value)
+    return kids
 
 
 def _suite_report(tree, suite_name):
@@ -77,7 +82,7 @@ def _suite_report(tree, suite_name):
         if not isinstance(node, dict):
             return (0, 0, 0)
         name = node.get("name") or node.get("title")
-        if name == suite_name:
+        if isinstance(name, str) and (name == suite_name or name.startswith(suite_name + ".")):
             inside = True
             results["suite_found"] = True
         kids = _children_of(node)
@@ -107,6 +112,9 @@ def _read_xcresult_tree(path, dump_dir=None):
         ["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", path, "--format", "json"],
         capture_output=True, text=True)
     if new.returncode == 0 and new.stdout.strip():
+        if dump_dir:
+            with open(os.path.join(dump_dir, "raw-summary.json"), "w", encoding="utf-8") as handle:
+                handle.write(new.stdout)
         return json.loads(new.stdout), "test-results-summary"
     legacy = subprocess.run(
         ["xcrun", "xcresulttool", "get", "--format", "json", "--path", path],
