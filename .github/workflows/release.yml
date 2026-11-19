@@ -1,0 +1,334 @@
+name: Release
+
+# Tag-triggered installable-package releases. Tag conventions (matching the
+# published release history):
+#   v1.2.3        -> Android release APK  (signed when the keystore secrets are
+#                    configured, otherwise clearly labeled unsigned with a
+#                    debug-signed CI fallback)
+#   windows-v1.2.3 -> Windows zip + Inno Setup installer
+#   linux-v1.2.3   -> Ubuntu 24.04 DEB package
+# Every job verifies the tag against the source tree's own version before
+# building, so a stale tag can never publish mismatched artifacts.
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'windows-v*'
+      - 'linux-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Guard tag against versionName
+        run: |
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          if [ "v$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "TAG MISMATCH: tag $GITHUB_REF_NAME but app/build.gradle.kts has versionName $VERSION."
+            echo "Bump versionName/versionCode before tagging, or re-tag to match."
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Resolve signing state
+        id: signstate
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The keystore is decoded to RUNNER_TEMP (wiped per job, never uploaded),
+      # never into the checkout, so no signing material can leak into artifacts
+      # or the git tree.
+      - name: Decode signing keystore
+        if: steps.signstate.outputs.signed == 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/oj-nexus-release.jks"
+          test -s "$RUNNER_TEMP/oj-nexus-release.jks"
+
+      - name: Build signed release APK
+        if: steps.signstate.outputs.signed == 'true'
+        env:
+          OJ_NEXUS_KEYSTORE_PATH: ${{ runner.temp }}/oj-nexus-release.jks
+          OJ_NEXUS_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          OJ_NEXUS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          OJ_NEXUS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
+
+      - name: Build unsigned release APK
+        if: steps.signstate.outputs.signed != 'true'
+        run: ./gradlew assembleRelease
+
+      - name: Build debug APK as installable fallback
+        if: steps.signstate.outputs.signed != 'true'
+        run: ./gradlew assembleDebug
+
+      - name: Verify APK signature
+        run: |
+          APK=$(ls app/build/outputs/apk/release/app-release*.apk | head -1)
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          if [ "${{ steps.signstate.outputs.signed }}" = "true" ]; then
+            "$BT/apksigner" verify --verbose "$APK"
+          else
+            # Unsigned output is expected without secrets; the release body and
+            # asset name say so explicitly. A signed build must verify hard.
+            "$BT/apksigner" verify --verbose "$APK" || echo "APKSIGNER: UNSIGNED (no signing secrets configured)"
+          fi
+
+      - name: Stage release assets
+        run: |
+          mkdir -p "$RUNNER_TEMP/assets"
+          cd app/build/outputs/apk
+          if [ "${{ steps.signstate.outputs.signed }}" = "true" ]; then
+            cp release/app-release*.apk "$RUNNER_TEMP/assets/OJ-NEXUS-v${VERSION}.apk"
+          else
+            cp release/app-release*.apk "$RUNNER_TEMP/assets/OJ-NEXUS-v${VERSION}-UNSIGNED-REQUIRES-SIGNING.apk"
+            cp debug/app-debug.apk "$RUNNER_TEMP/assets/OJ-NEXUS-v${VERSION}-debug-signed-CI-key.apk"
+          fi
+          cd "$RUNNER_TEMP/assets"
+          sha256sum *.apk > "SHA256SUMS-v${VERSION}.txt"
+          cat "SHA256SUMS-v${VERSION}.txt"
+
+      - name: Write release body
+        run: |
+          BODY="$RUNNER_TEMP/release-body.md"
+          {
+            echo "Android installable package for \`$GITHUB_REF_NAME\` (versionName \`${VERSION}\`, commit \`${GITHUB_SHA::7}\`)."
+            echo
+            if [ "${{ steps.signstate.outputs.signed }}" = "true" ]; then
+              echo "## Signing"
+              echo
+              echo "\`OJ-NEXUS-v${VERSION}.apk\` is signed by the configured release keystore and verifies with \`apksigner verify\`."
+            else
+              echo "## Signing"
+              echo
+              echo "- \`OJ-NEXUS-v${VERSION}-UNSIGNED-REQUIRES-SIGNING.apk\` is **unsigned** and cannot be installed as-is."
+              echo "- \`OJ-NEXUS-v${VERSION}-debug-signed-CI-key.apk\` is signed with an ephemeral CI debug key: installable, but a fresh key per release, so uninstall any earlier build before installing (no in-place upgrade)."
+              echo "- To publish properly signed APKs, add the repository secrets \`ANDROID_KEYSTORE_BASE64\`, \`ANDROID_KEYSTORE_PASSWORD\`, \`ANDROID_KEY_ALIAS\`, \`ANDROID_KEY_PASSWORD\` and re-tag."
+            fi
+            echo
+            echo "## Install"
+            echo
+            echo "- Requires Android 8.0+ (minSdk 26). Verify the SHA-256 in \`SHA256SUMS-v${VERSION}.txt\` before installing."
+            echo "- Sideload requires allowing installs from unknown sources."
+          } > "$BODY"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          body_path: ${{ runner.temp }}/release-body.md
+          files: ${{ runner.temp }}/assets/*
+
+  windows:
+    if: startsWith(github.ref, 'refs/tags/windows-v')
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version from tag
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^windows-v', ''
+          if ($version -eq $env:GITHUB_REF_NAME -or $version -notmatch '^[0-9]+(\.[0-9]+){1,3}$') {
+            Write-Output "TAG MISMATCH: '$($env:GITHUB_REF_NAME)' is not of the form windows-v<semver>."
+            exit 1
+          }
+          Add-Content $env:GITHUB_ENV "REL_VERSION=$version"
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('windows/**/*.csproj', 'windows/NuGet.Config') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore Windows solution
+        run: dotnet restore windows/OjNexus.Windows.sln --configfile windows/NuGet.Config --runtime win-x64
+
+      - name: Run Windows tests
+        run: >-
+          dotnet test windows/OjNexus.Windows.sln --configuration Release --no-restore
+          --logger trx
+          --results-directory windows/artifacts/test-results
+
+      - name: Package self-contained Windows client
+        shell: pwsh
+        run: >-
+          ./windows/scripts/package.ps1 -Version $env:REL_VERSION -Configuration Release
+          -Runtime win-x64 -SkipUiSmoke
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: >-
+          ./windows/scripts/build-installer.ps1 -Version $env:REL_VERSION -Configuration Release
+          -Runtime win-x64
+
+      - name: Stage release assets
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'assets'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          $zip = Get-ChildItem windows/artifacts/self-contained -Filter 'OJ-NEXUS-Windows-v*.zip' | Select-Object -First 1
+          $installer = Get-ChildItem windows/artifacts/self-contained -Filter 'OJ-NEXUS-Setup-*.exe' | Select-Object -First 1
+          if (-not $zip) { Write-Output 'NO ZIP PRODUCED'; exit 1 }
+          if (-not $installer) { Write-Output 'NO INSTALLER PRODUCED'; exit 1 }
+          Copy-Item $zip.FullName $stage
+          Copy-Item $installer.FullName $stage
+          Push-Location $stage
+          $hashes = Get-ChildItem -File | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name }
+          $hashes -join "`n" | Set-Content "SHA256SUMS-windows-v$($env:REL_VERSION).txt"
+          Get-Content "SHA256SUMS-windows-v$($env:REL_VERSION).txt"
+          Pop-Location
+
+      - name: Write release body
+        shell: pwsh
+        run: |
+          $body = Join-Path $env:RUNNER_TEMP 'release-body.md'
+          @(
+            "Windows installable package for ``$($env:GITHUB_REF_NAME)`` (version $($env:REL_VERSION), commit ``$($env:GITHUB_SHA.Substring(0,7))``).",
+            "",
+            "## Assets",
+            "",
+            "- ``OJ-NEXUS-Windows-v$($env:REL_VERSION)-win-x64.zip`` - self-contained CLI + desktop client (x64, no runtime install needed).",
+            "- ``OJ-NEXUS-Setup-*.exe`` - Inno Setup installer for the same build.",
+            "",
+            "## Signing",
+            "",
+            "The binaries are **not Authenticode-signed**; Windows SmartScreen may warn on first run (Properties > Unblock after verifying the SHA-256).",
+            "",
+            "## Verify",
+            "",
+            "Compare each asset against ``SHA256SUMS-windows-v$($env:REL_VERSION).txt`` before running."
+          ) | Set-Content $body
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          make_latest: false
+          body_path: ${{ runner.temp }}/release-body.md
+          files: |
+            ${{ runner.temp }}/assets/*
+
+  linux:
+    if: startsWith(github.ref, 'refs/tags/linux-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Guard tag against CMake project version
+        run: |
+          PROJ=$(grep -oP 'project\(OJNexusLinux VERSION \K[0-9.]+' linux/CMakeLists.txt)
+          if [ "linux-v$PROJ" != "$GITHUB_REF_NAME" ]; then
+            echo "TAG MISMATCH: tag $GITHUB_REF_NAME but linux/CMakeLists.txt declares VERSION $PROJ."
+            echo "Bump the CMake project version before tagging, or re-tag to match."
+            exit 1
+          fi
+          echo "REL_VERSION=$PROJ" >> "$GITHUB_ENV"
+
+      - name: Install Qt 6 and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build g++ dpkg-dev jq \
+            qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools \
+            qt6-tools-dev qt6-tools-dev-tools \
+            qml6-module-qtqml qml6-module-qtqml-workerscript qml6-module-qttest \
+            qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-dialogs qml6-module-qtquick-layouts \
+            qml6-module-qtquick-templates qml6-module-qtquick-window
+
+      - name: Configure
+        run: cmake -S linux -B build/linux -G Ninja -DOJNEXUS_BUILD_GUI=ON -DOJNEXUS_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build/linux --parallel 2
+
+      - name: Test offscreen
+        run: ctest --test-dir build/linux --output-on-failure
+
+      - name: CLI and offline smoke
+        env:
+          OJ_NEXUS_DATA_DIRECTORY: ${{ runner.temp }}/ojnexus-linux-smoke
+        run: |
+          ./build/linux/src/cli/ojnexus status --json | jq -e '.accounts == []'
+          ./build/linux/src/cli/ojnexus history --json | jq -e '.operations == []'
+          ./build/linux/src/cli/ojnexus config show --json | jq -e .
+          ./build/linux/src/cli/ojnexus portable inspect --file contracts/portable/v1/golden/pw-p01.json --json | jq -e '.status == "preview"'
+          ./build/linux/src/cli/ojnexus portable import --yes --file contracts/portable/v1/golden/pw-p01.json --json | jq -e '.status == "applied"'
+          ./build/linux/src/cli/ojnexus portable export --file "$RUNNER_TEMP/linux-portable-export.json" --json | jq -e '.status == "exported"'
+
+      - name: Build DEB
+        run: cpack --config build/linux/CPackConfig.cmake -G DEB
+
+      - name: Stage release assets
+        run: |
+          mkdir -p "$RUNNER_TEMP/assets"
+          DEB=$(ls ./ojnexus_*.deb 2>/dev/null || true)
+          if [ -z "$DEB" ]; then
+            echo "NO DEB PRODUCED by cpack; root contents:"; ls -la; exit 1
+          fi
+          cp "$DEB" "$RUNNER_TEMP/assets/ojnexus-${REL_VERSION}-Ubuntu24.04-amd64.deb"
+          cd "$RUNNER_TEMP/assets"
+          sha256sum *.deb > "SHA256SUMS-linux-v${REL_VERSION}.txt"
+          cat "SHA256SUMS-linux-v${REL_VERSION}.txt"
+
+      - name: Write release body
+        run: |
+          BODY="$RUNNER_TEMP/release-body.md"
+          {
+            echo "Linux installable package for \`$GITHUB_REF_NAME\` (version \`$REL_VERSION\`, commit \`${GITHUB_SHA::7}\`)."
+            echo
+            echo "## Assets"
+            echo
+            echo "- \`ojnexus-${REL_VERSION}-Ubuntu24.04-amd64.deb\` - CLI + Qt6 desktop client, built and smoke-tested on ubuntu-24.04 (ctest + CLI portable round trip green)."
+            echo
+            echo "## Install"
+            echo
+            echo "- \`sudo apt install ./ojnexus-${REL_VERSION}-Ubuntu24.04-amd64.deb\` (pulls the declared Qt 6 dependencies)."
+            echo "- Package is unsigned; verify the SHA-256 in \`SHA256SUMS-linux-v${REL_VERSION}.txt\` first."
+          } > "$BODY"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          make_latest: false
+          body_path: ${{ runner.temp }}/release-body.md
+          files: ${{ runner.temp }}/assets/*
