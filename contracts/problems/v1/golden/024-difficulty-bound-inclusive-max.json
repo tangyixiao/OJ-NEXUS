@@ -1,0 +1,52 @@
+{
+  "name": "024-difficulty-bound-inclusive-max",
+  "note": "difficultyMax is inclusive; no min bound set; unknown difficulty still excluded.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "At Edge",
+      "difficulty": 800,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "Above",
+      "difficulty": 801,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "3",
+      "title": "Unknown",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "difficultyMax": 800,
+    "sort": "DIFFICULTY"
+  },
+  "expect": [
+    "codeforces/1"
+  ]
+}

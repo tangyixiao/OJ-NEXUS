@@ -1,0 +1,31 @@
+{
+  "contract": "problems",
+  "version": 1,
+  "vectors": [
+    "001-same-title-different-oj.json",
+    "002-same-number-different-oj.json",
+    "003-null-difficulty-not-zero.json",
+    "004-range-excludes-unknown.json",
+    "005-difficulty-tie-key-order.json",
+    "006-updated-tie-key-order.json",
+    "007-title-astral-codepoint.json",
+    "008-title-tie-key-order.json",
+    "009-attempts-tie-key-order.json",
+    "010-search-trim-case.json",
+    "011-search-externalid.json",
+    "012-search-sharp-s-negative.json",
+    "013-search-sharp-s-positive.json",
+    "014-tag-case-sensitive.json",
+    "015-tag-match.json",
+    "016-favorite-only.json",
+    "017-judge-filter.json",
+    "018-status-review-overrides-solved.json",
+    "019-status-solved-excludes-review.json",
+    "020-status-attempted-boundary.json",
+    "021-status-unsolved.json",
+    "022-and-combination.json",
+    "023-identity-case-and-space.json",
+    "024-difficulty-bound-inclusive-max.json",
+    "025-difficulty-bound-inclusive-min.json"
+  ]
+}

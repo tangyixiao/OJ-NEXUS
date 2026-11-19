@@ -1,0 +1,53 @@
+{
+  "name": "003-null-difficulty-not-zero",
+  "note": "Difficulty 0 is a valid rating and sorts first; null (unknown) sorts last — never coerced to 0.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "Zero Barrier",
+      "difficulty": 0,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "Unknown Vault",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "3",
+      "title": "Low Ridge",
+      "difficulty": 100,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "sort": "DIFFICULTY"
+  },
+  "expect": [
+    "codeforces/1",
+    "codeforces/3",
+    "codeforces/2"
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "name": "004-range-excludes-unknown",
+  "note": "Bounds are inclusive; unknown difficulty is excluded when either bound is set; 900 is out of range.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "Zero Barrier",
+      "difficulty": 0,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "Unknown Vault",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "3",
+      "title": "Low Ridge",
+      "difficulty": 100,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "4",
+      "title": "High Peak",
+      "difficulty": 900,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "difficultyMin": 0,
+    "difficultyMax": 500,
+    "sort": "DIFFICULTY"
+  },
+  "expect": [
+    "codeforces/1",
+    "codeforces/3"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "name": "008-title-tie-key-order",
+  "note": "BETA and beta lower to the same string; 'atcoder/x' < 'codeforces/3' by key code-point order.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "3",
+      "title": "beta",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "atcoder",
+      "externalId": "x",
+      "title": "BETA",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "alpha",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "sort": "TITLE"
+  },
+  "expect": [
+    "codeforces/1",
+    "atcoder/x",
+    "codeforces/3"
+  ]
+}

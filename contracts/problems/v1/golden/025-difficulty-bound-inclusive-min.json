@@ -1,0 +1,53 @@
+{
+  "name": "025-difficulty-bound-inclusive-min",
+  "note": "difficultyMin is inclusive (800 passes); both known difficulties pass; unknown excluded.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "At Edge",
+      "difficulty": 800,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "Above",
+      "difficulty": 801,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "3",
+      "title": "Unknown",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "difficultyMin": 800,
+    "sort": "DIFFICULTY"
+  },
+  "expect": [
+    "codeforces/1",
+    "codeforces/2"
+  ]
+}

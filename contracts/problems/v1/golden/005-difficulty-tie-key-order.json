@@ -1,0 +1,53 @@
+{
+  "name": "005-difficulty-tie-key-order",
+  "note": "Code-point tie-break: 'codeforces/10' sorts before 'codeforces/2' ('1' < '2' as characters) — numeric order would disagree.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "Tie One",
+      "difficulty": 800,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "10",
+      "title": "Tie Two",
+      "difficulty": 800,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "atcoder",
+      "externalId": "abc1",
+      "title": "Tie Three",
+      "difficulty": 800,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "sort": "DIFFICULTY"
+  },
+  "expect": [
+    "atcoder/abc1",
+    "codeforces/10",
+    "codeforces/2"
+  ]
+}
