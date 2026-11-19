@@ -252,7 +252,7 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 
 ### 第 03 轮 · 手动可移植交换（131–135）
 
-#### [ ] PHASE 131 — S · Portable Workspace v1 契约
+#### [x] PHASE 131 — S · Portable Workspace v1 契约
 - **依赖 / 范围：** 126；S，规划新增 versioned JSON schema、manifest 与 golden 包。
 - **交付：** 完整定义题目、笔记、attempt、review、session 的最低可移植字段、稳定 ID、来源端、sourceScopeId、day key、引用和冲突拒绝规则；scope 为非凭据本地标识，不自动绑定目标端 handle。排除凭据、源码、输入、账户配置与工作台草稿。
 - **验收：** G-S；覆盖未知字段/版本、缺失引用、重复 ID、大小限制与路径穿越；同包重复导入幂等，同 ID 异内容必须显式处理。未知关键语义拒绝；仅 schema 明确允许的扩展无损保留。141/146/151/191 的新语义需版本化并同步更新 codec/golden；旧包身份不明保持 unassigned，不能归给当前账号。
