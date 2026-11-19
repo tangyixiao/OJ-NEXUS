@@ -57,3 +57,5 @@ linux/build/
 linux/_CPack_Packages/
 linux/*.deb
 linux/*.rpm
+__pycache__/
+*.pyc
