@@ -160,6 +160,7 @@ class LuoguSubmissionRepository(
                 judge = JudgeId.LUOGU.id,
                 externalId = pid,
                 title = job.title?.trim()?.takeIf { it.isNotEmpty() } ?: pid,
+                titleLower = (job.title?.trim()?.takeIf { it.isNotEmpty() } ?: pid).lowercase(),
                 difficulty = null,
                 createdAt = job.createdAt,
                 updatedAt = clock.millis(),

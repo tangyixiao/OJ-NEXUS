@@ -154,6 +154,7 @@ class AtCoderSyncRepository(
                     database.problemDao().applyRemoteMetadata(
                         id = local.id,
                         title = remote.name,
+                        titleLower = remote.name.lowercase(),
                         difficulty = remote.rating,
                         difficultySource = remote.difficultySource,
                         sourceUrl = local.sourceUrl?.takeIf { !it.contains("atcoder.jp") }
@@ -190,6 +191,7 @@ class AtCoderSyncRepository(
                     judge = JudgeId.ATCODER.id,
                     externalId = dto.problemId,
                     title = title,
+                    titleLower = title.lowercase(),
                     difficulty = remote?.rating,
                     difficultySource = remote?.difficultySource ?: DifficultySource.UNKNOWN.name,
                     createdAt = clock.millis(),
@@ -201,6 +203,7 @@ class AtCoderSyncRepository(
             database.problemDao().applyRemoteMetadata(
                 id = existingProblem.id,
                 title = title,
+                titleLower = title.lowercase(),
                 difficulty = remote?.rating ?: existingProblem.difficulty,
                 difficultySource = remote?.difficultySource ?: existingProblem.difficultySource,
                 sourceUrl = existingProblem.sourceUrl?.takeIf { !it.contains("atcoder.jp") } ?: sourceUrl,

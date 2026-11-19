@@ -1,17 +1,30 @@
-package com.ojnexus.core.database.dao
+﻿package com.ojnexus.core.database.dao
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.sqlite.db.SupportSQLiteQuery
+import com.ojnexus.core.database.LibraryQuery
+import com.ojnexus.core.database.LibraryQueryBuilder
 import com.ojnexus.core.database.entity.ProblemEntity
 import com.ojnexus.core.database.entity.ProblemTagCrossRef
 import com.ojnexus.core.database.entity.ProblemTagEntity
 import com.ojnexus.core.database.relation.ProblemDetailPojo
 import com.ojnexus.core.database.relation.ProblemWithTagsPojo
 import kotlinx.coroutines.flow.Flow
+
+/** SQL-derived library statistics over a bounded WHERE (phase 137). */
+data class LibrarySummaryRow(
+    val total: Long,
+    val solved: Long,
+    val review: Long,
+    val favorites: Long,
+)
 
 data class TrainingCandidateRow(
     val id: Long,
@@ -45,6 +58,50 @@ interface ProblemDao {
             "FROM problems",
     )
     fun observeLibrary(): Flow<List<ProblemWithTagsPojo>>
+
+    /** Bounded library page stream (phase 137): the WHERE/ORDER BY reproduce
+     * the phase-136 contract semantics for the active filter; Room invalidates
+     * the PagingSource on any problems-table write.
+     */
+    @Transaction
+    @RawQuery(observedEntities = [ProblemEntity::class])
+    fun pagingLibrary(query: SupportSQLiteQuery): PagingSource<Int, ProblemWithTagsPojo>
+
+    /** Filtered match count - the statistics are SQL-derived, never computed
+     * over only the visible page.
+     */
+    @RawQuery(observedEntities = [ProblemEntity::class])
+    fun observeMatchCountRaw(query: SupportSQLiteQuery): Flow<Long>
+
+    /** Filtered solved/review/favorite aggregates for the library summary. */
+    @RawQuery(observedEntities = [ProblemEntity::class])
+    fun observeSummaryRaw(query: SupportSQLiteQuery): Flow<LibrarySummaryRow>
+
+    /** Snapshot accessors used by the contract-vector parity harness. */
+    @Transaction
+    @RawQuery(observedEntities = [ProblemEntity::class])
+    fun findLibraryRaw(query: SupportSQLiteQuery): List<ProblemWithTagsPojo>
+
+    fun observeMatchCount(query: LibraryQuery): Flow<Long> =
+        observeMatchCountRaw(LibraryQueryBuilder.countLibrary(query))
+
+    fun observeLibrarySummary(query: LibraryQuery): Flow<LibrarySummaryRow> =
+        observeSummaryRaw(LibraryQueryBuilder.summaryLibrary(query))
+
+    fun findLibraryPage(query: LibraryQuery): List<ProblemWithTagsPojo> =
+        findLibraryRaw(LibraryQueryBuilder.pagingLibrary(query))
+
+    fun observeLibraryPage(query: LibraryQuery): PagingSource<Int, ProblemWithTagsPojo> =
+        pagingLibrary(LibraryQueryBuilder.pagingLibrary(query))
+
+    fun observeMatchCount(query: LibraryQuery): Flow<Long> =
+        observeMatchCountRaw(LibraryQueryBuilder.countLibrary(query))
+
+    fun observeLibrarySummary(query: LibraryQuery): Flow<LibrarySummaryRow> =
+        observeSummary(LibraryQueryBuilder.summaryLibrary(query))
+
+    fun findLibraryPage(query: LibraryQuery): List<ProblemWithTagsPojo> =
+        findLibraryRaw(LibraryQueryBuilder.pagingLibrary(query))
 
     @Query(
         "SELECT p.id AS id, p.judge AS judge, p.external_id AS externalId, p.title AS title, " +
@@ -163,14 +220,18 @@ interface ProblemDao {
     )
     suspend fun promoteSolved(id: Long, solvedAt: Long, updatedAt: Long)
 
-    /** Remote-metadata merge (Phase 2): title/difficulty/url are remote-authoritative. */
+    /** Remote-metadata merge (Phase 2): title/difficulty/url are remote-authoritative.
+     * Callers pass [titleLower] = title.lowercase() (Unicode simple lowercase; SQL
+     * lower() is ASCII-only and would break contract-parity search/sort). */
     @Query(
-        "UPDATE problems SET title = :title, difficulty = :difficulty, difficulty_source = :difficultySource, " +
-            "source_url = :sourceUrl, updated_at = :updatedAt WHERE id = :id",
+        "UPDATE problems SET title = :title, title_lower = :titleLower, difficulty = :difficulty, " +
+            "difficulty_source = :difficultySource, source_url = :sourceUrl, updated_at = :updatedAt " +
+            "WHERE id = :id",
     )
     suspend fun applyRemoteMetadata(
         id: Long,
         title: String,
+        titleLower: String,
         difficulty: Int?,
         difficultySource: String,
         sourceUrl: String?,

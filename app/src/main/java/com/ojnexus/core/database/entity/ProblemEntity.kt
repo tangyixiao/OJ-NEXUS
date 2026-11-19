@@ -18,6 +18,7 @@ import androidx.room.PrimaryKey
         Index(value = ["judge"]),
         Index(value = ["solved"]),
         Index(value = ["updated_at"]),
+        Index(value = ["title_lower"]),
     ],
 )
 data class ProblemEntity(
@@ -25,6 +26,9 @@ data class ProblemEntity(
     val judge: String,
     @ColumnInfo(name = "external_id") val externalId: String,
     val title: String,
+    /** Unicode simple-lowered title for contract-parity search and TITLE sort
+     * (SQL lower() is ASCII-only). Maintained by every write path. */
+    @ColumnInfo(name = "title_lower") val titleLower: String,
     /** Unified difficulty rating. NULL means the judge does not define one — never 0. */
     val difficulty: Int?,
     /** [com.ojnexus.core.model.DifficultySource] name. */
