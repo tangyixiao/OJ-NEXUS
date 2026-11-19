@@ -97,11 +97,7 @@ public enum PortableCodec {
         var count = 0
         for scalar in value.unicodeScalars {
             switch scalar.value {
-            case UInt32(ascii: "A")...UInt32(ascii: "Z"),
-                 UInt32(ascii: "a")...UInt32(ascii: "z"),
-                 UInt32(ascii: "0")...UInt32(ascii: "9"),
-                 UInt32(ascii: "."), UInt32(ascii: "_"), UInt32(ascii: ":"),
-                 UInt32(ascii: "-"):
+            case 0x41...0x5A, 0x61...0x7A, 0x30...0x39, 0x2E, 0x5F, 0x3A, 0x2D:
                 count += 1
                 if count > max { return false }
             default:
@@ -616,8 +612,7 @@ public enum PortableCodec {
         var normalized = [UInt8]()
         for scalar in key.unicodeScalars {
             switch scalar.value {
-            case 0x20, 0x09, 0x0A, 0x0D, UInt32(ascii: "."), UInt32(ascii: "_"),
-                 UInt32(ascii: "-"):
+            case 0x20, 0x09, 0x0A, 0x0D, 0x2E, 0x5F, 0x2D:
                 continue
             default:
                 PortableJson.appendScalar(simpleLower(scalar.value), to: &normalized)

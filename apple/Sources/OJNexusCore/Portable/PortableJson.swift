@@ -42,7 +42,7 @@ public enum PortableJson {
     // MARK: decode
 
     public static func parse(_ data: Data) throws -> PortableValue {
-        var bytes = [UInt8](data)
+        let bytes = [UInt8](data)
         if bytes.count >= 3, bytes[0] == 0xEF, bytes[1] == 0xBB, bytes[2] == 0xBF {
             throw invalidInput("byte order mark")
         }
