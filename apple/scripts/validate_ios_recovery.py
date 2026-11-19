@@ -107,15 +107,19 @@ def _suite_report(tree, suite_name):
 
 
 def _read_xcresult_tree(path, dump_dir=None):
-    """Return the normalized test tree for an xcresult, trying both tool APIs."""
+    """Return the normalized test tree for an xcresult, trying both tool APIs.
+
+    The modern `test-results tests` API returns the full per-suite node tree;
+    the `summary` API is aggregate-only (no suite names) on current Xcode, so
+    it cannot drive a per-suite gate."""
     new = subprocess.run(
-        ["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", path, "--format", "json"],
+        ["xcrun", "xcresulttool", "get", "test-results", "tests", "--path", path, "--format", "json"],
         capture_output=True, text=True)
     if new.returncode == 0 and new.stdout.strip():
         if dump_dir:
             with open(os.path.join(dump_dir, "raw-summary.json"), "w", encoding="utf-8") as handle:
                 handle.write(new.stdout)
-        return json.loads(new.stdout), "test-results-summary"
+        return json.loads(new.stdout), "test-results-tests"
     legacy = subprocess.run(
         ["xcrun", "xcresulttool", "get", "--format", "json", "--path", path],
         capture_output=True, text=True)
