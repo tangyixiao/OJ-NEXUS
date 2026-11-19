@@ -29,7 +29,7 @@ public actor PortableRepository {
     }
 
     /// User-confirmed transactional apply of one package.
-    public func apply(_ bytes: Data) throws -> PortableApplyResult {
+    public func apply(_ bytes: Data) async throws -> PortableApplyResult {
         let generation = applyGeneration
         // PortableContractError propagates: whole-package reject, zero writes.
         let package = try PortableCodec.validate(bytes)
@@ -68,7 +68,7 @@ public actor PortableRepository {
     /// Re-emit the archived package's canonical bytes. The archive's integrity
     /// was proven at load: the canonical bytes are recomputed there and their
     /// SHA-256 must equal the stored identity.
-    public func export() throws -> Data {
+    public func export() async throws -> Data {
         guard let stored = try await store.load() else {
             throw PortableExportEmpty()
         }
