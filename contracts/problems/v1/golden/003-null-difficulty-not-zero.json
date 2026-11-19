@@ -1,6 +1,6 @@
 {
   "name": "003-null-difficulty-not-zero",
-  "note": "Difficulty 0 is a valid rating and sorts first; null (unknown) sorts last — never coerced to 0.",
+  "note": "Difficulty 0 is a valid rating and sorts first; null (unknown) sorts last — never coerced to 0; the two null records tie-break by key order ('codeforces/2' < 'codeforces/5').",
   "dataset": [
     {
       "judge": "codeforces",
@@ -40,6 +40,19 @@
       "tags": [],
       "createdAt": 1700000000000,
       "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "5",
+      "title": "Unknown Second",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
     }
   ],
   "query": {
@@ -48,6 +61,7 @@
   "expect": [
     "codeforces/1",
     "codeforces/3",
-    "codeforces/2"
+    "codeforces/2",
+    "codeforces/5"
   ]
 }

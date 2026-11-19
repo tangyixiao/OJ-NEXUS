@@ -26,6 +26,9 @@
     "022-and-combination.json",
     "023-identity-case-and-space.json",
     "024-difficulty-bound-inclusive-max.json",
-    "025-difficulty-bound-inclusive-min.json"
+    "025-difficulty-bound-inclusive-min.json",
+    "026-nbsp-query-not-trimmed.json",
+    "027-whitespace-only-query-matches-all.json",
+    "028-tiebreak-key-codepoint.json"
   ]
 }

@@ -1,6 +1,6 @@
 {
   "name": "007-title-astral-codepoint",
-  "note": "Lowered first characters: 'b'=0x62 < 'z'=0x7A < 'ａ'=U+FF41(65345) < '𝐀'=U+1D400(119808). A UTF-16-naive comparator puts the astral surrogate (0xD835) before U+FF41 and fails this vector.",
+  "note": "Lowered first characters: 'b'=0x62 < 'z'=0x7A < 'ａ'=U+FF41(65345) < '𝐀' lowered=U+1D41A(119834). A UTF-16-naive comparator puts the astral surrogate (0xD835) before U+FF41 and fails this vector.",
   "dataset": [
     {
       "judge": "codeforces",
