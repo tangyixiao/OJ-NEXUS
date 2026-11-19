@@ -1,0 +1,58 @@
+{
+  "name": "022-and-combination",
+  "note": "All criteria AND-combine: the solved atcoder record fails the judge filter, the newer unsolved one fails status.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "Keeper",
+      "difficulty": null,
+      "favorite": false,
+      "solved": true,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 100
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "Dropped",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 900
+    },
+    {
+      "judge": "atcoder",
+      "externalId": "w",
+      "title": "Solved Elsewhere",
+      "difficulty": null,
+      "favorite": false,
+      "solved": true,
+      "attemptCount": 1,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 950
+    }
+  ],
+  "query": {
+    "search": "",
+    "status": "SOLVED",
+    "judge": "codeforces",
+    "favoriteOnly": false,
+    "tag": null,
+    "difficultyMin": null,
+    "difficultyMax": null,
+    "sort": "UPDATED"
+  },
+  "expect": [
+    "codeforces/1"
+  ]
+}

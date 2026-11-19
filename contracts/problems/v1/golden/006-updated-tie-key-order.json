@@ -1,0 +1,67 @@
+{
+  "name": "006-updated-tie-key-order",
+  "note": "UPDATED is descending; the three ties at 1000 resolve by ascending key code-point order.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "Tie A",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "9",
+      "title": "Fresh",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 2000
+    },
+    {
+      "judge": "atcoder",
+      "externalId": "z",
+      "title": "Tie B",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "Tie C",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1000
+    }
+  ],
+  "query": {
+    "sort": "UPDATED"
+  },
+  "expect": [
+    "codeforces/9",
+    "atcoder/z",
+    "codeforces/1",
+    "codeforces/2"
+  ]
+}

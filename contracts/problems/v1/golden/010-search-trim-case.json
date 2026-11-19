@@ -1,0 +1,53 @@
+{
+  "name": "010-search-trim-case",
+  "note": "Query '  TWO  ' trims+lowers to 'two': matches 'Two Sum' and 'twosum', not 'Twelve Doors'. 'two sum' < 'twosum' (space 0x20 < 's').",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "Two Sum",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "twosum",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "3",
+      "title": "Twelve Doors",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "search": "  TWO  ",
+    "sort": "TITLE"
+  },
+  "expect": [
+    "codeforces/1",
+    "codeforces/2"
+  ]
+}

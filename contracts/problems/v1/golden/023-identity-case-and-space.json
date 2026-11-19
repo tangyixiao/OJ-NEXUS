@@ -1,0 +1,53 @@
+{
+  "name": "023-identity-case-and-space",
+  "note": "'1234A', '1234a' and '1234A ' (trailing space) are three DISTINCT problems; sorted by their distinct titles.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1234A",
+      "title": "Alpha One",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "1234a",
+      "title": "Alpha Two",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "1234A ",
+      "title": "Alpha Three",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "sort": "TITLE"
+  },
+  "expect": [
+    "codeforces/1234A",
+    "codeforces/1234A ",
+    "codeforces/1234a"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "name": "009-attempts-tie-key-order",
+  "note": "ATTEMPTS is descending; the tie at 3 resolves by ascending key code-point order.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "4",
+      "title": "Busy A",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 3,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "atcoder",
+      "externalId": "m",
+      "title": "Busy B",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 3,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "5",
+      "title": "Quiet",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 1,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "sort": "ATTEMPTS"
+  },
+  "expect": [
+    "atcoder/m",
+    "codeforces/4",
+    "codeforces/5"
+  ]
+}

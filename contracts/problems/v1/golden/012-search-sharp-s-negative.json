@@ -1,0 +1,39 @@
+{
+  "name": "012-search-sharp-s-negative",
+  "note": "Unicode SIMPLE lowercase keeps ß (full case-fold would turn it into 'ss' and wrongly match both).",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "Große Daten",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "Grosse Daten",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "search": "ss",
+    "sort": "TITLE"
+  },
+  "expect": [
+    "codeforces/2"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "011-search-externalid",
+  "note": "The lowered query matches the lowered externalId '12a3'; identity is case-sensitive but search is not.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "12A3",
+      "title": "External Hit",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "1299",
+      "title": "Other Hit",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "search": "12a3",
+    "sort": "TITLE"
+  },
+  "expect": [
+    "codeforces/12A3"
+  ]
+}

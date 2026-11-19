@@ -1,0 +1,53 @@
+{
+  "name": "002-same-number-different-oj",
+  "note": "Same externalId on different judges never merges; CJK title sorts after ASCII ('o'=0x6F < '月'=0x6708).",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1234A",
+      "title": "Add Divisibility",
+      "difficulty": 800,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "luogu",
+      "externalId": "1234A",
+      "title": "月度问题",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "5678X",
+      "title": "Other Angle",
+      "difficulty": 1000,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "sort": "TITLE"
+  },
+  "expect": [
+    "codeforces/1234A",
+    "codeforces/5678X",
+    "luogu/1234A"
+  ]
+}

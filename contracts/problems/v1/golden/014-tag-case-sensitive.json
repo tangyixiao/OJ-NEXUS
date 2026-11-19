@@ -1,0 +1,42 @@
+{
+  "name": "014-tag-case-sensitive",
+  "note": "'DP' is not in ['dp', 'graphs'] — tag matching is case-sensitive exact membership.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "Tagged",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [
+        "dp",
+        "graphs"
+      ],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "Other",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [
+        "math"
+      ],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "tag": "DP",
+    "sort": "TITLE"
+  },
+  "expect": []
+}

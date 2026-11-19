@@ -1,0 +1,53 @@
+{
+  "name": "001-same-title-different-oj",
+  "note": "Same title on two judges never merges; equal lowered titles tie-break on key code-point order ('atcoder/...' < 'codeforces/...').",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1234A",
+      "title": "Alien Sunrise",
+      "difficulty": 800,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "atcoder",
+      "externalId": "abc123a",
+      "title": "Alien Sunrise",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "999B",
+      "title": "Different Title",
+      "difficulty": 900,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "sort": "TITLE"
+  },
+  "expect": [
+    "atcoder/abc123a",
+    "codeforces/1234A",
+    "codeforces/999B"
+  ]
+}

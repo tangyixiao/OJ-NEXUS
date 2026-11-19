@@ -1,0 +1,67 @@
+{
+  "name": "007-title-astral-codepoint",
+  "note": "Lowered first characters: 'b'=0x62 < 'z'=0x7A < 'ａ'=U+FF41(65345) < '𝐀'=U+1D400(119808). A UTF-16-naive comparator puts the astral surrogate (0xD835) before U+FF41 and fails this vector.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "Ａlpha",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "𝐀lpha",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "3",
+      "title": "beta",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "4",
+      "title": "Zeta",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "sort": "TITLE"
+  },
+  "expect": [
+    "codeforces/3",
+    "codeforces/4",
+    "codeforces/1",
+    "codeforces/2"
+  ]
+}

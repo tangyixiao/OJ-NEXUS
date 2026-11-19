@@ -1,0 +1,39 @@
+{
+  "name": "016-favorite-only",
+  "note": "favoriteOnly keeps only favorite=true records.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "Starred",
+      "difficulty": null,
+      "favorite": true,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "Plain",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "favoriteOnly": true,
+    "sort": "TITLE"
+  },
+  "expect": [
+    "codeforces/1"
+  ]
+}

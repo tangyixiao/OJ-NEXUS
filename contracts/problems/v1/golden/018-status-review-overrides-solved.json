@@ -1,0 +1,65 @@
+{
+  "name": "018-status-review-overrides-solved",
+  "note": "inReview=true makes the status REVIEW even though the problem is solved.",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "Review Pending",
+      "difficulty": null,
+      "favorite": false,
+      "solved": true,
+      "attemptCount": 5,
+      "inReview": true,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "2",
+      "title": "Done Long Ago",
+      "difficulty": null,
+      "favorite": false,
+      "solved": true,
+      "attemptCount": 1,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "3",
+      "title": "Tried Twice",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 2,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "codeforces",
+      "externalId": "4",
+      "title": "Never Touched",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "status": "REVIEW",
+    "sort": "TITLE"
+  },
+  "expect": [
+    "codeforces/1"
+  ]
+}

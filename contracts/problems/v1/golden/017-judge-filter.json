@@ -1,0 +1,52 @@
+{
+  "name": "017-judge-filter",
+  "note": "Judge filter passes only that judge's records (LOCAL included in datasets, filtered out here).",
+  "dataset": [
+    {
+      "judge": "codeforces",
+      "externalId": "1",
+      "title": "Online",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "atcoder",
+      "externalId": "y",
+      "title": "Online Too",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    },
+    {
+      "judge": "local",
+      "externalId": "handmade",
+      "title": "Handmade",
+      "difficulty": null,
+      "favorite": false,
+      "solved": false,
+      "attemptCount": 0,
+      "inReview": false,
+      "tags": [],
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ],
+  "query": {
+    "judge": "atcoder",
+    "sort": "TITLE"
+  },
+  "expect": [
+    "atcoder/y"
+  ]
+}
