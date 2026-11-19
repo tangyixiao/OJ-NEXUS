@@ -108,14 +108,15 @@ public enum PortableCodec {
     }
 
     /// `^\d{4}-\d{2}-\d{2}$` after the frozen `\d` -> `[0-9]` translation.
+    /// Positions: YYYY at 0-3, dashes at 4 and 7, MM at 5-6, DD at 8-9.
     static func matchesDayKey(_ value: String) -> Bool {
         let scalars = Array(value.unicodeScalars)
         guard scalars.count == 10 else { return false }
-        let digits = [0, 1, 3, 4, 6, 7, 8, 9]
+        let digits = [0, 1, 2, 3, 5, 6, 8, 9]
         for position in digits where !(scalars[position].value >= 0x30 && scalars[position].value <= 0x39) {
             return false
         }
-        return scalars[2] == "-" && scalars[5] == "-"
+        return scalars[4] == "-" && scalars[7] == "-"
     }
 
     /// `^https?://` prefix check (the frozen sourceUrl schema pattern).
