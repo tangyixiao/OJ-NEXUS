@@ -1,7 +1,7 @@
 # Phase 134 — Linux Portable Workspace Import/Export
 
-Status: **VERIFIED PENDING DELIVERY GATES**. The controller's local gates are
-measured below; the delivery CI gates flip at merge. Authoritative inputs:
+Status: **VERIFIED**. Every gate below is measured, including the delivery
+CI gates on the delivery PR head; the phase is merged to `main`. Authoritative inputs:
 [Design](../superpowers/specs/2026-11-18-phase-134-linux-portable-import-export-design.md),
 [Plan](../superpowers/plans/2026-11-18-phase-134-linux-portable-import-export.md),
 [Plan ledger](phase-134-plan-ledger.md), independent review
