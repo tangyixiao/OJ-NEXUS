@@ -58,6 +58,7 @@ class DatabaseRestoreCoordinatorTest {
                 judge = "codeforces",
                 externalId = "restore-identity",
                 title = "Keep this identity",
+                titleLower = "Keep this identity".lowercase(),
                 difficulty = 800,
                 createdAt = 1L,
                 updatedAt = 1L,

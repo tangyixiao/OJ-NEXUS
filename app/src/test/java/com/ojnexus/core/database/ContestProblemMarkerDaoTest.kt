@@ -88,6 +88,7 @@ class ContestProblemMarkerDaoTest {
                 judge = "atcoder",
                 externalId = "abc350_a",
                 title = "A",
+                titleLower = "A".lowercase(),
                 difficulty = null,
                 createdAt = 1,
                 updatedAt = 1,

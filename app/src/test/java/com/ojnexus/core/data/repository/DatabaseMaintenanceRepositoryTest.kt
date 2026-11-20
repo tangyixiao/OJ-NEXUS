@@ -50,6 +50,7 @@ class DatabaseMaintenanceRepositoryTest {
                 judge = "codeforces",
                 externalId = externalId,
                 title = "T$externalId",
+                titleLower = "T$externalId".lowercase(),
                 difficulty = null,
                 createdAt = 1L,
                 updatedAt = 1L,

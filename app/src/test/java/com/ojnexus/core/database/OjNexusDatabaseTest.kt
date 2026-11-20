@@ -57,6 +57,7 @@ class OjNexusDatabaseTest {
             judge = judge,
             externalId = externalId,
             title = title,
+            titleLower = title.lowercase(),
             difficulty = 1800,
             createdAt = 1_000L,
             updatedAt = 1_000L,

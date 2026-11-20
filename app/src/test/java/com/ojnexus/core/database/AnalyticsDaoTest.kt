@@ -86,6 +86,7 @@ class AnalyticsDaoTest {
                 judge = judge,
                 externalId = externalId,
                 title = externalId,
+                titleLower = externalId.lowercase(),
                 difficulty = 1000,
                 createdAt = 0,
                 updatedAt = 0,

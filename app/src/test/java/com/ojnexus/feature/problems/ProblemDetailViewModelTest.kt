@@ -67,6 +67,7 @@ class ProblemDetailViewModelTest {
                 judge = "CODEFORCES",
                 externalId = "phase-122-${System.nanoTime()}",
                 title = "Note editor state regression",
+                titleLower = "Note editor state regression".lowercase(),
                 difficulty = 1200,
                 createdAt = clock.millis(),
                 updatedAt = clock.millis(),

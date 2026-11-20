@@ -551,6 +551,7 @@ class DatabaseRestoreRecoveryFaultTest {
         db.problemDao().insert(
             ProblemEntity(
                 judge = "codeforces", externalId = "old-row", title = "old-row",
+                titleLower = "old-row".lowercase(),
                 difficulty = 800, createdAt = 1L, updatedAt = 1L,
             ),
         )
@@ -602,6 +603,7 @@ class DatabaseRestoreRecoveryFaultTest {
         db.problemDao().insert(
             ProblemEntity(
                 judge = "codeforces", externalId = externalId, title = externalId,
+                titleLower = externalId.lowercase(),
                 difficulty = 800, createdAt = 1L, updatedAt = 1L,
             ),
         )
