@@ -94,15 +94,6 @@ interface ProblemDao {
     fun observeLibraryPage(query: LibraryQuery): PagingSource<Int, ProblemWithTagsPojo> =
         pagingLibrary(LibraryQueryBuilder.pagingLibrary(query))
 
-    fun observeMatchCount(query: LibraryQuery): Flow<Long> =
-        observeMatchCountRaw(LibraryQueryBuilder.countLibrary(query))
-
-    fun observeLibrarySummary(query: LibraryQuery): Flow<LibrarySummaryRow> =
-        observeSummary(LibraryQueryBuilder.summaryLibrary(query))
-
-    fun findLibraryPage(query: LibraryQuery): List<ProblemWithTagsPojo> =
-        findLibraryRaw(LibraryQueryBuilder.pagingLibrary(query))
-
     @Query(
         "SELECT p.id AS id, p.judge AS judge, p.external_id AS externalId, p.title AS title, " +
             "p.difficulty AS difficulty, p.solved AS solved, p.attempt_count AS attemptCount, " +

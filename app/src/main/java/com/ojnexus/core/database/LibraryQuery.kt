@@ -58,7 +58,7 @@ object LibraryQueryBuilder {
         SimpleSQLiteQuery(buildSelect(query, ordered = true), bindArgs(query))
 
     fun countLibrary(query: LibraryQuery): SupportSQLiteQuery =
-        SimpleSQLiteQuery("SELECT COUNT(*) FROM problems$whereClauseSql(query)", bindArgs(query))
+        SimpleSQLiteQuery("SELECT COUNT(*) FROM problems${whereClauseSql(query)}", bindArgs(query))
 
     fun summaryLibrary(query: LibraryQuery): SupportSQLiteQuery = SimpleSQLiteQuery(
         "SELECT COUNT(*) AS total, " +
