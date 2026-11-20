@@ -312,6 +312,7 @@ class TrainingRepositorySessionTest {
                 judge = "codeforces",
                 externalId = externalId,
                 title = title,
+                titleLower = title.lowercase(),
                 difficulty = difficulty,
                 createdAt = 1L,
                 updatedAt = 1L,

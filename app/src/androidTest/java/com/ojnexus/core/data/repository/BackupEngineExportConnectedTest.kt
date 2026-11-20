@@ -38,6 +38,7 @@ class BackupEngineExportConnectedTest {
             database.problemDao().insert(
                 ProblemEntity(
                     judge = "codeforces", externalId = "engine-row", title = "engine-row",
+                    titleLower = "engine-row".lowercase(),
                     difficulty = 800, createdAt = 1L, updatedAt = 1L,
                 ),
             )
@@ -51,6 +52,7 @@ class BackupEngineExportConnectedTest {
             database.problemDao().insert(
                 ProblemEntity(
                     judge = "codeforces", externalId = "engine-row-wal", title = "engine-row-wal",
+                    titleLower = "engine-row-wal".lowercase(),
                     difficulty = 900, createdAt = 2L, updatedAt = 2L,
                 ),
             )

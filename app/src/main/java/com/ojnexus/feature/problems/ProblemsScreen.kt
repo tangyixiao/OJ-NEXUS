@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -142,6 +145,7 @@ fun ProblemsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val remoteState by viewModel.remoteState.collectAsStateWithLifecycle()
     val notesState by viewModel.noteState.collectAsStateWithLifecycle()
+    val libraryPagingItems = viewModel.libraryPaging.collectAsLazyPagingItems()
     val context = LocalContext.current
 
     Column(
@@ -173,6 +177,7 @@ fun ProblemsScreen(
             is Loadable.Ready -> when (scope) {
                 ProblemScope.LIBRARY -> LibraryContent(
                     uiState = s.value,
+                    pagingItems = libraryPagingItems,
                     viewModel = viewModel,
                     onOpenProblem = onOpenProblem,
                     onAddProblem = onAddProblem,
@@ -250,6 +255,7 @@ private fun ErrorState(message: String) {
 @Composable
 private fun LibraryContent(
     uiState: ProblemsUiState,
+    pagingItems: LazyPagingItems<Problem>,
     viewModel: ProblemsViewModel,
     onOpenProblem: (Long) -> Unit,
     onAddProblem: () -> Unit,
@@ -261,6 +267,10 @@ private fun LibraryContent(
 ) {
     var deleteTarget by remember { mutableStateOf<Problem?>(null) }
     val colors = NexusTheme.colors
+    // The loaded window only — the training rail never touches the full list.
+    val visibleProblems = remember(pagingItems.itemCount) {
+        (0 until pagingItems.itemCount).mapNotNull { pagingItems[it] }
+    }
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item(key = "search") {
@@ -284,11 +294,11 @@ private fun LibraryContent(
                     showClear = !isProblemLibraryDefaultView(uiState.filter, uiState.sort),
                     onClear = viewModel::clearFilter,
                 )
-                if (uiState.problems.isNotEmpty()) {
+                if (visibleProblems.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(NexusSpacing.xs))
                     LibraryTrainingActionRail(
-                        problemCount = uiState.problems.size,
-                        onClick = { onBuildTraining(buildTrainingProblemIds(uiState.problems)) },
+                        problemCount = visibleProblems.size,
+                        onClick = { onBuildTraining(buildTrainingProblemIds(visibleProblems)) },
                     )
                 }
                 if (BuildConfig.DEBUG) {
@@ -358,7 +368,9 @@ private fun LibraryContent(
                     hint = stringResource(R.string.problems_empty_hint),
                 )
             }
-        } else if (uiState.problems.isEmpty()) {
+        } else if (pagingItems.itemCount == 0 &&
+            pagingItems.loadState.refresh is androidx.paging.LoadState.NotLoading
+        ) {
             item(key = "no-match") {
                 EmptyHint(
                     title = stringResource(R.string.problems_no_match),
@@ -366,7 +378,11 @@ private fun LibraryContent(
                 )
             }
         } else {
-            items(items = uiState.problems, key = { it.id }) { problem ->
+            items(
+                count = pagingItems.itemCount,
+                key = pagingItems.itemKey { it.id },
+            ) { index ->
+                val problem = pagingItems[index] ?: return@items
                 ProblemRow(
                     problem = problem,
                     onClick = { onOpenProblem(problem.id) },
@@ -374,28 +390,6 @@ private fun LibraryContent(
                     onDelete = { deleteTarget = problem },
                 )
                 NexusDivider(insetEnd = NexusSpacing.xxs)
-            }
-            if (uiState.hasMoreLibrary) {
-                item(key = "show-more") {
-                    val moreLabel = stringResource(
-                        R.string.problems_show_more,
-                        uiState.summary.visible - uiState.problems.size,
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(role = Role.Button) { viewModel.loadMoreLibrary() }
-                            .padding(vertical = NexusSpacing.sm),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = moreLabel,
-                            style = NexusTheme.typography.data,
-                            color = NexusTheme.colors.accent,
-                        )
-                    }
-                    NexusDivider(insetEnd = NexusSpacing.xxs)
-                }
             }
         }
         item(key = "footer-space") {

@@ -3,6 +3,10 @@ package com.ojnexus.core.database
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -11,6 +15,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.File
 
 /**
  * Phase 106 Room index audit — proves the v13→v14 migration is additive and that the two
@@ -38,6 +43,15 @@ class RoomIndexAuditTest {
         .allowMainThreadQueries()
         .build()
 
+    private fun schemaFile(version: Int): File {
+        val candidates = listOf(
+            File("schemas/com.ojnexus.core.database.OjNexusDatabase/$version.json"),
+            File("app/schemas/com.ojnexus.core.database.OjNexusDatabase/$version.json"),
+        )
+        return candidates.firstOrNull { it.exists() }
+            ?: error("schema json not found; tried $candidates (cwd=${File(".").absolutePath})")
+    }
+
     private fun plan(database: OjNexusDatabase, sql: String, vararg args: Any): String {
         // SupportSQLiteDatabase.query(String, Array<Any?>) — vararg spread is not offered.
         val cursor = database.openHelper.writableDatabase.query("EXPLAIN QUERY PLAN $sql", args)
@@ -51,7 +65,7 @@ class RoomIndexAuditTest {
     }
 
     @Test
-    fun `fresh v16 schema carries both audited composite indices`() {
+    fun `fresh v17 schema carries both audited composite indices`() {
         val database = open("audit-fresh-${System.nanoTime()}.db")
         try {
             val plans = plan(
@@ -74,49 +88,32 @@ class RoomIndexAuditTest {
     @Test
     fun `migrate v13 to latest keeps rows and adds indices non-destructively`() {
         val name = "audit-migrate-${System.nanoTime()}.db"
-        // Build a faithful v13 database: capture the exact CREATE TABLE statements from a
-        // fresh Room open (v14 added indices only, no columns — so the table DDL equals
-        // v13's), create a bare file with those two tables, seed rows, and rewind the
-        // version marker to 13. No room_master_table → Room treats it as a migrated-from-
-        // legacy db, exactly the upgrade path real installs take.
-        val probe = open("audit-probe-${System.nanoTime()}.db")
-        val ddl = mutableListOf<String>()
-        probe.openHelper.writableDatabase.query(
-            "SELECT name, sql FROM sqlite_master WHERE type = 'table' " +
-                "AND name IN ('submission_jobs', 'remote_problems')",
-            emptyArray(),
-        ).use { c ->
-            while (c.moveToNext()) {
-                ddl.add(c.getString(1))
-            }
-        }
-        // Capture the remaining entity tables plus every declared index DDL so the migrated
-        // database passes Room's full schema validation (Room validates EVERY entity and
-        // every declared index, not only the migrated tables). The v13 indices on
-        // submission_jobs/remote_problems themselves stay part of the expected schema —
-        // only the indices the v14 migration creates are excluded by NAME.
-        probe.openHelper.writableDatabase.query(
-            "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' " +
-                "AND name NOT IN ('android_metadata', 'room_master_table', 'submission_jobs', 'remote_problems')",
-            emptyArray(),
-        ).use { c ->
-            while (c.moveToNext()) {
-                ddl.add(c.getString(1))
-            }
-        }
-        probe.openHelper.writableDatabase.query(
-            "SELECT name, sql FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL " +
-                "AND name NOT IN ('index_submission_jobs_judge_status_updated_at', 'index_remote_problems_judge_external_id')",
-            emptyArray(),
-        ).use { c ->
-            while (c.moveToNext()) {
-                ddl.add(c.getString(1))
-            }
-        }
-        probe.close()
-
+        // Build a faithful v13 database from the committed exported schema (the replay-
+        // current-DDL trick this test used before phase 137 breaks the moment a migration
+        // adds a column: the replayed schema already contains it, and a plain
+        // ALTER TABLE ADD COLUMN is not idempotent). The exported 13.json is Room's own
+        // v13 definition — column additions in later migrations stay safe.
+        val root = Json.parseToJsonElement(schemaFile(13).readText()).jsonObject
+        val database = root["database"]!!.jsonObject
+        assertEquals(13, database["version"]!!.jsonPrimitive.content.toInt())
         val db = context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null)
-        ddl.forEach(db::execSQL)
+        db.execSQL("PRAGMA foreign_keys = OFF")
+        database["entities"]!!.jsonArray.forEach { element ->
+            val entity = element.jsonObject
+            val tableName = entity["tableName"]!!.jsonPrimitive.content
+            db.execSQL(entity["createSql"]!!.jsonPrimitive.content.replace("\${TABLE_NAME}", tableName))
+            entity["indices"]?.jsonArray?.forEach { indexElement ->
+                db.execSQL(
+                    indexElement.jsonObject["createSql"]!!.jsonPrimitive.content
+                        .replace("\${TABLE_NAME}", tableName),
+                )
+            }
+        }
+        database["setupQueries"]?.jsonArray?.forEach { db.execSQL(it.jsonPrimitive.content) }
+        db.execSQL(
+            "INSERT INTO room_master_table (id, identity_hash) VALUES(0, " +
+                "'${database["identityHash"]!!.jsonPrimitive.content}')",
+        )
         db.execSQL(
             "INSERT INTO submission_jobs (judge, request_id, kind, language, status, created_at, updated_at) " +
                 "VALUES ('luogu', 'req-1', 'PROBLEM', 'C++14', 'PENDING', 1, 1)",
@@ -134,7 +131,7 @@ class RoomIndexAuditTest {
             .allowMainThreadQueries()
             .build()
         try {
-            assertEquals(16, migrated.openHelper.writableDatabase.version)
+            assertEquals(17, migrated.openHelper.writableDatabase.version)
             // Row survived the migration: read the seeded job back through the raw store.
             val jobs = mutableListOf<String>()
             migrated.openHelper.writableDatabase.query(
@@ -181,6 +178,7 @@ class RoomIndexAuditTest {
             OjNexusDatabase.MIGRATION_13_14,
             OjNexusDatabase.MIGRATION_14_15,
             OjNexusDatabase.MIGRATION_15_16,
+            OjNexusDatabase.MIGRATION_16_17,
         )
     }
 }

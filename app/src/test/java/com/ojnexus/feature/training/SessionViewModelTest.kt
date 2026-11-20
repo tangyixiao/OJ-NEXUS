@@ -103,6 +103,7 @@ class SessionViewModelTest {
             judge = "CODEFORCES",
             externalId = "${title.lowercase()}-${System.nanoTime()}",
             title = title,
+            titleLower = title.lowercase(),
             difficulty = 1200,
             createdAt = clock.millis(),
             updatedAt = clock.millis(),

@@ -177,6 +177,7 @@ class ReviewRunViewModelTest {
                 judge = "codeforces",
                 externalId = code,
                 title = title,
+                titleLower = title.lowercase(),
                 difficulty = 800,
                 createdAt = clock.millis(),
                 updatedAt = clock.millis(),

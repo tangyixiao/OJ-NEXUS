@@ -2,6 +2,8 @@ package com.ojnexus.feature.problems
 
 import androidx.annotation.StringRes
 import com.ojnexus.R
+import com.ojnexus.core.database.LibraryQuery
+import com.ojnexus.core.database.LibrarySort
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.model.Problem
 import com.ojnexus.core.model.ProblemStatus
@@ -63,3 +65,24 @@ fun List<Problem>.applyFilterSort(filter: ProblemFilter, sort: ProblemSort): Lis
         ProblemSort.ATTEMPTS -> result.sortedByDescending { it.attemptCount }
     }
 }
+
+/**
+ * SQL translation of the active filter (phase 137). The WHERE semantics are the
+ * frozen phase-136 contract (see `LibraryQueryBuilder`); [applyFilterSort] above
+ * is retained as the pure in-memory reference for the contract-vector parity tests.
+ */
+fun ProblemFilter.toLibraryQuery(sort: ProblemSort): LibraryQuery = LibraryQuery(
+    search = query,
+    status = status,
+    judge = judge?.id,
+    favoriteOnly = favoriteOnly,
+    tag = tag,
+    difficultyMin = difficultyMin,
+    difficultyMax = difficultyMax,
+    sort = when (sort) {
+        ProblemSort.UPDATED -> LibrarySort.UPDATED
+        ProblemSort.DIFFICULTY -> LibrarySort.DIFFICULTY
+        ProblemSort.TITLE -> LibrarySort.TITLE
+        ProblemSort.ATTEMPTS -> LibrarySort.ATTEMPTS
+    },
+)

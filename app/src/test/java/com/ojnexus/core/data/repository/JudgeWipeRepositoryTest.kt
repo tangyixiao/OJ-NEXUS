@@ -80,6 +80,7 @@ class JudgeWipeRepositoryTest {
                 judge = judge,
                 externalId = "1A",
                 title = "Seeded $judge",
+                titleLower = "Seeded $judge".lowercase(),
                 difficulty = 800,
                 createdAt = 1L,
                 updatedAt = 1L,

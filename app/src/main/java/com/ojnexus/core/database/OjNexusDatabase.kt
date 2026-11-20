@@ -92,7 +92,7 @@ import com.ojnexus.core.portable.archive.PortableArchiveRecordEntity
  * the archive keeps accepted portable records with their provenance and capability tier so a
  * later phase can project them into domain tables.
  */
-const val OJ_NEXUS_SCHEMA_VERSION = 16
+const val OJ_NEXUS_SCHEMA_VERSION = 17
 
 @Database(
     entities = [
@@ -750,9 +750,43 @@ abstract class OjNexusDatabase : RoomDatabase() {
         /**
          * v15 → v16 (Phase 132): the bounded domain-archive tables, additive only. Defined in
          * [Migration15To16.kt] and re-exported here so every step of the chain is reachable as
-         * `OjNexusDatabase.MIGRATION_<from>_<to>`.
+         * `OJNexusDatabase.MIGRATION_<from>_<to>`.
          */
         val MIGRATION_15_16: Migration get() = com.ojnexus.core.database.MIGRATION_15_16
+
+        /**
+         * v16 → v17 (Phase 137): `problems.title_lower` — the Unicode simple-lowered title
+         * backing contract-parity search and TITLE sort (SQL lower() is ASCII-only). The
+         * backfill runs in Kotlin for exact `lowercase()` parity, then indexes the column.
+         */
+        val MIGRATION_16_17: Migration = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `problems` ADD COLUMN `title_lower` TEXT NOT NULL DEFAULT ''")
+                val updates = mutableListOf<Pair<Long, String>>()
+                db.query("SELECT id, title FROM problems").use { cursor ->
+                    val idIndex = cursor.getColumnIndexOrThrow("id")
+                    val titleIndex = cursor.getColumnIndexOrThrow("title")
+                    while (cursor.moveToNext()) {
+                        updates += cursor.getLong(idIndex) to cursor.getString(titleIndex).lowercase()
+                    }
+                }
+                val statement = db.compileStatement("UPDATE `problems` SET `title_lower` = ? WHERE `id` = ?")
+                db.beginTransaction()
+                try {
+                    for ((id, lowered) in updates) {
+                        statement.bindString(1, lowered)
+                        statement.bindLong(2, id)
+                        statement.executeUpdateDelete()
+                    }
+                    db.setTransactionSuccessful()
+                } finally {
+                    db.endTransaction()
+                }
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_problems_title_lower` ON `problems` (`title_lower`)",
+                )
+            }
+        }
 
         fun build(context: Context): OjNexusDatabase =
             Room.databaseBuilder(context, OjNexusDatabase::class.java, DATABASE_NAME)
@@ -772,6 +806,7 @@ abstract class OjNexusDatabase : RoomDatabase() {
                     MIGRATION_13_14,
                     MIGRATION_14_15,
                     MIGRATION_15_16,
+                    MIGRATION_16_17,
                 )
                 .build()
     }

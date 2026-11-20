@@ -51,6 +51,7 @@ class ImportStorageFaultTest {
         db.problemDao().insert(
             ProblemEntity(
                 judge = "codeforces", externalId = "source-row", title = "source-row",
+                titleLower = "source-row".lowercase(),
                 difficulty = 800, createdAt = 1L, updatedAt = 1L,
             ),
         )

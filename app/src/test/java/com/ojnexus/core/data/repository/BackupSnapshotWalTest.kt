@@ -134,6 +134,7 @@ class BackupSnapshotWalTest {
                 judge = "codeforces",
                 externalId = externalId,
                 title = title,
+                titleLower = title.lowercase(),
                 difficulty = 800,
                 createdAt = 1L,
                 updatedAt = 1L,

@@ -66,6 +66,7 @@ class ProblemNoteIndexRepositoryTest {
                 judge = judge,
                 externalId = externalId,
                 title = title,
+                titleLower = title.lowercase(),
                 difficulty = difficulty,
                 createdAt = 1,
                 updatedAt = 1,

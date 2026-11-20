@@ -74,6 +74,7 @@ class SettingsSnapshotVmTest {
                 judge = "codeforces",
                 externalId = "1A",
                 title = "Theatre Square",
+                titleLower = "Theatre Square".lowercase(),
                 difficulty = 800,
                 createdAt = 1L,
                 updatedAt = 1L,

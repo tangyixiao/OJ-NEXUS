@@ -284,6 +284,7 @@ class CodeforcesSyncRepository(
                     judge = JudgeId.CODEFORCES.id,
                     externalId = externalProblemId,
                     title = problemDto.name,
+                    titleLower = problemDto.name.lowercase(),
                         difficulty = problemDto.rating,
                         difficultySource = com.ojnexus.core.model.DifficultySource.OFFICIAL.name,
                     createdAt = clock.millis(),
@@ -307,6 +308,7 @@ class CodeforcesSyncRepository(
             database.problemDao().applyRemoteMetadata(
                 id = existing.id,
                 title = problemDto.name,
+                titleLower = problemDto.name.lowercase(),
                 difficulty = problemDto.rating,
                 difficultySource = com.ojnexus.core.model.DifficultySource.OFFICIAL.name,
                 sourceUrl = finalUrl,
