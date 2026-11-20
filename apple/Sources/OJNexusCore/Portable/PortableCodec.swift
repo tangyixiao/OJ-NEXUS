@@ -255,7 +255,6 @@ public enum PortableCodec {
         let epoch = intRule(min: 0)
         let stableId = str(pattern: .stableId, maxLen: maxLen)
         let dayKey = str(pattern: .dayKey, maxLen: maxLen)
-        let origin = str(enumSet: PortableSpec.origins)
 
         let problems = obj(
             ["stableId", "sourceScopeId", "origin", "judge", "externalId", "title", "solved", "dayKey"],
@@ -334,17 +333,19 @@ public enum PortableCodec {
 
     static func rootSchema() -> Rule {
         let entities = entitySchemas()
-        var props = PortableSpec.collections.map {
-            ($0, Rule.arr(items: entities[$0], maxItems: PortableSpec.maxRecords))
-        }
-        props.append(contentsOf: [
+        // Manifest keys first, then the collections — the same walk order as
+        // check.py (schema.json declaration order) and PortableCodec.cs.
+        var props: [(String, Rule)] = [
             ("formatVersion", intRule(enumSet: [1])),
             ("scopeId", str(pattern: .stableId, maxLen: maxLen)),
             ("sourcePlatform", str(enumSet: PortableSpec.platforms)),
             ("generator", generatorSchema),
             ("createdAtEpochMs", intRule(min: 0)),
             ("counts", countsSchema),
-        ])
+        ]
+        props.append(contentsOf: PortableSpec.collections.map {
+            ($0, Rule.arr(items: entities[$0], maxItems: PortableSpec.maxRecords))
+        })
         return obj(
             ["formatVersion", "scopeId", "sourcePlatform", "generator", "createdAtEpochMs",
              "counts", "problems", "attempts", "notes", "reviews", "sessions"],
@@ -610,28 +611,22 @@ public enum PortableCodec {
     }
 
     static func isCredentialShaped(_ key: String) -> Bool {
-        var normalized = [UInt8]()
-        for scalar in key.unicodeScalars {
+        // check.py parity: strip every Unicode whitespace plus ./_/- separators,
+        // then apply full Unicode str.lower() (not ASCII-only lowering).
+        let stripped = String(key.unicodeScalars.filter { scalar -> Bool in
+            if scalar.properties.isWhitespace { return false }
             switch scalar.value {
-            case 0x20, 0x09, 0x0A, 0x0D, 0x2E, 0x5F, 0x2D:
-                continue
-            default:
-                PortableJson.appendScalar(simpleLower(scalar.value), to: &normalized)
+            case 0x2E, 0x5F, 0x2D: return false
+            default: return true
             }
-        }
+        })
+        let normalized = Array(stripped.lowercased().utf8)
         for candidate in PortableSpec.credentialKeys {
             if containsBytes(normalized, Array(candidate.utf8)) {
                 return true
             }
         }
         return false
-    }
-
-    /// Unicode simple lowercase (Python `str.lower()` parity for the ranges
-    /// that matter to key normalization).
-    static func simpleLower(_ value: UInt32) -> UInt32 {
-        if (65...90).contains(value) { return value + 32 }
-        return value
     }
 
     static func containsBytes(_ haystack: [UInt8], _ needle: [UInt8]) -> Bool {
@@ -887,6 +882,10 @@ public enum PortableCodec {
             as: UTF8.self
         )
         guard let createdAtEpochMs = Int(createdAtLiteral) else {
+            // Recorded deviation (same class as the counts-overflow note): the
+            // C#/Android references crash on > Int64 manifest integers; Swift
+            // refuses with INVALID_INPUT. check.py (arbitrary precision) would
+            // accept and canonicalize such a package.
             throw buildReject(.invalidInput, "createdAtEpochMs does not fit the platform integer", "$.createdAtEpochMs")
         }
         let countsObj = PortableValue.obj(countEntries)

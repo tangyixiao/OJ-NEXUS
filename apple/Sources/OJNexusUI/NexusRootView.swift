@@ -475,7 +475,9 @@ public struct PortableExportPayload: FileDocument, Sendable {
     public static var readableContentTypes: [UTType] { [.json] }
     public static var writableContentTypes: [UTType] { [.json] }
 
-    private let data: Data
+    /// Internal so `@testable` UI-state tests can assert the exported bytes
+    /// hash to the pinned identity; construction stays public for the exporter.
+    let data: Data
 
     public init(data: Data) {
         self.data = data

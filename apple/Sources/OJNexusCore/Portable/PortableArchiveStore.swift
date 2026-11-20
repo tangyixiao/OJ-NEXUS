@@ -60,12 +60,16 @@ public actor PortableArchiveStore {
         }
         do {
             guard let bytes = try WorkspaceFileIO.read(url) else {
-                if observedMain != nil || observedBackup != nil {
-                    baseline = .some(nil)
-                    if let backupBytes = try WorkspaceFileIO.read(backupURL(for: url)),
+                // House semantics: the backup's existence on disk is evidence
+                // of a previously established store, independent of what this
+                // instance has observed in memory (`LocalWorkspaceStore.load`
+                // treats `backup != nil || observedMain != nil` the same way).
+                let backupBytes = try? WorkspaceFileIO.read(backupURL(for: url))
+                if backupBytes != nil || observedMain != nil || observedBackup != nil {
+                    if let backupBytes = backupBytes,
                        let snapshot = try? decodeArchive(bytes: backupBytes) {
-                        status = .recoverable(.missingEstablished)
                         baseline = nil
+                        status = .recoverable(.missingEstablished)
                         return snapshot
                     }
                     status = .blocked(.missingEstablished)
@@ -121,7 +125,9 @@ public actor PortableArchiveStore {
         return try tryInstall(intended: intended, snapshot: snapshot, url: url)
     }
 
-    /// Removes the archive (main + backup) under the store lock.
+    /// Removes the archive (main + backup) under the store lock. Removal
+    /// failures propagate (typed) and leave the state untouched, so a failed
+    /// clear can never claim success while the old archive lives on disk.
     public func clear() throws {
         guard status == .ready, baseline != nil, let url = url else {
             throw WorkspaceStorageFailure.notLoaded
@@ -129,16 +135,53 @@ public actor PortableArchiveStore {
         try WorkspaceFileIO.withLock(url: url) {
             let backup = backupURL(for: url)
             if (try? WorkspaceFileIO.read(backup)) != nil {
-                try? FileManager.default.removeItem(at: backup)
+                do {
+                    try FileManager.default.removeItem(at: backup)
+                } catch {
+                    throw WorkspaceStorageFailure.unavailable
+                }
             }
             if (try? WorkspaceFileIO.read(url)) != nil {
-                try? FileManager.default.removeItem(at: url)
+                do {
+                    try FileManager.default.removeItem(at: url)
+                } catch {
+                    throw WorkspaceStorageFailure.unavailable
+                }
             }
         }
         baseline = .some(nil)
         observedMain = nil
         observedBackup = nil
         status = .ready
+    }
+
+    /// Recovers from a `.recoverable` state: quarantines the corrupt main
+    /// under a unique no-clobber name (house pattern), installs the decodable
+    /// backup as the main document, and returns the store to `.ready`. For a
+    /// missing-established store there is no corrupt main to quarantine.
+    public func recover() throws -> PortableArchiveSnapshot? {
+        guard case .recoverable = status, let url = url else {
+            throw WorkspaceStorageFailure.notLoaded
+        }
+        var restored: PortableArchiveSnapshot?
+        try WorkspaceFileIO.withLock(url: url) {
+            let backup = backupURL(for: url)
+            guard let backupBytes = try WorkspaceFileIO.read(backup),
+                  let snapshot = try? decodeArchive(bytes: backupBytes) else {
+                throw WorkspaceStorageFailure.recoveryUnavailable
+            }
+            if let corrupt = try WorkspaceFileIO.read(url) {
+                let quarantine = URL(fileURLWithPath: url.path + ".quarantine-\(UUID().uuidString)")
+                _ = try WorkspaceFileIO.install(corrupt, at: quarantine, replace: false)
+            }
+            _ = try WorkspaceFileIO.install(backupBytes, at: url, replace: true)
+            baseline = .some(backupBytes)
+            observedMain = backupBytes
+            observedBackup = backupBytes
+            status = .ready
+            restored = snapshot
+        }
+        return restored
     }
 
     // MARK: internals

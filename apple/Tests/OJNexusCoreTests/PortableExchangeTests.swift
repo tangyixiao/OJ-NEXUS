@@ -1,6 +1,7 @@
 import XCTest
 
 @testable import OJNexusCore
+@testable import OJNexusUI
 
 /// Phase 135 acceptance: mixed golden package lossless round trip (import ->
 /// apply -> export -> pinned identity), the rejection matrix, archive-store
@@ -484,5 +485,192 @@ final class PortableExchangeTests: XCTestCase {
         } catch {
             XCTAssertEqual(rejectCategory(error), "UNKNOWN_FIELD")
         }
+    }
+
+    // MARK: recovery path (review F1)
+
+    func testRecoverQuarantinesCorruptMainAndRestoresBackup() async throws {
+        let store = makeStore()
+        let repository = makeRepository(store: store)
+        _ = try await store.load()
+        _ = try await repository.apply(goldenData())
+
+        let archive = scratch.appendingPathComponent("portable-archive.json")
+        try Data("corrupt bytes".utf8).write(to: archive)
+
+        let second = PortableArchiveStore(url: archive)
+        do {
+            _ = try await second.load()
+            XCTFail("expected corrupt archive to throw")
+        } catch let failure as WorkspaceStorageFailure {
+            XCTAssertEqual(failure, .corrupt)
+        }
+
+        let recovered = try await second.recover()
+        XCTAssertEqual(recovered?.identity, Self.pinnedIdentity)
+        let status = await second.storageStatus()
+        XCTAssertEqual(status, .ready)
+        // The recovered store is fully usable again: export matches the pin.
+        let repository2 = PortableRepository(store: second)
+        let exported = try await repository2.export()
+        XCTAssertEqual(PortableCodec.sha256Hex(exported), Self.pinnedIdentity)
+        // Exactly one quarantine file for the corrupt main.
+        let quarantined = try FileManager.default.contentsOfDirectory(atPath: scratch.path)
+            .filter { $0.contains(".quarantine-") }
+        XCTAssertEqual(quarantined.count, 1)
+    }
+
+    func testRecoverFromMissingEstablishedRestoresBackup() async throws {
+        let store = makeStore()
+        let repository = makeRepository(store: store)
+        _ = try await store.load()
+        _ = try await repository.apply(goldenData())
+
+        let archive = scratch.appendingPathComponent("portable-archive.json")
+        try FileManager.default.removeItem(at: archive)
+
+        let second = PortableArchiveStore(url: archive)
+        let snapshot = try await second.load() // missing main, decodable backup
+        XCTAssertNotNil(snapshot)
+        let recovered = try await second.recover()
+        XCTAssertEqual(recovered?.identity, Self.pinnedIdentity)
+        let status = await second.storageStatus()
+        XCTAssertEqual(status, .ready)
+    }
+
+    func testRecoverOutsideRecoverableStateIsTypedNoOp() async throws {
+        let store = makeStore()
+        _ = try await store.load() // fresh, ready
+        do {
+            _ = try await store.recover()
+            XCTFail("expected notLoaded outside a recoverable state")
+        } catch let failure as WorkspaceStorageFailure {
+            XCTAssertEqual(failure, .notLoaded)
+        }
+    }
+
+    // MARK: rejection-matrix gaps (review F7)
+
+    func testStringSizeLimitRejected() throws {
+        // 8193 two-byte scalars = 16386 UTF-8 bytes but only 8193 characters:
+        // this passes the schema maxLength (characters) and must fall through
+        // to the byte-level string-size gate — the discriminating case.
+        let oversized = String(repeating: "é", count: 8193)
+        let mutated = Self.goldenP01.replacingOccurrences(of: "\"title\": \"Theatre Square\",", with: "\"title\": \"\(oversized)\",")
+        do {
+            _ = try PortableCodec.validate(Data(mutated.utf8))
+            XCTFail("expected SIZE_LIMIT")
+        } catch {
+            XCTAssertEqual(rejectCategory(error), "SIZE_LIMIT")
+        }
+    }
+
+    func testNotesDuplicateProblemIdRejected() throws {
+        let injected = #"{"stableId": "note.dup", "sourceScopeId": "scope.alpha", "origin": "scope", "problemId": "cf.1A", "keyInsight": "x", "implementationNotes": "y", "complexity": "z", "general": "g", "updatedEpochMs": 1730500000000, "dayKey": "2026-11-02"}, "#
+        let mutated = Self.goldenP01.replacingOccurrences(of: "\"notes\": [", with: "\"notes\": [ \(injected)")
+        do {
+            _ = try PortableCodec.validate(Data(mutated.utf8))
+            XCTFail("expected DUPLICATE_ID for a second note on the same problem")
+        } catch {
+            XCTAssertEqual(rejectCategory(error), "DUPLICATE_ID")
+        }
+    }
+
+    func testNegativeZeroCanonicalizesToZero() throws {
+        let value = try PortableJson.parse(Data(#"{"a":-0}"#.utf8))
+        let canonical = String(decoding: PortableJson.canonicalBytes(value).dropLast(1), as: UTF8.self)
+        XCTAssertEqual(canonical, "{\"a\":0}")
+    }
+
+    func testDayKeyValidatorNegativeShapes() {
+        XCTAssertFalse(PortableCodec.matchesDayKey("2026-1-01")) // 9 scalars
+        XCTAssertFalse(PortableCodec.matchesDayKey("2026-11-011")) // 11 scalars
+        XCTAssertFalse(PortableCodec.matchesDayKey("2026/11/01")) // wrong separators
+        XCTAssertFalse(PortableCodec.matchesDayKey("202X-11-01")) // non-digit
+        XCTAssertTrue(PortableCodec.matchesDayKey("2026-11-01"))
+    }
+
+    func testStrictDecodeRejections() {
+        let withBom = Data([0xEF, 0xBB, 0xBF]) + Data(#"{"a":1}"#.utf8)
+        do {
+            _ = try PortableJson.parse(withBom)
+            XCTFail("expected BOM rejection")
+        } catch { XCTAssertEqual(rejectCategory(error), "INVALID_INPUT") }
+
+        do {
+            _ = try PortableJson.parse(Data(#"{"a":1,"a":2}"#.utf8))
+            XCTFail("expected duplicate-key rejection")
+        } catch { XCTAssertEqual(rejectCategory(error), "INVALID_INPUT") }
+
+        do {
+            _ = try PortableJson.parse(Data(#"{"a":"\ud800"}"#.utf8))
+            XCTFail("expected lone-surrogate rejection")
+        } catch { XCTAssertEqual(rejectCategory(error), "INVALID_INPUT") }
+
+        do {
+            _ = try PortableJson.parse(Data(#"{"a":1} trailing"#.utf8))
+            XCTFail("expected trailing-data rejection")
+        } catch { XCTAssertEqual(rejectCategory(error), "INVALID_INPUT") }
+    }
+
+    // MARK: UI-model typed states (review F2)
+
+    @MainActor
+    func makeModel() -> NexusDashboardModel {
+        NexusDashboardModel(portableArchiveStore: makeStore())
+    }
+
+    @MainActor
+    func testImportFromUnreadableFileSetsTypedStatus() async {
+        let model = makeModel()
+        let missing = scratch.appendingPathComponent("does-not-exist.json")
+        await model.importPortablePackage(from: missing)
+        XCTAssertFalse(model.hasStagedImport)
+        XCTAssertEqual(model.portableStatus, "PORTABLE IMPORT FAILED / FILE UNREADABLE")
+    }
+
+    @MainActor
+    func testAuthorizationCancelSetsTypedStatus() {
+        let model = makeModel()
+        model.portableImportCancelled()
+        XCTAssertEqual(model.portableStatus, "PORTABLE IMPORT CANCELLED — NOTHING READ")
+    }
+
+    @MainActor
+    func testExportWriteFailureSetsTypedStatus() {
+        let model = makeModel()
+        model.portableExportFinished("DISK FULL")
+        XCTAssertEqual(model.portableStatus, "PORTABLE EXPORT FAILED / DISK FULL")
+    }
+
+    @MainActor
+    func testStagedImportFlowThroughTheModel() async throws {
+        let model = makeModel()
+        let staged = scratch.appendingPathComponent("staged-package.json")
+        try goldenData().write(to: staged)
+
+        await model.importPortablePackage(from: staged)
+        XCTAssertTrue(model.hasStagedImport)
+        XCTAssertEqual(model.stagedImportIdentity, Self.pinnedIdentity)
+        XCTAssertTrue(model.portableStatus?.contains("CONFIRM TO APPLY") == true)
+
+        await model.confirmPortableApply()
+        XCTAssertFalse(model.hasStagedImport)
+        XCTAssertEqual(model.portableStatus, "PORTABLE APPLIED / UP 15 DEL 0")
+
+        let payload = await model.preparePortableExport()
+        XCTAssertNotNil(payload)
+        XCTAssertEqual(model.portableStatus, "PORTABLE EXPORT READY")
+        XCTAssertEqual(
+            PortableCodec.sha256Hex(payload?.data ?? Data()),
+            Self.pinnedIdentity
+        )
+    }
+
+    @MainActor
+    func testConfirmWithoutStagedPackageIsTypedSkip() async {
+        let model = makeModel()
+        await model.confirmPortableApply()
+        XCTAssertEqual(model.portableStatus, "PORTABLE APPLY SKIPPED / NOTHING STAGED")
     }
 }
