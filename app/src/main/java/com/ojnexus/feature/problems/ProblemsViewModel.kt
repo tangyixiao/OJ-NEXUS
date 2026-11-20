@@ -2,8 +2,12 @@ package com.ojnexus.feature.problems
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.ojnexus.core.data.DataResult
 import com.ojnexus.core.data.repository.ProblemRepository
+import com.ojnexus.core.database.LibraryQuery
+import com.ojnexus.core.database.LibrarySort
 import com.ojnexus.core.database.entity.RemoteProblemEntity
 import com.ojnexus.core.model.JudgeId
 import com.ojnexus.core.model.NoteField
@@ -19,24 +23,23 @@ import com.ojnexus.judge.luogu.LuoguPublicCatalogSync
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class ProblemsUiState(
     val totalCount: Int,
-    val problems: List<Problem>,
     val allTags: List<String>,
     val filter: ProblemFilter,
     val sort: ProblemSort,
     val summary: ProblemLibrarySummary,
-    val visibleCount: Int,
-    val hasMoreLibrary: Boolean,
 )
 
 data class RemoteProblemsUiState(
@@ -64,28 +67,44 @@ class ProblemsViewModel(
     private val filter = MutableStateFlow(ProblemFilter())
     private val sort = MutableStateFlow(ProblemSort.UPDATED)
 
-    /** Manual library window; grown on demand, reset on every filter/sort change. */
-    private val visibleCount = MutableStateFlow(LIBRARY_WINDOW_INITIAL)
+    /** The SQL-translated library query for the active filter (phase 137). */
+    private val libraryQuery: StateFlow<LibraryQuery> = combine(filter, sort) { f, s ->
+        f.toLibraryQuery(s)
+    }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryQuery())
+
+    /** Bounded library pages straight from Room — no full-list subscription anywhere
+     * on the library path. Filter changes switch the underlying query; Room
+     * invalidation re-anchors pages on insertions/deletions.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val libraryPaging: Flow<PagingData<Problem>> = libraryQuery
+        .flatMapLatest { query -> repository.libraryPager(query) }
+        .cachedIn(viewModelScope)
 
     val state: StateFlow<Loadable<ProblemsUiState>> =
         combine(
-            repository.observeLibrary(),
-            repository.observeTags(),
-            filter,
-            sort,
-            visibleCount,
-        ) { problems, tags, f, s, window ->
-            val visibleProblems = problems.applyFilterSort(f, s)
+            combine(repository.observeTags(), filter, sort) { tags, f, s ->
+                Triple(tags, f, s)
+            },
+            repository.observeTotalCount(),
+            libraryQuery.flatMapLatest { repository.observeMatchCount(it) },
+            // Full-library aggregates, exactly the old summarize-over-all semantics.
+            repository.observeLibrarySummary(LibraryQuery()),
+        ) { (tags, f, s), totalCount, matchCount, totals ->
             Loadable.Ready(
                 ProblemsUiState(
-                    totalCount = problems.size,
-                    problems = windowList(visibleProblems, window),
+                    totalCount = totalCount,
                     allTags = tags,
                     filter = f,
                     sort = s,
-                    summary = summarizeProblemLibrary(problems, visibleProblems),
-                    visibleCount = window,
-                    hasMoreLibrary = hasMoreLibrary(visibleProblems.size, window),
+                    summary = ProblemLibrarySummary(
+                        total = totals.total.toInt(),
+                        visible = matchCount,
+                        solved = totals.solved.toInt(),
+                        review = totals.review.toInt(),
+                        favorites = totals.favorites.toInt(),
+                    ),
                 ),
             )
         }
@@ -270,54 +289,37 @@ class ProblemsViewModel(
 
     fun setQuery(query: String) {
         filter.update { it.copy(query = query) }
-        resetLibraryWindow()
     }
 
     fun setStatus(status: ProblemStatus?) {
         filter.update { it.copy(status = status) }
-        resetLibraryWindow()
     }
 
     fun setJudge(judge: JudgeId?) {
         filter.update { it.copy(judge = judge) }
-        resetLibraryWindow()
     }
 
     fun setDifficultyRange(min: Int?, max: Int?) {
         filter.update { it.copy(difficultyMin = min, difficultyMax = max) }
-        resetLibraryWindow()
     }
 
     fun setTag(tag: String?) {
         filter.update { it.copy(tag = tag) }
-        resetLibraryWindow()
     }
 
     fun toggleFavoriteOnly() {
         filter.update { it.copy(favoriteOnly = !it.favoriteOnly) }
-        resetLibraryWindow()
     }
 
     fun cycleSort() {
         sort.update { current ->
             ProblemSort.entries[(current.ordinal + 1) % ProblemSort.entries.size]
         }
-        resetLibraryWindow()
     }
 
     fun clearFilter() {
         filter.update { ProblemFilter() }
         sort.update { ProblemSort.UPDATED }
-        resetLibraryWindow()
-    }
-
-    /** Grows the visible library window by one step (SHOW MORE footer). */
-    fun loadMoreLibrary() {
-        visibleCount.update { it + LIBRARY_WINDOW_STEP }
-    }
-
-    private fun resetLibraryWindow() {
-        visibleCount.value = LIBRARY_WINDOW_INITIAL
     }
 
     // --- Local note index ---

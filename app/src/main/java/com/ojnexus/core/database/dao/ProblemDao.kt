@@ -67,6 +67,12 @@ interface ProblemDao {
     @RawQuery(observedEntities = [ProblemEntity::class])
     fun pagingLibrary(query: SupportSQLiteQuery): PagingSource<Int, ProblemWithTagsPojo>
 
+    /** Unfiltered library size — drives `summary.total` (design: stats must not
+     * derive from the visible page).
+     */
+    @Query("SELECT COUNT(*) FROM problems")
+    fun observeTotalCount(): Flow<Int>
+
     /** Filtered match count - the statistics are SQL-derived, never computed
      * over only the visible page.
      */

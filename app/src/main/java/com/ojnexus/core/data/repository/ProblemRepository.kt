@@ -1,9 +1,14 @@
 package com.ojnexus.core.data.repository
 
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
 import androidx.room.withTransaction
 import com.ojnexus.core.data.DataError
 import com.ojnexus.core.data.DataResult
 import com.ojnexus.core.data.dataResult
+import com.ojnexus.core.database.LibraryQuery
 import com.ojnexus.core.database.OjNexusDatabase
 import com.ojnexus.core.database.dao.AttemptDao
 import com.ojnexus.core.database.dao.FailureDao
@@ -16,6 +21,7 @@ import com.ojnexus.core.database.entity.ProblemEntity
 import com.ojnexus.core.database.entity.ProblemNoteEntity
 import com.ojnexus.core.database.entity.ProblemTagCrossRef
 import com.ojnexus.core.database.entity.ProblemTagEntity
+import com.ojnexus.core.database.dao.LibrarySummaryRow
 import com.ojnexus.core.database.mapper.toDetail
 import com.ojnexus.core.database.mapper.toDomain
 import com.ojnexus.core.model.Attempt
@@ -33,6 +39,8 @@ import java.time.Clock
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+
+internal const val LIBRARY_PAGE_SIZE = 60
 
 /**
  * Local problem library: problems, tags, attempts, failure entries and notes.
@@ -53,6 +61,39 @@ class ProblemRepository(
 
     fun observeLibrary(): Flow<List<Problem>> =
         problemDao.observeLibrary().map { rows -> rows.map { it.toDomain() } }
+
+    /**
+     * Bounded library pages (phase 137): Room drives the window from SQL with the
+     * phase-136 contract WHERE/ORDER BY; invalidation is table-level, so insertions
+     * and deletions under an active filter re-anchor without duplicate keys. The
+     * feature layer collects this with collectAsLazyPagingItems — the old
+     * full-list subscription is gone from the library path.
+     */
+    fun libraryPager(query: LibraryQuery): Flow<PagingData<Problem>> =
+        Pager(
+            config = PagingConfig(
+                pageSize = LIBRARY_PAGE_SIZE,
+                prefetchDistance = LIBRARY_PAGE_SIZE / 2,
+                enablePlaceholders = false,
+            ),
+            pagingSourceFactory = { problemDao.observeLibraryPage(query) },
+        ).flow
+            .map { data -> data.map { it.toDomain() } }
+
+
+    /** Filtered match count — drives `summary.visible` (never derived from the page). */
+    fun observeMatchCount(query: LibraryQuery): Flow<Int> =
+        problemDao.observeMatchCount(query).map { it.toInt() }
+
+    /** Unfiltered library size — drives `summary.total`. */
+    fun observeTotalCount(): Flow<Int> = problemDao.observeTotalCount()
+
+    /** SQL aggregates for the given query; the summary passes [LibraryQuery()] for full-library stats. */
+    fun observeLibrarySummary(query: LibraryQuery): Flow<LibrarySummaryRow> =
+        problemDao.observeLibrarySummary(query)
+
+    fun findLibraryPage(query: LibraryQuery): List<Problem> =
+        problemDao.findLibraryPage(query).map { it.toDomain() }
 
     fun observeTags(): Flow<List<String>> =
         problemDao.observeTags().map { tags -> tags.map { it.name } }

@@ -84,12 +84,22 @@ object LibraryQueryBuilder {
             "AS in_review FROM problems" + whereClauseSql(query) + " ORDER BY " + order
     }
 
+    /** The contract's frozen ASCII trim set (`check.py` ASCII_WHITESPACE): Kotlin's
+     * trim() would also strip Unicode whitespace like NBSP, which vector 026 pins
+     * as NOT trimmed.
+     */
+    private fun contractTrim(value: String): String =
+        value.trim { it == ' ' || it == '\t' || it == '\n' || it == '\r' || it == '\u000B' || it == '\u000C' }
+
     private fun whereClauseSql(query: LibraryQuery): String {
         val clauses = mutableListOf<String>()
-        val search = query.search.trim().lowercase()
+        val search = contractTrim(query.search).lowercase()
         if (search.isNotEmpty()) {
+            // lower(external_id) mirrors the in-memory `externalId.lowercase().contains()`
+            // for ASCII judge identifiers; the title uses the stored Kotlin-lowered column
+            // because SQL lower() is ASCII-only.
             clauses += "(problems.title_lower LIKE ? ESCAPE '\\' " +
-                "OR problems.external_id LIKE ? ESCAPE '\\')"
+                "OR lower(problems.external_id) LIKE ? ESCAPE '\\')"
         }
         query.status?.let {
             clauses += "$DERIVED_STATUS = ?"
