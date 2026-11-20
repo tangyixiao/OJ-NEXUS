@@ -14,7 +14,11 @@ class ProblemLibraryTrainingWiringTest {
 
         assertTrue(source.contains("onBuildTraining"))
         assertTrue(source.contains("LibraryTrainingActionRail"))
-        assertTrue(source.contains("buildTrainingProblemIds(uiState.problems)"))
+        // Phase 137: the visible window comes from the SQL-backed PagingSource snapshot,
+        // never from a full-list state field.
+        assertTrue(source.contains("collectAsLazyPagingItems"))
+        assertTrue(source.contains("buildTrainingProblemIds(visibleProblems)"))
+        assertFalse(source.contains("uiState.problems"))
         assertFalse(source.substringAfter("private fun RemoteCatalogContent").contains("LibraryTrainingActionRail"))
     }
 
