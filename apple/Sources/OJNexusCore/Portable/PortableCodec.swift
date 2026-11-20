@@ -255,7 +255,6 @@ public enum PortableCodec {
         let epoch = intRule(min: 0)
         let stableId = str(pattern: .stableId, maxLen: maxLen)
         let dayKey = str(pattern: .dayKey, maxLen: maxLen)
-        let origin = str(enumSet: PortableSpec.origins)
 
         let problems = obj(
             ["stableId", "sourceScopeId", "origin", "judge", "externalId", "title", "solved", "dayKey"],

@@ -60,12 +60,16 @@ public actor PortableArchiveStore {
         }
         do {
             guard let bytes = try WorkspaceFileIO.read(url) else {
-                if observedMain != nil || observedBackup != nil {
-                    baseline = .some(nil)
-                    if let backupBytes = try WorkspaceFileIO.read(backupURL(for: url)),
+                // House semantics: the backup's existence on disk is evidence
+                // of a previously established store, independent of what this
+                // instance has observed in memory (`LocalWorkspaceStore.load`
+                // treats `backup != nil || observedMain != nil` the same way).
+                let backupBytes = try? WorkspaceFileIO.read(backupURL(for: url))
+                if backupBytes != nil || observedMain != nil || observedBackup != nil {
+                    if let backupBytes = backupBytes,
                        let snapshot = try? decodeArchive(bytes: backupBytes) {
-                        status = .recoverable(.missingEstablished)
                         baseline = nil
+                        status = .recoverable(.missingEstablished)
                         return snapshot
                     }
                     status = .blocked(.missingEstablished)
