@@ -738,6 +738,13 @@ class MigrationTest {
             assertEquals("2134C", kotlinx.coroutines.runBlocking {
                 db.problemDao().findLibrary()
             }.single().problem.externalId)
+            // Review P2-2 pin: the v16→v17 backfill must have lowercased the pre-existing
+            // title into title_lower — a no-op backfill would still pass Room's schema
+            // validation (DEFAULT '' is valid) while breaking search and TITLE sort
+            // for every migrated user.
+            assertEquals("yet another array query", kotlinx.coroutines.runBlocking {
+                db.problemDao().findLibrary()
+            }.single().problem.titleLower)
             assertEquals("tourist", kotlinx.coroutines.runBlocking {
                 db.judgeAccountDao().findActiveByJudge("atcoder")
             }?.handle)

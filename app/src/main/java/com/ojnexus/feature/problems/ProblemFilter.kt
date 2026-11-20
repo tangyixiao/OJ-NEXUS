@@ -68,8 +68,11 @@ fun List<Problem>.applyFilterSort(filter: ProblemFilter, sort: ProblemSort): Lis
 
 /**
  * SQL translation of the active filter (phase 137). The WHERE semantics are the
- * frozen phase-136 contract (see `LibraryQueryBuilder`); [applyFilterSort] above
- * is retained as the pure in-memory reference for the contract-vector parity tests.
+ * frozen phase-136 contract (see `LibraryQueryBuilder`); the contract-vector
+ * parity tests compare Room output against the golden `expect` lists directly.
+ * [applyFilterSort] above is NOT the parity oracle — it keeps legacy in-memory
+ * behavior (Unicode-wide `trim()`, UTF-16 title ordering) and is pinned by
+ * ProblemFilterTest as the regression reference for those legacy semantics.
  */
 fun ProblemFilter.toLibraryQuery(sort: ProblemSort): LibraryQuery = LibraryQuery(
     search = query,

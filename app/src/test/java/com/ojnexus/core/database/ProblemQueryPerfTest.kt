@@ -24,8 +24,10 @@ import org.robolectric.annotation.Config
  * Phase 137 bounded-query acceptance (G-A): at 10k and 50k synthetic rows the
  * library path stays budgeted — the first page is a SQL-bounded LIMIT load, the
  * statistics come from SQL COUNT (never the page), and inserts/deletes during an
- * active filter neither duplicate keys nor lose the anchor. Robolectric in-memory
- * Room; budgets are generous so hosted CI cannot flake on runner speed.
+ * active filter neither duplicate keys nor lose the anchor. The budgets prove
+ * boundedness (a full-list regression would blow them), not latency claims.
+ * Robolectric in-memory Room; budgets are generous so hosted CI cannot flake on
+ * runner speed.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])

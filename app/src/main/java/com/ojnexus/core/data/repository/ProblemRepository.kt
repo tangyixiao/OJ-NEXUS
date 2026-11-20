@@ -92,9 +92,6 @@ class ProblemRepository(
     fun observeLibrarySummary(query: LibraryQuery): Flow<LibrarySummaryRow> =
         problemDao.observeLibrarySummary(query)
 
-    fun findLibraryPage(query: LibraryQuery): List<Problem> =
-        problemDao.findLibraryPage(query).map { it.toDomain() }
-
     fun observeTags(): Flow<List<String>> =
         problemDao.observeTags().map { tags -> tags.map { it.name } }
 
