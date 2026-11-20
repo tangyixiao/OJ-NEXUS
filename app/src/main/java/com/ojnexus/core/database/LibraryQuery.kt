@@ -123,7 +123,9 @@ object LibraryQueryBuilder {
 
     private fun bindArgs(query: LibraryQuery): Array<Any?> {
         val args = mutableListOf<Any?>()
-        val search = query.search.trim().lowercase()
+        // Same contract trim as the clause builder: Kotlin trim() would also strip
+        // Unicode whitespace like U+3000, desyncing the WHERE from its bind args.
+        val search = contractTrim(query.search).lowercase()
         if (search.isNotEmpty()) {
             val escaped = escapeLike(search)
             args += "%$escaped%"

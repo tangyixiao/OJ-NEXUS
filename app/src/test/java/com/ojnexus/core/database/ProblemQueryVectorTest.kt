@@ -9,6 +9,7 @@ import com.ojnexus.core.database.entity.ProblemTagEntity
 import com.ojnexus.core.database.entity.ReviewEntity
 import com.ojnexus.core.model.ProblemStatus
 import java.io.File
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -83,6 +84,62 @@ class ProblemQueryVectorTest {
             }
         }
         assertEquals("contract-vector parity failures:\n" + failures.joinToString("\n"), 0, failures.size)
+    }
+
+    /** Review P2-1 pin: an ideographic space (U+3000, realistic from CJK IMEs) is NOT
+     * in the contract's ASCII trim set — the query must match nothing, not "tree".
+     */
+    @Test
+    fun ideographicSpaceQueryIsNotTrimmed() = runBlocking {
+        seedU3000Fixture()
+        val query = LibraryQuery(search = "\u3000tree")
+        assertEquals(emptyList<String>(), database.problemDao().findLibraryPage(query)
+            .map { "${it.problem.judge}/${it.problem.externalId}" })
+    }
+
+    /** Review P2-1 pin: a query of only a non-ASCII whitespace char stays a live
+     * clause with its two bind args (no bind-count mismatch) and matches nothing.
+     */
+    @Test
+    fun nonAsciiWhitespaceOnlyQueryKeepsClauseAndArgsMatched() = runBlocking {
+        seedU3000Fixture()
+        val query = LibraryQuery(search = "\u2000")
+        assertEquals(
+            emptyList<String>(),
+            database.problemDao().findLibraryPage(query)
+                .map { "${it.problem.judge}/${it.problem.externalId}" },
+        )
+        assertEquals(
+            "clause stays live with matched bind args; no bind-count error, zero matches",
+            0,
+            database.problemDao().observeMatchCount(query).first().toInt(),
+        )
+    }
+
+    private suspend fun seedU3000Fixture() {
+        val dao = database.problemDao()
+        dao.insert(
+            ProblemEntity(
+                judge = "codeforces",
+                externalId = "u3000-A",
+                title = "Two Doors",
+                titleLower = "two doors",
+                difficulty = 800,
+                createdAt = 1L,
+                updatedAt = 1L,
+            ),
+        )
+        dao.insert(
+            ProblemEntity(
+                judge = "luogu",
+                externalId = "u3000-B",
+                title = "园林",
+                titleLower = "园林",
+                difficulty = 900,
+                createdAt = 2L,
+                updatedAt = 2L,
+            ),
+        )
     }
 
     private suspend fun seed(dataset: kotlinx.serialization.json.JsonArray) {
