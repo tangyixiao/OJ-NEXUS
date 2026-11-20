@@ -16,7 +16,7 @@ on `codex/phase-137-closeout`. Baseline main: `69c8c73`.
 | 5 | T4 delivery gate: CI android.yml (build + emulator + release) on the delivery head | PENDING — flips at PR #84 merge | pending |
 | 6 | T4 delivery gate: CI windows.yml regression | PENDING — flips at PR #84 merge | pending |
 | 7 | T6 independent review + dispositions | [phase-137-task6-review.md](phase-137-task6-review.md): PASS-WITH-OBSERVATIONS, 2×P2 + 7×P3; F1/F2/F3/F8/F9 fixed, F4–F7 recorded observations; disposition PR #87 CI all green (Android `44778262820`, Windows `44778262786`) and merged as `661b400` | merged (PR #87) |
-| 8 | T6 closeout: verification record, this ledger, roadmap tick, closeout PR to `main` | PENDING — flips on the closeout PR merge | pending |
+| 8 | T6 closeout: verification record, this ledger, roadmap tick, closeout PR to `main` | closeout PR #88 all four CI checks success and merged as `94431e5` (verification record VERIFIED, roadmap ticked, handoff landed) | merged (PR #88) |
 
 ## Deviations
 
