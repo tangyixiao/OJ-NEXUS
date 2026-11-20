@@ -273,7 +273,7 @@ Android 涉及任何代码、资源、schema 或构建配置的阶段必须编�
 - **交付：** 在 CLI/Qt 完成领域包检查、预览和显式导入；保留源 ID 与 day key，处理 sandbox/file permission 失败。
 - **验收：** G-L；混合 golden 包无损往返，暂不能编辑的笔记/review/session 有保存状态；错误码一致；路径穿越包不落盘；重复导入不翻倍，取消无部分记录。
 
-#### [ ] PHASE 135 — P · Apple 文档交换入口
+#### [x] PHASE 135 — P · Apple 文档交换入口
 - **依赖 / 范围：** 130、131；P 的 Core Codable/store、macOS/iOS 文件导入导出 UI。
 - **交付：** 使用本端文档接口完成 inspect/import/export；处理沙盒授权文件生命周期，区分 portable package 与本端恢复快照。
 - **验收：** G-P；混合 golden 包在 macOS/iOS 无损往返，尚无编辑 UI 的记录归档保存并报告；授权取消、失效 URL 与写失败有状态；越界字段和不支持版本拒绝。
