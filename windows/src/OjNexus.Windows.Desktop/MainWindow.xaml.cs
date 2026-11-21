@@ -1,6 +1,8 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -300,6 +302,190 @@ public partial class MainWindow : Window
         }
 
         await SafeUiActionAsync(() => _viewModel.SelectProblemStatusAsync(statusFilter, _lifetime.Token));
+    }
+
+    private async void ProblemSortFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_viewModel is null || e.AddedItems.Count == 0 || e.AddedItems[0] is not string sort)
+        {
+            return;
+        }
+
+        await SafeUiActionAsync(() => _viewModel.SelectProblemSortAsync(sort, _lifetime.Token));
+    }
+
+    private async void ProblemSearch_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is not Key.Enter || _viewModel is null || sender is not System.Windows.Controls.TextBox box)
+        {
+            return;
+        }
+
+        await SafeUiActionAsync(() => _viewModel.SetProblemSearchAsync(box.Text, _lifetime.Token));
+    }
+
+    private async void ProblemSearch_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not System.Windows.Controls.TextBox box)
+        {
+            return;
+        }
+
+        await SafeUiActionAsync(() => _viewModel.SetProblemSearchAsync(box.Text, _lifetime.Token));
+    }
+
+    private async void ProblemTag_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is not Key.Enter || _viewModel is null || sender is not System.Windows.Controls.TextBox box)
+        {
+            return;
+        }
+
+        await SafeUiActionAsync(() => _viewModel.SetProblemTagAsync(box.Text, _lifetime.Token));
+    }
+
+    private async void ProblemTag_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not System.Windows.Controls.TextBox box)
+        {
+            return;
+        }
+
+        await SafeUiActionAsync(() => _viewModel.SetProblemTagAsync(box.Text, _lifetime.Token));
+    }
+
+    private async void ProblemFavorite_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not System.Windows.Controls.CheckBox box)
+        {
+            return;
+        }
+
+        await SafeUiActionAsync(() => _viewModel.SetProblemFavoriteOnlyAsync(box.IsChecked == true, _lifetime.Token));
+    }
+
+    private async void ProblemDifficultyBounds_LostFocus(object sender, RoutedEventArgs e)
+    {
+        await CommitDifficultyBoundsAsync();
+    }
+
+    private async void ProblemDifficultyBounds_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Enter)
+        {
+            await CommitDifficultyBoundsAsync();
+        }
+    }
+
+    private async Task CommitDifficultyBoundsAsync()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        var min = FindProblemControl<System.Windows.Controls.TextBox>("ProblemDifficultyMin")?.Text ?? string.Empty;
+        var max = FindProblemControl<System.Windows.Controls.TextBox>("ProblemDifficultyMax")?.Text ?? string.Empty;
+        await SafeUiActionAsync(() => _viewModel.SetProblemDifficultyBoundsAsync(min, max, _lifetime.Token));
+    }
+
+    private T? FindProblemControl<T>(string automationId) where T : DependencyObject
+    {
+        return FindVisualChild<T>(this, automationId);
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent, string automationId) where T : DependencyObject
+    {
+        var count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+        for (var index = 0; index < count; index++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, index);
+            if (child is T matched
+                && string.Equals(AutomationProperties.GetAutomationId(matched), automationId, StringComparison.Ordinal))
+            {
+                return matched;
+            }
+
+            var nested = FindVisualChild<T>(child, automationId);
+            if (nested is not null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
+    }
+
+    private async void ClearProblemFilters_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        await SafeUiActionAsync(() => _viewModel.ClearProblemFiltersAsync(_lifetime.Token));
+        ResetProblemFilterBoxes();
+    }
+
+    private void ResetProblemFilterBoxes()
+    {
+        var search = FindProblemControl<System.Windows.Controls.TextBox>("ProblemSearch");
+        if (search is not null) search.Text = string.Empty;
+        var tag = FindProblemControl<System.Windows.Controls.TextBox>("ProblemTag");
+        if (tag is not null) tag.Text = string.Empty;
+        var min = FindProblemControl<System.Windows.Controls.TextBox>("ProblemDifficultyMin");
+        if (min is not null) min.Text = string.Empty;
+        var max = FindProblemControl<System.Windows.Controls.TextBox>("ProblemDifficultyMax");
+        if (max is not null) max.Text = string.Empty;
+    }
+
+    private async void LoadMoreProblems_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        await SafeUiActionAsync(() => _viewModel.LoadMoreProblemsAsync(_lifetime.Token));
+    }
+
+    private async void OpenProblemDetail_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not Button { Tag: ProblemRow row })
+        {
+            return;
+        }
+
+        await SafeUiActionAsync(() => _viewModel.OpenProblemDetailAsync(row, _lifetime.Token));
+    }
+
+    private void CloseProblemDetail_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel?.CloseProblemDetail();
+    }
+
+    private void OpenProblemDetailUrl_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel?.SelectedProblemDetail is not { } detail || string.IsNullOrWhiteSpace(detail.Url))
+        {
+            return;
+        }
+
+        try
+        {
+            using var process = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo(detail.Url)
+                {
+                    UseShellExecute = true,
+                },
+            };
+            process.Start();
+        }
+        catch
+        {
+            // The shell may refuse the URL (offline or no browser); the detail stays unchanged.
+        }
     }
 
     private void OpenProblem_Click(object sender, RoutedEventArgs e)

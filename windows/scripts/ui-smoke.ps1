@@ -486,17 +486,37 @@ try {
     }
     $visibleProblemCombos = @($root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboCondition) | Where-Object { -not $_.Current.IsOffscreen })
     $problemComboCount = $visibleProblemCombos.Count
-    if ($problemComboCount -ne 2) {
-        throw "Expected exactly 2 problem filters, found $problemComboCount."
+    if ($problemComboCount -ne 3) {
+        throw "Expected exactly 3 problem filters (judge/status/sort), found $problemComboCount."
+    }
+    foreach ($requiredId in @('ProblemSearch', 'ProblemTag', 'ProblemFavorite', 'ProblemDifficultyMin', 'ProblemDifficultyMax', 'ProblemClearFilters', 'ProblemList')) {
+        $idCondition = [System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::AutomationIdProperty, $requiredId)
+        if (-not $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $idCondition)) {
+            throw "Expected the PROBLEMS page to expose control '$requiredId'."
+        }
     }
     $emptyState = Wait-ForElement -Root $root -Name 'NO PROBLEMS RECORDED'
     if ($emptyState.Current.IsOffscreen) {
         throw 'NO PROBLEMS RECORDED is present but not visible.'
     }
+
+    # Phase 138: activate a filter that matches nothing, assert the clear-filters
+    # empty state, then clear and confirm the ledger returns to its plain state.
+    $favoriteToggle = Require-DescendantByName -Root $root -Name 'FAVORITES ONLY'
+    ($favoriteToggle.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)).Toggle()
+    $filteredEmpty = Wait-ForElement -Root $root -Name 'NO PROBLEMS MATCH THE CURRENT FILTERS'
+    if ($filteredEmpty.Current.IsOffscreen) {
+        throw 'NO PROBLEMS MATCH THE CURRENT FILTERS is present but not visible.'
+    }
+    $clearFiltersButton = Wait-ForElement -Root $root -Name 'CLEAR FILTERS'
+    ($clearFiltersButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+    [void](Wait-ForElement -Root $root -Name 'NO PROBLEMS RECORDED')
+
     if (Try-Save-WindowScreenshot -WindowHandle $windowHandle -Path (Join-Path $OutputDirectory 'problems.png')) {
         $screenshotCount++
     }
-    Write-Host "PROBLEMS: RENDERED / FILTERS=$problemComboCount / EMPTY=PASS"
+    Write-Host "PROBLEMS: RENDERED / FILTERS=$problemComboCount / EMPTY=PASS / CLEAR-FILTERS=PASS"
 
     Invoke-ButtonByName -Root $root -Name 'PORTABLE'
     [void](Wait-ForElement -Root $root -Name 'PORTABLE WORKSPACE / SEPARATE FROM WHOLE-DATABASE BACKUP')

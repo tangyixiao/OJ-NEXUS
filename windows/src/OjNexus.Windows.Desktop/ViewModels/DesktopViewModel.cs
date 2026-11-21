@@ -134,10 +134,31 @@ public sealed record ProblemRow(
     string Title,
     string Url,
     string Status,
-    string LastSeenAt)
+    string LastSeenAt,
+    string DifficultyLabel,
+    int AttemptCount)
 {
     public bool HasUrl => !string.IsNullOrWhiteSpace(Url);
     public string StatusLabel => Status;
+}
+
+/// <summary>Full single-problem detail for the PROBLEMS detail sub-state.</summary>
+public sealed record ProblemDetailRow(
+    string Judge,
+    string ExternalId,
+    string Title,
+    string Url,
+    string Status,
+    string Difficulty,
+    int AttemptCount,
+    bool Favorite,
+    bool InReview,
+    string Tags,
+    string FirstSeenAt,
+    string LastSeenAt,
+    string UpdatedAt)
+{
+    public bool HasUrl => !string.IsNullOrWhiteSpace(Url);
 }
 public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
 {
@@ -169,6 +190,19 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
     private string _selectedHistoryJudge = "ALL";
     private string _selectedProblemJudge = "ALL";
     private string _selectedProblemStatus = "ALL";
+    private string _problemSearchText = string.Empty;
+    private string _problemSort = "UPDATED";
+    private string _problemTag = string.Empty;
+    private bool _problemFavoriteOnly;
+    private string _problemDifficultyMin = string.Empty;
+    private string _problemDifficultyMax = string.Empty;
+    private int _problemVisibleMatches;
+    private int _libraryTotal;
+    private int _librarySolved;
+    private int _libraryReview;
+    private int _libraryFavorites;
+    private bool _problemFiltersLoaded;
+    private ProblemDetailRow? _selectedProblemDetail;
     private byte[]? _pendingPortableBytes;
     private string _portableIdentity = "NONE";
     private string _portableSummary = "NO PACKAGE LOADED";
@@ -208,9 +242,11 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
 
     public IReadOnlyList<string> HistoryJudgeFilters { get; } = ["ALL", "CODEFORCES", "ATCODER", "LUOGU"];
 
-    public IReadOnlyList<string> ProblemJudgeFilters { get; } = ["ALL", "CODEFORCES", "ATCODER"];
+    public IReadOnlyList<string> ProblemJudgeFilters { get; } = ["ALL", "CODEFORCES", "ATCODER", "LUOGU"];
 
-    public IReadOnlyList<string> ProblemStatusFilters { get; } = ["ALL", "SOLVED", "ATTEMPTED"];
+    public IReadOnlyList<string> ProblemStatusFilters { get; } = ["ALL", "UNSOLVED", "ATTEMPTED", "SOLVED", "REVIEW"];
+
+    public IReadOnlyList<string> ProblemSortOptions { get; } = ["UPDATED", "DIFFICULTY", "TITLE", "ATTEMPTS"];
 
     public string SelectedProblemJudge
     {
@@ -223,6 +259,116 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
         get => _selectedProblemStatus;
         private set => SetField(ref _selectedProblemStatus, value);
     }
+
+    public string ProblemSearchText
+    {
+        get => _problemSearchText;
+        private set
+        {
+            if (SetField(ref _problemSearchText, value))
+            {
+                OnProblemFilterShapeChanged();
+            }
+        }
+    }
+
+    public string ProblemSort
+    {
+        get => _problemSort;
+        private set => SetField(ref _problemSort, value);
+    }
+
+    public string ProblemTag
+    {
+        get => _problemTag;
+        private set
+        {
+            if (SetField(ref _problemTag, value))
+            {
+                OnProblemFilterShapeChanged();
+            }
+        }
+    }
+
+    public bool ProblemFavoriteOnly
+    {
+        get => _problemFavoriteOnly;
+        private set
+        {
+            if (SetField(ref _problemFavoriteOnly, value))
+            {
+                OnProblemFilterShapeChanged();
+            }
+        }
+    }
+
+    public string ProblemDifficultyMin
+    {
+        get => _problemDifficultyMin;
+        private set
+        {
+            if (SetField(ref _problemDifficultyMin, value))
+            {
+                OnProblemFilterShapeChanged();
+            }
+        }
+    }
+
+    public string ProblemDifficultyMax
+    {
+        get => _problemDifficultyMax;
+        private set
+        {
+            if (SetField(ref _problemDifficultyMax, value))
+            {
+                OnProblemFilterShapeChanged();
+            }
+        }
+    }
+
+    public ProblemDetailRow? SelectedProblemDetail
+    {
+        get => _selectedProblemDetail;
+        private set
+        {
+            if (SetField(ref _selectedProblemDetail, value))
+            {
+                OnPropertyChanged(nameof(IsProblemDetailVisible));
+                OnPropertyChanged(nameof(ShowProblemList));
+                OnProblemFilterShapeChanged();
+            }
+        }
+    }
+
+    public bool IsProblemDetailVisible => SelectedProblemDetail is not null;
+
+    public bool ShowProblemList => !IsProblemDetailVisible;
+
+    public bool ShowNoProblemsEmptyState => IsProblemDetailVisible is false && HasNoProblems && !HasActiveProblemFilters;
+
+    public bool ShowFilteredEmptyState => IsProblemDetailVisible is false && HasNoProblems && HasActiveProblemFilters;
+
+    /// <summary>True when any ledger filter is non-default (drives the clear-filters empty state).</summary>
+    public bool HasActiveProblemFilters =>
+        ProblemSearchText.Length > 0
+        || SelectedProblemJudge != "ALL"
+        || SelectedProblemStatus != "ALL"
+        || ProblemFavoriteOnly
+        || ProblemTag.Length > 0
+        || ProblemDifficultyMin.Length > 0
+        || ProblemDifficultyMax.Length > 0;
+
+    private void OnProblemFilterShapeChanged()
+    {
+        OnPropertyChanged(nameof(HasActiveProblemFilters));
+        OnPropertyChanged(nameof(ShowNoProblemsEmptyState));
+        OnPropertyChanged(nameof(ShowFilteredEmptyState));
+    }
+
+    public bool HasMoreProblems => Problems.Count < _problemVisibleMatches;
+
+    public string ProblemMatchSummary =>
+        $"MATCHES {_problemVisibleMatches} / LIBRARY {_libraryTotal} (SOLVED {_librarySolved} / REVIEW {_libraryReview} / FAVORITES {_libraryFavorites})";
 
     public string SelectedHistoryJudge
     {
@@ -339,7 +485,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
         }
 
         SelectedProblemJudge = normalizedFilter;
-        await RefreshAsync(cancellationToken);
+        await CommitProblemFiltersAsync(cancellationToken);
     }
 
     public async Task SelectProblemStatusAsync(string statusFilter, CancellationToken cancellationToken)
@@ -354,7 +500,272 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
         }
 
         SelectedProblemStatus = normalizedFilter;
-        await RefreshAsync(cancellationToken);
+        await CommitProblemFiltersAsync(cancellationToken);
+    }
+
+    public async Task SelectProblemSortAsync(string sort, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sort);
+        var normalizedSort = sort.Trim().ToUpperInvariant();
+        if (!ProblemSortParser.TryParse(normalizedSort, out _))
+        {
+            StatusText = "ERROR";
+            LastError = "UNKNOWN PROBLEM SORT";
+            return;
+        }
+
+        ProblemSort = normalizedSort;
+        await CommitProblemFiltersAsync(cancellationToken);
+    }
+
+    public async Task SetProblemSearchAsync(string search, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(search);
+        ProblemSearchText = search.Trim();
+        await CommitProblemFiltersAsync(cancellationToken);
+    }
+
+    public async Task SetProblemTagAsync(string tag, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(tag);
+        ProblemTag = tag.Trim();
+        await CommitProblemFiltersAsync(cancellationToken);
+    }
+
+    public async Task SetProblemFavoriteOnlyAsync(bool favoriteOnly, CancellationToken cancellationToken)
+    {
+        ProblemFavoriteOnly = favoriteOnly;
+        await CommitProblemFiltersAsync(cancellationToken);
+    }
+
+    public async Task SetProblemDifficultyBoundsAsync(string min, string max, CancellationToken cancellationToken)
+    {
+        var normalizedMin = (min ?? string.Empty).Trim();
+        var normalizedMax = (max ?? string.Empty).Trim();
+        if (normalizedMin.Length > 0 && !int.TryParse(normalizedMin, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+        {
+            StatusText = "ERROR";
+            LastError = "DIFFICULTY BOUNDS MUST BE INTEGERS";
+            return;
+        }
+
+        if (normalizedMax.Length > 0 && !int.TryParse(normalizedMax, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+        {
+            StatusText = "ERROR";
+            LastError = "DIFFICULTY BOUNDS MUST BE INTEGERS";
+            return;
+        }
+
+        ProblemDifficultyMin = normalizedMin;
+        ProblemDifficultyMax = normalizedMax;
+        await CommitProblemFiltersAsync(cancellationToken);
+    }
+
+    public async Task ClearProblemFiltersAsync(CancellationToken cancellationToken)
+    {
+        SelectedProblemJudge = "ALL";
+        SelectedProblemStatus = "ALL";
+        ProblemSearchText = string.Empty;
+        ProblemTag = string.Empty;
+        ProblemFavoriteOnly = false;
+        ProblemDifficultyMin = string.Empty;
+        ProblemDifficultyMax = string.Empty;
+        ProblemSort = "UPDATED";
+        await CommitProblemFiltersAsync(cancellationToken);
+    }
+
+    public async Task LoadMoreProblemsAsync(CancellationToken cancellationToken)
+    {
+        if (!HasMoreProblems || IsBusy)
+        {
+            return;
+        }
+
+        await RefreshProblemsAsync(resetPaging: false, cancellationToken);
+    }
+
+    public async Task OpenProblemDetailAsync(ProblemRow row, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        try
+        {
+            if (!JudgeIdParser.TryParse(row.Judge, out var judge))
+            {
+                StatusText = "ERROR";
+                LastError = "UNKNOWN JUDGE FILTER";
+                return;
+            }
+
+            var detail = await _storage.RunAsync(
+                (store, token) => store.GetProblemDetailAsync(judge, row.ExternalId, token),
+                cancellationToken);
+            SelectedProblemDetail = detail is null ? null : ProjectProblemDetail(detail);
+        }
+        catch (StorageException exception)
+        {
+            StatusText = "ERROR";
+            LastError = exception.Failure.WireCode;
+        }
+    }
+
+    public void CloseProblemDetail()
+    {
+        SelectedProblemDetail = null;
+    }
+
+    private async Task CommitProblemFiltersAsync(CancellationToken cancellationToken)
+    {
+        await RefreshProblemsAsync(resetPaging: true, cancellationToken);
+        try
+        {
+            await SaveProblemFiltersAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (StorageException)
+        {
+            // Filter persistence is best-effort: the UI keeps the in-memory state
+            // and the next committed change retries the write.
+        }
+    }
+
+    private static ProblemDetailRow ProjectProblemDetail(ProblemEntry entry) => new(
+        entry.Judge.ToString().ToUpperInvariant(),
+        entry.ExternalId,
+        entry.Title,
+        entry.Url,
+        ProblemStatusParser.ToUpper(entry.Status),
+        entry.Difficulty?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "UNKNOWN",
+        entry.AttemptCount,
+        entry.Favorite,
+        entry.InReview,
+        entry.Tags.Count == 0 ? "NONE" : string.Join(", ", entry.Tags),
+        FormatProblemTimestamp(entry.FirstSeenAt),
+        FormatProblemTimestamp(entry.LastSeenAt),
+        FormatProblemTimestamp(entry.UpdatedAt));
+
+    private static string FormatProblemTimestamp(DateTimeOffset value) =>
+        value.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Loads one OFFSET page of the ledger. Persisted filters load once before the
+    /// first page so filters survive restart; every committed filter change resets
+    /// to page one and persists (restart-persistence acceptance).
+    /// </summary>
+    public async Task RefreshProblemsAsync(bool resetPaging, CancellationToken cancellationToken)
+    {
+        if (!_problemFiltersLoaded)
+        {
+            _problemFiltersLoaded = true;
+            await LoadProblemFiltersAsync(cancellationToken);
+        }
+
+        try
+        {
+            var offset = resetPaging ? 0 : Problems.Count;
+            var page = await _storage.RunAsync(
+                (store, token) => store.QueryProblemsAsync(BuildProblemQuery(), offset, ProblemPageSize, token),
+                cancellationToken);
+            if (resetPaging)
+            {
+                Problems.Clear();
+            }
+
+            foreach (var entry in page.Rows)
+            {
+                Problems.Add(ProjectProblemEntry(entry));
+            }
+
+            _problemVisibleMatches = page.Summary.Visible;
+            _libraryTotal = page.Summary.Total;
+            _librarySolved = page.Summary.Solved;
+            _libraryReview = page.Summary.Review;
+            _libraryFavorites = page.Summary.Favorites;
+            OnPropertyChanged(nameof(HasMoreProblems));
+            OnPropertyChanged(nameof(ProblemMatchSummary));
+            OnPropertyChanged(nameof(HasNoProblems));
+            OnPropertyChanged(nameof(ShowNoProblemsEmptyState));
+            OnPropertyChanged(nameof(ShowFilteredEmptyState));
+            StatusText = "READY";
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            StatusText = "CANCELLED";
+            throw;
+        }
+        catch (StorageException exception)
+        {
+            StatusText = "ERROR";
+            LastError = exception.Failure.WireCode;
+        }
+        catch (Exception)
+        {
+            StatusText = "ERROR";
+            LastError = "LOCAL STATE UNAVAILABLE";
+        }
+    }
+
+    private const string ProblemFiltersSettingKey = "problems.filters.v1";
+    private const int ProblemPageSize = 60;
+
+    private sealed record ProblemFilterState(
+        string Search, string Judge, string Status, string Sort, string Tag,
+        bool FavoriteOnly, string DifficultyMin, string DifficultyMax);
+
+    private ProblemLedgerQuery BuildProblemQuery()
+    {
+        var status = ProblemStatusParser.TryParse(SelectedProblemStatus, out var parsedStatus) ? (ProblemStatus?)parsedStatus : null;
+        var judge = JudgeIdParser.TryParse(SelectedProblemJudge, out var parsedJudge) ? (JudgeId?)parsedJudge : null;
+        var sort = ProblemSortParser.TryParse(ProblemSort, out var parsedSort) ? parsedSort : global::OjNexus.Windows.Core.Domain.ProblemSort.Updated;
+        int? min = int.TryParse(ProblemDifficultyMin, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var minValue) ? minValue : null;
+        int? max = int.TryParse(ProblemDifficultyMax, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var maxValue) ? maxValue : null;
+        return new ProblemLedgerQuery(
+            ProblemSearchText.Length == 0 ? null : ProblemSearchText,
+            status,
+            judge,
+            ProblemFavoriteOnly,
+            ProblemTag.Length == 0 ? null : ProblemTag,
+            min,
+            max,
+            sort);
+    }
+
+    private async Task SaveProblemFiltersAsync(CancellationToken cancellationToken)
+    {
+        var state = new ProblemFilterState(
+            ProblemSearchText, SelectedProblemJudge, SelectedProblemStatus, ProblemSort, ProblemTag,
+            ProblemFavoriteOnly, ProblemDifficultyMin, ProblemDifficultyMax);
+        await _storage.RunAsync(
+            (store, token) => store.SetSettingAsync(ProblemFiltersSettingKey, System.Text.Json.JsonSerializer.Serialize(state), token),
+            cancellationToken);
+    }
+
+    private async Task LoadProblemFiltersAsync(CancellationToken cancellationToken)
+    {
+        var json = await _storage.RunAsync(
+            (store, token) => store.GetSettingAsync(ProblemFiltersSettingKey, token),
+            cancellationToken);
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return;
+        }
+
+        var state = System.Text.Json.JsonSerializer.Deserialize<ProblemFilterState>(json);
+        if (state is null)
+        {
+            return;
+        }
+
+        SelectedProblemJudge = state.Judge;
+        SelectedProblemStatus = state.Status;
+        ProblemSearchText = state.Search ?? string.Empty;
+        ProblemTag = state.Tag ?? string.Empty;
+        ProblemFavoriteOnly = state.FavoriteOnly;
+        ProblemDifficultyMin = state.DifficultyMin ?? string.Empty;
+        ProblemDifficultyMax = state.DifficultyMax ?? string.Empty;
+        ProblemSort = string.IsNullOrEmpty(state.Sort) ? "UPDATED" : state.Sort;
     }
 
     public async Task RefreshAsync(CancellationToken cancellationToken)
@@ -378,18 +789,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
                     ? await store.GetRecentOperationsAsync(historyJudge, 5, cancellationToken)
                     : Array.Empty<SyncOperation>();
             ProjectHistory(historyOperations);
-            JudgeId? problemJudge = SelectedProblemJudge != "ALL" && JudgeIdParser.TryParse(SelectedProblemJudge, out var problemJudgeId)
-                ? problemJudgeId
-                : null;
-            ProblemStatus? problemStatus = ProblemStatusParser.TryParse(SelectedProblemStatus, out var parsedStatus)
-                ? parsedStatus
-                : null;
-            var problemPage = await store.QueryProblemsAsync(
-                new ProblemLedgerQuery(Status: problemStatus, Judge: problemJudge),
-                offset: 0,
-                limit: 100,
-                cancellationToken);
-            ProjectProblems(problemPage.Rows);
+            await RefreshProblemsAsync(resetPaging: true, cancellationToken);
             StatusText = "READY";
             return null;
         }
@@ -887,19 +1287,22 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
             : $"{summary} ({module.FailureType.ToUpperInvariant()})";
     }
 
+    private static ProblemRow ProjectProblemEntry(ProblemEntry problem) => new(
+        problem.Judge.ToString().ToUpperInvariant(),
+        problem.ExternalId,
+        problem.Title,
+        problem.Url,
+        ProblemStatusParser.ToUpper(problem.Status),
+        FormatProblemTimestamp(problem.LastSeenAt),
+        problem.Difficulty?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "UNKNOWN",
+        problem.AttemptCount);
+
     private void ProjectProblems(IReadOnlyList<ProblemEntry> problems)
     {
         Problems.Clear();
-        OnPropertyChanged(nameof(HasNoProblems));
         foreach (var problem in problems)
         {
-            Problems.Add(new ProblemRow(
-                problem.Judge.ToString().ToUpperInvariant(),
-                problem.ExternalId,
-                problem.Title,
-                problem.Url,
-                ProblemStatusParser.ToUpper(problem.Status),
-                problem.LastSeenAt.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")));
+            Problems.Add(ProjectProblemEntry(problem));
         }
         OnPropertyChanged(nameof(HasNoProblems));
     }
