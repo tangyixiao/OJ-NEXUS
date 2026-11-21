@@ -9,6 +9,24 @@ using OjNexus.Windows.Desktop.ViewModels;
 namespace OjNexus.Windows.Desktop.Tests;
 
 /// <summary>
+/// Runs the test on workstations only: on window-less hosted CI runners the
+/// behavioral probe creates a real WPF window and deadlocks (observed as a
+/// 30s join timeout), and headless layout never realizes containers without
+/// an HwndSource. CI gates the XAML structure pin instead; the probe's result
+/// is recorded in the phase verification record.
+/// </summary>
+public sealed class WorkstationFactAttribute : FactAttribute
+{
+    public WorkstationFactAttribute()
+    {
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CI")))
+        {
+            Skip = "workstation-only: the STA virtualization probe creates a real window; CI pins the XAML structure instead";
+        }
+    }
+}
+
+/// <summary>
 /// Phase 138 virtualization gate: the PROBLEMS list must not realize a container
 /// per row. The behavioral half binds 10,000 rows to a ListBox configured exactly
 /// like the shipped XAML (fixed viewport, recycling virtualization, content
@@ -36,7 +54,7 @@ public sealed class VirtualizedProblemListTests
         Assert.Matches(@"Height=""\d+""", list);
     }
 
-    [Fact]
+    [WorkstationFact]
     public void TenThousandRows_RealizeABoundedNumberOfContainers()
     {
         Exception? failure = null;

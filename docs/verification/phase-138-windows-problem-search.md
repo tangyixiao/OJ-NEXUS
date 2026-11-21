@@ -90,5 +90,10 @@ difficulty/tags ingest source).
 - No Android/Linux/Apple behavior changes; no CI workflow edits
   (`.github/workflows/windows.yml` untouched).
 - The STA virtualization probe constructs an equivalent list configuration in
-  code rather than instantiating MainWindow; the shipped XAML configuration is
-  pinned by a source audit in the same test class.
+  code rather than instantiating MainWindow, and it is workstation-only by
+  design: a real WPF window deadlocks on window-less hosted CI runners
+  (observed on the first CI run, fixed by gating the probe to workstations
+  with a dynamically skipped fact), and headless layout never realizes
+  containers without an HwndSource. CI pins the shipped XAML configuration via
+  the source-audit test; the behavioral bound is measured on workstations and
+  recorded here.
