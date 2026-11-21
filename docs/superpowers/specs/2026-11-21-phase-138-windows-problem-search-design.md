@@ -83,14 +83,24 @@ Baseline main: `9bfdf21` (phases 131-137 delivered; PR #89 merge).
    `difficulty INTEGER NULL`, `favorite INTEGER NOT NULL DEFAULT 0`,
    `attempt_count INTEGER NOT NULL DEFAULT 0`, `updated_at TEXT NULL`
    (backfilled to `last_seen_at`), `title_lower TEXT NULL` (backfilled C#-side
-   with `ToLowerInvariant`, the .NET equivalent of the frozen simple-lowercase
-   — parity-tested by vectors 012/013/026/027/007), plus indexes
+   with `ToLowerInvariant`, which matches the frozen simple-lowercase on every
+   pinned vector — the empirical İ divergence is recorded as a deviation
+   below), plus indexes
    `idx_problems_updated_at`, `idx_problems_title_lower`, `idx_problems_difficulty`,
    and a new `problem_tags (judge, external_id, name, PRIMARY KEY(judge,
    external_id, name))` table. `in_review` stays derived via
    `EXISTS(SELECT 1 FROM reviews rv WHERE rv.judge = problems.judge AND
    rv.external_id = problems.external_id)` — same predicate shape as Android
    (LibraryQuery.kt DERIVED_STATUS), no column.
+   **Recorded deviation (independent review F2, verified empirically on
+   net8.0):** `ToLowerInvariant(U+0130 İ)` leaves the character unchanged
+   while the oracle's `str.lower()` maps it to `i` + U+0307, so titles
+   containing İ diverge in TITLE sort keys and "i" search matching, and
+   `lower(external_id)` (SQLite ASCII-only `lower()`) diverges for non-ASCII
+   external ids. None of the 28 pinned vectors exercise İ or non-ASCII
+   external-id search; closing that gap needs a new vector plus a
+   contract-level decision (full-mapping lowercase table or pinned-culture
+   lowering) and is deferred rather than silently claimed.
 2. **The filter becomes SQL mirroring Android's `LibraryQueryBuilder`.** Same
    derived-status CASE; search `title_lower LIKE ? ESCAPE '\' OR lower(external_id)
    LIKE ? ESCAPE '\'` with `\`/`%`/`_` escaped and bind args trimmed with the

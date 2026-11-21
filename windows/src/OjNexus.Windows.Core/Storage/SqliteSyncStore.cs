@@ -915,7 +915,9 @@ public sealed class SqliteSyncStore : ISyncStore
             WHERE judge = $judge AND external_id = $externalId;
             """;
         command.Parameters.AddWithValue("$judge", judge.ToString());
-        command.Parameters.AddWithValue("$externalId", externalId.Trim());
+        // Identity is byte-exact (no trim, no case-fold) — the CLI show parser
+        // hands the verbatim remainder through, and so does this lookup.
+        command.Parameters.AddWithValue("$externalId", externalId);
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
         {

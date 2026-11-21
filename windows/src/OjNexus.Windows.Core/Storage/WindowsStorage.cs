@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Microsoft.Data.Sqlite;
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Portable;
@@ -39,7 +39,7 @@ public sealed class WindowsStorageSession : IStorageOperationSource
 
     /// <summary>
     /// Creates a portable repository bound to <paramref name="operation"/>'s permit and this
-    /// session's connection factory 鈥?the same scope pattern the sync store uses. The caller
+    /// session's connection factory —the same scope pattern the sync store uses. The caller
     /// must keep <paramref name="operation"/> alive for the duration of the repository calls.
     /// </summary>
     public PortableRepository CreatePortableRepository(StorageOperationContext operation)

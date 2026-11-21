@@ -140,7 +140,7 @@ public sealed class InMemorySyncStore : ISyncStore
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
-            var key = $"{judge}:{externalId.Trim()}";
+            var key = $"{judge}:{externalId}";
             var row = _problems.GetValueOrDefault(key);
             return Task.FromResult(row is null ? null : EffectiveEntry(row));
         }
@@ -252,7 +252,7 @@ public sealed class InMemorySyncStore : ISyncStore
             Visible: 0,
             Total: rows.Length,
             Solved: rows.Count(row => row.Solved),
-            Review: rows.Count(row => row.InReview),
+            Review: rows.Count(row => EffectiveEntry(row).InReview),
             Favorites: rows.Count(row => row.Favorite));
     }
 

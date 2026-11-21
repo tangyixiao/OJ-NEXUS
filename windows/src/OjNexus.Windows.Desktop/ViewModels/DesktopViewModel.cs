@@ -202,6 +202,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
     private int _libraryReview;
     private int _libraryFavorites;
     private bool _problemFiltersLoaded;
+    private bool _problemAppendInFlight;
     private ProblemDetailRow? _selectedProblemDetail;
     private byte[]? _pendingPortableBytes;
     private string _portableIdentity = "NONE";
@@ -521,14 +522,14 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
     public async Task SetProblemSearchAsync(string search, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(search);
-        ProblemSearchText = search.Trim();
+        ProblemSearchText = ProblemSearch.TrimAscii(search);
         await CommitProblemFiltersAsync(cancellationToken);
     }
 
     public async Task SetProblemTagAsync(string tag, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(tag);
-        ProblemTag = tag.Trim();
+        ProblemTag = ProblemSearch.TrimAscii(tag);
         await CommitProblemFiltersAsync(cancellationToken);
     }
 
@@ -576,12 +577,22 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
 
     public async Task LoadMoreProblemsAsync(CancellationToken cancellationToken)
     {
-        if (!HasMoreProblems || IsBusy)
+        if (!HasMoreProblems || IsBusy || _problemAppendInFlight)
         {
             return;
         }
 
-        await RefreshProblemsAsync(resetPaging: false, cancellationToken);
+        // The append offset reads Problems.Count; a re-entrant activation while a
+        // store call is in flight would read the same offset and append twice.
+        _problemAppendInFlight = true;
+        try
+        {
+            await RefreshProblemsAsync(resetPaging: false, cancellationToken);
+        }
+        finally
+        {
+            _problemAppendInFlight = false;
+        }
     }
 
     public async Task OpenProblemDetailAsync(ProblemRow row, CancellationToken cancellationToken)
@@ -1296,16 +1307,6 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
         FormatProblemTimestamp(problem.LastSeenAt),
         problem.Difficulty?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "UNKNOWN",
         problem.AttemptCount);
-
-    private void ProjectProblems(IReadOnlyList<ProblemEntry> problems)
-    {
-        Problems.Clear();
-        foreach (var problem in problems)
-        {
-            Problems.Add(ProjectProblemEntry(problem));
-        }
-        OnPropertyChanged(nameof(HasNoProblems));
-    }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {

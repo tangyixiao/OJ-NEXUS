@@ -163,6 +163,11 @@ public static class ProblemSearch
 {
     private static readonly char[] AsciiWhitespace = [' ', '\t', '\n', '\r', '\v', '\f'];
 
+    /// <summary>Trims ONLY the frozen ASCII whitespace set (UI commit paths use
+    /// this instead of string.Trim(), which would also strip NBSP and friends —
+    /// vector 026 pins that as a real search term).</summary>
+    public static string TrimAscii(string value) => value.Trim(AsciiWhitespace);
+
     public static string? Normalize(string? search)
     {
         if (search is null)
