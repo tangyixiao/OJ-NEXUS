@@ -1,8 +1,8 @@
 # Phase 138 — Windows Native Problem Search and Virtualization
 
-Status: **VERIFIED PENDING DELIVERY GATES AND REVIEW**. The controller's local
-gates are measured below; the delivery CI gates and the independent review flip
-at merge. Authoritative inputs:
+Status: **VERIFIED**. Every gate below is measured, including the delivery CI
+gates on the disposition head and the independent review; the phase is merged
+to `main`. Authoritative inputs:
 [Design](../superpowers/specs/2026-11-21-phase-138-windows-problem-search-design.md),
 [Plan](../superpowers/plans/2026-11-21-phase-138-windows-problem-search.md),
 [Plan ledger](phase-138-plan-ledger.md), handoff
@@ -66,8 +66,20 @@ Inputs / links:
 | 4 | Empty results have a clear-filters entry | filtered-empty state + CLEAR FILTERS round trip | **PASS (measured locally)** — `ClearProblemFilters_RestoresUnfilteredPageAndOffersTheEmptyStateExit` + `ui-smoke.ps1` UIA exercise (favorites filter → NO PROBLEMS MATCH THE CURRENT FILTERS → CLEAR FILTERS → NO PROBLEMS RECORDED) |
 | 5 | Full G-W suite | build + all tests green | **PASS (measured locally)** — `dotnet build` 0 errors/0 warnings (TWE); `dotnet test`: Core 307/307 (incl. parity 28/28), Cli 99/99, Desktop 49/49 — 455/455 |
 | 6 | UI smoke against the real app | page renders + interactions | **PASS (measured locally)** — 5/5 distinct screenshots, FILTERS=3, new controls present, CLEAR-FILTERS=PASS |
-| 7 | Delivery CI on the PR head | windows.yml `dotnet test` + build + package green | PENDING — flips at merge |
-| 8 | Independent review of the final diff | findings fixed or recorded | PENDING — review agent running |
+| 7 | Delivery CI on the PR head | windows.yml `dotnet test` + build + package green | **PASS** — CI on the disposition head `dfe7b7e`: all four checks success (check-runs `136899987890`/`136899987790`/`136899987620`/`136899987243`; an earlier all-green run on `a116bef` preceded the review fixes); merged as `8ea64d7` (PR #90) |
+| 8 | Independent review of the final diff | findings fixed or recorded | **PASS** — [phase-138-task6-review.md](phase-138-task6-review.md): PASS-WITH-OBSERVATIONS, no P1/P2; all seven P3 findings fixed in `dfe7b7e` (encoding restore, İ-divergence deviation recorded, ASCII-trim UI commits, LOAD MORE re-entry guard, in-memory summary derived state, dead code, byte-exact detail identity) |
+
+<!-- CONTROLLER-SIGN-OFF: recorded by the controller on 2026-11-22 -->
+## Sign-off
+
+VERIFIED. Phase 138 delivered to `main` via delivery PR #90 (merge `8ea64d7`).
+Gates: contract-vector parity 28/28, STA virtualization probe bounded at 10k
+rows, restart/back persistence and detail-back retention tests green,
+clear-filters empty-state round trip (unit + UIA smoke), full suite 455/455
+with a clean TWE build (measured on `dfe7b7e`), delivery CI all four checks
+success, independent review PASS-WITH-OBSERVATIONS with all seven findings
+fixed and two honest deviations recorded (İ casing divergence; no
+difficulty/tags ingest source).
 
 ## Non-claims
 
@@ -78,5 +90,10 @@ Inputs / links:
 - No Android/Linux/Apple behavior changes; no CI workflow edits
   (`.github/workflows/windows.yml` untouched).
 - The STA virtualization probe constructs an equivalent list configuration in
-  code rather than instantiating MainWindow; the shipped XAML configuration is
-  pinned by a source audit in the same test class.
+  code rather than instantiating MainWindow, and it is workstation-only by
+  design: a real WPF window deadlocks on window-less hosted CI runners
+  (observed on the first CI run, fixed by gating the probe to workstations
+  with a dynamically skipped fact), and headless layout never realizes
+  containers without an HwndSource. CI pins the shipped XAML configuration via
+  the source-audit test; the behavioral bound is measured on workstations and
+  recorded here.
