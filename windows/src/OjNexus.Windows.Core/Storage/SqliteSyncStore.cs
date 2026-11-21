@@ -601,7 +601,7 @@ public sealed class SqliteSyncStore : ISyncStore
         DateTimeOffset fetchedAt,
         CancellationToken cancellationToken)
     {
-        var seen = new Dictionary<string, (string Title, bool Solved)>(StringComparer.Ordinal);
+        var seen = new Dictionary<string, (string Title, bool Solved, int Attempts)>(StringComparer.Ordinal);
         foreach (var item in payload.Items)
         {
             var externalId = ProblemUrls.CodeforcesExternalId(item.ContestId, item.ProblemIndex);
@@ -615,13 +615,15 @@ public sealed class SqliteSyncStore : ISyncStore
                 ? externalId
                 : item.ProblemName.Trim();
             // Newest submissions arrive first; keep the first-seen title, but OR the flag up.
+            // The payload is a full per-handle replace (one account per judge), so the
+            // attempt count is recomputed exactly from the current payload.
             if (seen.TryGetValue(externalId, out var existing))
             {
-                seen[externalId] = (existing.Title, existing.Solved || solved);
+                seen[externalId] = (existing.Title, existing.Solved || solved, existing.Attempts + 1);
             }
             else
             {
-                seen[externalId] = (title, solved);
+                seen[externalId] = (title, solved, 1);
             }
         }
 
@@ -641,6 +643,7 @@ public sealed class SqliteSyncStore : ISyncStore
                 info.Title,
                 url,
                 info.Solved,
+                info.Attempts,
                 fetchedAt,
                 cancellationToken);
         }
@@ -657,7 +660,7 @@ public sealed class SqliteSyncStore : ISyncStore
         DateTimeOffset fetchedAt,
         CancellationToken cancellationToken)
     {
-        var seen = new Dictionary<string, (string Title, bool Solved)>(StringComparer.Ordinal);
+        var seen = new Dictionary<string, (string Title, bool Solved, int Attempts)>(StringComparer.Ordinal);
         foreach (var item in payload.Items)
         {
             if (string.IsNullOrWhiteSpace(item.ContestId) || string.IsNullOrWhiteSpace(item.ProblemId))
@@ -670,11 +673,11 @@ public sealed class SqliteSyncStore : ISyncStore
             var title = item.ProblemId.Trim();
             if (seen.TryGetValue(externalId, out var existing))
             {
-                seen[externalId] = (existing.Title, existing.Solved || solved);
+                seen[externalId] = (existing.Title, existing.Solved || solved, existing.Attempts + 1);
             }
             else
             {
-                seen[externalId] = (title, solved);
+                seen[externalId] = (title, solved, 1);
             }
         }
 
@@ -694,6 +697,7 @@ public sealed class SqliteSyncStore : ISyncStore
                 info.Title,
                 url,
                 info.Solved,
+                info.Attempts,
                 fetchedAt,
                 cancellationToken);
         }
@@ -713,17 +717,20 @@ public sealed class SqliteSyncStore : ISyncStore
         string title,
         string url,
         bool solved,
+        int attemptCount,
         DateTimeOffset seenAt,
         CancellationToken cancellationToken)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
-            INSERT INTO problems (judge, external_id, title, url, solved, first_seen_at, last_seen_at)
-            VALUES ($judge, $externalId, $title, $url, $solved, $seenAt, $seenAt)
+            INSERT INTO problems (judge, external_id, title, url, solved, first_seen_at, last_seen_at, attempt_count, updated_at, title_lower)
+            VALUES ($judge, $externalId, $title, $url, $solved, $seenAt, $seenAt, $attemptCount, $seenAt, $titleLower)
             ON CONFLICT(judge, external_id) DO UPDATE SET
                 solved = MAX(problems.solved, excluded.solved),
-                last_seen_at = excluded.last_seen_at;
+                last_seen_at = excluded.last_seen_at,
+                attempt_count = excluded.attempt_count,
+                updated_at = excluded.updated_at;
             """;
         command.Parameters.AddWithValue("$judge", judge.ToString());
         command.Parameters.AddWithValue("$externalId", externalId);
@@ -731,43 +738,101 @@ public sealed class SqliteSyncStore : ISyncStore
         command.Parameters.AddWithValue("$url", url);
         command.Parameters.AddWithValue("$solved", solved ? 1 : 0);
         command.Parameters.AddWithValue("$seenAt", FormatTime(seenAt));
+        command.Parameters.AddWithValue("$attemptCount", attemptCount);
+        command.Parameters.AddWithValue("$titleLower", title.ToLowerInvariant());
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<ProblemEntry>> GetProblemsAsync(
-        JudgeId? judge,
-        ProblemStatus? status,
+    /// <summary>
+    /// The frozen derived-status rule as SQL, mirroring Android's
+    /// LibraryQueryBuilder DERIVED_STATUS (LibraryQuery.kt): any review row
+    /// wins, then solved, then any attempt, else unsolved.
+    /// </summary>
+    private const string DerivedStatusCase =
+        "(CASE WHEN EXISTS(SELECT 1 FROM reviews rv WHERE rv.judge = problems.judge AND rv.external_id = problems.external_id) THEN 'REVIEW'" +
+        " WHEN problems.solved THEN 'SOLVED'" +
+        " WHEN problems.attempt_count > 0 THEN 'ATTEMPTED'" +
+        " ELSE 'UNSOLVED' END)";
+
+    private const string InReviewPredicate =
+        "(EXISTS(SELECT 1 FROM reviews rv WHERE rv.judge = problems.judge AND rv.external_id = problems.external_id))";
+
+    private const string RowColumns =
+        "judge, external_id, title, url, solved, first_seen_at, last_seen_at, difficulty, favorite, attempt_count, updated_at, title_lower";
+
+    public async Task<ProblemLedgerPage> QueryProblemsAsync(
+        ProblemLedgerQuery query,
+        int offset,
         int limit,
         CancellationToken cancellationToken)
     {
         using var storeCall = EnterStoreCall();
-        if (limit <= 0)
+        if (limit <= 0 || offset < 0)
         {
-            return Array.Empty<ProblemEntry>();
+            return new ProblemLedgerPage(Array.Empty<ProblemEntry>(), Math.Max(offset, 0), limit, await SummarizeUnfilteredAsync(cancellationToken) with { Visible = 0 });
         }
 
+        var where = BuildWhereClause(query, out var bind);
+        var orderBy = BuildOrderByClause(query.Sort);
+        using var lease = OpenLease();
+        var connection = lease.Connection;
+
+        var rows = await ReadLedgerRowsAsync(connection, where, orderBy, bind, offset, limit, cancellationToken);
+        int visible;
+        using (var countCommand = connection.CreateCommand())
+        {
+            countCommand.CommandText = $"SELECT COUNT(*) FROM problems{where}";
+            BindQueryParameters(countCommand, bind);
+            visible = (int)Convert.ToInt64(await countCommand.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        }
+
+        return new ProblemLedgerPage(rows, offset, limit, await SummarizeUnfilteredAsync(cancellationToken) with { Visible = visible });
+    }
+
+    /// <summary>Unfiltered library-wide aggregates; the visible page never feeds them.</summary>
+    private async Task<ProblemLedgerSummary> SummarizeUnfilteredAsync(CancellationToken cancellationToken)
+    {
         using var lease = OpenLease();
         var connection = lease.Connection;
         using var command = connection.CreateCommand();
-        var statusValue = status switch
-        {
-            ProblemStatus.Solved => 1,
-            ProblemStatus.Attempted => 0,
-            _ => (int?)null,
-        };
-        command.CommandText = """
-            SELECT judge, external_id, title, url, solved, first_seen_at, last_seen_at
-            FROM problems
-            WHERE ($judge IS NULL OR judge = $judge)
-              AND ($status IS NULL OR solved = $status)
-            ORDER BY last_seen_at DESC, judge ASC, external_id ASC
-            LIMIT $limit;
+        command.CommandText = $"""
+            SELECT
+                (SELECT COUNT(*) FROM problems),
+                (SELECT COALESCE(SUM(CASE WHEN solved THEN 1 ELSE 0 END), 0) FROM problems),
+                (SELECT COALESCE(SUM(CASE WHEN {InReviewPredicate} THEN 1 ELSE 0 END), 0) FROM problems),
+                (SELECT COALESCE(SUM(CASE WHEN favorite THEN 1 ELSE 0 END), 0) FROM problems);
             """;
-        command.Parameters.AddWithValue("$judge", judge?.ToString() ?? (object)DBNull.Value);
-        command.Parameters.AddWithValue("$status", statusValue is null ? (object)DBNull.Value : statusValue.Value);
-        command.Parameters.AddWithValue("$limit", limit);
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        var problems = new List<ProblemEntry>();
+        await reader.ReadAsync(cancellationToken);
+        return new ProblemLedgerSummary(
+            Visible: 0,
+            Total: (int)reader.GetInt64(0),
+            Solved: (int)reader.GetInt64(1),
+            Review: (int)reader.GetInt64(2),
+            Favorites: (int)reader.GetInt64(3));
+    }
+
+    private async Task<IReadOnlyList<ProblemEntry>> ReadLedgerRowsAsync(
+        SqliteConnection connection,
+        string where,
+        string orderBy,
+        IReadOnlyList<(string Name, object? Value)> bind,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT {RowColumns}, {InReviewPredicate} AS in_review
+            FROM problems{where}
+            ORDER BY {orderBy}
+            LIMIT $limit OFFSET $offset;
+            """;
+        BindQueryParameters(command, bind);
+        command.Parameters.AddWithValue("$limit", limit);
+        command.Parameters.AddWithValue("$offset", offset);
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var rows = new List<ProblemEntry>();
         while (await reader.ReadAsync(cancellationToken))
         {
             if (!JudgeIdParser.TryParse(reader.GetString(0), out var rowJudge))
@@ -775,17 +840,231 @@ public sealed class SqliteSyncStore : ISyncStore
                 continue;
             }
 
-            problems.Add(new ProblemEntry(
-                rowJudge,
-                reader.GetString(1),
-                reader.GetString(2),
-                reader.GetString(3),
-                reader.GetInt64(4) != 0,
-                ParseTime(reader.GetString(5)),
-                ParseTime(reader.GetString(6))));
+            rows.Add(MaterializeEntry(reader, rowJudge, tags: null));
         }
 
-        return problems;
+        await AttachTagsAsync(connection, rows, cancellationToken);
+        return rows;
+    }
+
+    private async Task AttachTagsAsync(
+        SqliteConnection connection,
+        List<ProblemEntry> rows,
+        CancellationToken cancellationToken)
+    {
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        using var command = connection.CreateCommand();
+        var clauses = new List<string>(rows.Count);
+        for (var index = 0; index < rows.Count; index++)
+        {
+            clauses.Add($"(judge = $j{index} AND external_id = $e{index})");
+            command.Parameters.AddWithValue($"$j{index}", rows[index].Judge.ToString());
+            command.Parameters.AddWithValue($"$e{index}", rows[index].ExternalId);
+        }
+
+        command.CommandText = $"SELECT judge, external_id, name FROM problem_tags WHERE {string.Join(" OR ", clauses)}";
+        var tagsByRow = rows.ToDictionary(row => (row.Judge, row.ExternalId), _ => new List<string>());
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (!JudgeIdParser.TryParse(reader.GetString(0), out var rowJudge))
+            {
+                continue;
+            }
+
+            if (tagsByRow.TryGetValue((rowJudge, reader.GetString(1)), out var names))
+            {
+                names.Add(reader.GetString(2));
+            }
+        }
+
+        for (var index = 0; index < rows.Count; index++)
+        {
+            var names = tagsByRow[(rows[index].Judge, rows[index].ExternalId)];
+            if (names.Count == 0)
+            {
+                continue;
+            }
+
+            names.Sort(StringComparer.Ordinal);
+            rows[index] = rows[index] with { Tags = names.ToArray() };
+        }
+    }
+
+    public async Task<ProblemEntry?> GetProblemDetailAsync(
+        JudgeId judge,
+        string externalId,
+        CancellationToken cancellationToken)
+    {
+        using var storeCall = EnterStoreCall();
+        if (string.IsNullOrWhiteSpace(externalId))
+        {
+            return null;
+        }
+
+        using var lease = OpenLease();
+        var connection = lease.Connection;
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT {RowColumns}, {InReviewPredicate} AS in_review
+            FROM problems
+            WHERE judge = $judge AND external_id = $externalId;
+            """;
+        command.Parameters.AddWithValue("$judge", judge.ToString());
+        // Identity is byte-exact (no trim, no case-fold) — the CLI show parser
+        // hands the verbatim remainder through, and so does this lookup.
+        command.Parameters.AddWithValue("$externalId", externalId);
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        var entry = MaterializeEntry(reader, judge, tags: null);
+        await AttachTagsAsync(connection, [entry], cancellationToken);
+        return entry;
+    }
+
+    private static ProblemEntry MaterializeEntry(SqliteDataReader reader, JudgeId judge, IReadOnlyList<string>? tags)
+    {
+        return new ProblemEntry(
+            judge,
+            reader.GetString(1),
+            reader.GetString(2),
+            reader.GetString(3),
+            reader.GetInt64(4) != 0,
+            ParseTime(reader.GetString(5)),
+            ParseTime(reader.GetString(6)),
+            reader.IsDBNull(10) ? ParseTime(reader.GetString(6)) : ParseTime(reader.GetString(10)),
+            reader.IsDBNull(7) ? null : (int?)reader.GetInt64(7),
+            reader.GetInt64(8) != 0,
+            (int)reader.GetInt64(9),
+            reader.GetInt64(12) != 0,
+            tags ?? (IReadOnlyList<string>)Array.Empty<string>());
+    }
+
+    /// <summary>
+    /// Builds the contract WHERE clause. The search literal is normalized with
+    /// the frozen ASCII trim + invariant lowercase and escaped for a literal
+    /// substring match; difficulty bounds exclude unknown difficulty whenever
+    /// either bound is set (vectors 004/024/025).
+    /// </summary>
+    private static string BuildWhereClause(ProblemLedgerQuery query, out List<(string Name, object? Value)> bind)
+    {
+        bind = [];
+        var where = new List<string>();
+
+        var search = ProblemSearch.Normalize(query.Search);
+        if (search is not null)
+        {
+            where.Add("(title_lower LIKE $search ESCAPE '\\' OR lower(external_id) LIKE $search ESCAPE '\\')");
+            bind.Add(("$search", $"%{EscapeLike(search)}%"));
+        }
+
+        if (query.Status is { } status)
+        {
+            where.Add($"{DerivedStatusCase} = $status");
+            bind.Add(("$status", ProblemStatusParser.ToUpper(status)));
+        }
+
+        if (query.Judge is { } judge)
+        {
+            where.Add("judge = $judge");
+            bind.Add(("$judge", judge.ToString()));
+        }
+
+        if (query.FavoriteOnly)
+        {
+            where.Add("favorite = 1");
+        }
+
+        if (!string.IsNullOrEmpty(query.Tag))
+        {
+            where.Add("EXISTS(SELECT 1 FROM problem_tags pt WHERE pt.judge = problems.judge AND pt.external_id = problems.external_id AND pt.name = $tag)");
+            bind.Add(("$tag", query.Tag));
+        }
+
+        if (query.DifficultyMin is not null || query.DifficultyMax is not null)
+        {
+            where.Add("difficulty IS NOT NULL");
+            if (query.DifficultyMin is not null)
+            {
+                where.Add("difficulty >= $difficultyMin");
+                bind.Add(("$difficultyMin", query.DifficultyMin.Value));
+            }
+
+            if (query.DifficultyMax is not null)
+            {
+                where.Add("difficulty <= $difficultyMax");
+                bind.Add(("$difficultyMax", query.DifficultyMax.Value));
+            }
+        }
+
+        return where.Count == 0 ? string.Empty : $" WHERE {string.Join(" AND ", where)}";
+    }
+
+    /// <summary>Sort key + the stable code-point tie-break (BINARY on UTF-8 is code-point order).</summary>
+    private static string BuildOrderByClause(ProblemSort sort)
+    {
+        var orderBy = sort switch
+        {
+            ProblemSort.Updated => "updated_at DESC",
+            ProblemSort.Difficulty => "(difficulty IS NULL) ASC, difficulty ASC",
+            ProblemSort.Title => "title_lower ASC",
+            ProblemSort.Attempts => "attempt_count DESC",
+            _ => "updated_at DESC",
+        };
+        // lower(judge) normalizes the stored enum casing ("Codeforces" vs the
+        // contract's lowercase key form) — judge names are pure ASCII so SQLite
+        // lower() is exact; UTF-8 BINARY on the result is code-point order.
+        return $"{orderBy}, lower(judge) ASC, external_id ASC";
+    }
+
+    private static void BindQueryParameters(SqliteCommand command, IReadOnlyList<(string Name, object? Value)> bind)
+    {
+        foreach (var (name, value) in bind)
+        {
+            command.Parameters.AddWithValue(name, value ?? DBNull.Value);
+        }
+    }
+
+    private static string EscapeLike(string value) => value
+        .Replace("\\", "\\\\", StringComparison.Ordinal)
+        .Replace("%", "\\%", StringComparison.Ordinal)
+        .Replace("_", "\\_", StringComparison.Ordinal);
+
+    public async Task<string?> GetSettingAsync(string key, CancellationToken cancellationToken)
+    {
+        using var storeCall = EnterStoreCall();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT value FROM app_settings WHERE key = $key;";
+        command.Parameters.AddWithValue("$key", key);
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is string value ? value : null;
+    }
+
+    public async Task SetSettingAsync(string key, string value, CancellationToken cancellationToken)
+    {
+        using var storeCall = EnterStoreCall();
+        using var lease = OpenLease();
+        var connection = lease.Connection;
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO app_settings (key, value) VALUES ($key, $value)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+            """;
+        command.Parameters.AddWithValue("$key", key);
+        command.Parameters.AddWithValue("$value", value);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        transaction.Commit();
     }
 
     public async Task<IReadOnlyList<ReviewEntry>> GetDueReviewsAsync(

@@ -178,39 +178,87 @@
 
           <StackPanel Visibility="{Binding IsProblemsVisible, Converter={StaticResource BoolToVisibility}}">
             <TextBlock Text="LOCAL PROBLEM LEDGER" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
-            <Grid Margin="0,7,0,18">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Derived from synced submissions. Rows stay readable offline." Foreground="{StaticResource NexusMutedTextBrush}" VerticalAlignment="Center" />
-              <ComboBox Grid.Column="1" ItemsSource="{Binding ProblemJudgeFilters}" SelectedItem="{Binding SelectedProblemJudge, Mode=OneWay}" SelectionChanged="ProblemJudgeFilter_SelectionChanged" MinWidth="150" Margin="0,0,12,0" />
-              <ComboBox Grid.Column="2" ItemsSource="{Binding ProblemStatusFilters}" SelectedItem="{Binding SelectedProblemStatus, Mode=OneWay}" SelectionChanged="ProblemStatusFilter_SelectionChanged" MinWidth="150" />
-            </Grid>
-            <ItemsControl ItemsSource="{Binding Problems}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Border Background="{StaticResource NexusSurfaceBrush}" BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1" Padding="16" Margin="0,0,0,10">
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="130" />
-                        <ColumnDefinition Width="170" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="110" />
-                        <ColumnDefinition Width="Auto" />
-                      </Grid.ColumnDefinitions>
-                      <TextBlock Text="{Binding Judge}" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
-                      <TextBlock Grid.Column="1" Text="{Binding ExternalId}" Margin="12,0,0,0" Foreground="{StaticResource NexusTextBrush}" TextTrimming="CharacterEllipsis" />
-                      <TextBlock Grid.Column="2" Text="{Binding Title}" Margin="12,0,12,0" TextWrapping="Wrap" Foreground="{StaticResource NexusMutedTextBrush}" />
-                      <TextBlock Grid.Column="3" Text="{Binding Status}" HorizontalAlignment="Right" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
-                      <Button Grid.Column="4" Content="OPEN" Tag="{Binding}" Style="{StaticResource ActionButton}" Visibility="{Binding HasUrl, Converter={StaticResource BoolToVisibility}}" Margin="16,0,0,0" Click="OpenProblem_Click" />
-                    </Grid>
-                  </Border>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <TextBlock Text="NO PROBLEMS RECORDED" Visibility="{Binding HasNoProblems, Converter={StaticResource BoolToVisibility}}" Foreground="{StaticResource NexusMutedTextBrush}" Margin="0,16,0,0" />
+            <WrapPanel Margin="0,7,0,10">
+              <TextBox Width="220" AutomationProperties.AutomationId="ProblemSearch" Text="{Binding ProblemSearchText, Mode=OneWay}" KeyDown="ProblemSearch_KeyDown" LostFocus="ProblemSearch_LostFocus" VerticalAlignment="Top" />
+              <ComboBox AutomationProperties.AutomationId="ProblemJudgeFilter" ItemsSource="{Binding ProblemJudgeFilters}" SelectedItem="{Binding SelectedProblemJudge, Mode=OneWay}" SelectionChanged="ProblemJudgeFilter_SelectionChanged" MinWidth="140" Margin="10,0,0,0" VerticalAlignment="Top" />
+              <ComboBox AutomationProperties.AutomationId="ProblemStatusFilter" ItemsSource="{Binding ProblemStatusFilters}" SelectedItem="{Binding SelectedProblemStatus, Mode=OneWay}" SelectionChanged="ProblemStatusFilter_SelectionChanged" MinWidth="140" Margin="10,0,0,0" VerticalAlignment="Top" />
+              <ComboBox AutomationProperties.AutomationId="ProblemSortFilter" ItemsSource="{Binding ProblemSortOptions}" SelectedItem="{Binding ProblemSort, Mode=OneWay}" SelectionChanged="ProblemSortFilter_SelectionChanged" MinWidth="140" Margin="10,0,0,0" VerticalAlignment="Top" />
+              <TextBox Width="140" AutomationProperties.AutomationId="ProblemTag" Text="{Binding ProblemTag, Mode=OneWay}" KeyDown="ProblemTag_KeyDown" LostFocus="ProblemTag_LostFocus" Margin="10,0,0,0" VerticalAlignment="Top" />
+              <CheckBox Content="FAVORITES ONLY" AutomationProperties.AutomationId="ProblemFavorite" IsChecked="{Binding ProblemFavoriteOnly, Mode=OneWay}" Checked="ProblemFavorite_Changed" Unchecked="ProblemFavorite_Changed" Margin="14,8,0,0" VerticalAlignment="Top" />
+              <TextBox Width="70" AutomationProperties.AutomationId="ProblemDifficultyMin" Text="{Binding ProblemDifficultyMin, Mode=OneWay}" LostFocus="ProblemDifficultyBounds_LostFocus" KeyDown="ProblemDifficultyBounds_KeyDown" Margin="14,0,0,0" VerticalAlignment="Top" />
+              <TextBox Width="70" AutomationProperties.AutomationId="ProblemDifficultyMax" Text="{Binding ProblemDifficultyMax, Mode=OneWay}" LostFocus="ProblemDifficultyBounds_LostFocus" KeyDown="ProblemDifficultyBounds_KeyDown" Margin="10,0,0,0" VerticalAlignment="Top" />
+              <Button Content="CLEAR FILTERS" AutomationProperties.AutomationId="ProblemClearFilters" Style="{StaticResource ActionButton}" Click="ClearProblemFilters_Click" Margin="14,0,0,0" VerticalAlignment="Top" />
+            </WrapPanel>
+            <Border Visibility="{Binding IsProblemDetailVisible, Converter={StaticResource BoolToVisibility}}" Background="{StaticResource NexusSurfaceBrush}" BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1" Padding="16" Margin="0,0,0,12" AutomationProperties.AutomationId="ProblemDetailPanel">
+              <StackPanel>
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding SelectedProblemDetail.Title}" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" TextWrapping="Wrap" />
+                  <Button Grid.Column="1" Content="OPEN URL" Style="{StaticResource ActionButton}" Click="OpenProblemDetailUrl_Click" Margin="16,0,0,0" Visibility="{Binding SelectedProblemDetail.HasUrl, Converter={StaticResource BoolToVisibility}}" />
+                  <Button Grid.Column="2" Content="BACK TO LIST" AutomationProperties.AutomationId="ProblemDetailBack" Style="{StaticResource ActionButton}" Click="CloseProblemDetail_Click" Margin="12,0,0,0" />
+                </Grid>
+                <TextBlock Text="{Binding SelectedProblemDetail.Judge}" Margin="0,12,0,0" Foreground="{StaticResource NexusTextBrush}" />
+                <TextBlock Text="{Binding SelectedProblemDetail.ExternalId}" Margin="0,6,0,0" FontFamily="Consolas" Foreground="{StaticResource NexusTextBrush}" />
+                <TextBlock Text="{Binding SelectedProblemDetail.Status}" Margin="0,6,0,0" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
+                <TextBlock Text="{Binding SelectedProblemDetail.Difficulty, StringFormat='DIFFICULTY {0}'}" Margin="0,6,0,0" Foreground="{StaticResource NexusTextBrush}" />
+                <TextBlock Text="{Binding SelectedProblemDetail.AttemptCount, StringFormat='ATTEMPTS {0}'}" Margin="0,6,0,0" Foreground="{StaticResource NexusTextBrush}" />
+                <TextBlock Text="{Binding SelectedProblemDetail.Favorite, StringFormat='FAVORITE {0}'}" Margin="0,6,0,0" Foreground="{StaticResource NexusTextBrush}" />
+                <TextBlock Text="{Binding SelectedProblemDetail.InReview, StringFormat='IN REVIEW {0}'}" Margin="0,6,0,0" Foreground="{StaticResource NexusTextBrush}" />
+                <TextBlock Text="{Binding SelectedProblemDetail.Tags, StringFormat='TAGS {0}'}" Margin="0,6,0,0" Foreground="{StaticResource NexusMutedTextBrush}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding SelectedProblemDetail.FirstSeenAt, StringFormat='FIRST SEEN {0}'}" Margin="0,6,0,0" Foreground="{StaticResource NexusMutedTextBrush}" />
+                <TextBlock Text="{Binding SelectedProblemDetail.LastSeenAt, StringFormat='LAST SEEN {0}'}" Margin="0,6,0,0" Foreground="{StaticResource NexusMutedTextBrush}" />
+                <TextBlock Text="{Binding SelectedProblemDetail.UpdatedAt, StringFormat='UPDATED {0}'}" Margin="0,6,0,0" Foreground="{StaticResource NexusMutedTextBrush}" />
+              </StackPanel>
+            </Border>
+            <StackPanel Visibility="{Binding ShowProblemList, Converter={StaticResource BoolToVisibility}}">
+              <TextBlock Text="{Binding ProblemMatchSummary}" FontSize="11" Foreground="{StaticResource NexusMutedTextBrush}" Margin="0,0,0,10" />
+              <ListBox AutomationProperties.AutomationId="ProblemList" ItemsSource="{Binding Problems}" Height="520"
+                       ScrollViewer.CanContentScroll="True"
+                       VirtualizingPanel.IsVirtualizing="True"
+                       VirtualizingPanel.VirtualizationMode="Recycling"
+                       Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Border Background="{StaticResource NexusSurfaceBrush}" BorderBrush="{StaticResource NexusBorderBrush}" BorderThickness="1" Padding="16" Margin="0,0,0,10">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="130" />
+                          <ColumnDefinition Width="170" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="90" />
+                          <ColumnDefinition Width="90" />
+                          <ColumnDefinition Width="110" />
+                          <ColumnDefinition Width="Auto" />
+                          <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Judge}" FontWeight="SemiBold" Foreground="{StaticResource NexusTextBrush}" />
+                        <TextBlock Grid.Column="1" Text="{Binding ExternalId}" Margin="12,0,0,0" Foreground="{StaticResource NexusTextBrush}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="2" Text="{Binding Title}" Margin="12,0,12,0" TextWrapping="Wrap" Foreground="{StaticResource NexusMutedTextBrush}" />
+                        <TextBlock Grid.Column="3" Text="{Binding DifficultyLabel}" HorizontalAlignment="Right" Foreground="{StaticResource NexusTextBrush}" />
+                        <TextBlock Grid.Column="4" Text="{Binding AttemptCount, StringFormat='ATTEMPTS {0}'}" HorizontalAlignment="Right" Foreground="{StaticResource NexusMutedTextBrush}" />
+                        <TextBlock Grid.Column="5" Text="{Binding Status}" HorizontalAlignment="Right" FontWeight="SemiBold" Foreground="{StaticResource NexusAccentBrush}" />
+                        <Button Grid.Column="6" Content="DETAIL" Tag="{Binding}" Style="{StaticResource ActionButton}" Margin="16,0,0,0" Click="OpenProblemDetail_Click" />
+                        <Button Grid.Column="7" Content="OPEN" Tag="{Binding}" Style="{StaticResource ActionButton}" Visibility="{Binding HasUrl, Converter={StaticResource BoolToVisibility}}" Margin="10,0,0,0" Click="OpenProblem_Click" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                <Button Content="LOAD MORE" AutomationProperties.AutomationId="ProblemLoadMore" Style="{StaticResource ActionButton}" Click="LoadMoreProblems_Click" Visibility="{Binding HasMoreProblems, Converter={StaticResource BoolToVisibility}}" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,16,0,0" Visibility="{Binding ShowNoProblemsEmptyState, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock Text="NO PROBLEMS RECORDED" Foreground="{StaticResource NexusMutedTextBrush}" VerticalAlignment="Center" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,16,0,0" Visibility="{Binding ShowFilteredEmptyState, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock Text="NO PROBLEMS MATCH THE CURRENT FILTERS" Foreground="{StaticResource NexusMutedTextBrush}" VerticalAlignment="Center" />
+                <Button Content="CLEAR FILTERS" AutomationProperties.AutomationId="ProblemClearFilteredEmpty" Style="{StaticResource ActionButton}" Click="ClearProblemFilters_Click" Margin="16,0,0,0" />
+              </StackPanel>
+            </StackPanel>
           </StackPanel>
         </Grid>
       </ScrollViewer>

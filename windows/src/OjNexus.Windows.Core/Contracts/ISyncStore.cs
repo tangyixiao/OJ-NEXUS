@@ -13,11 +13,26 @@ public interface ISyncStore
         int limit,
         CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<ProblemEntry>> GetProblemsAsync(
-        JudgeId? judge,
-        ProblemStatus? status,
+    /// <summary>
+    /// Contract-shaped ledger query (phase-136 semantics): contract filters and
+    /// sorts with the code-point tie-break, OFFSET pagination over the total
+    /// deterministic order, and a summary whose aggregates never derive from
+    /// the visible page.
+    /// </summary>
+    Task<ProblemLedgerPage> QueryProblemsAsync(
+        ProblemLedgerQuery query,
+        int offset,
         int limit,
         CancellationToken cancellationToken);
+
+    Task<ProblemEntry?> GetProblemDetailAsync(
+        JudgeId judge,
+        string externalId,
+        CancellationToken cancellationToken);
+
+    Task<string?> GetSettingAsync(string key, CancellationToken cancellationToken);
+
+    Task SetSettingAsync(string key, string value, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<ReviewEntry>> GetDueReviewsAsync(
         JudgeId? judge,

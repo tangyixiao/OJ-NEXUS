@@ -76,7 +76,10 @@ internal sealed class ScopedMemoryStore(ISyncStore inner, OperationOwner owner, 
     public Task<IReadOnlyList<JudgeAccount>> GetAccountsAsync(CancellationToken cancellationToken) => Run(() => inner.GetAccountsAsync(cancellationToken));
     public Task UpsertAccountAsync(JudgeAccount account, CancellationToken cancellationToken) => Run(() => inner.UpsertAccountAsync(account, cancellationToken));
     public Task<IReadOnlyList<SyncOperation>> GetRecentOperationsAsync(JudgeId? judge, int limit, CancellationToken cancellationToken) => Run(() => inner.GetRecentOperationsAsync(judge, limit, cancellationToken));
-    public Task<IReadOnlyList<ProblemEntry>> GetProblemsAsync(JudgeId? judge, ProblemStatus? status, int limit, CancellationToken cancellationToken) => Run(() => inner.GetProblemsAsync(judge, status, limit, cancellationToken));
+    public Task<ProblemLedgerPage> QueryProblemsAsync(ProblemLedgerQuery query, int offset, int limit, CancellationToken cancellationToken) => Run(() => inner.QueryProblemsAsync(query, offset, limit, cancellationToken));
+    public Task<ProblemEntry?> GetProblemDetailAsync(JudgeId judge, string externalId, CancellationToken cancellationToken) => Run(() => inner.GetProblemDetailAsync(judge, externalId, cancellationToken));
+    public Task<string?> GetSettingAsync(string key, CancellationToken cancellationToken) => Run(() => inner.GetSettingAsync(key, cancellationToken));
+    public Task SetSettingAsync(string key, string value, CancellationToken cancellationToken) => Run(() => inner.SetSettingAsync(key, value, cancellationToken));
     public Task<IReadOnlyList<ReviewEntry>> GetDueReviewsAsync(JudgeId? judge, int limit, CancellationToken cancellationToken) => Run(() => inner.GetDueReviewsAsync(judge, limit, cancellationToken));
     public Task<ReviewEntry> MarkReviewAsync(JudgeId judge, string externalId, ReviewResult result, DateTimeOffset now, CancellationToken cancellationToken) => Run(() => inner.MarkReviewAsync(judge, externalId, result, now, cancellationToken));
     public Task<CodeforcesPayloadSnapshot> GetCodeforcesPayloadAsync(string handle, CancellationToken cancellationToken) => Run(() => inner.GetCodeforcesPayloadAsync(handle, cancellationToken));

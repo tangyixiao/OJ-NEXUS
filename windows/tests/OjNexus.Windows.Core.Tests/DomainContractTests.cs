@@ -254,12 +254,24 @@ public sealed class DomainContractTests
             return Task.FromResult<IReadOnlyList<SyncOperation>>(operations);
         }
 
-        public Task<IReadOnlyList<ProblemEntry>> GetProblemsAsync(
-            JudgeId? judge,
-            ProblemStatus? status,
+        public Task<ProblemLedgerPage> QueryProblemsAsync(
+            ProblemLedgerQuery query,
+            int offset,
             int limit,
             CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<ProblemEntry>>(Array.Empty<ProblemEntry>());
+            Task.FromResult(new ProblemLedgerPage(Array.Empty<ProblemEntry>(), 0, limit, new ProblemLedgerSummary(0, 0, 0, 0, 0)));
+
+        public Task<ProblemEntry?> GetProblemDetailAsync(
+            JudgeId judge,
+            string externalId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<ProblemEntry?>(null);
+
+        public Task<string?> GetSettingAsync(string key, CancellationToken cancellationToken) =>
+            Task.FromResult<string?>(null);
+
+        public Task SetSettingAsync(string key, string value, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
 
         public Task<IReadOnlyList<ReviewEntry>> GetDueReviewsAsync(
             JudgeId? judge,

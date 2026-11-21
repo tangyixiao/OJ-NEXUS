@@ -18,9 +18,9 @@ public sealed class CodeforcesPayloadPersistenceTests
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT value FROM schema_metadata WHERE key = 'schema_version'";
 
-        Assert.Equal("8", command.ExecuteScalar()?.ToString());
+        Assert.Equal("9", command.ExecuteScalar()?.ToString());
         Assert.Equal(
-            new[] { "accounts", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "luogu_payloads", "portable_archive_packages", "portable_archive_records", "problems", "review_log", "reviews", "schema_metadata", "sync_modules", "sync_operations" },
+            new[] { "accounts", "app_settings", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "luogu_payloads", "portable_archive_packages", "portable_archive_records", "problem_tags", "problems", "review_log", "reviews", "schema_metadata", "sync_modules", "sync_operations" },
             ReadTableNames(connection));
     }
 

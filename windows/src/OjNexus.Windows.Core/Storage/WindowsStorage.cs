@@ -39,7 +39,7 @@ public sealed class WindowsStorageSession : IStorageOperationSource
 
     /// <summary>
     /// Creates a portable repository bound to <paramref name="operation"/>'s permit and this
-    /// session's connection factory — the same scope pattern the sync store uses. The caller
+    /// session's connection factory —the same scope pattern the sync store uses. The caller
     /// must keep <paramref name="operation"/> alive for the duration of the repository calls.
     /// </summary>
     public PortableRepository CreatePortableRepository(StorageOperationContext operation)
@@ -79,7 +79,7 @@ internal sealed record StartupTestHooks(Action<StartupStage>? OnStage = null, Ac
 
 public static class WindowsStorage
 {
-    private const int CurrentSchemaVersion = 8;
+    private const int CurrentSchemaVersion = 9;
     private static readonly byte[] MarkerBytes = Encoding.UTF8.GetBytes("v1\n");
 
     public static Task<StorageOpenResult> OpenAsync(string? rootOverride, IClock? clock, CancellationToken cancellationToken) =>

@@ -236,4 +236,133 @@ public sealed class CliParserTests
         Assert.Contains("due", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("mark", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Parse_ProblemsListWithNewFilters_ReturnsTypedCommand()
+    {
+        var command = Assert.IsType<ProblemsListCommand>(CliParser.Parse([
+            "problems", "list", "--search", "water", "--tag", "dp", "--favorite", "--difficulty-min", "800",
+            "--difficulty-max", "2100", "--sort", "difficulty", "--offset", "20",
+            "--judge", "codeforces", "--status", "review", "--limit", "10", "--json",
+        ]));
+
+        Assert.Equal("water", command.Search);
+        Assert.Equal("dp", command.Tag);
+        Assert.True(command.Favorite);
+        Assert.Equal(800, command.DifficultyMin);
+        Assert.Equal(2100, command.DifficultyMax);
+        Assert.Equal(ProblemSort.Difficulty, command.Sort);
+        Assert.Equal(20, command.Offset);
+        Assert.Equal(JudgeId.Codeforces, command.Judge);
+        Assert.Equal(ProblemStatus.Review, command.Status);
+        Assert.Equal(10, command.Limit);
+        Assert.True(command.Json);
+    }
+
+    [Fact]
+    public void Parse_ProblemsListDefaults_OffsetZeroSortUpdated()
+    {
+        var command = Assert.IsType<ProblemsListCommand>(CliParser.Parse(["problems", "list"]));
+
+        Assert.Null(command.Search);
+        Assert.Null(command.Tag);
+        Assert.False(command.Favorite);
+        Assert.Null(command.DifficultyMin);
+        Assert.Null(command.DifficultyMax);
+        Assert.Equal(ProblemSort.Updated, command.Sort);
+        Assert.Equal(0, command.Offset);
+    }
+
+    [Fact]
+    public void Parse_ProblemsListWithDuplicateFavorite_RejectsWithOnceError()
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems", "list", "--favorite", "--favorite"]));
+
+        Assert.Contains("--favorite", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("ONCE", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Parse_ProblemsListWithDuplicateSearch_RejectsWithOnceError()
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems", "list", "--search", "a", "--search", "b"]));
+
+        Assert.Contains("--search", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("ONCE", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Parse_ProblemsListWithInvalidSort_RejectsWithActionableError()
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems", "list", "--sort", "newest"]));
+
+        Assert.Contains("--sort", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("UPDATED", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("-5")]
+    [InlineData("soon")]
+    public void Parse_ProblemsListWithBadOffset_Rejects(string offset)
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems", "list", "--offset", offset]));
+
+        Assert.Contains("--offset", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("-800")]
+    [InlineData("hard")]
+    public void Parse_ProblemsListWithBadDifficultyMin_Rejects(string difficulty)
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems", "list", "--difficulty-min", difficulty]));
+
+        Assert.Contains("--difficulty-min", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Parse_ProblemsShowWithKey_ReturnsTypedCommandWithVerbatimExternalId()
+    {
+        var command = Assert.IsType<ProblemsShowCommand>(CliParser.Parse(["problems", "show", "CODEFORCES/1234A", "--json"]));
+
+        Assert.Equal(JudgeId.Codeforces, command.Judge);
+        Assert.Equal("1234A", command.ExternalId);
+        Assert.True(command.Json);
+    }
+
+    [Theory]
+    [InlineData("codeforces")]
+    [InlineData("codeforces/")]
+    [InlineData("/1234A")]
+    public void Parse_ProblemsShowWithMalformedKey_Rejects(string key)
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems", "show", key]));
+
+        Assert.Contains(key, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Parse_ProblemsShowWithoutKey_RejectsWithUsage()
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems", "show"]));
+
+        Assert.Contains("problems show", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Parse_ProblemsShowWithUnknownOption_RejectsWithFlagName()
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems", "show", "codeforces/1234A", "--watch"]));
+
+        Assert.Contains("--watch", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Parse_ProblemsWithoutSubcommand_RejectsWithUsage()
+    {
+        var exception = Assert.Throws<CliParseException>(() => CliParser.Parse(["problems"]));
+
+        Assert.Contains("list", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("show", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
 }

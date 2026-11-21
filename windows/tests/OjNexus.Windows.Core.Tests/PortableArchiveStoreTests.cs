@@ -117,7 +117,7 @@ public sealed class PortableArchiveStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal(8, ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal(9, ReadSchemaVersion(database.DatabasePath));
         var store = database.CreateStore();
         await store.ReplaceAllAsync(Package, Records, CancellationToken.None);
         Assert.NotNull(await store.GetPackageAsync(CancellationToken.None));

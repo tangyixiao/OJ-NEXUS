@@ -110,8 +110,33 @@ public static class Program
             }
             case ProblemsListCommand problems:
             {
-                var entries = await store.GetProblemsAsync(problems.Judge, problems.Status, problems.Limit, cancellationToken);
-                await output.WriteLineAsync(problems.Json ? ConsoleRenderer.RenderJson(entries) : ConsoleRenderer.RenderHuman(entries));
+                var query = new ProblemLedgerQuery(
+                    Search: problems.Search,
+                    Status: problems.Status,
+                    Judge: problems.Judge,
+                    FavoriteOnly: problems.Favorite,
+                    Tag: problems.Tag,
+                    DifficultyMin: problems.DifficultyMin,
+                    DifficultyMax: problems.DifficultyMax,
+                    Sort: problems.Sort);
+                var page = await store.QueryProblemsAsync(
+                    query,
+                    offset: problems.Offset,
+                    limit: problems.Limit,
+                    cancellationToken);
+                await output.WriteLineAsync(problems.Json ? ConsoleRenderer.RenderJson(page, query) : ConsoleRenderer.RenderHuman(page));
+                return (int)CliExitCode.Success;
+            }
+            case ProblemsShowCommand problemsShow:
+            {
+                var entry = await store.GetProblemDetailAsync(problemsShow.Judge, problemsShow.ExternalId, cancellationToken);
+                if (entry is null)
+                {
+                    await output.WriteLineAsync(problemsShow.Json ? "{\"problem\":null}" : "PROBLEM NOT FOUND");
+                    return (int)CliExitCode.GeneralError;
+                }
+
+                await output.WriteLineAsync(problemsShow.Json ? ConsoleRenderer.RenderJson(entry) : ConsoleRenderer.RenderHuman(entry));
                 return (int)CliExitCode.Success;
             }
             case ReviewDueCommand reviewDue:
