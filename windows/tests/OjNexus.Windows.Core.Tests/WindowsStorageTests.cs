@@ -215,7 +215,7 @@ public sealed class WindowsStorageTests
         using var verify = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = database, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString());
         verify.Open();
         using var version = verify.CreateCommand(); version.CommandText = "SELECT value FROM schema_metadata WHERE key='schema_version'";
-        Assert.Equal("8", Convert.ToString(version.ExecuteScalar()));
+        Assert.Equal("9", Convert.ToString(version.ExecuteScalar()));
     }
 
     [Fact]

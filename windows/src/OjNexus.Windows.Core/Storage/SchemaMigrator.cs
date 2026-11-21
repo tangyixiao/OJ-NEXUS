@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 
 namespace OjNexus.Windows.Core.Storage;
@@ -6,7 +7,7 @@ internal sealed class SchemaValidationException(string message, Exception? inner
 
 public static class SchemaMigrator
 {
-    private const int CurrentSchemaVersion = 8;
+    private const int CurrentSchemaVersion = 9;
 
     internal static int InspectExisting(SqliteConnection connection)
     {
@@ -14,7 +15,8 @@ public static class SchemaMigrator
         int version;
         try
         {
-            version = ReadSchemaVersion(connection, transaction) ?? throw new InvalidOperationException("Missing schema metadata.");
+            version = ReadSchemaVersion(connection, transaction)
+                ?? throw MissingSchemaMetadata(connection, transaction);
             if (version > CurrentSchemaVersion)
             {
                 throw new NotSupportedException("Unsupported database schema.");
@@ -30,6 +32,7 @@ public static class SchemaMigrator
                 case 6: ValidateVersionSixSchema(connection, transaction); break;
                 case 7: ValidateVersionSevenSchema(connection, transaction); break;
                 case 8: ValidateVersionEightSchema(connection, transaction); break;
+                case 9: ValidateVersionNineSchema(connection, transaction); break;
             }
         }
         catch (NotSupportedException)
@@ -80,6 +83,7 @@ public static class SchemaMigrator
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
             ApplyVersionEightMigration(connection, transaction);
+            ApplyVersionNineMigration(connection, transaction);
         }
         else if (version > CurrentSchemaVersion)
         {
@@ -95,6 +99,7 @@ public static class SchemaMigrator
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
             ApplyVersionEightMigration(connection, transaction);
+            ApplyVersionNineMigration(connection, transaction);
         }
         else if (version == 1)
         {
@@ -105,6 +110,7 @@ public static class SchemaMigrator
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
             ApplyVersionEightMigration(connection, transaction);
+            ApplyVersionNineMigration(connection, transaction);
         }
         else if (version == 2)
         {
@@ -114,6 +120,7 @@ public static class SchemaMigrator
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
             ApplyVersionEightMigration(connection, transaction);
+            ApplyVersionNineMigration(connection, transaction);
         }
         else if (version == 3)
         {
@@ -122,6 +129,7 @@ public static class SchemaMigrator
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
             ApplyVersionEightMigration(connection, transaction);
+            ApplyVersionNineMigration(connection, transaction);
         }
         else if (version == 4)
         {
@@ -129,29 +137,50 @@ public static class SchemaMigrator
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
             ApplyVersionEightMigration(connection, transaction);
+            ApplyVersionNineMigration(connection, transaction);
         }
         else if (version == 5)
         {
             ApplyVersionSixMigration(connection, transaction);
             ApplyVersionSevenMigration(connection, transaction);
             ApplyVersionEightMigration(connection, transaction);
+            ApplyVersionNineMigration(connection, transaction);
         }
         else if (version == 6)
         {
             ApplyVersionSevenMigration(connection, transaction);
             ApplyVersionEightMigration(connection, transaction);
+            ApplyVersionNineMigration(connection, transaction);
         }
         else if (version == 7)
         {
             ApplyVersionEightMigration(connection, transaction);
+            ApplyVersionNineMigration(connection, transaction);
+        }
+        else if (version == 8)
+        {
+            ApplyVersionNineMigration(connection, transaction);
         }
         else if (version == CurrentSchemaVersion)
         {
-            ValidateVersionEightSchema(connection, transaction);
+            ValidateVersionNineSchema(connection, transaction);
         }
 
         transaction.Commit();
     }
+
+    /// <summary>
+    /// A database FILE can exist with no metadata table while another process is
+    /// inside its first-run initialization transaction (file created, tables still
+    /// uncommitted). For the concurrent opener that state is transient — surface
+    /// STORAGE_BUSY so the startup contract "concurrent first-run processes return
+    /// only READY or BUSY" holds. When user tables exist without metadata the
+    /// metadata loss is real corruption and keeps the original failure.
+    /// </summary>
+    private static Exception MissingSchemaMetadata(SqliteConnection connection, SqliteTransaction transaction) =>
+        HasUserTables(connection, transaction)
+            ? new InvalidOperationException("Missing schema metadata.")
+            : new StorageException(new(StorageFailureCode.Busy, "startup"));
 
     private static int? ReadSchemaVersion(SqliteConnection connection, SqliteTransaction transaction)
     {
@@ -689,6 +718,133 @@ public static class SchemaMigrator
             "portable_archive_packages",
             "identity",
             expectedDeleteAction: "CASCADE");
+    }
+
+    /// <summary>
+    /// Phase 138: extends the problem ledger to the phase-136 contract shape —
+    /// difficulty/favorite/attempt_count/updated_at/title_lower columns, the
+    /// problem_tags table, ledger indexes and the app_settings key/value store
+    /// for persisted UI filters. The composite (judge, external_id) foreign key
+    /// on problem_tags is declared in DDL (enforced by SQLite) but only the
+    /// table shape is validated here — the house FK validator checks
+    /// single-column edges only.
+    /// </summary>
+    private static void ApplyVersionNineMigration(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        // ADD COLUMN is not re-runnable; the in-house demote-fresh test pattern
+        // (build current, demote the version, re-migrate) requires guarded adds.
+        AddColumnIfMissing(connection, transaction, "problems", "difficulty INTEGER NULL");
+        AddColumnIfMissing(connection, transaction, "problems", "favorite INTEGER NOT NULL DEFAULT 0");
+        AddColumnIfMissing(connection, transaction, "problems", "attempt_count INTEGER NOT NULL DEFAULT 0");
+        AddColumnIfMissing(connection, transaction, "problems", "updated_at TEXT NULL");
+        AddColumnIfMissing(connection, transaction, "problems", "title_lower TEXT NULL");
+        // updated_at backfills from last_seen_at in SQL; title_lower needs Unicode
+        // lowering, which SQLite cannot do (lower() is ASCII-only) — backfill per
+        // row from C# with the frozen simple-lowercase equivalent.
+        Execute(connection, transaction, "UPDATE problems SET updated_at = last_seen_at WHERE updated_at IS NULL;");
+        BackfillTitleLower(connection, transaction);
+        Execute(connection, transaction, """
+            CREATE TABLE IF NOT EXISTS problem_tags (
+                judge TEXT NOT NULL,
+                external_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                PRIMARY KEY (judge, external_id, name),
+                FOREIGN KEY (judge, external_id) REFERENCES problems(judge, external_id) ON DELETE CASCADE
+            );
+            """);
+        Execute(connection, transaction, """
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT NOT NULL PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            """);
+        Execute(connection, transaction, "CREATE INDEX IF NOT EXISTS idx_problems_updated_at ON problems(updated_at ASC);");
+        Execute(connection, transaction, "CREATE INDEX IF NOT EXISTS idx_problems_title_lower ON problems(title_lower ASC);");
+        Execute(connection, transaction, "CREATE INDEX IF NOT EXISTS idx_problems_difficulty ON problems(difficulty ASC);");
+        ValidateVersionNineSchema(connection, transaction);
+
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.Transaction = transaction;
+        versionCommand.CommandText = "UPDATE schema_metadata SET value = '9' WHERE key = 'schema_version'";
+        versionCommand.ExecuteNonQuery();
+    }
+
+    /// <summary>Adds a column only when the table does not already carry it (re-runnable migration guard).</summary>
+    private static void AddColumnIfMissing(SqliteConnection connection, SqliteTransaction transaction, string table, string columnDefinition)
+    {
+        var columnName = columnDefinition.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
+        using (var check = connection.CreateCommand())
+        {
+            check.Transaction = transaction;
+            // The pragma argument must be a quoted STRING literal — the [bracket]
+            // identifier form parses but pragma_table_info rejects it as misuse.
+            check.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = $name";
+            check.Parameters.AddWithValue("$name", columnName);
+            if (Convert.ToInt64(check.ExecuteScalar(), CultureInfo.InvariantCulture) > 0)
+            {
+                return;
+            }
+        }
+
+        Execute(connection, transaction, $"ALTER TABLE [{table}] ADD COLUMN {columnDefinition};");
+    }
+
+    private static void BackfillTitleLower(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        using var select = connection.CreateCommand();
+        select.Transaction = transaction;
+        select.CommandText = "SELECT judge, external_id, title FROM problems";
+        using var reader = select.ExecuteReader();
+        var rows = new List<(string Judge, string ExternalId, string Title)>();
+        while (reader.Read())
+        {
+            rows.Add((reader.GetString(0), reader.GetString(1), reader.GetString(2)));
+        }
+
+        foreach (var (judge, externalId, title) in rows)
+        {
+            using var update = connection.CreateCommand();
+            update.Transaction = transaction;
+            update.CommandText = "UPDATE problems SET title_lower = $titleLower WHERE judge = $judge AND external_id = $externalId";
+            update.Parameters.AddWithValue("$titleLower", title.ToLowerInvariant());
+            update.Parameters.AddWithValue("$judge", judge);
+            update.Parameters.AddWithValue("$externalId", externalId);
+            update.ExecuteNonQuery();
+        }
+    }
+
+    private static void ValidateVersionNineSchema(SqliteConnection connection, SqliteTransaction transaction)
+    {
+        ValidateVersionEightSchema(connection, transaction);
+        ValidateTable(
+            connection,
+            transaction,
+            "problems",
+            new ColumnDefinition("judge", true, 1),
+            new ColumnDefinition("external_id", true, 2),
+            new ColumnDefinition("title", true, 0),
+            new ColumnDefinition("url", true, 0),
+            new ColumnDefinition("solved", true, 0),
+            new ColumnDefinition("first_seen_at", true, 0),
+            new ColumnDefinition("last_seen_at", true, 0),
+            new ColumnDefinition("difficulty", false, 0),
+            new ColumnDefinition("favorite", true, 0),
+            new ColumnDefinition("attempt_count", true, 0),
+            new ColumnDefinition("updated_at", false, 0),
+            new ColumnDefinition("title_lower", false, 0));
+        ValidateTable(
+            connection,
+            transaction,
+            "problem_tags",
+            new ColumnDefinition("judge", true, 1),
+            new ColumnDefinition("external_id", true, 2),
+            new ColumnDefinition("name", true, 3));
+        ValidateTable(
+            connection,
+            transaction,
+            "app_settings",
+            new ColumnDefinition("key", true, 1),
+            new ColumnDefinition("value", true, 0));
     }
 
     private static void ValidateVersionOneSchema(SqliteConnection connection, SqliteTransaction transaction)

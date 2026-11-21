@@ -1,3 +1,4 @@
+using OjNexus.Windows.Core.Domain;
 using OjNexus.Windows.Core.Storage;
 using OjNexus.Windows.Core.Sync;
 using Microsoft.Data.Sqlite;
@@ -120,13 +121,13 @@ public sealed class SqliteConnectionLeaseTests
 
         var accounts = context.Store.GetAccountsAsync(CancellationToken.None);
         var operations = context.Store.GetRecentOperationsAsync(null, 10, CancellationToken.None);
-        var problems = context.Store.GetProblemsAsync(null, null, 10, CancellationToken.None);
+        var problems = context.Store.QueryProblemsAsync(new ProblemLedgerQuery(), 0, 10, CancellationToken.None);
         var reviews = context.Store.GetDueReviewsAsync(null, 10, CancellationToken.None);
         await Task.WhenAll(accounts, operations, problems, reviews);
 
         Assert.Empty(await accounts);
         Assert.Empty(await operations);
-        Assert.Empty(await problems);
+        Assert.Empty((await problems).Rows);
         Assert.Empty(await reviews);
         await context.DisposeAsync();
     }

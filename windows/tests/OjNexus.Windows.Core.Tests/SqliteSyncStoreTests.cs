@@ -8,11 +8,11 @@ namespace OjNexus.Windows.Core.Tests;
 public sealed class SqliteSyncStoreTests
 {
     [Fact]
-    public void Migrate_FreshDatabase_SetsSchemaVersionEight()
+    public void Migrate_FreshDatabase_SetsSchemaVersionNine()
     {
         using var database = new TemporaryDatabase();
 
-        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("9", ReadSchemaVersion(database.DatabasePath));
     }
 
     [Fact]
@@ -25,19 +25,19 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("9", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("tourist", ReadAccountHandle(database.DatabasePath, "Codeforces"));
     }
 
     [Fact]
-    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionSeven()
+    public void Migrate_VersionZero_PreservesExistingDataAndAdvancesToVersionNine()
     {
         using var database = new TemporaryDatabaseDirectory();
         ExecuteNonQuery(database.DatabasePath, VersionZeroSchemaSql);
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("9", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.Equal(1L, CountModules(database.DatabasePath, 7));
         Assert.Equal("Success", ReadString(database.DatabasePath, "SELECT status FROM sync_operations WHERE id = 7"));
@@ -54,7 +54,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("9", ReadSchemaVersion(database.DatabasePath));
         Assert.Equal("legacy", ReadAccountHandle(database.DatabasePath, "Codeforces"));
         Assert.True(TableExists(database.DatabasePath, "codeforces_profiles"));
         Assert.True(TableExists(database.DatabasePath, "luogu_payloads"));
@@ -69,7 +69,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("9", ReadSchemaVersion(database.DatabasePath));
         Assert.True(TableExists(database.DatabasePath, "atcoder_submissions"));
         Assert.True(TableExists(database.DatabasePath, "luogu_payloads"));
     }
@@ -84,7 +84,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("9", ReadSchemaVersion(database.DatabasePath));
         Assert.True(ColumnExists(database.DatabasePath, "sync_operations", "handle"));
     }
 
@@ -261,7 +261,7 @@ public sealed class SqliteSyncStoreTests
             tableNames.Add(reader.GetString(0));
         }
 
-        Assert.Equal(new[] { "accounts", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "luogu_payloads", "portable_archive_packages", "portable_archive_records", "problems", "review_log", "reviews", "schema_metadata", "sync_modules", "sync_operations" }, tableNames);
+        Assert.Equal(new[] { "accounts", "app_settings", "atcoder_submissions", "codeforces_profiles", "codeforces_ratings", "codeforces_submissions", "luogu_payloads", "portable_archive_packages", "portable_archive_records", "problem_tags", "problems", "review_log", "reviews", "schema_metadata", "sync_modules", "sync_operations" }, tableNames);
     }
 
     [Fact]
@@ -419,7 +419,7 @@ public sealed class SqliteSyncStoreTests
 
         SchemaMigrator.Migrate(database.ConnectionString);
 
-        Assert.Equal("8", ReadSchemaVersion(database.DatabasePath));
+        Assert.Equal("9", ReadSchemaVersion(database.DatabasePath));
         Assert.True(TableExists(database.DatabasePath, "reviews"));
         Assert.True(TableExists(database.DatabasePath, "review_log"));
     }
@@ -582,15 +582,15 @@ public sealed class SqliteSyncStoreTests
             laterTimestamp,
             CancellationToken.None);
 
-        var problems = await database.Store.GetProblemsAsync(JudgeId.Codeforces, null, 50, CancellationToken.None);
+        var problems = await database.Store.QueryProblemsAsync(new ProblemLedgerQuery(Judge: JudgeId.Codeforces), 0, 50, CancellationToken.None);
 
-        Assert.Equal(2, problems.Count);
-        var watermelon = problems.Single(problem => problem.ExternalId == "2134C");
+        Assert.Equal(2, problems.Rows.Count);
+        var watermelon = problems.Rows.Single(problem => problem.ExternalId == "2134C");
         Assert.True(watermelon.Solved);
         Assert.Equal("https://codeforces.com/contest/2134/problem/C", watermelon.Url);
         Assert.Equal(timestamp, watermelon.FirstSeenAt);
         Assert.Equal(laterTimestamp, watermelon.LastSeenAt);
-        var theatreSquare = problems.Single(problem => problem.ExternalId == "2134D");
+        var theatreSquare = problems.Rows.Single(problem => problem.ExternalId == "2134D");
         Assert.True(theatreSquare.Solved);
     }
 
@@ -619,19 +619,19 @@ public sealed class SqliteSyncStoreTests
             timestamp,
             CancellationToken.None);
 
-        var problems = await database.Store.GetProblemsAsync(JudgeId.AtCoder, null, 50, CancellationToken.None);
+        var problems = await database.Store.QueryProblemsAsync(new ProblemLedgerQuery(Judge: JudgeId.AtCoder), 0, 50, CancellationToken.None);
 
-        Assert.Equal(2, problems.Count);
-        var solved = problems.Single(problem => problem.ExternalId == "abc100+abc100_a");
+        Assert.Equal(2, problems.Rows.Count);
+        var solved = problems.Rows.Single(problem => problem.ExternalId == "abc100+abc100_a");
         Assert.True(solved.Solved);
         Assert.Equal("https://atcoder.jp/contests/abc100/tasks/abc100_a", solved.Url);
         Assert.Equal("abc100_a", solved.Title);
-        var attempted = problems.Single(problem => problem.ExternalId == "abc100+abc100_b");
+        var attempted = problems.Rows.Single(problem => problem.ExternalId == "abc100+abc100_b");
         Assert.False(attempted.Solved);
     }
 
     [Fact]
-    public async Task Store_GetProblemsAsync_FiltersByJudgeStatusAndLimit()
+    public async Task Store_QueryProblemsAsync_FiltersByJudgeStatusAndLimit()
     {
         using var database = new TemporaryDatabase();
         var cfAccount = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
@@ -668,19 +668,21 @@ public sealed class SqliteSyncStoreTests
             timestamp,
             CancellationToken.None);
 
-        var solvedOnly = await database.Store.GetProblemsAsync(null, ProblemStatus.Solved, 50, CancellationToken.None);
-        var attemptedOnly = await database.Store.GetProblemsAsync(null, ProblemStatus.Attempted, 50, CancellationToken.None);
-        var cfOnly = await database.Store.GetProblemsAsync(JudgeId.Codeforces, null, 50, CancellationToken.None);
-        var limited = await database.Store.GetProblemsAsync(null, null, 1, CancellationToken.None);
-        var empty = await database.Store.GetProblemsAsync(null, null, 0, CancellationToken.None);
+        // Status filters act on the DERIVED status (contract): abc100+abc100_a is solved,
+        // 2134D carries one WA attempt so it derives ATTEMPTED.
+        var solvedOnly = await database.Store.QueryProblemsAsync(new ProblemLedgerQuery(Status: ProblemStatus.Solved), 0, 50, CancellationToken.None);
+        var attemptedOnly = await database.Store.QueryProblemsAsync(new ProblemLedgerQuery(Status: ProblemStatus.Attempted), 0, 50, CancellationToken.None);
+        var cfOnly = await database.Store.QueryProblemsAsync(new ProblemLedgerQuery(Judge: JudgeId.Codeforces), 0, 50, CancellationToken.None);
+        var limited = await database.Store.QueryProblemsAsync(new ProblemLedgerQuery(), 0, 1, CancellationToken.None);
+        var empty = await database.Store.QueryProblemsAsync(new ProblemLedgerQuery(), 0, 0, CancellationToken.None);
 
-        Assert.Equal(2, solvedOnly.Count);
-        Assert.Single(attemptedOnly);
-        Assert.Equal("2134D", attemptedOnly[0].ExternalId);
-        Assert.Equal(2, cfOnly.Count);
-        Assert.All(cfOnly, problem => Assert.Equal(JudgeId.Codeforces, problem.Judge));
-        Assert.Single(limited);
-        Assert.Empty(empty);
+        Assert.Equal(2, solvedOnly.Rows.Count);
+        Assert.Single(attemptedOnly.Rows);
+        Assert.Equal("2134D", attemptedOnly.Rows[0].ExternalId);
+        Assert.Equal(2, cfOnly.Rows.Count);
+        Assert.All(cfOnly.Rows, problem => Assert.Equal(JudgeId.Codeforces, problem.Judge));
+        Assert.Single(limited.Rows);
+        Assert.Empty(empty.Rows);
     }
 
     private static string? ReadFailureCategory(string databasePath, long operationId)

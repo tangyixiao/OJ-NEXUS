@@ -384,8 +384,12 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
             ProblemStatus? problemStatus = ProblemStatusParser.TryParse(SelectedProblemStatus, out var parsedStatus)
                 ? parsedStatus
                 : null;
-            var problems = await store.GetProblemsAsync(problemJudge, problemStatus, 100, cancellationToken);
-            ProjectProblems(problems);
+            var problemPage = await store.QueryProblemsAsync(
+                new ProblemLedgerQuery(Status: problemStatus, Judge: problemJudge),
+                offset: 0,
+                limit: 100,
+                cancellationToken);
+            ProjectProblems(problemPage.Rows);
             StatusText = "READY";
             return null;
         }
@@ -894,7 +898,7 @@ public sealed class DesktopViewModel : INotifyPropertyChanged, IAsyncDisposable
                 problem.ExternalId,
                 problem.Title,
                 problem.Url,
-                problem.Solved ? "SOLVED" : "ATTEMPTED",
+                ProblemStatusParser.ToUpper(problem.Status),
                 problem.LastSeenAt.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")));
         }
         OnPropertyChanged(nameof(HasNoProblems));

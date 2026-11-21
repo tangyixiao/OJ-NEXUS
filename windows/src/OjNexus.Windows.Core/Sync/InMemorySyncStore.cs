@@ -1,3 +1,4 @@
+using System.Text;
 using OjNexus.Windows.Core.Contracts;
 using OjNexus.Windows.Core.Domain;
 
@@ -14,7 +15,9 @@ public sealed class InMemorySyncStore : ISyncStore
     private readonly Dictionary<string, IReadOnlyList<AtCoderSubmission>> _atcoderSubmissions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, LuoguPayloadState> _luoguPayloads = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ProblemEntry> _problems = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<string>> _problemTags = new(StringComparer.Ordinal);
     private readonly Dictionary<string, StoredReview> _reviews = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _settings = new(StringComparer.Ordinal);
     private long _nextOperationId = 1;
 
     public Task<IReadOnlyList<JudgeAccount>> GetAccountsAsync(CancellationToken cancellationToken)
@@ -106,30 +109,206 @@ public sealed class InMemorySyncStore : ISyncStore
         }
     }
 
-    public Task<IReadOnlyList<ProblemEntry>> GetProblemsAsync(
-        JudgeId? judge,
-        ProblemStatus? status,
+    public Task<ProblemLedgerPage> QueryProblemsAsync(
+        ProblemLedgerQuery query,
+        int offset,
         int limit,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (limit <= 0)
-        {
-            return Task.FromResult<IReadOnlyList<ProblemEntry>>(Array.Empty<ProblemEntry>());
-        }
-
         lock (_gate)
         {
-            var rows = _problems.Values
-                .Where(row => judge is null || row.Judge == judge)
-                .Where(row => status is null || row.Solved == (status == ProblemStatus.Solved))
-                .OrderByDescending(row => row.LastSeenAt)
-                .ThenBy(row => row.Judge)
-                .ThenBy(row => row.ExternalId, StringComparer.Ordinal)
-                .Take(limit)
+            var all = _problems.Values
+                .Select(EffectiveEntry)
+                .Where(row => MatchesQuery(row, query))
+                .OrderBy(row => row, CreateLedgerComparer(query.Sort))
                 .ToArray();
-            return Task.FromResult<IReadOnlyList<ProblemEntry>>(rows);
+            var bounded = limit <= 0 || offset < 0
+                ? Array.Empty<ProblemEntry>()
+                : all.Skip(Math.Max(offset, 0)).Take(limit).ToArray();
+            var summary = SummarizeUnfiltered() with { Visible = all.Length };
+            return Task.FromResult(new ProblemLedgerPage(bounded, Math.Max(offset, 0), limit, summary));
         }
+    }
+
+    public Task<ProblemEntry?> GetProblemDetailAsync(
+        JudgeId judge,
+        string externalId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(externalId);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
+        {
+            var key = $"{judge}:{externalId.Trim()}";
+            var row = _problems.GetValueOrDefault(key);
+            return Task.FromResult(row is null ? null : EffectiveEntry(row));
+        }
+    }
+
+    public Task<string?> GetSettingAsync(string key, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
+        {
+            return Task.FromResult(_settings.GetValueOrDefault(key));
+        }
+    }
+
+    public Task SetSettingAsync(string key, string value, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
+        {
+            _settings[key] = value;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Test/bootstrap surface: inserts a contract-shaped ledger row directly,
+    /// bypassing payload derivation. Used by VM tests that need difficulty,
+    /// favorite, attempt counts, review state or tags the payloads cannot carry.
+    /// </summary>
+    public void SeedProblem(ProblemEntry entry, IReadOnlyList<string>? tags = null)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        lock (_gate)
+        {
+            _problems[$"{entry.Judge}:{entry.ExternalId}"] = entry;
+            _problemTags[$"{entry.Judge}:{entry.ExternalId}"] = tags is null
+                ? []
+                : [.. tags];
+        }
+    }
+
+    /// <summary>
+    /// in_review is derived at read time, mirroring the SQL EXISTS on the
+    /// reviews table: a stored seed flag ORs with any review rows for the key.
+    /// </summary>
+    private ProblemEntry EffectiveEntry(ProblemEntry row) =>
+        _reviews.ContainsKey($"{row.Judge}:{row.ExternalId}")
+            ? row with { InReview = true }
+            : row;
+
+    private bool MatchesQuery(ProblemEntry row, ProblemLedgerQuery query)
+    {
+        if (query.Judge is { } judge && row.Judge != judge)
+        {
+            return false;
+        }
+
+        if (query.Status is { } status && row.Status != status)
+        {
+            return false;
+        }
+
+        if (query.FavoriteOnly && !row.Favorite)
+        {
+            return false;
+        }
+
+        if (query.DifficultyMin is not null || query.DifficultyMax is not null)
+        {
+            if (row.Difficulty is null)
+            {
+                return false;
+            }
+
+            if (query.DifficultyMin is { } min && row.Difficulty < min)
+            {
+                return false;
+            }
+
+            if (query.DifficultyMax is { } max && row.Difficulty > max)
+            {
+                return false;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(query.Tag)
+            && !_problemTags.GetValueOrDefault($"{row.Judge}:{row.ExternalId}", []).Contains(query.Tag, StringComparer.Ordinal))
+        {
+            return false;
+        }
+
+        var search = ProblemSearch.Normalize(query.Search);
+        if (search is not null
+            && !row.Title.ToLowerInvariant().Contains(search, StringComparison.Ordinal)
+            && !row.ExternalId.ToLowerInvariant().Contains(search, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private ProblemLedgerSummary SummarizeUnfiltered()
+    {
+        var rows = _problems.Values.ToArray();
+        return new ProblemLedgerSummary(
+            Visible: 0,
+            Total: rows.Length,
+            Solved: rows.Count(row => row.Solved),
+            Review: rows.Count(row => row.InReview),
+            Favorites: rows.Count(row => row.Favorite));
+    }
+
+    /// <summary>
+    /// The contract sort + stable code-point tie-break as an in-memory comparer.
+    /// UTF-8 byte order is code-point order; StringComparer.Ordinal would be
+    /// UTF-16 code-unit order, which disagrees on astral vs high-BMP titles
+    /// (vector 007 pins exactly that case).
+    /// </summary>
+    private static Comparer<ProblemEntry> CreateLedgerComparer(ProblemSort sort)
+    {
+        return Comparer<ProblemEntry>.Create((left, right) =>
+        {
+            int primary = sort switch
+            {
+                ProblemSort.Updated => right.UpdatedAt.CompareTo(left.UpdatedAt),
+                ProblemSort.Difficulty => (left.Difficulty is null, right.Difficulty is null) switch
+                {
+                    (true, true) => 0,
+                    (true, false) => 1,
+                    (false, true) => -1,
+                    _ => left.Difficulty.GetValueOrDefault().CompareTo(right.Difficulty.GetValueOrDefault()),
+                },
+                ProblemSort.Title => CompareUtf8CodePoint(left.Title.ToLowerInvariant(), right.Title.ToLowerInvariant()),
+                ProblemSort.Attempts => right.AttemptCount.CompareTo(left.AttemptCount),
+                _ => 0,
+            };
+            if (primary != 0)
+            {
+                return primary;
+            }
+
+            var judge = CompareUtf8CodePoint(left.Judge.ToString().ToLowerInvariant(), right.Judge.ToString().ToLowerInvariant());
+            if (judge != 0)
+            {
+                return judge;
+            }
+
+            return CompareUtf8CodePoint(left.ExternalId, right.ExternalId);
+        });
+    }
+
+    private static int CompareUtf8CodePoint(string left, string right)
+    {
+        var leftBytes = Encoding.UTF8.GetBytes(left);
+        var rightBytes = Encoding.UTF8.GetBytes(right);
+        var length = Math.Min(leftBytes.Length, rightBytes.Length);
+        for (var index = 0; index < length; index++)
+        {
+            if (leftBytes[index] != rightBytes[index])
+            {
+                return leftBytes[index].CompareTo(rightBytes[index]);
+            }
+        }
+
+        return leftBytes.Length.CompareTo(rightBytes.Length);
     }
 
     public Task<IReadOnlyList<ReviewEntry>> GetDueReviewsAsync(
@@ -309,12 +488,14 @@ public sealed class InMemorySyncStore : ISyncStore
             || verdict.Equals("AC", StringComparison.OrdinalIgnoreCase)
             || verdict.StartsWith("Accepted", StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>Mirrors SqliteSyncStore problem derivation: solved is sticky, title keeps its first value.</summary>
+    /// <summary>Mirrors SqliteSyncStore problem derivation: solved is sticky, title keeps its first value,
+    /// attempt_count recomputes exactly from the current per-handle payload (one account per judge).</summary>
     private void DeriveProblems(
         JudgeId judge,
         IEnumerable<(string? ExternalId, string? Title, bool Solved)> submissions,
         DateTimeOffset seenAt)
     {
+        var seen = new Dictionary<string, (string Title, bool Solved, int Attempts)>(StringComparer.Ordinal);
         foreach (var (externalId, title, solved) in submissions)
         {
             if (externalId is null || ProblemUrls.For(judge, externalId) is not { } url)
@@ -322,21 +503,45 @@ public sealed class InMemorySyncStore : ISyncStore
                 continue;
             }
 
-            var key = $"{judge}:{externalId}";
-            if (_problems.TryGetValue(key, out var existing))
+            if (seen.TryGetValue(externalId, out var existing))
             {
-                _problems[key] = existing with { Solved = existing.Solved || solved, LastSeenAt = seenAt };
+                seen[externalId] = (existing.Title, existing.Solved || solved, existing.Attempts + 1);
+            }
+            else
+            {
+                seen[externalId] = (title ?? externalId, solved, 1);
+            }
+        }
+
+        foreach (var (externalId, info) in seen)
+        {
+            var key = $"{judge}:{externalId}";
+            if (_problems.TryGetValue(key, out var row))
+            {
+                _problems[key] = row with
+                {
+                    Solved = row.Solved || info.Solved,
+                    LastSeenAt = seenAt,
+                    UpdatedAt = seenAt,
+                    AttemptCount = info.Attempts,
+                };
             }
             else
             {
                 _problems[key] = new ProblemEntry(
                     judge,
                     externalId,
-                    title ?? externalId,
-                    url,
-                    solved,
+                    info.Title,
+                    ProblemUrls.For(judge, externalId) ?? string.Empty,
+                    info.Solved,
                     seenAt,
-                    seenAt);
+                    seenAt,
+                    seenAt,
+                    Difficulty: null,
+                    Favorite: false,
+                    AttemptCount: info.Attempts,
+                    InReview: false,
+                    Tags: Array.Empty<string>());
             }
         }
     }

@@ -110,8 +110,12 @@ public static class Program
             }
             case ProblemsListCommand problems:
             {
-                var entries = await store.GetProblemsAsync(problems.Judge, problems.Status, problems.Limit, cancellationToken);
-                await output.WriteLineAsync(problems.Json ? ConsoleRenderer.RenderJson(entries) : ConsoleRenderer.RenderHuman(entries));
+                var page = await store.QueryProblemsAsync(
+                    new ProblemLedgerQuery(Status: problems.Status, Judge: problems.Judge),
+                    offset: 0,
+                    limit: problems.Limit,
+                    cancellationToken);
+                await output.WriteLineAsync(problems.Json ? ConsoleRenderer.RenderJson(page) : ConsoleRenderer.RenderHuman(page.Rows));
                 return (int)CliExitCode.Success;
             }
             case ReviewDueCommand reviewDue:

@@ -22,21 +22,32 @@ public static class ConsoleRenderer
 
     public static string RenderHuman(IReadOnlyList<ProblemEntry> problems) => problems.Count == 0
         ? "PROBLEMS: EMPTY"
-        : string.Join(Environment.NewLine, problems.Select((problem, index) => $"{index + 1}. {problem.Judge.ToString().ToUpperInvariant()} {problem.ExternalId} [{(problem.Solved ? "SOLVED" : "ATTEMPTED")}] {problem.Title}"));
+        : string.Join(Environment.NewLine, problems.Select((problem, index) => $"{index + 1}. {problem.Judge.ToString().ToUpperInvariant()} {problem.ExternalId} [{ProblemStatusParser.ToUpper(problem.Status)}] {problem.Title}"));
 
-    public static string RenderJson(IReadOnlyList<ProblemEntry> problems) => JsonSerializer.Serialize(new
+    public static string RenderJson(ProblemLedgerPage page) => JsonSerializer.Serialize(new
     {
-        problems = problems.Select(problem => new
-        {
-            judge = problem.Judge.ToString(),
-            externalId = problem.ExternalId,
-            title = problem.Title,
-            url = problem.Url,
-            solved = problem.Solved,
-            firstSeenAt = problem.FirstSeenAt,
-            lastSeenAt = problem.LastSeenAt,
-        }),
+        totalMatches = page.Summary.Visible,
+        offset = page.Offset,
+        limit = page.Limit,
+        problems = page.Rows.Select(ProjectProblemRow),
     });
+
+    private static object ProjectProblemRow(ProblemEntry problem) => new
+    {
+        judge = problem.Judge.ToString(),
+        externalId = problem.ExternalId,
+        title = problem.Title,
+        url = problem.Url,
+        status = ProblemStatusParser.ToUpper(problem.Status),
+        difficulty = problem.Difficulty,
+        favorite = problem.Favorite,
+        attemptCount = problem.AttemptCount,
+        inReview = problem.InReview,
+        tags = problem.Tags,
+        firstSeenAt = problem.FirstSeenAt,
+        lastSeenAt = problem.LastSeenAt,
+        updatedAt = problem.UpdatedAt,
+    };
 
     public static string RenderHuman(IReadOnlyList<ReviewEntry> reviews) => reviews.Count == 0
         ? "REVIEWS DUE: EMPTY"

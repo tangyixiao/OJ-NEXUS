@@ -14,6 +14,8 @@ public sealed class StorageMigrationTests
     [InlineData(4, false)] [InlineData(4, true)]
     [InlineData(5, false)] [InlineData(5, true)]
     [InlineData(6, false)] [InlineData(6, true)]
+    [InlineData(7, false)] [InlineData(7, true)]
+    [InlineData(8, false)] [InlineData(8, true)]
     public async Task RecognizedLegacySchemaMigratesWithRowsPreserved(int version, bool markerPresent)
     {
         var root = NewRoot();
@@ -31,7 +33,7 @@ public sealed class StorageMigrationTests
         Assert.Equal("legacy-handle", operation.Account.Handle);
         Assert.Equal(SyncOperationStatus.Success, operation.Status);
         Assert.Equal("PROFILE", Assert.Single(operation.Modules).Stage);
-        Assert.Equal(8, ReadSchemaVersion(Path.Combine(root, "ojnexus.db")));
+        Assert.Equal(9, ReadSchemaVersion(Path.Combine(root, "ojnexus.db")));
     }
 
     [Fact]
@@ -108,6 +110,22 @@ public sealed class StorageMigrationTests
         using (var command = connection.CreateCommand())
         {
             var statements = new List<string>();
+            // Phase-138 artifacts (v9) must be removed before anything below, while the
+            // problems table still exists for the column drops; the FK-ed tags table goes
+            // first and the indexed columns drop their indexes before the columns.
+            if (version <= 8) statements.Add("""
+                DROP TABLE IF EXISTS problem_tags;
+                DROP TABLE IF EXISTS app_settings;
+                DROP INDEX IF EXISTS idx_problems_updated_at;
+                DROP INDEX IF EXISTS idx_problems_title_lower;
+                DROP INDEX IF EXISTS idx_problems_difficulty;
+                ALTER TABLE problems DROP COLUMN difficulty;
+                ALTER TABLE problems DROP COLUMN favorite;
+                ALTER TABLE problems DROP COLUMN attempt_count;
+                ALTER TABLE problems DROP COLUMN updated_at;
+                ALTER TABLE problems DROP COLUMN title_lower;
+                """);
+            if (version <= 7) statements.Add("DROP TABLE portable_archive_records; DROP TABLE portable_archive_packages; DROP INDEX IF EXISTS idx_portable_archive_records_order;");
             if (version <= 6) statements.Add("DROP TABLE reviews; DROP TABLE review_log;");
             if (version <= 5) statements.Add("DROP TABLE problems;");
             if (version <= 4) statements.Add("ALTER TABLE sync_operations DROP COLUMN handle;");
