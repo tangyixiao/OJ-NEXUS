@@ -1,11 +1,13 @@
 # PHASE 138 HANDOFF — Windows Native Problem Search and Virtualization
 
-Status: implementation delivered on `codex/phase-138-windows-problem-search`
-(commits `51bcdaa` SDD, `c0618d9` T1 Core+v9, `89dea15` T2 parity gate,
-`0e23d21` T3 CLI, `e2f5c33` T4 WPF, `a116bef` ledger flips); local gates
-measured (see
-[verification record](verification/phase-138-windows-problem-search.md));
-delivery CI + independent review pending at handoff time.
+Status: **DELIVERED to `main`** via PR #90 (merge `8ea64d7`, 2026-11-22).
+Commits: `51bcdaa` SDD, `c0618d9` T1 Core+v9, `89dea15` T2 parity gate,
+`0e23d21` T3 CLI, `e2f5c33` T4 WPF, `a116bef` ledger flips, `dfe7b7e`
+review disposition (all seven findings fixed). Gates measured: local suite
+455/455 + clean TWE build + UIA smoke PASS; delivery CI all four checks
+success on `dfe7b7e`; independent review PASS-WITH-OBSERVATIONS
+([record](verification/phase-138-windows-problem-search.md),
+[review](verification/phase-138-task6-review.md)).
 
 ## 1. What shipped
 
