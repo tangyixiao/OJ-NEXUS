@@ -272,7 +272,7 @@ public sealed class ProgramTests : IDisposable
         Assert.Equal(0, exitCode);
         Assert.Equal(string.Empty, error.ToString());
         using var document = JsonDocument.Parse(output.ToString());
-        var problems = document.RootElement.GetProperty("problems");
+        var problems = document.RootElement.GetProperty("rows");
         Assert.Equal(3, problems.GetArrayLength());
         Assert.Collection(
             problems.EnumerateArray(),
@@ -281,18 +281,18 @@ public sealed class ProgramTests : IDisposable
                 Assert.Equal("AtCoder", first.GetProperty("judge").GetString());
                 Assert.Equal("abc100+abc100_a", first.GetProperty("externalId").GetString());
                 Assert.Equal("https://atcoder.jp/contests/abc100/tasks/abc100_a", first.GetProperty("url").GetString());
-                Assert.True(first.GetProperty("solved").GetBoolean());
+                Assert.Equal("SOLVED", first.GetProperty("status").GetString());
             },
             second =>
             {
                 Assert.Equal("Codeforces", second.GetProperty("judge").GetString());
                 Assert.Equal("2134C", second.GetProperty("externalId").GetString());
-                Assert.True(second.GetProperty("solved").GetBoolean());
+                Assert.Equal("SOLVED", second.GetProperty("status").GetString());
             },
             third =>
             {
                 Assert.Equal("Codeforces", third.GetProperty("judge").GetString());
-                Assert.False(third.GetProperty("solved").GetBoolean());
+                Assert.Equal("ATTEMPTED", third.GetProperty("status").GetString());
             });
     }
 
@@ -325,9 +325,11 @@ public sealed class ProgramTests : IDisposable
         Assert.Equal(0, exitCode);
         Assert.Equal(string.Empty, error.ToString());
         var lines = output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
-        var line = Assert.Single(lines);
-        Assert.Contains("2134D", line, StringComparison.Ordinal);
-        Assert.Contains("[ATTEMPTED]", line, StringComparison.Ordinal);
+        Assert.Equal(3, lines.Length);
+        Assert.Equal("MATCHES 1", lines[0]);
+        Assert.Equal("PAGE 1 OF 1", lines[1]);
+        Assert.Contains("2134D", lines[2], StringComparison.Ordinal);
+        Assert.Contains("[ATTEMPTED]", lines[2], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -338,7 +340,7 @@ public sealed class ProgramTests : IDisposable
         Assert.Equal(0, exitCode);
         Assert.Equal(string.Empty, error.ToString());
         using var document = JsonDocument.Parse(output.ToString());
-        Assert.Empty(document.RootElement.GetProperty("problems").EnumerateArray());
+        Assert.Empty(document.RootElement.GetProperty("rows").EnumerateArray());
     }
 
     [Fact]
@@ -349,6 +351,88 @@ public sealed class ProgramTests : IDisposable
         Assert.Equal((int)CliExitCode.InvalidArguments, exitCode);
         Assert.Equal(string.Empty, output.ToString());
         Assert.StartsWith("ARGUMENT ERROR:", error.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_ProblemsListWithSearchAndOffset_RendersMatchesAndPageHeader()
+    {
+        var store = CreateStore();
+        var timestamp = DateTimeOffset.Parse("2026-09-12T01:02:03+00:00");
+        var cfAccount = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
+        var cfOperation = await store.OpenOperationAsync(cfAccount, "generation-1", timestamp, CancellationToken.None);
+        await store.AppendModuleAsync(
+            cfOperation,
+            new SyncModuleOutcome(
+                "SUBMISSIONS",
+                SyncOperationStatus.Success,
+                2,
+                2,
+                0,
+                null,
+                new CodeforcesSubmissionsPayload("tourist",
+                [
+                    new CodeforcesSubmission(1, 2134, "C", "Watermelon", "OK", "GNU C++17", 5, 15, 262144, 1_700_000_000),
+                    new CodeforcesSubmission(2, 2134, "D", "Theatre Square", "WRONG_ANSWER", "GNU C++17", 0, 0, 262144, 1_700_000_100),
+                ])),
+            timestamp,
+            CancellationToken.None);
+
+        // Both titles contain "a", so the search matches both; the one-row page at offset 1
+        // is the second row of the deterministic order (theatre square is newer).
+        var (exitCode, output, error) = await RunAsync(["problems", "list", "--search", "a", "--offset", "1", "--limit", "1"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(string.Empty, error.ToString());
+        var lines = output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(3, lines.Length);
+        Assert.Equal("MATCHES 2", lines[0]);
+        Assert.Equal("PAGE 2 OF 2", lines[1]);
+        // Same updated_at for both rows, so the code-point tie-break puts 2134C first;
+        // offset 1 therefore yields 2134D.
+        Assert.Contains("2134D", lines[2], StringComparison.Ordinal);
+        Assert.Contains("[ATTEMPTED]", lines[2], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_ProblemsShowFound_RendersFullRecord()
+    {
+        var store = CreateStore();
+        var timestamp = DateTimeOffset.Parse("2026-09-12T01:02:03+00:00");
+        var cfAccount = JudgeAccount.Create(JudgeId.Codeforces, "tourist");
+        var cfOperation = await store.OpenOperationAsync(cfAccount, "generation-1", timestamp, CancellationToken.None);
+        await store.AppendModuleAsync(
+            cfOperation,
+            new SyncModuleOutcome(
+                "SUBMISSIONS",
+                SyncOperationStatus.Success,
+                1,
+                1,
+                0,
+                null,
+                new CodeforcesSubmissionsPayload("tourist",
+                [new CodeforcesSubmission(1, 2134, "C", "Watermelon", "OK", "GNU C++17", 5, 15, 262144, 1_700_000_000)])),
+            timestamp,
+            CancellationToken.None);
+
+        var (exitCode, output, error) = await RunAsync(["problems", "show", "codeforces/2134C"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(string.Empty, error.ToString());
+        var outputText = output.ToString();
+        Assert.Contains("PROBLEM: CODEFORCES 2134C", outputText, StringComparison.Ordinal);
+        Assert.Contains("STATUS: SOLVED", outputText, StringComparison.Ordinal);
+        Assert.Contains("TITLE: Watermelon", outputText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_ProblemsShowNotFound_ReportsGeneralErrorWithNullJson()
+    {
+        var (exitCode, output, error) = await RunAsync(["problems", "show", "codeforces/9999Z", "--json"]);
+
+        Assert.Equal((int)CliExitCode.GeneralError, exitCode);
+        Assert.Equal(string.Empty, error.ToString());
+        using var document = JsonDocument.Parse(output.ToString());
+        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("problem").ValueKind);
     }
 
     [Fact]

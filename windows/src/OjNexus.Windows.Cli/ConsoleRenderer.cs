@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using OjNexus.Windows.Core.Domain;
 using OjNexus.Windows.Core.Sync;
@@ -24,13 +25,50 @@ public static class ConsoleRenderer
         ? "PROBLEMS: EMPTY"
         : string.Join(Environment.NewLine, problems.Select((problem, index) => $"{index + 1}. {problem.Judge.ToString().ToUpperInvariant()} {problem.ExternalId} [{ProblemStatusParser.ToUpper(problem.Status)}] {problem.Title}"));
 
-    public static string RenderJson(ProblemLedgerPage page) => JsonSerializer.Serialize(new
+    public static string RenderHuman(ProblemLedgerPage page) => page.Rows.Count == 0
+        ? "PROBLEMS: EMPTY"
+        : string.Join(
+            Environment.NewLine,
+            $"MATCHES {page.Summary.Visible}",
+            $"PAGE {page.Offset / page.Limit + 1} OF {Math.Max((page.Summary.Visible + page.Limit - 1) / page.Limit, 1)}",
+            string.Join(Environment.NewLine, page.Rows.Select((problem, index) => $"{index + 1}. {problem.Judge.ToString().ToUpperInvariant()} {problem.ExternalId} [{ProblemStatusParser.ToUpper(problem.Status)}] {problem.Title}")));
+
+    public static string RenderHuman(ProblemEntry problem) => string.Join(Environment.NewLine,
+        $"PROBLEM: {problem.Judge.ToString().ToUpperInvariant()} {problem.ExternalId}",
+        $"TITLE: {problem.Title}",
+        $"URL: {problem.Url ?? "NONE"}",
+        $"STATUS: {ProblemStatusParser.ToUpper(problem.Status)}",
+        $"DIFFICULTY: {problem.Difficulty?.ToString(CultureInfo.InvariantCulture) ?? "NONE"}",
+        $"FAVORITE: {(problem.Favorite ? "YES" : "NO")}",
+        $"ATTEMPTS: {problem.AttemptCount}",
+        $"IN REVIEW: {(problem.InReview ? "YES" : "NO")}",
+        $"TAGS: {(problem.Tags.Count == 0 ? "NONE" : string.Join(", ", problem.Tags))}",
+        $"FIRST SEEN: {problem.FirstSeenAt.ToString("O", CultureInfo.InvariantCulture)}",
+        $"LAST SEEN: {problem.LastSeenAt.ToString("O", CultureInfo.InvariantCulture)}",
+        $"UPDATED: {problem.UpdatedAt.ToString("O", CultureInfo.InvariantCulture)}");
+
+    public static string RenderJson(ProblemLedgerPage page, ProblemLedgerQuery query) => JsonSerializer.Serialize(new
     {
+        query = ProjectQuery(query),
         totalMatches = page.Summary.Visible,
         offset = page.Offset,
         limit = page.Limit,
-        problems = page.Rows.Select(ProjectProblemRow),
+        rows = page.Rows.Select(ProjectProblemRow),
     });
+
+    public static string RenderJson(ProblemEntry problem) => JsonSerializer.Serialize(ProjectProblemRow(problem));
+
+    private static object ProjectQuery(ProblemLedgerQuery query) => new
+    {
+        search = query.Search,
+        status = query.Status is null ? null : ProblemStatusParser.ToUpper(query.Status.Value),
+        judge = query.Judge?.ToString(),
+        favoriteOnly = query.FavoriteOnly,
+        tag = query.Tag,
+        difficultyMin = query.DifficultyMin,
+        difficultyMax = query.DifficultyMax,
+        sort = ProblemSortParser.ToUpper(query.Sort),
+    };
 
     private static object ProjectProblemRow(ProblemEntry problem) => new
     {

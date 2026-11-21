@@ -12,7 +12,20 @@ public sealed record DataCommand(JudgeId Judge, string? Handle, bool Json) : Cli
 
 public sealed record HistoryCommand(JudgeId? Judge, int Limit, bool Json) : CliCommand(Json);
 
-public sealed record ProblemsListCommand(JudgeId? Judge, ProblemStatus? Status, int Limit, bool Json) : CliCommand(Json);
+public sealed record ProblemsListCommand(
+    JudgeId? Judge,
+    ProblemStatus? Status,
+    string? Search,
+    string? Tag,
+    bool Favorite,
+    int? DifficultyMin,
+    int? DifficultyMax,
+    ProblemSort Sort,
+    int Offset,
+    int Limit,
+    bool Json) : CliCommand(Json);
+
+public sealed record ProblemsShowCommand(JudgeId Judge, string ExternalId, bool Json) : CliCommand(Json);
 
 public sealed record ReviewDueCommand(JudgeId? Judge, int Limit, bool Json) : CliCommand(Json);
 
@@ -34,8 +47,14 @@ public static class CliParser
 {
     private const int DefaultHistoryLimit = 20;
     private const int DefaultProblemsLimit = 50;
+    private const string ProblemsListUsage =
+        "problems list [--judge <judge>] [--status <unsolved|attempted|solved|review>] [--search <text>] [--tag <name>] [--favorite] [--difficulty-min <int>] [--difficulty-max <int>] [--sort <updated|difficulty|title|attempts>] [--offset <non-negative>] [--limit <positive>] [--json]";
+
+    private const string ProblemsShowUsage =
+        "problems show <judge>/<external-id> [--json]";
+
     private const string CommandUsage =
-        "status | sync | data | history | problems list | review due | review mark | config show | portable inspect/import/export";
+        "status | sync | data | history | problems list | problems show | review due | review mark | config show | portable inspect/import/export";
 
     public static CliCommand Parse(string[] args)
     {
@@ -195,15 +214,34 @@ public static class CliParser
         return new ReviewMarkCommand(judge.Value, problem, result.Value, json);
     }
 
-    private static ProblemsListCommand ParseProblems(string[] args)
+    private static CliCommand ParseProblems(string[] args)
     {
-        if (args.Length < 2 || !string.Equals(args[1], "list", StringComparison.Ordinal))
+        if (args.Length < 2)
         {
-            throw new CliParseException("PROBLEMS REQUIRES SUBCOMMAND 'list'. USE: problems list [--judge <judge>] [--status <solved|attempted>] [--limit <positive>] [--json].");
+            throw new CliParseException($"PROBLEMS REQUIRES SUBCOMMAND 'list' OR 'show'. USE: {ProblemsListUsage} | {ProblemsShowUsage}.");
         }
 
+        return args[1] switch
+        {
+            "list" => ParseProblemsList(args),
+            "show" => ParseProblemsShow(args),
+            _ => throw new CliParseException($"UNKNOWN SUBCOMMAND '{args[1]}'. USE: {ProblemsListUsage} | {ProblemsShowUsage}."),
+        };
+    }
+
+    private static ProblemsListCommand ParseProblemsList(string[] args)
+    {
         JudgeId? judge = null;
         ProblemStatus? status = null;
+        string? search = null;
+        string? tag = null;
+        var favorite = false;
+        int? difficultyMin = null;
+        int? difficultyMax = null;
+        var sort = ProblemSort.Updated;
+        var sortSpecified = false;
+        var offset = 0;
+        var offsetSpecified = false;
         var limit = DefaultProblemsLimit;
         var limitSpecified = false;
         var json = false;
@@ -215,8 +253,37 @@ public static class CliParser
                 case "--status":
                     EnsureNotAlreadySet(status is not null, "--status");
                     if (!ProblemStatusParser.TryParse(ReadValue(args, ref index, "--status"), out var parsedStatus))
-                        throw new CliParseException("OPTION '--status' MUST BE 'solved' OR 'attempted'.");
+                        throw new CliParseException("OPTION '--status' MUST BE 'unsolved', 'attempted', 'solved', OR 'review'.");
                     status = parsedStatus;
+                    break;
+                case "--search":
+                    EnsureNotAlreadySet(search is not null, "--search");
+                    search = ReadNonBlankValue(args, ref index, "--search");
+                    break;
+                case "--tag":
+                    EnsureNotAlreadySet(tag is not null, "--tag");
+                    tag = ReadNonBlankValue(args, ref index, "--tag");
+                    break;
+                case "--favorite": EnsureNotAlreadySet(favorite, "--favorite"); favorite = true; break;
+                case "--difficulty-min":
+                    EnsureNotAlreadySet(difficultyMin is not null, "--difficulty-min");
+                    difficultyMin = ReadNonNegativeInt(args, ref index, "--difficulty-min");
+                    break;
+                case "--difficulty-max":
+                    EnsureNotAlreadySet(difficultyMax is not null, "--difficulty-max");
+                    difficultyMax = ReadNonNegativeInt(args, ref index, "--difficulty-max");
+                    break;
+                case "--sort":
+                    EnsureNotAlreadySet(sortSpecified, "--sort");
+                    sortSpecified = true;
+                    if (!ProblemSortParser.TryParse(ReadValue(args, ref index, "--sort"), out var parsedSort))
+                        throw new CliParseException("OPTION '--sort' MUST BE 'updated', 'difficulty', 'title', OR 'attempts'.");
+                    sort = parsedSort;
+                    break;
+                case "--offset":
+                    EnsureNotAlreadySet(offsetSpecified, "--offset");
+                    offsetSpecified = true;
+                    offset = ReadNonNegativeInt(args, ref index, "--offset");
                     break;
                 case "--limit":
                     EnsureNotAlreadySet(limitSpecified, "--limit");
@@ -225,11 +292,40 @@ public static class CliParser
                         throw new CliParseException("OPTION '--limit' MUST BE A POSITIVE INTEGER.");
                     break;
                 case "--json": EnsureNotAlreadySet(json, "--json"); json = true; break;
-                default: ThrowUnknownOption(args[index], "problems list [--judge <judge>] [--status <solved|attempted>] [--limit <positive>] [--json]"); break;
+                default: ThrowUnknownOption(args[index], ProblemsListUsage); break;
             }
         }
 
-        return new ProblemsListCommand(judge, status, limit, json);
+        return new ProblemsListCommand(judge, status, search, tag, favorite, difficultyMin, difficultyMax, sort, offset, limit, json);
+    }
+
+    private static ProblemsShowCommand ParseProblemsShow(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            throw new CliParseException($"MISSING PROBLEM KEY. USE: {ProblemsShowUsage}.");
+        }
+
+        var key = args[2];
+        var separator = key.IndexOf('/', StringComparison.Ordinal);
+        if (separator <= 0 || separator == key.Length - 1)
+        {
+            throw new CliParseException($"MALFORMED PROBLEM KEY '{key}'. USE: {ProblemsShowUsage}.");
+        }
+
+        var json = false;
+        for (var index = 3; index < args.Length; index++)
+        {
+            switch (args[index])
+            {
+                case "--json": EnsureNotAlreadySet(json, "--json"); json = true; break;
+                default: ThrowUnknownOption(args[index], ProblemsShowUsage); break;
+            }
+        }
+
+        // The identity freeze: the judge folds through JudgeIdParser, the external id is the
+        // remainder of the key VERBATIM — no trim, no case-fold.
+        return new ProblemsShowCommand(ParseJudge(key[..separator]), key[(separator + 1)..], json);
     }
 
     private static SyncCommand ParseSync(string[] args)
@@ -359,6 +455,13 @@ public static class CliParser
     {
         var value = ReadValue(args, ref index, option).Trim();
         if (value.Length == 0) throw new CliParseException($"OPTION '{option}' REQUIRES A NON-BLANK VALUE.");
+        return value;
+    }
+
+    private static int ReadNonNegativeInt(string[] args, ref int index, string option)
+    {
+        if (!int.TryParse(ReadValue(args, ref index, option), out var value) || value < 0)
+            throw new CliParseException($"OPTION '{option}' MUST BE A NON-NEGATIVE INTEGER.");
         return value;
     }
 
