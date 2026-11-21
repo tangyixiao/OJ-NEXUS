@@ -960,7 +960,7 @@ public sealed class SqliteSyncStore : ISyncStore
         if (search is not null)
         {
             where.Add("(title_lower LIKE $search ESCAPE '\\' OR lower(external_id) LIKE $search ESCAPE '\\')");
-            bind.Add(("$search", EscapeLike(search)));
+            bind.Add(("$search", $"%{EscapeLike(search)}%"));
         }
 
         if (query.Status is { } status)

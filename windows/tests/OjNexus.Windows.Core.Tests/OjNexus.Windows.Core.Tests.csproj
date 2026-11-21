@@ -9,6 +9,11 @@
     <ProjectReference Include="..\OjNexus.Windows.StorageTestHost\OjNexus.Windows.StorageTestHost.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Phase 138: the frozen phase-136 problem contract corpus, linked so the
+         vector parity gate runs against the real build output. -->
+    <Content Include="..\..\..\contracts\problems\v1\**\*.json" CopyToOutputDirectory="PreserveNewest" LinkBase="contracts\problems\v1\" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
